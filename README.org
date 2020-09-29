@@ -212,10 +212,12 @@ MCIT_script --> TX
 
 Level 0 files are stored in the =data/L0/<S>/= folder, where =<S>= is the station name. File names should encode the station, end-of-year of download, a version number if there are multiple files for a given year, and the format. However, no code reads thees files, so there is no strict file naming convention. Still, best practices would use the following conventions:  
 
-=data/L0/<S>/<S>-<Y>[.<n>]-<F>.txt=
+=data/<L>/<S>/<S>-<Y>[.<n>]-<F>.txt=
 
 Where 
 
++ =<L>= is the processing level
+  + =<L>= must be one of the following: [L0, L0M, L1, L1A, L2, L3]
 + =<S>= is a station ID
   + =<S>= must be one of the following strings: [CEN, EGP, KAN_B, KAN_L, KAN_M, KAN_U, KPC_L, KPC_U, MIT, NUK_K, NUK_L, NUK_N, NUK_U, QAS_A, QAS_L, QAS_M, QAS_U, SCO_L, SCO_U, TAS_A, TAS_L, TAS_U, THU_L, THU_U, UPE_L, UPE_U]
 + =<Y>= is a four-digit year with a value greater than =2008=
