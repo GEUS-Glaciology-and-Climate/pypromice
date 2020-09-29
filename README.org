@@ -1,0 +1,303 @@
+
+#+PROPERTY: header-args:jupyter-python :kernel PROMICE_dev :session PROMICE-README
+
+* Table of contents                               :toc_2:noexport:
+- [[#introduction][Introduction]]
+  - [[#overview][Overview]]
+  - [[#level-00][Level 00]]
+  - [[#level-0][Level 0]]
+  - [[#l0m][L0M]]
+
+* Introduction
+
+Code used to process the PROMICE AWS data from Level 0 through Level 3 (end-user product).
+
+We use the following processing levels, described textually and graphically.
+
+** Overview
++ L00 : Sensor data in the CR-1000 logger
++ L0: Raw data from L00 in CSV file format with suggested filenames and organized by station folder
+  + =raw=, =STM= (Slim Table Memory), and =TX= (transmitted)
++ L0M: (MANUAL)
+  + Standardized NEAD headers for =raw=, =STM=, and =TX=
+  + Manually split so no file includes changed sensors
+  + Precise file names
++ L1:
+  + Engineering calibrations applied
+  + Engineering units (e.g. current or volts) converted to physical units (e.g. temperature or wind speed)
+  + Physical unit calibrations applied?
++ L1A:
+  + Physical unit calibrations applied?
+  + Files merged per format to one time series per station (e.g. =raw=, =STM=, and =TX= still exist)
+    + Drop sensor IDs which may change over time
++ L2:
+  + Ancillary data from other sensors (e.g. radiometric correction requires input of tilt sensor)
+  + Merge formats to one product here?
++ L3:
+  + Derived products (e.g. SHF and LHF)
+  + Merge formats to one product here?
+
+#+begin_src ditaa :file ./fig/levels.png :exports results
+
+                    +----------------+
+	            |{d}             |                         Legend
+                    | Digital counts |                         +---------------+
+     Level 00 (L00) |                |                         |input          |
+		    | CR-1000 logger |                         +---------------+
+	            |                |
+	            +-------+--------+                         +---------------+   +=----+
+	                    |				       |{io}process    +--=+ Note|
+	                    v				       +---------------+   +-----+
+                    +----------------+
+	            |{io}            |                         +---------------+
+                    |  Manual Carry  |      		       |{d}Files       |
+                    |      or        |      		       +---------------+
+		    |   Satellite    |
+	            |                |			
+	            +-------+--------+			
+	                    |                           
+	                    v                           
+                    +----------------+                  
+	            |{d}             |      +=---------------------------------+
+                    |  raw, STM, TX  +-----=+Arbitrary file names              |
+     Level 0 (L0)   |                |      |Repeat data (more than 1 download)|
+		    | GEUS text files|	    |More than 1 sensor per file       |
+	            |                |	    +----------------------------------+
+	            +-------+--------+			
+	                    |				
+	                    v				
+                    +----------------+      		
+	            |{io}            |
+                    |  Copy L0 to    |
+                    |       L0M      |      
+	            |                |	   	   
+	            +-------+--------+          	       /----------------------------------\
+                            |                             +----+ Split files by sensor changes{io}|
+                            v                             |    +----------------------------------+
+		    +-------+---------+                   |
+		    |{d}              |                   |    +--------------------+
+                    |     Manual      |                   +----+ Precise file names | 
+     Level 0M (L0M) |                 |<------------------+    +--------------------+
+		    | Standardization |                   |
+		    |                 |                   |    +--------------------+
+ 		    +-------+---------+                   +----+ NEAD headers       |
+			    |	      	   	    	       +--------------------+
+                            v                   	         ^      ^     ^
+	            +-----------------+                          |      |     |
+	            |{io}             |                          |      |   +-+----------+
+	            | Engineering to  |                          |      |   |Metadata    |
+	            | physical units  |                          |      |   +------------+
+	            |                 |                          |    +-+----------------+	    
+                    +-------+---------+                        	 |    |Columns, units, ..|	    
+		            |      	   	                 |    +------------------+	    
+	                    v                    	       +-+---------------------------------+
+                    +-----------------+                        | Instrument calibration parameters |
+		    |{d}              |		   	       |      (recorded, not applied)      |
+    Level 1 (L1)    |                 |                        +-----------------------------------+
+		    |                 |		      	       
+		    +-------+---------+
+                            |
+                            v
+                    +-----------------+
+                    |{io}             |
+                    | Sensor          |
+                    | Calibration     |
+                    | and cleaning    |
+                    |                 |
+                    +-------+---------+
+                            |           
+                            v          
+                    +-----------------+
+                    |{d}              |
+    Level 1A (L1A)  |                 |
+                    |                 |
+                    +-------+---------+
+
+
+
+
+
+
+
+
+
+
+	
+#+END_SRC
+		    
+#+RESULTS:
+[[file:./fig/levels.png]]
+
+** Level 00
+
++ Digital numbers (DN) in the CR1000 logger.
+
+** Level 0
+
+Level 00 is converted to Level 0 in the CR1000 logger during download, or after the DNs are broadcast to the satellite and processed by the MCIT_script (see https://github.com/GEUS-PROMICE/awsrx).
+
+#+begin_src plantuml :file ./fig/L00_to_L0.png :exports results
+@startuml
+
+' plantuml activity diagram (beta)
+
+component Sensor_1
+component Sensor_n
+
+frame CR1000_Logger {
+  database DB_logger [
+  <b>Database</b>
+  10 minute sampling
+  ----
+  var0, var1, ..., varn
+] 
+}
+
+note right
+  Level 00 (L00)
+end note
+
+Sensor_1 --> CR1000_Logger
+Sensor_n --> CR1000_Logger
+
+node GEUS_(Level_0) {
+  file Raw [
+  <b>raw</b>
+  10 min sampling
+  ]
+
+  file SlimTableMem [
+  <b>SlimTableMem</b>
+  Hourly average from
+  10 min sampling
+  ]
+
+  file TX [
+  <b>TX</b>
+  V3:
+    DOY 100 to 300: hourly average
+    DOY 300 to 100: daily average
+  V4:
+    hourly average all days
+  ]
+}
+
+' DB -> hand carry -> raw
+actor Scientist
+DB_logger --> Scientist : Field\ndownload
+Scientist --> Raw : Hand\ncarry
+Scientist --> SlimTableMem : Hand\ncarry
+
+' DB -> satellite -> Transmitted
+cloud Satellite
+file Email
+queue MCIT_script
+
+DB_logger -[dashed]-> Satellite : Data subsampled and\npossible transmission loss
+Satellite -[dashed]-> Email
+Email --> MCIT_script : L00
+MCIT_script --> TX
+
+@enduml
+#+end_src
+
+#+RESULTS:
+[[file:./fig/L00_to_L0.png]]
+
+*** L0 files
+
++ =raw= : All 10-minute data stored on the CF-card (external module on CR1000)
++ =SlimTableMem= : Hourly averaged 10-min data stored in the internal logger memory
++ =transmitted= : Transmitted via satellite. Only a subset of data is transmitted, and only hourly or daily average depending on station and day of year.
+
+Level 0 files are stored in the =data/L0/<S>/= folder, where =<S>= is the station name. File names should encode the station, end-of-year of download, a version number if there are multiple files for a given year, and the format. However, no code reads thees files, so there is no strict file naming convention. Still, best practices would use the following conventions:  
+
+=data/L0/<S>/<S>-<Y>[.<n>]-<F>.txt=
+
+Where 
+
++ =<S>= is a station ID
+  + =<S>= must be one of the following strings: [CEN, EGP, KAN_B, KAN_L, KAN_M, KAN_U, KPC_L, KPC_U, MIT, NUK_K, NUK_L, NUK_N, NUK_U, QAS_A, QAS_L, QAS_M, QAS_U, SCO_L, SCO_U, TAS_A, TAS_L, TAS_U, THU_L, THU_U, UPE_L, UPE_U]
++ =<Y>= is a four-digit year with a value greater than =2008=
+  + =<Y>= should represent the year at the last timestamp in the file
+  + Optionally, =.<n>= is a version number if multiple files from the same year are present
++ =<F>= is the format, one of =raw=, =TX=, or =STM=
+
+# #  java -jar ~/local/rr/rr.war -suppressebnf ./file_names.ebnf > ./fig/file_names.svg
+
+# #+BEGIN_SRC ebnf :tangle file_names.ebnf :exports code
+# filename  ::= 'data' '/' ('L0' | 'L0M' | 'L1') '/' station '/' station '-' year (file_num)? '-' ('raw' | 'STM' | 'TX') '.txt'
+# station   ::= CEN |  EGP |  KAN [BLMU] | (KPC|SCO|THU|UPE) [LU] |  MIT |  NUK [KLNU] |  QAS [ALMU] |  TAS [ALU]
+# year      ::= '2008' | '2009' | '2010' | '2011' | '2012' | '2013' | '2014' | '2015' | '2016' | '2017' | '2018' | '2019' | '2020'
+# #+END_SRC
+
+# #+BEGIN_SRC ditaa :file ./fig/filename.png
+#    +=-----+=---+=---+=---+=--+=--+=---+=--+=--+=-----+
+#    | data | /L | /S | /S | - | Y | .n | - | F | .txt |
+#    +------+----+----+----+---+---+----+---+---+------+
+#      ^      ^    ^    ^    ^   ^   ^    ^   ^   ^        
+#      |      |    |    |    |   |   |    |   |   |
+#      |      |    |    |    |   |   |    |   |   +-- '.txt' extension
+#      |      |    |    |    |   |   |    |   +------ 'raw', 'STM' 'TX'
+#      |	    |    |    |    |   |   |    +---------- hypen
+#      |      |    |    |    |   |   +--------------- optional unique number
+#      |      |    |    |    |   +------------------- year of last timetamp in file
+#      |      |    |    |    +----------------------- hypen
+#      |      |    |    +---------------------------- station name (filename)
+#      |      |    +--------------------------------- station name (folder)
+#      |      +-------------------------------------- level (folder)
+#      +--------------------------------------------- root level
+# #+END_SRC
+
+# #+RESULTS:
+# [[file:./fig/filename.png]]
+  
+ 
+** L0M
+
+Level 0M (L0M) is L0 with the following *manual* changes:
+
++ Files that will continue in the processing pipeline are copied from =L0/<S>/= to =L0M/<S>/= folders.
++ Strict naming format must be followed: =data/L0M/<S>/<S>-<Y>[.<n>]-<F>.txt= (see L0 naming suggestion above, now a requirement)
++ Headers, if present, are standardized to NEAD 1.0 format
+  + NEAD header templates are provided, or should be copied from existing files and updated for the new data/sensors/loggers/etc.
+  + NEAD headers should include instrument calibration parameters, serial numbers, etc.
+  + Existing headers, if they exist, are removed. Any information that should be retained is incorporated into the NEAD header. The L0 data will always retain the original unmodified header if it is needed.
+  + NEAD format specification: https://github.com/GEUS-PROMICE/NEAD/
++ Split files if necessary
+  + Files should be split so that each file only contains one of each sensor. That is if a station visit swapped sensor X with Y, then two files should exist, one with X (with metadata such as serial number, calibration paramater, etc. for X), and one with Y (with associated metadata).
+
+All changes should be documented in the [[./data/L0M/README.org]] file.
+    
+*** Format
+
+We use the [[https://github.com/mankoff/NEAD/][NEAD 1.0]] file format with PROMICE-specific headers. A detailed description of the format is at https://github.com/GEUS-PROMICE/NEAD and a Python reader is at https://github.com/GEUS-PROMICE/pyNEAD.
+
+*** Additional files
+
+Any files that do not conform to the above name format requirement will be ignored. However, for cleanliness, additional files should be placed in sub-folders of =L0/<S>=. If any additional files are created in order to manually adjust problematic data or for any other purpose, an entry should be created in the top level =data/README.org= linking to the original file, the new file, describing what was done and why, and perhaps including a diff.
+
+*** L0M Reader
+
+#+BEGIN_SRC jupyter-python
+import nead.nead_io as nead
+df = nead.read_nead("./data/L0M/EGP/EGP-2016-raw.txt", MKS=False, index_col=0, parse_dates=True)
+# df = nead.read_nead("./data/L0M/EGP/EGP-2017.1-raw.txt", MKS=False, index_col=0, parse_dates=True)
+# df = nead.read_nead("./data/L0M/EGP/EGP-2017.2-STM.txt", MKS=False, index_col=0, parse_dates=True)
+# df = nead.read_nead("./data/L0M/EGP/EGP-2018.1-raw.txt", MKS=False, index_col=0, parse_dates=True)
+# df = nead.read_nead("./data/L0M/EGP/EGP-2018.2-raw.txt", MKS=False, index_col=0, parse_dates=True)
+# df = nead.read_nead("./data/L0M/EGP/EGP-2019.1-raw.txt", MKS=False, index_col=0, parse_dates=True)
+# df = nead.read_nead("./data/L0M/EGP/EGP-2019.2-raw.txt", MKS=False, index_col=0, parse_dates=True)
+df = nead.read_nead("./data/L0M/EGP/EGP-2019-tx.txt", MKS=False, index_col=0, parse_dates=True)
+df[df.columns[0:10]].head()
+#+END_SRC
+
+#+RESULTS:
+| dt                  |           n |     P |      T |     T2 |   RH |    WS |    WD | ISWRI |  OSWR |   ILWR |
+|---------------------+-------------+-------+--------+--------+------+-------+-------+-------+-------+--------|
+| 2019-07-29 13:00:00 | 9.33253e+08 | 744.3 | -7.678 |  -8.65 | 83.5 | 3.617 | 204.5 | 687.4 | 543.5 |  -87.4 |
+| 2019-07-29 14:00:00 | 9.33257e+08 | 744.2 | -6.733 | -7.419 | 83.3 | 2.782 | 195.3 | 683.7 | 543.8 | -108.8 |
+| 2019-07-29 15:00:00 |  9.3326e+08 | 744.3 | -5.215 | -5.654 | 81.9 | 1.663 | 178.4 | 725.8 | 575.4 | -123.6 |
+| 2019-07-29 16:00:00 | 9.33264e+08 | 744.1 | -2.774 | -3.506 | 85.1 | 2.016 | 125.9 | 713.9 | 568.7 | -123.2 |
+| 2019-07-29 17:00:00 | 9.33268e+08 |   744 | -0.147 | -1.557 | 88.5 |  6.13 | 165.8 | 681.7 | 545.4 | -114.6 |
+
