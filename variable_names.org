@@ -1,0 +1,109 @@
+#+TITLE: PROMICE AWS variable names
+
+* Table of contents                               :toc_2:noexport:
+- [[#introduction][Introduction]]
+- [[#headers][Headers]]
+- [[#usage][Usage]]
+
+* Introduction
+
+This documents the variable names used in PROMICE AWS products.
+
+Each variable has three names:
++ =standard_name=: The [[http://cfconventions.org/][CF-compliant]] name. =standard_name= comes from the [[http://cfconventions.org/standard-names.html][CF Standard Name Table]] and may use [[http://cfconventions.org/Data/cf-standard-names/docs/guidelines.html]["constructed" standard names]] following the CF guidelines (e.g. =[surface] [component] standard_name [at surface] [in medium] [due to process] [assuming condition]=)
++ =code_name=: The short name used internally in the code. =code_name= comes from standard abbreviations (for example, =Air pressure= is abbreviated as =p=) or is otherwise based on the words used by =standard_name=.
++ =long_name=: A long (English) name. This may be useful to label axes or in text. =long_name= comes from the =standard_name=.
+
+These variable names, associated units, and comments are stored in [[./template/headers.csv]] vertically (one variable per row) and in [[./template/header_v3.nead]] which should be used to create the L0M data. The [[./template/headers.csv]] file is included below for reference.
+
+* Headers
+
+#+BEGIN_SRC bash :exports results
+cat ./template/headers.csv
+#+END_SRC
+
+#+RESULTS:
+| fields      | standard_name                                     | long_name                                | units               | scale_factor | add_offset | comment                                |
+| time        | time                                              | Time                                     | yyyy-mm-dd HH:MM:SS |            1 |          0 |                                        |
+| rec         | record                                            | Record                                   |                     |            1 |          0 | L0 only                                |
+| min_y       | minutes                                           | Minutes in year                          | min                 |            1 |          0 | L0 only                                |
+| p           | air_pressure                                      | Air pressure                             | hPa                 |         0.01 |          0 |                                        |
+| t           | air_temperature_at_boom                           | Air temperature                          | C                   |            1 |     273.15 |                                        |
+| t_hygroclip | air_temperature_at_hygroclip                      | Air temperature (Hygroclip)              | C                   |            1 |     273.15 |                                        |
+| rh          | relative_humidity                                 | Relative humidity                        | %                   |            1 |          0 |                                        |
+| wspd        | wind_speed                                        | Wind speed                               | m s-1               |            1 |          0 |                                        |
+| wdir        | wind_from_direction                               | Wind from direction                      | degrees             |            1 |          0 |                                        |
+| wd_std      | wind_from_direction_standard_deviation            | Wind from direction (standard deviation) | degrees             |            1 |          0 | L0 only ??                             |
+| dswr_eng    | surface_downwelling_shortwave_radiation_at_sensor | Downwelling shortwave radiation          | 1E-5 V              |       100000 |          0 | L0 engineering units                   |
+| uswr_eng    | surface_upwelling_shortwave_radiation_at_sensor   | Upwelling shortwave radiation            | 1E-5 V              |       100000 |          0 | L0 engineering units                   |
+| dlwr_eng    | surface_downwelling_longwave_radiation_at_sensor  | Downwelling longwave radiation           | 1E-5 V              |       100000 |          0 | L0 engineering units                   |
+| ulwr_eng    | surface_upwelling_longwave_radiation_at_sensor    | Upwelling longwave radiation             | 1E-5 V              |       100000 |          0 | L0 engineering units                   |
+| t_rad       | temperature_at_radiation_sensor                   | Air temperature (Radiation Sensor)       | C                   |            1 |     273.15 |                                        |
+| z_s_boom    | snow_height_at_boom                               | Snow height                              | m                   |            1 |          0 |                                        |
+| z_s_boom_q  | snow_height_at_boom_quality                       | Snow height (quality)                    |                     |            1 |          0 |                                        |
+| z_s_stake   | snow_height_at_stake                              | Surface height                           | m                   |            1 |          0 |                                        |
+| z_s_stake_q | snow_height_at_stake_quality                      | Surface height (quality)                 |                     |            1 |          0 |                                        |
+| z_i         | ice_height                                        | Ice height                               | m                   |            1 |          0 |                                        |
+| t_i_1       | ice_temperature_at_1m                             | Ice temperature at 1 m                   | C                   |            1 |     273.15 |                                        |
+| t_i_2       | ice_temperature_at_2m                             | Ice temperature at 2 m                   | C                   |            1 |     273.15 |                                        |
+| t_i_3       | ice_temperature_at_3m                             | Ice temperature at 3 m                   | C                   |            1 |     273.15 |                                        |
+| t_i_4       | ice_temperature_at_4m                             | Ice temperature at 4 m                   | C                   |            1 |     273.15 |                                        |
+| t_i_5       | ice_temperature_at_5m                             | Ice temperature at 5 m                   | C                   |            1 |     273.15 |                                        |
+| t_i_6       | ice_temperature_at_6m                             | Ice temperature at 6 m                   | C                   |            1 |     273.15 |                                        |
+| t_i_7       | ice_temperature_at_7m                             | Ice temperature at 7 m                   | C                   |            1 |     273.15 |                                        |
+| t_i_10      | ice_temperature_at_10m                            | Ice temperature at 10 m                  | C                   |            1 |     273.15 |                                        |
+| tilt_x      | platform_view_angle_x                             | Tilt to east                             | degrees             |    0.0174533 |          0 |                                        |
+| tilt_y      | platform_view_angle_y                             | Tilt to north                            | degrees             |    0.0174533 |          0 |                                        |
+| gps_t       | gps_time                                          | GPS time                                 | s                   |            1 |          0 |                                        |
+| gps_lat     | gps_latitude                                      | Latitude                                 | degrees             |            1 |          0 |                                        |
+| gps_lon     | gps_longitude                                     | Longitude                                | degrees             |            1 |          0 |                                        |
+| gps_alt     | gps_altitude                                      | Altitude                                 | m                   |            1 |          0 |                                        |
+| gps_giodal  | gps_geoid_separation                              | Geoid separation                         | m                   |            1 |          0 | WGS84 ellipsoid vs EGM96 geoid         |
+| gps_geounit | gps_geounit                                       | GeoUnit                                  |                     |            1 |          0 |                                        |
+| gps_q       | gps_q                                             | Quality                                  |                     |            1 |          0 |                                        |
+| gps_numsat  | gps_numsat                                        | GPS number of satellites                 |                     |            1 |          0 |                                        |
+| gps_hdop    | gps_hdop                                          | HDOP                                     | m                   |            1 |          0 | NMEA: Horizontal dilution of precision |
+| t_logger    | temperature_at_logger                             | Air temperature (logger)                 | C                   |            1 |     273.15 |                                        |
+| fan_dc      | fan_current                                       | Fan current                              | mA                  |         1000 |          0 |                                        |
+| batt_v_ss   | battery_voltage_at_sample_start                   | Battery voltage (sample start)           | V                   |            1 |          0 |                                        |
+| batt_v      | battery_voltage                                   | Battery voltage                          | V                   |            1 |          0 |                                        |
+| rot         | platform_azimuth_angle                            | Rotation                                 | degrees             |    0.0174533 |          0 | v4 addition                            |
+| dshf        | surface_downward_sensible_heat_flux               | Sensible heat flux                       | W m-2               |            1 |          0 | derived for L3                         |
+| dlhf        | surface_downward_latent_heat_flux                 | Latent heat flux                         | W m-2               |            1 |          0 | derived for L3                         |
+| albedo      | surface_albedo                                    | Albedo                                   |                     |            1 |          0 | derived for L3                         |
+| cc          | cloud_area_fraction                               | Cloud cover                              | %                   |            1 |          0 | derived for L3                         |
+| dswr        | surface_downwelling_shortwave_flux                | Downwelling shortwave radiation          | W m-2               |            1 |          0 | L1 derived from dswr_eng               |
+| uswr        | surface_upwelling_shortwave_flux                  | Upwelling shortwave radiation            | W m-2               |            1 |          0 | L1 derived from uswr_eng               |
+| dlwr        | surface_downwelling_longwave_flux                 | Downwelling longwave radiation           | W m-2               |            1 |          0 | L1 derived from dlwr_eng               |
+| ulwr        | surface_upwelling_longwave_flux                   | Upwelling longwave radiation             | W m-2               |            1 |          0 | L1 derived from ulwr_eng               |
+
+
+* Usage
+
+The [[./template/headers.csv]] list can be used to generate three lines required by the L0M file: =fields= (from =standard_name=), =units=, and =long_name=. The =short_name= column is hard-coded as the variables used throughout the code. The three lines can be generated with the following line. It extracts the 3 needed columns, converts to rows, replaces the first comma with a ~=~ sign, adds a space after the commas, and then prefixes with a ~#~ symbol. These lines can then be cut-and-pasted into an updated [[./template/header_v3.nead]].
+
+#+BEGIN_SRC bash :results raw drawer
+# cat ./template/headers.csv | cut -d, -f1-6 | datamash -t, transpose | sed 's/,/ = /' | sed 's/,/,\ /g' | sed 's/^/#\ /' | sed 's/^#\ short_name/#\ fields/'
+for col in $(seq 6); do
+  cat ./template/headers.csv | cut -d, -f${col} | tr '\n' ',' | sed 's/,/ = /'  | sed 's/,/,\ /g'| sed 's/^/#\ /'
+  echo ""
+  echo ""
+done
+#+END_SRC
+
+#+RESULTS:
+:results:
+# fields = time, rec, min_y, p, t, t_hygroclip, rh, wspd, wdir, wd_std, dswr_eng, uswr_eng, dlwr_eng, ulwr_eng, t_rad, z_s_boom, z_s_boom_q, z_s_stake, z_s_stake_q, z_i, t_i_1, t_i_2, t_i_3, t_i_4, t_i_5, t_i_6, t_i_7, t_i_10, tilt_x, tilt_y, gps_t, gps_lat, gps_lon, gps_alt, gps_giodal, gps_geounit, gps_q, gps_numsat, gps_hdop, t_logger, fan_dc, batt_v_ss, batt_v, rot, dshf, dlhf, albedo, cc, dswr, uswr, dlwr, ulwr, 
+
+# standard_name = time, record, minutes, air_pressure, air_temperature_at_boom, air_temperature_at_hygroclip, relative_humidity, wind_speed, wind_from_direction, wind_from_direction_standard_deviation, surface_downwelling_shortwave_radiation_at_sensor, surface_upwelling_shortwave_radiation_at_sensor, surface_downwelling_longwave_radiation_at_sensor, surface_upwelling_longwave_radiation_at_sensor, temperature_at_radiation_sensor, snow_height_at_boom, snow_height_at_boom_quality, snow_height_at_stake, snow_height_at_stake_quality, ice_height, ice_temperature_at_1m, ice_temperature_at_2m, ice_temperature_at_3m, ice_temperature_at_4m, ice_temperature_at_5m, ice_temperature_at_6m, ice_temperature_at_7m, ice_temperature_at_10m, platform_view_angle_x, platform_view_angle_y, gps_time, gps_latitude, gps_longitude, gps_altitude, gps_geoid_separation, gps_geounit, gps_q, gps_numsat, gps_hdop, temperature_at_logger, fan_current, battery_voltage_at_sample_start, battery_voltage, platform_azimuth_angle, surface_downward_sensible_heat_flux, surface_downward_latent_heat_flux, surface_albedo, cloud_area_fraction, surface_downwelling_shortwave_flux, surface_upwelling_shortwave_flux, surface_downwelling_longwave_flux, surface_upwelling_longwave_flux, 
+
+# long_name = Time, Record, Minutes in year, Air pressure, Air temperature, Air temperature (Hygroclip), Relative humidity, Wind speed, Wind from direction, Wind from direction (standard deviation), Downwelling shortwave radiation, Upwelling shortwave radiation, Downwelling longwave radiation, Upwelling longwave radiation, Air temperature (Radiation Sensor), Snow height, Snow height (quality), Surface height, Surface height (quality), Ice height, Ice temperature at 1 m, Ice temperature at 2 m, Ice temperature at 3 m, Ice temperature at 4 m, Ice temperature at 5 m, Ice temperature at 6 m, Ice temperature at 7 m, Ice temperature at 10 m, Tilt to east, Tilt to north, GPS time, Latitude, Longitude, Altitude, Geoid separation, GeoUnit, Quality, GPS number of satellites, HDOP, Air temperature (logger), Fan current, Battery voltage (sample start), Battery voltage, Rotation, Sensible heat flux, Latent heat flux, Albedo, Cloud cover, Downwelling shortwave radiation, Upwelling shortwave radiation, Downwelling longwave radiation, Upwelling longwave radiation, 
+
+# units = yyyy-mm-dd HH:MM:SS, , min, hPa, C, C, %, m s-1, degrees, degrees, 1E-5 V, 1E-5 V, 1E-5 V, 1E-5 V, C, m, , m, , m, C, C, C, C, C, C, C, C, degrees, degrees, s, degrees, degrees, m, m, , , , m, C, mA, V, V, degrees, W m-2, W m-2, , %, W m-2, W m-2, W m-2, W m-2, 
+
+# scale_factor = 1, 1, 1, 0.01, 1, 1, 1, 1, 1, 1, 100000, 100000, 100000, 100000, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.0174533, 0.0174533, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1000, 1, 1, 0.0174533, 1, 1, 1, 1, 1, 1, 1, 1, 
+
+# add_offset = 0, 0, 0, 0, 273.15, 273.15, 0, 0, 0, 0, 0, 0, 0, 0, 273.15, 0, 0, 0, 0, 0, 273.15, 273.15, 273.15, 273.15, 273.15, 273.15, 273.15, 273.15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 273.15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+
+:end:
+

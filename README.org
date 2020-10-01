@@ -55,73 +55,79 @@ We use the following processing levels, described textually and graphically.
 		    |   Satellite    |
 	            |                |			
 	            +-------+--------+			
-	                    |                           
-	                    v                           
-                    +----------------+                  
-	            |{d}             |      +=---------------------------------+
-                    |  raw, STM, TX  +-----=+Arbitrary file names              |
-     Level 0 (L0)   |                |      |Repeat data (more than 1 download)|
-		    | GEUS text files|	    |More than 1 sensor per file       |
-	            |                |	    +----------------------------------+
-	            +-------+--------+			
-	                    |				
-	                    v				
-                    +----------------+      		
-	            |{io}            |
-                    |  Copy L0 to    |
-                    |       L0M      |      
-	            |                |	   	   
-	            +-------+--------+          	       /----------------------------------\
-                            |                             +----+ Split files by sensor changes{io}|
-                            v                             |    +----------------------------------+
-		    +-------+---------+                   |
-		    |{d}              |                   |    +--------------------+
-                    |     Manual      |                   +----+ Precise file names | 
-     Level 0M (L0M) |                 |<------------------+    +--------------------+
-		    | Standardization |                   |
-		    |                 |                   |    +--------------------+
- 		    +-------+---------+                   +----+ NEAD headers       |
-			    |	      	   	    	       +--------------------+
-                            v                   	         ^      ^     ^
-	            +-----------------+                          |      |     |
-	            |{io}             |                          |      |   +-+----------+
-	            | Engineering to  |                          |      |   |Metadata    |
-	            | physical units  |                          |      |   +------------+
-	            |                 |                          |    +-+----------------+	    
-                    +-------+---------+                        	 |    |Columns, units, ..|	    
-		            |      	   	                 |    +------------------+	    
-	                    v                    	       +-+---------------------------------+
-                    +-----------------+                        | Instrument calibration parameters |
-		    |{d}              |		   	       |      (recorded, not applied)      |
-    Level 1 (L1)    |                 |                        +-----------------------------------+
-		    |                 |		      	       
-		    +-------+---------+
+	                    |               +=---------------------------------+            
+	                    v            +--+Arbitrary file names              |            
+                    +----------------+   |  |Repeat data (more than 1 download)|            
+	            |{d}             |   |  |More than 1 sensor per file       |
+                    |  raw, STM, TX  +=--+  +----------------------------------+
+     Level 0 (L0)   |                |      
+		    | GEUS text files|	    
+	            |                |	    
+	            +-------+--------+	    	   						    
+	                    |		         	        /----------------------------------\ 		
+	                    v		                   +----+ Split files by sensor changes{io}| 		
+                    +----------------+                     |    +----------------------------------+ 		
+	            |{io}            |	                   |					    
+                    |  Copy L0 to    |	                   |    +--------------------+		    
+                    |       L0M      |                     +----+ Precise file names | 		    
+	            |                |	   +---------------+    +--------------------+		    
+	            +-------+--------+     |               |					    
+                            |              |               |    +--------------------+		    
+                            v              |               +----+ NEAD headers       |		    
+		    +-------+---------+    |	    	        +--------------------+		    
+		    |{d}              |    |     	          ^      ^     ^			    
+                    |     Manual      |    |                      |      |     |			    
+     Level 0M (L0M) |                 |<---+                      |      |   +-+----------+	    
+		    | Standardization |                           |      |   |Metadata    |	    
+		    |                 |                           |      |   +------------+	    
+ 		    +-------+---------+                           |    +-+----------------+	    
+			    |	      	                          |    |Columns, units, ..|	    
+                            v               	                  |    +------------------+	    
+	            +-----------------+           	        +-+---------------------------------+
+	            |{io}             |                         | Instrument calibration parameters |
+	            | Engineering to  +=--+ 	   	        |      (recorded, not applied)      |
+	            | physical units  |   |                     +-----------------------------------+
+	            |                 |   |
+                    +-------+---------+   |
+		            |      	  |       +=-----------------------+
+	                    v             +------=+e.g. sensible heat flux,|
+                    +-----------------+           |latent heat flux        |
+		    |{d}              |           +------------------------+
+    Level 1 (L1)    |Measured physical|   
+		    |properties       |	  	      	       
+		    +-------+---------+	  
+                            |		  
+                            v		  
+                    +-----------------+
+                    |{io}             |
+                    | Sensor          |       +=------------------------------------------+
+                    | calibration     |------=+e.g. ice at 1 m depth via interpolation, or|
+                    | and cleaning    |       |radiation adjusting for platform rotation  |
+                    |                 |       +-------------------------------------------+
+                    +-------+---------+
+                            |           
+                            v          
+                   +-------------------+
+                   |{d}                |
+     Level 2 (L2)  |Derived on-board   |
+                   |physical properties|
+                   +-------+-----------+
                             |
                             v
                     +-----------------+
                     |{io}             |
-                    | Sensor          |
-                    | Calibration     |
-                    | and cleaning    |
-                    |                 |
+                    | Derive          |       +=-----------------------+
+                    | external        |------=+e.g. sensible heat flux,|
+                    | properties      |       |latent heat flux        |
+                    |                 |       +------------------------+
                     +-------+---------+
                             |           
                             v          
-                    +-----------------+
-                    |{d}              |
-    Level 1A (L1A)  |                 |
-                    |                 |
-                    +-------+---------+
-
-
-
-
-
-
-
-
-
-
+                   +-------------------+
+                   |{d}                |
+     Level 3 (L3)  |Derived external   |
+                   |properties         |
+                   +-------+-----------+
 	
 #+END_SRC
 		    
