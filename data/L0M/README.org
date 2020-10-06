@@ -49,7 +49,7 @@ grep -E "fields =|long_name =|units =" ./EGP/EGP-2016-raw.txt | datamash -t, tra
     28	 Ti10, Ice temperature at 8 m depth, C
     29	 tiltX, Tilt x, Vx10^-2
     30	 tiltY, Tilt y, Vx10^-2
-    31	 GPS_t, GPS time, 
+    31	 GPS_time, GPS time, 
     32	 GPS_lat, Latitude, 
     33	 GPS_lon, Longitude, 
     34	 GPS_alt, Altitude, 
@@ -101,7 +101,7 @@ cat <<EOF | cut -c7- | datamash -t, transpose
     28	 Ti10, Ice temperature at 8 m depth, C
     29	 tiltX, Tilt x, Vx10^-2
     30	 tiltY, Tilt y, Vx10^-2
-    31	 GPS_t, GPS time, 
+    31	 GPS_time, GPS time, 
     32	 GPS_lat, Latitude, 
     33	 GPS_lon, Longitude, 
     34	 GPS_alt, Altitude, 
@@ -112,7 +112,7 @@ EOF
 #+END_SRC
 
 #+RESULTS:
-: 	# fields = dt,	 n,	 P,	 T,	 T2,	 RH,	 WS,	 WD,	 ISWRI,	 OSWR,	 ILWR,	 OLWR,	 T_rad,	 z_snow,	 z_s,	 z_i,	 Ti1,	 Ti2,	 Ti3,	 Ti4,	 Ti5,	 Ti6,	 Ti7,	 Ti10,	 tiltX,	 tiltY,	 GPS_t,	 GPS_lat,	 GPS_lon,	 GPS_alt,	 HDOP,	 Fan_DC,	 batt_V
+: 	# fields = dt,	 n,	 P,	 T,	 T2,	 RH,	 WS,	 WD,	 ISWRI,	 OSWR,	 ILWR,	 OLWR,	 T_rad,	 z_snow,	 z_s,	 z_i,	 Ti1,	 Ti2,	 Ti3,	 Ti4,	 Ti5,	 Ti6,	 Ti7,	 Ti10,	 tiltX,	 tiltY,	 GPS_time,	 GPS_lat,	 GPS_lon,	 GPS_alt,	 HDOP,	 Fan_DC,	 batt_V
 : # long_name = Time, Record, Air pressure, Temperature, Temperature 2, Relative Humidity, Windspeed, Wind direction, Incoming shortwave radiation, Outgoing shortwave radiation, Incoming longwave radiation, Outgoing longwave radiation, Temperature (Radiation Sensor), Snow height, Surface height, Ice height, Ice temperature at 1 m depth, Ice temperature at 2 m depth, Ice temperature at 3 m depth, Ice temperature at 4 m depth, Ice temperature at 5 m depth, Ice temperature at 6 m depth, Ice temperature at 7 m depth, Ice temperature at 8 m depth, Tilt x, Tilt y, GPS time, Latitude, Longitude, Altitude, HDOP, Fan current, Battery voltage
 : # units = TS, RN, hPa, C, C, %, m/s, Deg, Vx10^-5, Vx10^-5, Vx10^-5, Vx10^-5, C, m, m, mV, C, C, C, C, C, C, C, C, Vx10^-2, Vx10^-2, , , , , , mA, V
 
