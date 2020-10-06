@@ -6,7 +6,8 @@
   - [[#overview][Overview]]
   - [[#level-00][Level 00]]
   - [[#level-0][Level 0]]
-  - [[#l0m][L0M]]
+  - [[#level-0m][Level 0M]]
+  - [[#level-1][Level 1]]
 
 * Introduction
 
@@ -23,16 +24,12 @@ We use the following processing levels, described textually and graphically.
   + Manually split so no file includes changed sensors
   + Precise file names
 + L1:
-  + Engineering calibrations applied
   + Engineering units (e.g. current or volts) converted to physical units (e.g. temperature or wind speed)
-  + Physical unit calibrations applied?
 + L1A:
-  + Physical unit calibrations applied?
-  + Files merged per format to one time series per station (e.g. =raw=, =STM=, and =TX= still exist)
-    + Drop sensor IDs which may change over time
+  + Invalid / bad / suspicious data flagged
+  + Files merged to one time series per station
 + L2:
   + Ancillary data from other sensors (e.g. radiometric correction requires input of tilt sensor)
-  + Merge formats to one product here?
 + L3:
   + Derived products (e.g. SHF and LHF)
   + Merge formats to one product here?
@@ -85,50 +82,69 @@ We use the following processing levels, described textually and graphically.
                             v               	                  |    +------------------+	    
 	            +-----------------+           	        +-+---------------------------------+
 	            |{io}             |                         | Instrument calibration parameters |
-	            | Engineering to  +=--+ 	   	        |      (recorded, not applied)      |
-	            | physical units  |   |                     +-----------------------------------+
-	            |                 |   |
-                    +-------+---------+   |
-		            |      	  |       +=-----------------------+
-	                    v             +------=+e.g. sensible heat flux,|
-                    +-----------------+           |latent heat flux        |
-		    |{d}              |           +------------------------+
+	            |  Engineering to |   	   	        |      (recorded, not applied)      |
+	            |  physical units |                         +-----------------------------------+
+	            |                 |   
+                    +-------+---------+   
+		            |      	  
+	                    v             
+                    +-----------------+   
+		    |{d}              |   
     Level 1 (L1)    |Measured physical|   
-		    |properties       |	  	      	       
+		    |    properties   |
+		    |                 |
 		    +-------+---------+	  
                             |		  
                             v		  
                     +-----------------+
                     |{io}             |
-                    | Sensor          |       +=------------------------------------------+
-                    | calibration     |------=+e.g. ice at 1 m depth via interpolation, or|
-                    | and cleaning    |       |radiation adjusting for platform rotation  |
-                    |                 |       +-------------------------------------------+
+                    |   Flag bad data |
+                    |   Merge files   |
+                    |                 |
                     +-------+---------+
                             |           
                             v          
                    +-------------------+
                    |{d}                |
-     Level 2 (L2)  |Derived on-board   |
-                   |physical properties|
+    Level 1A (L1A) |Time series per AWS|
+                   |  Initial data QC  |
+		   |                   |
                    +-------+-----------+
-                            |
-                            v
+                           |
+                           v
+                    +-----------------+
+                    |{io}             |       +=------------------------------------------+ 
+                    | Cross-sensor    |------=+e.g. ice at 1 m depth via interpolation, or| 
+                    |  corrections    |       |radiation adjusting for platform rotation  |
+                    |                 |       +-------------------------------------------+ 
+                    +-------+---------+       
+                            |          
+                            v          
+                   +-------------------+
+                   |{d}                |
+     Level 2 (L2)  |  Derived internal |
+                   |      values       |
+	           |                   |
+                   +-------+-----------+
+                           |
+                           v
                     +-----------------+
                     |{io}             |
-                    | Derive          |       +=-----------------------+
-                    | external        |------=+e.g. sensible heat flux,|
-                    | properties      |       |latent heat flux        |
+                    |     Derive      |       +=-----------------------+
+                    |    external     |------=+e.g. sensible heat flux,|
+                    |   properties    |       |latent heat flux        |
                     |                 |       +------------------------+
                     +-------+---------+
-                            |           
+                            |          
                             v          
                    +-------------------+
                    |{d}                |
-     Level 3 (L3)  |Derived external   |
-                   |properties         |
-                   +-------+-----------+
-	
+     Level 3 (L3)  |  Derived external |
+                   |      values       |
+		   |                   |
+                   +-------------------+
+
+
 #+END_SRC
 		    
 #+RESULTS:
@@ -231,37 +247,8 @@ Where
   + Optionally, =.<n>= is a version number if multiple files from the same year are present
 + =<F>= is the format, one of =raw=, =TX=, or =STM=
 
-# #  java -jar ~/local/rr/rr.war -suppressebnf ./file_names.ebnf > ./fig/file_names.svg
 
-# #+BEGIN_SRC ebnf :tangle file_names.ebnf :exports code
-# filename  ::= 'data' '/' ('L0' | 'L0M' | 'L1') '/' station '/' station '-' year (file_num)? '-' ('raw' | 'STM' | 'TX') '.txt'
-# station   ::= CEN |  EGP |  KAN [BLMU] | (KPC|SCO|THU|UPE) [LU] |  MIT |  NUK [KLNU] |  QAS [ALMU] |  TAS [ALU]
-# year      ::= '2008' | '2009' | '2010' | '2011' | '2012' | '2013' | '2014' | '2015' | '2016' | '2017' | '2018' | '2019' | '2020'
-# #+END_SRC
-
-# #+BEGIN_SRC ditaa :file ./fig/filename.png
-#    +=-----+=---+=---+=---+=--+=--+=---+=--+=--+=-----+
-#    | data | /L | /S | /S | - | Y | .n | - | F | .txt |
-#    +------+----+----+----+---+---+----+---+---+------+
-#      ^      ^    ^    ^    ^   ^   ^    ^   ^   ^        
-#      |      |    |    |    |   |   |    |   |   |
-#      |      |    |    |    |   |   |    |   |   +-- '.txt' extension
-#      |      |    |    |    |   |   |    |   +------ 'raw', 'STM' 'TX'
-#      |	    |    |    |    |   |   |    +---------- hypen
-#      |      |    |    |    |   |   +--------------- optional unique number
-#      |      |    |    |    |   +------------------- year of last timetamp in file
-#      |      |    |    |    +----------------------- hypen
-#      |      |    |    +---------------------------- station name (filename)
-#      |      |    +--------------------------------- station name (folder)
-#      |      +-------------------------------------- level (folder)
-#      +--------------------------------------------- root level
-# #+END_SRC
-
-# #+RESULTS:
-# [[file:./fig/filename.png]]
-  
- 
-** L0M
+** Level 0M
 
 Level 0M (L0M) is L0 with the following *manual* changes:
 
@@ -288,24 +275,85 @@ Any files that do not conform to the above name format requirement will be ignor
 *** L0M Reader
 
 #+BEGIN_SRC jupyter-python
-import nead.nead_io as nead
-df = nead.read_nead("./data/L0M/EGP/EGP-2016-raw.txt", MKS=False, index_col=0, parse_dates=True)
-# df = nead.read_nead("./data/L0M/EGP/EGP-2017.1-raw.txt", MKS=False, index_col=0, parse_dates=True)
-# df = nead.read_nead("./data/L0M/EGP/EGP-2017.2-STM.txt", MKS=False, index_col=0, parse_dates=True)
-# df = nead.read_nead("./data/L0M/EGP/EGP-2018.1-raw.txt", MKS=False, index_col=0, parse_dates=True)
-# df = nead.read_nead("./data/L0M/EGP/EGP-2018.2-raw.txt", MKS=False, index_col=0, parse_dates=True)
-# df = nead.read_nead("./data/L0M/EGP/EGP-2019.1-raw.txt", MKS=False, index_col=0, parse_dates=True)
-# df = nead.read_nead("./data/L0M/EGP/EGP-2019.2-raw.txt", MKS=False, index_col=0, parse_dates=True)
-df = nead.read_nead("./data/L0M/EGP/EGP-2019-tx.txt", MKS=False, index_col=0, parse_dates=True)
-df[df.columns[0:10]].head()
+import nead
+ds = nead.read("./data/L0M/EGP/EGP-2016-raw.txt", index_col=0)
+print(ds)
 #+END_SRC
 
 #+RESULTS:
-| dt                  |           n |     P |      T |     T2 |   RH |    WS |    WD | ISWRI |  OSWR |   ILWR |
-|---------------------+-------------+-------+--------+--------+------+-------+-------+-------+-------+--------|
-| 2019-07-29 13:00:00 | 9.33253e+08 | 744.3 | -7.678 |  -8.65 | 83.5 | 3.617 | 204.5 | 687.4 | 543.5 |  -87.4 |
-| 2019-07-29 14:00:00 | 9.33257e+08 | 744.2 | -6.733 | -7.419 | 83.3 | 2.782 | 195.3 | 683.7 | 543.8 | -108.8 |
-| 2019-07-29 15:00:00 |  9.3326e+08 | 744.3 | -5.215 | -5.654 | 81.9 | 1.663 | 178.4 | 725.8 | 575.4 | -123.6 |
-| 2019-07-29 16:00:00 | 9.33264e+08 | 744.1 | -2.774 | -3.506 | 85.1 | 2.016 | 125.9 | 713.9 | 568.7 | -123.2 |
-| 2019-07-29 17:00:00 | 9.33268e+08 |   744 | -0.147 | -1.557 | 88.5 |  6.13 | 165.8 | 681.7 | 545.4 | -114.6 |
+#+begin_example
+<xarray.Dataset>
+Dimensions:      (time: 10847)
+Coordinates:
+  ,* time         (time) datetime64[ns] 2016-05-01T14:30:00 ... 2016-07-19T17:...
+Data variables:
+    rec          (time) float64 51.0 52.0 53.0 ... 1.09e+04 1.09e+04 1.09e+04
+    min_y        (time) float64 1.765e+05 1.766e+05 ... 2.905e+05 2.905e+05
+    p            (time) float64 724.4 724.1 724.4 724.4 ... 730.8 731.2 730.7
+    t            (time) float64 -20.1 -19.79 -19.31 ... -6.904 -6.904 -6.861
+    t_hygroclip  (time) float64 -19.56 -19.11 -18.92 ... -6.866 -6.86 -6.799
+    rh           (time) float64 54.1 51.7 50.23 49.51 ... 80.28 80.93 81.81
+    wspd         (time) float64 1.062 0.918 0.636 0.486 ... 2.793 2.951 3.069
+    wdir         (time) float64 265.1 259.2 216.8 208.4 ... 217.7 216.6 225.4
+    wd_std       (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
+    dswr         (time) float64 681.7 732.4 688.3 689.6 ... 724.7 711.4 698.8
+    uswr         (time) float64 518.6 559.3 531.8 534.4 ... 559.2 549.6 524.1
+    dlwr         (time) float64 -81.57 -102.0 -101.3 ... -135.8 -135.6 -132.4
+    ulwr         (time) float64 -23.97 -28.65 -33.92 ... -32.33 -32.52 -28.84
+    t_rad        (time) float64 -12.78 -11.42 -9.929 ... -1.114 -1.03 -1.135
+    z_s_boom     (time) float64 2.685 2.683 2.683 2.68 ... 2.583 2.584 2.58
+    z_s_boom_q   (time) float64 190.0 192.0 189.0 187.0 ... 192.0 182.0 168.0
+    z_s_stake    (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
+    z_s_stake_q  (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
+    z_i          (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
+    t_i_1        (time) float64 nan -109.0 -109.0 ... -8.478 -8.458 -8.448
+    t_i_2        (time) float64 nan nan -109.0 -109.0 ... -9.67 -9.67 -9.67
+    t_i_3        (time) float64 nan -109.0 -109.0 ... -8.879 -8.859 -8.849
+    t_i_4        (time) float64 nan -109.0 -109.0 ... -10.74 -10.73 -10.74
+    t_i_5        (time) float64 nan -109.0 -109.0 ... -12.67 -12.67 -12.67
+    t_i_6        (time) float64 nan -109.0 nan -109.0 ... -14.9 -14.9 -14.9
+    t_i_7        (time) float64 nan -109.0 -109.0 nan ... -17.16 -17.16 -17.16
+    t_i_10       (time) float64 nan nan -109.0 nan ... -20.75 -20.76 -20.76
+    tilt_x       (time) float64 3.527 3.492 3.516 3.489 ... 0.109 0.095 0.174
+    tilt_y       (time) float64 -0.945 -0.938 -0.924 ... -0.828 -0.849 -0.859
+    gps_t        (time) object nan nan nan ... 'GT170007.00' 'GT170007.00'
+    gps_lat      (time) object nan nan nan ... 'NH7537.47563' 'NH7537.47563'
+    gps_lon      (time) object nan nan nan ... 'WH03558.49655' 'WH03558.49655'
+    gps_alt      (time) float64 nan nan nan ... 2.663e+03 2.663e+03 2.663e+03
+    gps_giodal   (time) float64 nan nan nan nan nan ... 41.6 41.6 41.6 41.6 41.6
+    gps_geounit  (time) object nan nan nan nan nan nan ... 'M' 'M' 'M' 'M' 'M'
+    gps_q        (time) float64 nan nan nan nan nan nan ... 1.0 1.0 1.0 1.0 1.0
+    gps_numsat   (time) float64 nan nan nan nan nan ... 11.0 12.0 12.0 12.0 12.0
+    gps_hdop     (time) float64 nan nan nan nan nan ... 0.71 0.73 0.73 0.73 0.73
+    t_logger     (time) float64 -12.6 -12.08 -11.65 ... -1.801 -1.735 -1.5
+    fan_dc       (time) float64 137.5 141.3 142.3 141.8 ... 123.5 123.9 124.1
+    batt_v_ss    (time) float64 15.52 15.81 15.79 15.81 ... 14.47 14.47 14.47
+    batt_v       (time) float64 15.23 15.56 15.53 15.63 ... 14.4 14.41 14.41
+Attributes:
+    station_id:          EGP
+    field_delimiter:     ,
+    nodata:              -999
+    srid:                EPSG:4326
+    geometry:            POINT(-35.9748, 75.6247)
+    tz:                  0
+    PROMICE_format:      raw
+    hygroclip_t_offset:  0
+    dswr_eng_coef:       12.71
+    uswr_eng_coef:       12.71
+    dlwr_eng_coef:       12.71
+    ulwr_eng_coef:       12.71
+    pt_z_coef:           0
+    pt_z_p_coef:         0
+    pt_z_factor:         0
+    pt_antifreeze:       0
+    boom_azimuth:        0
+#+end_example
+
+
+
+** Level 1
+
+See code for now for the conversion from engineering to physical units.
+
+
 

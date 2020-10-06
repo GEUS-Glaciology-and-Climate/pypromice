@@ -9,10 +9,10 @@ rh,relative_humidity,Relative humidity,%,1,0,
 wspd,wind_speed,Wind speed,m s-1,1,0,
 wdir,wind_from_direction,Wind from direction,degrees,1,0,
 wd_std,wind_from_direction_standard_deviation,Wind from direction (standard deviation),degrees,1,0,L0 only ??
-dswr_eng,surface_downwelling_shortwave_radiation_at_sensor,Downwelling shortwave radiation,1E-5 V,100000,0,L0 engineering units
-uswr_eng,surface_upwelling_shortwave_radiation_at_sensor,Upwelling shortwave radiation,1E-5 V,100000,0,L0 engineering units
-dlwr_eng,surface_downwelling_longwave_radiation_at_sensor,Downwelling longwave radiation,1E-5 V,100000,0,L0 engineering units
-ulwr_eng,surface_upwelling_longwave_radiation_at_sensor,Upwelling longwave radiation,1E-5 V,100000,0,L0 engineering units
+dswr,surface_downwelling_shortwave_flux,Downwelling shortwave radiation,W m-2,,0,"Actually radiation_at_sensor, not flux. Units 1E-5 V. Engineering units."
+uswr,surface_upwelling_shortwave_flux,Upwelling shortwave radiation,W m-2,,0,
+dlwr,surface_downwelling_longwave_flux,Downwelling longwave radiation,W m-2,,0,
+ulwr,surface_upwelling_longwave_flux,Upwelling longwave radiation,W m-2,,0,
 t_rad,temperature_at_radiation_sensor,Air temperature (Radiation Sensor),C,1,273.15,
 z_s_boom,snow_height_at_boom,Snow height,m,1,0,
 z_s_boom_q,snow_height_at_boom_quality,Snow height (quality),,1,0,
@@ -47,7 +47,3 @@ dshf,surface_downward_sensible_heat_flux,Sensible heat flux,W m-2,1,0,derived fo
 dlhf,surface_downward_latent_heat_flux,Latent heat flux,W m-2,1,0,derived for L3
 albedo,surface_albedo,Albedo,,1,0,derived for L3
 cc,cloud_area_fraction,Cloud cover,%,1,0,derived for L3
-dswr,surface_downwelling_shortwave_flux,Downwelling shortwave radiation,W m-2,1,0,L1 derived from dswr_eng
-uswr,surface_upwelling_shortwave_flux,Upwelling shortwave radiation,W m-2,1,0,L1 derived from uswr_eng
-dlwr,surface_downwelling_longwave_flux,Downwelling longwave radiation,W m-2,1,0,L1 derived from dlwr_eng
-ulwr,surface_upwelling_longwave_flux,Upwelling longwave radiation,W m-2,1,0,L1 derived from ulwr_eng
