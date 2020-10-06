@@ -408,6 +408,7 @@ assert("pt_antifreeze" in ds.attrs.keys())
       + [ ] ~if line[col_season-1] eq '!S' then begin ; hourly transmissions~
       + [ ] Makes guesses if season identifier not transmitted
   + [X] Adjusts UTC offset
+  + [X] Remove HygroClip temperature offset
   + [X] Reads and adjusts SRin ~SRin = [SRin,float(line[col_SRin-1])*10/C_SRin] ; Calculating radiation (10^-5 V -> W/m2)~
   + [X] SRout
   + [X] LRin: ~LRin = [LRin,float(line[col_LRin-1])*10/C_LRin + 5.67e-8*(float(line[col_Trad-1])+T_0)^4]~
@@ -442,6 +443,9 @@ else:
 # if ds.attrs['PROMICE_format'] == 'STM': ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=1))
 # if ds.attrs['PROMICE_format'] == 'TX': ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=1))
 if ds.attrs['tz'] != 0: ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=ds.attrs['tz'], freq='H'))
+
+# Remove HygroClip temperature offset
+ds['t_hygroclip'] = ds['t_hygroclip'] - ds.attrs['hygroclip_t_offset']
 
 # convert radiation from engineering to physical units
 ds['dswr'] = (ds['dswr'] * 10) / ds.attrs['dswr_eng_coef']
