@@ -695,7 +695,7 @@ cat flags.csv
 | # tilt_x    |       -30 |         30 |               | [[file:./IDL/AWSdataprocessing_v3.pro#L675]] |
 | # tilt_y    |       -30 |         30 |               |                                          |
 | p           |       650 |       1100 |               |                                          |
-| t           |       -80 |         30 |               | t > 30ispossible...                      |
+| t           |       -80 |         30 |               | t > 30 is possible...                    |
 | t_hygroclip |       -80 |         30 |             0 |                                          |
 | # rh_cor    |           |        100 |               |                                          |
 | wspd        |         0 |        100 |               |                                          |
