@@ -1,12 +1,21 @@
 
-#+PROPERTY: header-args:jupyter-python :kernel PROMICE_dev :session PROMICE-README
+#+PROPERTY: header-args:jupyter-python :kernel PROMICE_dev :session PROMICE-README :exports both
+#+PROPERTY: header-args:bash :exports both
 
-* Table of contents                               :toc_2:noexport:
+* Table of contents                               :toc_3:noexport:
 - [[#introduction][Introduction]]
   - [[#overview][Overview]]
   - [[#level-00][Level 00]]
   - [[#level-0][Level 0]]
+    - [[#l0-files][L0 files]]
   - [[#level-0m][Level 0M]]
+    - [[#format][Format]]
+    - [[#additional-files][Additional files]]
+    - [[#l0m-reader][L0M Reader]]
+  - [[#l0m---l1][L0M -> L1]]
+    - [[#read-in-file][Read in file]]
+    - [[#eng-to-phys][Eng to phys]]
+    - [[#export-file-as-l1][Export file as L1]]
   - [[#level-1][Level 1]]
 
 * Introduction
@@ -274,7 +283,7 @@ Any files that do not conform to the above name format requirement will be ignor
 
 *** L0M Reader
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC jupyter-python :exports both
 import nead
 ds = nead.read("./data/L0M/EGP/EGP-2016-raw.txt", index_col=0)
 print(ds)
@@ -351,9 +360,203 @@ Attributes:
 
 
 
+** L0M -> L1
+:PROPERTIES:
+:header-args:jupyter-python+: :session L0_to_L1
+:END:
+
+Imports:
+
+#+BEGIN_SRC jupyter-python
+import re
+import shapely
+import nead
+#+END_SRC
+
+*** Read in file
+
++ GitHub link: [[./IDL/AWSdataprocessing_v3.pro#L51]] through [[./IDL/AWSdataprocessing_v3.pro#L123]]
++ Org link: [[./IDL/AWSdataprocessing_v3.pro::51]] through [[./IDL/AWSdataprocessing_v3.pro::123]]
++ [X] Reads in the file
++ [X] Check that required metadata was included in the NEAD header
+
+#+BEGIN_SRC jupyter-python
+fname = "./data/L0M/EGP/EGP-2016-raw.txt"
+
+ds = nead.read(fname, index_col=0)
+
+assert("geometry" in ds.attrs.keys())
+assert(ds.attrs['geometry'][0:5] == "POINT")
+assert("srid" in ds.attrs.keys())
+assert(ds.attrs['srid'] == "EPSG:4326")
+assert("tz" in ds.attrs.keys())
+assert("pt_antifreeze" in ds.attrs.keys())
+#+END_SRC
+
+*** Eng to phys
+
++ GitHub link: [[./IDL/AWSdataprocessing_v3.pro#L116]] through [[./IDL/AWSdataprocessing_v3.pro#L408]] 
++ Org link: [[./IDL/AWSdataprocessing_v3.pro::116]] through [[./IDL/AWSdataprocessing_v3.pro::408]] 
+  + [-] Calculates derived date products (day of century, etc.)
+  + [-] Adjusts start times
+    + [X] ~if slimtablemem eq 'yes' then begin ; change time stamp to start of the hour instead of end~
+    + [ ] ~if transmitted eq 'yes' then begin ; change transmission time to start of the hour/day instead of end~
+      + [ ] ~if line[col_season-1] eq '!W' then begin ; daily transmissions~
+      + [ ] ~if line[col_season-1] eq '!S' then begin ; hourly transmissions~
+      + [ ] Makes guesses if season identifier not transmitted
+  + [X] Adjusts UTC offset
+  + [X] Reads and adjusts SRin ~SRin = [SRin,float(line[col_SRin-1])*10/C_SRin] ; Calculating radiation (10^-5 V -> W/m2)~
+  + [X] SRout
+  + [X] LRin: ~LRin = [LRin,float(line[col_LRin-1])*10/C_LRin + 5.67e-8*(float(line[col_Trad-1])+T_0)^4]~
+  + [X] LRout
+  + [X] Haws: ~Haws = [Haws,float(line[col_Haws-1])*((float(line[col_T-1])+T_0)/T_0)^0.5]~
+  + [X] Hstk: ~Hstk = [Hstk,float(line[col_Hstk-1])*((float(line[col_T-1])+T_0)/T_0)^0.5]~
+  + [X] Hpt: ~Hpt = [Hpt,float(line[col_Hpt-1])*C_Hpt*F_Hpt*998./rho_af]~
+  + [X] Derives Hpt_corrected
+  + [X] Decodes GPS - some stations only record minutes not degrees
+
+
+#+BEGIN_SRC jupyter-python
+    
+T_0 = 273.15
+
+# Calculate pressure transducer fluid density
+if ds.attrs['pt_antifreeze'] == 50:
+    rho_af = 1092
+elif ds.attrs['pt_antifreeze'] == 100:
+    rho_af = 1145
+else:
+    rho_af = np.nan
+    if np.any(~np.isnan(ds['z_i'].values)):
+        print("Antifreeze mix only supported at 50 % or 100%")
+        assert(False)
+    
+
+## adjust times based on file format.
+# raw: No adjust (timestamp is at start of period)
+# STM: Adjust timestamp from end of period to start of period
+# TX: Adjust timestamp start of period (hour/day) also depending on season
+# if ds.attrs['PROMICE_format'] == 'STM': ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=1))
+# if ds.attrs['PROMICE_format'] == 'TX': ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=1))
+if ds.attrs['tz'] != 0: ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=ds.attrs['tz'], freq='H'))
+
+# convert radiation from engineering to physical units
+ds['dswr'] = (ds['dswr'] * 10) / ds.attrs['dswr_eng_coef']
+ds['uswr'] = (ds['uswr'] * 10) / ds.attrs['dswr_eng_coef']
+ds['dlwr'] = ((ds['dlwr'] * 10) / ds.attrs['dlwr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
+ds['ulwr'] = ((ds['ulwr'] * 10) / ds.attrs['dlwr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
+
+# Adjust sonic ranger readings for sensitivity to air temperature
+ds['z_s_boom'] = ds['z_s_boom'] * ((ds['t'] + T_0)/T_0)**0.5 
+ds['z_s_stake'] = ds['z_s_stake'] * ((ds['t'] + T_0)/T_0)**0.5
+# Adjust pressure transducer due to fluid properties
+ds['z_i'] = ds['z_i'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af
+
+# Calculate pressure transducer depth
+ds['z_i_corr'] = ds['z_i'] * np.nan # new 'z_i_corr' copied from 'z_i'
+ds['z_i_corr'].attrs['long_name'] = ds['z_i'].long_name + " corrected"
+ds['z_i_corr'] = ds['z_i'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af \
+    + 100 * (ds.attrs['pt_z_p_coef'] - ds['p']) / (rho_af * 9.81)
+
+
+# Decode GPS
+if ds['gps_lat'].dtype.kind == 'O': # not a float. Probably has "NH"
+    assert('NH' in ds['gps_lat'].dropna(dim='time').values[0])
+    ds['gps_lat'] = (('time'), np.array([_[2:] if isinstance(_, str) else np.nan for _ in ds['gps_lat'].values]).astype(np.float))
+    ds['gps_lon'] = (('time'), np.array([_[2:] if isinstance(_, str) else np.nan for _ in ds['gps_lon'].values]).astype(np.float))
+
+if np.any((ds['gps_lat'] <= 90) & (ds['gps_lat'] > 0)):  # Some stations only recorded minutes, not degrees
+    xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", ds.attrs['geometry'])).astype(np.float)
+    x=xyz[0]; y=xyz[1]; z=xyz[2] if len(xyz) == 3 else 0
+    p = shapely.geometry.Point(x,y,z)
+    ds['gps_lat'] = ds['gps_lat'] + 100*p.y
+if np.any((ds['gps_lon'] <= 90) & (ds['gps_lon'] > 0)):
+    ds['gps_lon'] = ds['gps_lon'] + 100*p.x
+ds['gps_lat'] = (ds['gps_lat'] / 100).astype(np.int) + (ds['gps_lat'] / 100 - (ds['gps_lat'] / 100).astype(np.int)) * 100 / 60
+ds['gps_lon'] = (ds['gps_lon'] / 100).astype(np.int) + (ds['gps_lon'] / 100 - (ds['gps_lon'] / 100).astype(np.int)) * 100 / 60
+
+# tilt-o-meter voltage to degrees
+abst = np.abs(ds['tilt_x'])
+ds['tilt_x'] = ds['tilt_x'] / 10
+ds['tilt_x'] = ds['tilt_x'] / (abst * (-0.49*abst**4 + 3.6*abst**3 - 10.4*abst**2 + 21.1*abst))
+abst = np.abs(ds['tilt_y'])
+ds['tilt_y'] = ds['tilt_y'] / 10
+ds['tilt_y'] = ds['tilt_y'] / (abst * (-0.49*abst**4 + 3.6*abst**3 - 10.4*abst**2 + 21.1*abst))
+#+END_SRC
+
+*** Export file as L1
+
+#+BEGIN_SRC jupyter-python
+
+outpath = os.path.split(fname)[0].split("/")
+outpath[-2] = 'L1'
+outpath = '/'.join(outpath)
+outfile = os.path.splitext(os.path.basename(fname))[0]
+
+ds.to_netcdf(outpath + '/' + outfile + ".nc", mode='w')
+#+END_SRC
+
+
+
+
+
 ** Level 1
+:PROPERTIES:
+:header-args:bash+: :exports both
+:END:
 
-See code for now for the conversion from engineering to physical units.
+File list:
 
+#+BEGIN_SRC bash :exports both :results verbatim
+find ./data/L1
+#+END_SRC
 
+#+RESULTS:
+: ./data/L1
+: ./data/L1/EGP
+: ./data/L1/EGP/EGP-2016-raw.nc
 
+NetCDF format
+
+#+BEGIN_SRC bash :results verbatim :exports both
+ncdump -ch ./data/L1/EGP/EGP-2016-raw.nc | head -n35
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+netcdf EGP-2016-raw {
+dimensions:
+	time = 10847 ;
+variables:
+	double rec(time) ;
+		rec:_FillValue = NaN ;
+		rec:standard_name = "record" ;
+		rec:long_name = "Record" ;
+		rec:units = "" ;
+		rec:scale_factor = "1" ;
+		rec:add_offset = 0. ;
+	double min_y(time) ;
+		min_y:_FillValue = NaN ;
+		min_y:standard_name = "minutes" ;
+		min_y:long_name = "Minutes in year" ;
+		min_y:units = "min" ;
+		min_y:scale_factor = "1" ;
+		min_y:add_offset = 0. ;
+	double p(time) ;
+		p:_FillValue = NaN ;
+		p:standard_name = "air_pressure" ;
+		p:long_name = "Air pressure" ;
+		p:units = "hPa" ;
+		p:scale_factor = "0.01" ;
+		p:add_offset = 0. ;
+	double t(time) ;
+		t:_FillValue = NaN ;
+		t:standard_name = "air_temperature_at_boom" ;
+		t:long_name = "Air temperature" ;
+		t:units = "C" ;
+		t:scale_factor = "1" ;
+		t:add_offset = 273.15 ;
+	double t_hygroclip(time) ;
+		t_hygroclip:_FillValue = NaN ;
+		t_hygroclip:standard_name = "air_temperature_at_hygroclip" ;
+#+end_example
