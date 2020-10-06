@@ -5,21 +5,21 @@
 * Table of contents                               :toc_3:noexport:
 - [[#introduction][Introduction]]
   - [[#overview][Overview]]
-  - [[#level-00][Level 00]]
-  - [[#level-0][Level 0]]
-    - [[#l0-files][L0 files]]
+- [[#level-00][Level 00]]
+- [[#level-0][Level 0]]
+  - [[#l0-files][L0 files]]
   - [[#level-0m][Level 0M]]
     - [[#format][Format]]
     - [[#additional-files][Additional files]]
     - [[#l0m-reader][L0M Reader]]
-  - [[#l0m---l1][L0M -> L1]]
-    - [[#read-in-file][Read in file]]
-    - [[#eng-to-phys][Eng to phys]]
-    - [[#export-file-as-l1][Export file as L1]]
-  - [[#level-1][Level 1]]
-  - [[#l1---l1a][L1 -> L1A]]
-    - [[#merge-files][Merge files]]
-    - [[#flag-data][Flag data]]
+- [[#l0m---l1][L0M -> L1]]
+  - [[#read-in-file][Read in file]]
+  - [[#eng-to-phys][Eng to phys]]
+  - [[#export-file-as-l1][Export file as L1]]
+- [[#level-1][Level 1]]
+- [[#l1---l1a][L1 -> L1A]]
+  - [[#merge-files][Merge files]]
+  - [[#flag-data][Flag data]]
 
 * Introduction
 
@@ -162,11 +162,11 @@ We use the following processing levels, described textually and graphically.
 #+RESULTS:
 [[file:./fig/levels.png]]
 
-** Level 00
+* Level 00
 
 + Digital numbers (DN) in the CR1000 logger.
 
-** Level 0
+* Level 0
 
 Level 00 is converted to Level 0 in the CR1000 logger during download, or after the DNs are broadcast to the satellite and processed by the MCIT_script (see https://github.com/GEUS-PROMICE/awsrx).
 
@@ -238,7 +238,7 @@ MCIT_script --> TX
 #+RESULTS:
 [[file:./fig/L00_to_L0.png]]
 
-*** L0 files
+** L0 files
 
 + =raw= : All 10-minute data stored on the CF-card (external module on CR1000)
 + =SlimTableMem= : Hourly averaged 10-min data stored in the internal logger memory
@@ -363,7 +363,7 @@ Attributes:
 
 
 
-** L0M -> L1
+* L0M -> L1
 :PROPERTIES:
 :header-args:jupyter-python+: :session L0_to_L1
 :END:
@@ -373,10 +373,14 @@ Imports:
 #+BEGIN_SRC jupyter-python
 import re
 import shapely
+from shapely import geometry
 import nead
+import os
 #+END_SRC
 
-*** Read in file
+#+RESULTS:
+
+** Read in file
 
 + GitHub link: [[./IDL/AWSdataprocessing_v3.pro#L51]] through [[./IDL/AWSdataprocessing_v3.pro#L123]]
 + Org link: [[./IDL/AWSdataprocessing_v3.pro::51]] through [[./IDL/AWSdataprocessing_v3.pro::123]]
@@ -398,7 +402,7 @@ assert("pt_antifreeze" in ds.attrs.keys())
 
 #+RESULTS:
 
-*** Eng to phys
+** Eng to phys
 
 + GitHub link: [[./IDL/AWSdataprocessing_v3.pro#L116]] through [[./IDL/AWSdataprocessing_v3.pro#L408]] 
 + Org link: [[./IDL/AWSdataprocessing_v3.pro::116]] through [[./IDL/AWSdataprocessing_v3.pro::408]] 
@@ -423,7 +427,7 @@ assert("pt_antifreeze" in ds.attrs.keys())
 
 
 #+BEGIN_SRC jupyter-python
-    
+
 T_0 = 273.15
 
 # Calculate pressure transducer fluid density
@@ -438,6 +442,8 @@ else:
         assert(False)
     
 
+if 'gps_geounit' in list(ds.variables): ds = ds.drop_vars('gps_geounit')        
+        
 ## adjust times based on file format.
 # raw: No adjust (timestamp is at start of period)
 # STM: Adjust timestamp from end of period to start of period
@@ -471,8 +477,14 @@ ds['z_ice_corr'] = ds['z_ice'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor']
 # Decode GPS
 if ds['gps_lat'].dtype.kind == 'O': # not a float. Probably has "NH"
     assert('NH' in ds['gps_lat'].dropna(dim='time').values[0])
-    ds['gps_lat'] = (('time'), np.array([_[2:] if isinstance(_, str) else np.nan for _ in ds['gps_lat'].values]).astype(np.float))
-    ds['gps_lon'] = (('time'), np.array([_[2:] if isinstance(_, str) else np.nan for _ in ds['gps_lon'].values]).astype(np.float))
+    # for i,v in enumerate(ds['gps_lat'].values): ds['gps_lat'][i] = v[2:] if isinstance(v, str) else np.nan
+    # for i,v in enumerate(ds['gps_lon'].values): ds['gps_lon'][i] = v[2:] if isinstance(v, str) else np.nan
+    # for i,v in enumerate(ds['gps_time'].values): ds['gps_time'][i] = v[2:] if isinstance(v, str) else np.nan
+    for v in ['gps_lat','gps_lon','gps_time']:
+        a = ds[v].attrs # store
+        ds[v][:] = np.array([_[2:] if isinstance(_, str) else np.nan for _ in ds[v].values]).astype(np.float)
+        ds[v] = ds[v].astype(np.float)
+        for k in a.keys(): ds[v].attrs[k] = a[k] # restore
 
 if np.any((ds['gps_lat'] <= 90) & (ds['gps_lat'] > 0)):  # Some stations only recorded minutes, not degrees
     xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", ds.attrs['geometry'])).astype(np.float)
@@ -481,8 +493,14 @@ if np.any((ds['gps_lat'] <= 90) & (ds['gps_lat'] > 0)):  # Some stations only re
     ds['gps_lat'] = ds['gps_lat'] + 100*p.y
 if np.any((ds['gps_lon'] <= 90) & (ds['gps_lon'] > 0)):
     ds['gps_lon'] = ds['gps_lon'] + 100*p.x
-ds['gps_lat'] = (ds['gps_lat'] / 100).astype(np.int) + (ds['gps_lat'] / 100 - (ds['gps_lat'] / 100).astype(np.int)) * 100 / 60
-ds['gps_lon'] = (ds['gps_lon'] / 100).astype(np.int) + (ds['gps_lon'] / 100 - (ds['gps_lon'] / 100).astype(np.int)) * 100 / 60
+
+# ds['gps_lat'] = np.floor(ds['gps_lat'] / 100) + (ds['gps_lat'] / 100 - np.floor(ds['gps_lat'] / 100)) * 100 / 60
+# ds['gps_lon'] = np.floor(ds['gps_lon'] / 100) + (ds['gps_lon'] / 100 - np.floor(ds['gps_lon'] / 100)) * 100 / 60
+for v in ['gps_lat','gps_lon']:
+    a = ds[v].attrs # store
+    ds[v] = np.floor(ds[v] / 100) + (ds[v] / 100 - np.floor(ds[v] / 100)) * 100 / 60
+    for k in a.keys(): ds[v].attrs[k] = a[k] # restore
+    
 
 # tilt-o-meter voltage to degrees
 abst = np.abs(ds['tilt_x'])
@@ -495,7 +513,7 @@ ds['tilt_y'] = ds['tilt_y'] / (abst * (-0.49*abst**4 + 3.6*abst**3 - 10.4*abst**
 
 #+RESULTS:
 
-*** Export file as L1
+** Export file as L1
 
 #+BEGIN_SRC jupyter-python
 outpath = os.path.split(fname)[0].split("/")
@@ -503,12 +521,16 @@ outpath[-2] = 'L1'
 outpath = '/'.join(outpath)
 outfile = os.path.splitext(os.path.basename(fname))[0]
 
-ds.to_netcdf(outpath + '/' + outfile + ".nc", mode='w')
+dtype = {}
+for dt in zip(list(ds.variables)): dtype[dt] = {'dtype': 'float32'} 
+outfname = outpath + '/' + outfile + ".nc"
+if os.path.exists(outfname): os.remove(outfname)
+ds.to_netcdf(outfname, mode='w', format='NETCDF4', compute=True) #, encoding=dtype)
 #+END_SRC
 
 #+RESULTS:
 
-** Level 1
+* Level 1
 :PROPERTIES:
 :header-args:bash+: :exports both
 :END:
@@ -570,17 +592,25 @@ variables:
 #+end_example
 
 
-** L1 -> L1A
+* L1 -> L1A
 :PROPERTIES:
 :header-args:jupyter-python+: :session L1_to_L1A
 :END:
 
-*** Merge files
-#+BEGIN_SRC jupyter-python
-import xarray as xr
+Imports:
 
-ds_raw = xr.open_mfdataset("./data/L1/EGP/*raw.nc", combine='by_coords')
-print(ds_raw)
+#+BEGIN_SRC jupyter-python
+import pandas as pd
+import xarray as xr
+#+END_SRC
+
+#+RESULTS:
+
+** Merge files
+#+BEGIN_SRC jupyter-python
+
+ds = xr.open_mfdataset("./data/L1/EGP/*raw.nc", combine='by_coords', mask_and_scale=False).load()
+print(ds)
 #+END_SRC
 
 #+RESULTS:
@@ -590,49 +620,48 @@ Dimensions:      (time: 10847)
 Coordinates:
   ,* time         (time) datetime64[ns] 2016-05-01T14:30:00 ... 2016-07-19T17:...
 Data variables:
-    rec          (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    min_y        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    p            (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t            (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_hygroclip  (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    rh           (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    wspd         (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    wdir         (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    wd_std       (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    dswr         (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    uswr         (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    dlwr         (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    ulwr         (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_rad        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    z_boom       (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    z_boom_q     (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    z_stake      (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    z_stake_q    (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    z_ice        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_i_1        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_i_2        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_i_3        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_i_4        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_i_5        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_i_6        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_i_7        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_i_10       (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    tilt_x       (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    tilt_y       (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    gps_time     (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    gps_lat      (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    gps_lon      (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    gps_alt      (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    gps_giodal   (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    gps_geounit  (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    gps_q        (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    gps_numsat   (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    gps_hdop     (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    t_logger     (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    fan_dc       (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    batt_v_ss    (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    batt_v       (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
-    z_ice_corr   (time) float64 dask.array<chunksize=(10847,), meta=np.ndarray>
+    rec          (time) float64 51.0 52.0 53.0 ... 1.09e+04 1.09e+04 1.09e+04
+    min_y        (time) float64 1.765e+05 1.766e+05 ... 2.905e+05 2.905e+05
+    p            (time) float64 724.4 724.1 724.4 724.4 ... 730.8 731.2 730.7
+    t            (time) float64 -20.1 -19.79 -19.31 ... -6.904 -6.904 -6.861
+    t_hygroclip  (time) float64 -19.56 -19.11 -18.92 ... -6.866 -6.86 -6.799
+    rh           (time) float64 54.1 51.7 50.23 49.51 ... 80.28 80.93 81.81
+    wspd         (time) float64 1.062 0.918 0.636 0.486 ... 2.793 2.951 3.069
+    wdir         (time) float64 265.1 259.2 216.8 208.4 ... 217.7 216.6 225.4
+    wd_std       (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
+    dswr         (time) float64 536.4 576.2 541.6 542.6 ... 570.1 559.7 549.8
+    uswr         (time) float64 408.0 440.0 418.4 420.5 ... 440.0 432.4 412.4
+    dlwr         (time) float64 196.4 185.8 192.5 182.1 ... 203.7 204.2 206.3
+    ulwr         (time) float64 241.7 243.5 245.5 245.0 ... 285.1 285.3 287.7
+    t_rad        (time) float64 -12.78 -11.42 -9.929 ... -1.114 -1.03 -1.135
+    z_boom       (time) float64 2.584 2.584 2.586 2.587 ... 2.55 2.551 2.547
+    z_boom_q     (time) float64 190.0 192.0 189.0 187.0 ... 192.0 182.0 168.0
+    z_stake      (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
+    z_stake_q    (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
+    z_ice        (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
+    t_i_1        (time) float64 nan -109.0 -109.0 ... -8.478 -8.458 -8.448
+    t_i_2        (time) float64 nan nan -109.0 -109.0 ... -9.67 -9.67 -9.67
+    t_i_3        (time) float64 nan -109.0 -109.0 ... -8.879 -8.859 -8.849
+    t_i_4        (time) float64 nan -109.0 -109.0 ... -10.74 -10.73 -10.74
+    t_i_5        (time) float64 nan -109.0 -109.0 ... -12.67 -12.67 -12.67
+    t_i_6        (time) float64 nan -109.0 nan -109.0 ... -14.9 -14.9 -14.9
+    t_i_7        (time) float64 nan -109.0 -109.0 nan ... -17.16 -17.16 -17.16
+    t_i_10       (time) float64 nan nan -109.0 nan ... -20.75 -20.76 -20.76
+    tilt_x       (time) float64 0.00368 0.003663 0.003675 ... 0.05226 0.02963
+    tilt_y       (time) float64 -0.007519 -0.007557 ... -0.008087 -0.008022
+    gps_time     (time) float64 nan nan nan nan ... 1.7e+05 1.7e+05 1.7e+05
+    gps_lat      (time) float64 nan nan nan nan nan ... 75.62 75.62 75.62 75.62
+    gps_lon      (time) float64 nan nan nan nan nan ... 35.97 35.97 35.97 35.97
+    gps_alt      (time) float64 nan nan nan ... 2.663e+03 2.663e+03 2.663e+03
+    gps_giodal   (time) float64 nan nan nan nan nan ... 41.6 41.6 41.6 41.6 41.6
+    gps_q        (time) float64 nan nan nan nan nan nan ... 1.0 1.0 1.0 1.0 1.0
+    gps_numsat   (time) float64 nan nan nan nan nan ... 11.0 12.0 12.0 12.0 12.0
+    gps_hdop     (time) float64 nan nan nan nan nan ... 0.71 0.73 0.73 0.73 0.73
+    t_logger     (time) float64 -12.6 -12.08 -11.65 ... -1.801 -1.735 -1.5
+    fan_dc       (time) float64 137.5 141.3 142.3 141.8 ... 123.5 123.9 124.1
+    batt_v_ss    (time) float64 15.52 15.81 15.79 15.81 ... 14.47 14.47 14.47
+    batt_v       (time) float64 15.23 15.56 15.53 15.63 ... 14.4 14.41 14.41
+    z_ice_corr   (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
 Attributes:
     station_id:          EGP
     field_delimiter:     ,
@@ -653,42 +682,57 @@ Attributes:
     boom_azimuth:        0
 #+end_example
 
-*** Flag data
+** Flag data
 
-| Property    | low limit | high limit | invalid | comment                                 |
-|-------------+-----------+------------+---------+-----------------------------------------|
-| tilt_x      |       -40 |         40 |         | [[./IDL/AWSdataprocessing_v3.pro#L390]] |
-| tilt_y      |       -40 |         40 |         |                                         |
-| tilt_x      |       -30 |         30 |         | [[./IDL/AWSdataprocessing_v3.pro#L675]] |
-| tilt_y      |       -30 |         30 |         |                                         |
-| p           |       650 |       1100 |         |                                         |
-| t           |       -80 |         30 |         | t > 30 totally possible...              |
-| t_hygroclip |       -80 |         30 |       0 |                                         |
-| rh_cor      |           |        100 |         |                                         |
-| ws          |         0 |        100 |         |                                         |
-| wd          |         0 |        360 |         |                                         |
-| dswr        |       -10 |       1500 |         |                                         |
-| uswr        |       -10 |       1000 |         |                                         |
-| dlwr        |        50 |        500 |         |                                         |
-| ulwr        |        50 |        500 |         |                                         |
-| t_rad       |      -180 |         50 |         |                                         |
-| z_boom      |       0.3 |          3 |         |                                         |
-| z_boom_q    |         0 |            |         |                                         |
-| z_stake     |       0.3 |          8 |         |                                         |
-| z_ice       |         0 |         30 |         |                                         |
-| t_i_1       |       -80 |         30 |         |                                         |
-| t_i_2       |       -80 |         30 |         |                                         |
-| t_i_3       |       -80 |         30 |         |                                         |
-| t_i_4       |       -80 |         30 |         |                                         |
-| t_i_5       |       -80 |         30 |         |                                         |
-| t_i_6       |       -80 |         30 |         |                                         |
-| t_i_7       |       -80 |         30 |         |                                         |
-| t_i_10      |       -30 |         30 |         | NOTE difference                         |
-| gps_time    |         0 |     240000 |         |                                         |
-| gps_lat     |        60 |         83 |         |                                         |
-| gps_lon     |        20 |         70 |         |                                         |
-| gps_alt     |         0 |       3000 |         |                                         |
-| gps_hdop    |         0 |            |         |                                         |
-| t_logger    |       -80 |         30 |         |                                         |
-| fan_dc      |      -200 |        200 |         |                                         |
-| batt_v      |         0 |         30 |         |                                         |
+#+BEGIN_SRC bash :exports results
+cat flags.csv
+#+END_SRC
+
+#+RESULTS:
+| property    | low limit | high limit | other invalid | comment                                  |
+| tilt_x      |       -40 |         40 |               | [[file:./IDL/AWSdataprocessing_v3.pro#L390]] |
+| tilt_y      |       -40 |         40 |               |                                          |
+| # tilt_x    |       -30 |         30 |               | [[file:./IDL/AWSdataprocessing_v3.pro#L675]] |
+| # tilt_y    |       -30 |         30 |               |                                          |
+| p           |       650 |       1100 |               |                                          |
+| t           |       -80 |         30 |               | t > 30ispossible...                      |
+| t_hygroclip |       -80 |         30 |             0 |                                          |
+| # rh_cor    |           |        100 |               |                                          |
+| wspd        |         0 |        100 |               |                                          |
+| wdir        |         0 |        360 |               |                                          |
+| dswr        |       -10 |       1500 |               |                                          |
+| uswr        |       -10 |       1000 |               |                                          |
+| dlwr        |        50 |        500 |               |                                          |
+| ulwr        |        50 |        500 |               |                                          |
+| t_rad       |      -180 |         50 |               |                                          |
+| z_boom      |       0.3 |          3 |               |                                          |
+| z_boom_q    |         0 |            |               |                                          |
+| z_stake     |       0.3 |          8 |               |                                          |
+| z_ice       |         0 |         30 |               |                                          |
+| t_i_1       |       -80 |         30 |               |                                          |
+| t_i_2       |       -80 |         30 |               |                                          |
+| t_i_3       |       -80 |         30 |               |                                          |
+| t_i_4       |       -80 |         30 |               |                                          |
+| t_i_5       |       -80 |         30 |               |                                          |
+| t_i_6       |       -80 |         30 |               |                                          |
+| t_i_7       |       -80 |         30 |               |                                          |
+| t_i_10      |       -30 |         30 |               | NOTE difference                          |
+| gps_time    |         0 |     240000 |               |                                          |
+| gps_lat     |        60 |         83 |               |                                          |
+| gps_lon     |        20 |         70 |               |                                          |
+| gps_alt     |         0 |       3000 |               |                                          |
+| gps_hdop    |         0 |            |               |                                          |
+| t_logger    |       -80 |         30 |               |                                          |
+| fan_dc      |      -200 |        200 |               |                                          |
+| batt_v      |         0 |         30 |               |                                          |
+
+#+BEGIN_SRC jupyter-python
+df = pd.read_csv("flags.csv", index_col=0, comment="#")
+
+for var in df.index:
+    ds[var] = ds[var].where(ds[var] < df.loc[var, 'low limit'])
+    ds[var] = ds[var].where(ds[var] > df.loc[var, 'high limit'])
+#+END_SRC
+
+#+RESULTS:
+
