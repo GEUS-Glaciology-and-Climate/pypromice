@@ -20,6 +20,8 @@
   - [[#export-file-as-l1][Export file as L1]]
 - [[#level-1][Level 1]]
 - [[#l1---l1a][L1 -> L1A]]
+  - [[#wrapper-1][Wrapper]]
+  - [[#imports-1][Imports]]
   - [[#merge-files][Merge files]]
   - [[#flag-data][Flag data]]
   - [[#export-file-as-l1a][Export file as L1A]]
@@ -403,8 +405,6 @@ def L0_to_L1(infile=None):
 if __name__ == "__main__":
     import sys
     L0_to_L1(sys.argv[1])
-    # print("here")
-    # print(sys.argv)
 #+END_SRC
 
 
@@ -636,10 +636,40 @@ variables:
 
 * L1 -> L1A
 :PROPERTIES:
-:header-args:jupyter-python+: :session L1_to_L1A
+:header-args:jupyter-python+: :session L1_to_L1A :noweb-ref L1_to_L1A :noweb yes
 :END:
 
-Imports:
+Run one:
+#+BEGIN_SRC jupyter-python :noweb-ref
+infile = "./data/L0M/EGP/EGP-2016-raw.txt"
+<<L1_to_L1A>>
+#+END_SRC
+
+Run all:
+
+#+BEGIN_SRC bash
+# conda activate PROMICE_dev
+
+./L1_to_L1A.py data/L1/EGP/*raw.nc
+./L1_to_L1A.py data/L1/EGP/*STM.nc
+./L1_to_L1A.py data/L1/EGP/*TX.nc
+#+END_SRC
+
+** Wrapper
+
+#+BEGIN_SRC jupyter-python :tangle L1_to_L1A.py :noweb-ref :tangle-mode (identity #o744)
+#!/usr/bin/env python
+
+def L1_to_L1A(infile=None):
+    <<L1_to_L1A>>
+
+
+if __name__ == "__main__":
+    import sys
+    L1_to_L1A(sys.argv[1])
+#+END_SRC
+
+** Imports
 
 #+BEGIN_SRC jupyter-python
 import pandas as pd
@@ -650,82 +680,17 @@ import os
 #+RESULTS:
 
 ** Merge files
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC jupyter-python :exports both
 infile = "./data/L1/EGP/*raw.nc"
 ds = xr.open_mfdataset(infile, combine='by_coords', mask_and_scale=False).load()
-print(ds)
+# print(ds)
 #+END_SRC
 
 #+RESULTS:
-#+begin_example
-<xarray.Dataset>
-Dimensions:      (time: 10847)
-Coordinates:
-  ,* time         (time) datetime64[ns] 2016-05-01T14:30:00 ... 2016-07-19T17:...
-Data variables:
-    rec          (time) float64 51.0 52.0 53.0 ... 1.09e+04 1.09e+04 1.09e+04
-    min_y        (time) float64 1.765e+05 1.766e+05 ... 2.905e+05 2.905e+05
-    p            (time) float64 724.4 724.1 724.4 724.4 ... 730.8 731.2 730.7
-    t            (time) float64 -20.1 -19.79 -19.31 ... -6.904 -6.904 -6.861
-    t_hygroclip  (time) float64 -19.56 -19.11 -18.92 ... -6.866 -6.86 -6.799
-    rh           (time) float64 54.1 51.7 50.23 49.51 ... 80.28 80.93 81.81
-    wspd         (time) float64 1.062 0.918 0.636 0.486 ... 2.793 2.951 3.069
-    wdir         (time) float64 265.1 259.2 216.8 208.4 ... 217.7 216.6 225.4
-    wd_std       (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
-    dswr         (time) float64 536.4 576.2 541.6 542.6 ... 570.1 559.7 549.8
-    uswr         (time) float64 408.0 440.0 418.4 420.5 ... 440.0 432.4 412.4
-    dlwr         (time) float64 196.4 185.8 192.5 182.1 ... 203.7 204.2 206.3
-    ulwr         (time) float64 241.7 243.5 245.5 245.0 ... 285.1 285.3 287.7
-    t_rad        (time) float64 -12.78 -11.42 -9.929 ... -1.114 -1.03 -1.135
-    z_boom       (time) float64 2.584 2.584 2.586 2.587 ... 2.55 2.551 2.547
-    z_boom_q     (time) float64 190.0 192.0 189.0 187.0 ... 192.0 182.0 168.0
-    z_stake      (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
-    z_stake_q    (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
-    z_ice        (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
-    t_i_1        (time) float64 nan -109.0 -109.0 ... -8.478 -8.458 -8.448
-    t_i_2        (time) float64 nan nan -109.0 -109.0 ... -9.67 -9.67 -9.67
-    t_i_3        (time) float64 nan -109.0 -109.0 ... -8.879 -8.859 -8.849
-    t_i_4        (time) float64 nan -109.0 -109.0 ... -10.74 -10.73 -10.74
-    t_i_5        (time) float64 nan -109.0 -109.0 ... -12.67 -12.67 -12.67
-    t_i_6        (time) float64 nan -109.0 nan -109.0 ... -14.9 -14.9 -14.9
-    t_i_7        (time) float64 nan -109.0 -109.0 nan ... -17.16 -17.16 -17.16
-    t_i_10       (time) float64 nan nan -109.0 nan ... -20.75 -20.76 -20.76
-    tilt_x       (time) float64 0.00368 0.003663 0.003675 ... 0.05226 0.02963
-    tilt_y       (time) float64 -0.007519 -0.007557 ... -0.008087 -0.008022
-    gps_time     (time) float64 nan nan nan nan ... 1.7e+05 1.7e+05 1.7e+05
-    gps_lat      (time) float64 nan nan nan nan nan ... 75.62 75.62 75.62 75.62
-    gps_lon      (time) float64 nan nan nan nan nan ... 35.97 35.97 35.97 35.97
-    gps_alt      (time) float64 nan nan nan ... 2.663e+03 2.663e+03 2.663e+03
-    gps_giodal   (time) float64 nan nan nan nan nan ... 41.6 41.6 41.6 41.6 41.6
-    gps_q        (time) float64 nan nan nan nan nan nan ... 1.0 1.0 1.0 1.0 1.0
-    gps_numsat   (time) float64 nan nan nan nan nan ... 11.0 12.0 12.0 12.0 12.0
-    gps_hdop     (time) float64 nan nan nan nan nan ... 0.71 0.73 0.73 0.73 0.73
-    t_logger     (time) float64 -12.6 -12.08 -11.65 ... -1.801 -1.735 -1.5
-    fan_dc       (time) float64 137.5 141.3 142.3 141.8 ... 123.5 123.9 124.1
-    batt_v_ss    (time) float64 15.52 15.81 15.79 15.81 ... 14.47 14.47 14.47
-    batt_v       (time) float64 15.23 15.56 15.53 15.63 ... 14.4 14.41 14.41
-    z_ice_corr   (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
-Attributes:
-    station_id:          EGP
-    field_delimiter:     ,
-    nodata:              -999
-    srid:                EPSG:4326
-    geometry:            POINT(-35.9748, 75.6247)
-    timezone:            0
-    PROMICE_format:      raw
-    hygroclip_t_offset:  0
-    dswr_eng_coef:       12.71
-    uswr_eng_coef:       12.71
-    dlwr_eng_coef:       12.71
-    ulwr_eng_coef:       12.71
-    pt_z_coef:           0
-    pt_z_p_coef:         0
-    pt_z_factor:         0
-    pt_antifreeze:       0
-    boom_azimuth:        0
-#+end_example
 
 ** Flag data
+
+The following table, from [[./flags.csv]], lists the high and low threshold for each variable.
 
 #+BEGIN_SRC bash :exports results
 cat flags.csv
@@ -768,6 +733,8 @@ cat flags.csv
 | t_logger    |       -80 |         30 |               |                                          |
 | fan_dc      |      -200 |        200 |               |                                          |
 | batt_v      |         0 |         30 |               |                                          |
+
+Use the flag table to set out-of-limit (OOL) values to NaN.
 
 #+BEGIN_SRC jupyter-python
 df = pd.read_csv("flags.csv", index_col=0, comment="#")
