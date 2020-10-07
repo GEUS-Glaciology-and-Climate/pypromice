@@ -13,6 +13,8 @@
     - [[#additional-files][Additional files]]
     - [[#l0m-reader][L0M Reader]]
 - [[#l0m---l1][L0M -> L1]]
+  - [[#wrapper][Wrapper]]
+  - [[#imports][Imports]]
   - [[#read-in-file][Read in file]]
   - [[#eng-to-phys][Eng to phys]]
   - [[#export-file-as-l1][Export file as L1]]
@@ -20,6 +22,7 @@
 - [[#l1---l1a][L1 -> L1A]]
   - [[#merge-files][Merge files]]
   - [[#flag-data][Flag data]]
+  - [[#export-file-as-l1a][Export file as L1A]]
 
 * Introduction
 
@@ -313,11 +316,11 @@ Data variables:
     dlwr         (time) float64 -81.57 -102.0 -101.3 ... -135.8 -135.6 -132.4
     ulwr         (time) float64 -23.97 -28.65 -33.92 ... -32.33 -32.52 -28.84
     t_rad        (time) float64 -12.78 -11.42 -9.929 ... -1.114 -1.03 -1.135
-    z_s_boom     (time) float64 2.685 2.683 2.683 2.68 ... 2.583 2.584 2.58
-    z_s_boom_q   (time) float64 190.0 192.0 189.0 187.0 ... 192.0 182.0 168.0
-    z_s_stake    (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
-    z_s_stake_q  (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
-    z_i          (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
+    z_boom       (time) float64 2.685 2.683 2.683 2.68 ... 2.583 2.584 2.58
+    z_boom_q     (time) float64 190.0 192.0 189.0 187.0 ... 192.0 182.0 168.0
+    z_stake      (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
+    z_stake_q    (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
+    z_ice        (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
     t_i_1        (time) float64 nan -109.0 -109.0 ... -8.478 -8.458 -8.448
     t_i_2        (time) float64 nan nan -109.0 -109.0 ... -9.67 -9.67 -9.67
     t_i_3        (time) float64 nan -109.0 -109.0 ... -8.879 -8.859 -8.849
@@ -347,7 +350,7 @@ Attributes:
     nodata:              -999
     srid:                EPSG:4326
     geometry:            POINT(-35.9748, 75.6247)
-    tz:                  0
+    timezone:            0
     PROMICE_format:      raw
     hygroclip_t_offset:  0
     dswr_eng_coef:       12.71
@@ -365,10 +368,47 @@ Attributes:
 
 * L0M -> L1
 :PROPERTIES:
-:header-args:jupyter-python+: :session L0_to_L1
+:header-args:jupyter-python+: :session L0_to_L1 :noweb-ref L0_to_L1 :noweb yes
 :END:
 
-Imports:
+Run one:
+#+BEGIN_SRC jupyter-python :noweb-ref
+infile = "./data/L0M/EGP/EGP-2016-raw.txt"
+<<L0_to_L1>>
+#+END_SRC
+
+Run all:
+
+#+BEGIN_SRC bash
+# conda activate PROMICE_dev
+for f in $(ls ./data/L0M/EGP/EGP-201*raw*); do
+  echo ${f}
+  ./L0_to_L1.py ${f}
+done
+
+./L0_to_L1.py data/L0M/EGP/EGP-2017-STM.txt 
+./L0_to_L1.py data/L0M/EGP/EGP-2019-TX.txt
+#+END_SRC
+
+
+** Wrapper
+
+#+BEGIN_SRC jupyter-python :tangle L0_to_L1.py :noweb-ref :tangle-mode (identity #o744)
+#!/usr/bin/env python
+
+def L0_to_L1(infile=None):
+    <<L0_to_L1>>
+
+
+if __name__ == "__main__":
+    import sys
+    L0_to_L1(sys.argv[1])
+    # print("here")
+    # print(sys.argv)
+#+END_SRC
+
+
+** Imports
 
 #+BEGIN_SRC jupyter-python
 import re
@@ -376,6 +416,8 @@ import shapely
 from shapely import geometry
 import nead
 import os
+import sys
+import numpy as np
 #+END_SRC
 
 #+RESULTS:
@@ -388,15 +430,13 @@ import os
 + [X] Check that required metadata was included in the NEAD header
 
 #+BEGIN_SRC jupyter-python
-fname = "./data/L0M/EGP/EGP-2016-raw.txt"
-
-ds = nead.read(fname, index_col=0)
+ds = nead.read(infile, index_col=0)
 
 assert("geometry" in ds.attrs.keys())
 assert(ds.attrs['geometry'][0:5] == "POINT")
 assert("srid" in ds.attrs.keys())
 assert(ds.attrs['srid'] == "EPSG:4326")
-assert("tz" in ds.attrs.keys())
+assert("timezone" in ds.attrs.keys())
 assert("pt_antifreeze" in ds.attrs.keys())
 #+END_SRC
 
@@ -450,7 +490,7 @@ if 'gps_geounit' in list(ds.variables): ds = ds.drop_vars('gps_geounit')
 # TX: Adjust timestamp start of period (hour/day) also depending on season
 # if ds.attrs['PROMICE_format'] == 'STM': ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=1))
 # if ds.attrs['PROMICE_format'] == 'TX': ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=1))
-if ds.attrs['tz'] != 0: ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=ds.attrs['tz'], freq='H'))
+if ds.attrs['timezone'] != 0: ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=ds.attrs['timezone'], freq='H'))
 
 # Remove HygroClip temperature offset
 ds['t_hygroclip'] = ds['t_hygroclip'] - ds.attrs['hygroclip_t_offset']
@@ -515,20 +555,22 @@ ds['tilt_y'] = ds['tilt_y'] / (abst * (-0.49*abst**4 + 3.6*abst**3 - 10.4*abst**
 
 ** Export file as L1
 
++ Check with ~cfchecks ./data/L1/EGP/EGP-2016-raw.nc~
+
 #+BEGIN_SRC jupyter-python
-outpath = os.path.split(fname)[0].split("/")
+outpath = os.path.split(infile)[0].split("/")
 outpath[-2] = 'L1'
 outpath = '/'.join(outpath)
-outfile = os.path.splitext(os.path.basename(fname))[0]
+outfile = os.path.splitext(os.path.basename(infile))[0]
 
-dtype = {}
-for dt in zip(list(ds.variables)): dtype[dt] = {'dtype': 'float32'} 
-outfname = outpath + '/' + outfile + ".nc"
-if os.path.exists(outfname): os.remove(outfname)
-ds.to_netcdf(outfname, mode='w', format='NETCDF4', compute=True) #, encoding=dtype)
+outpathfile = outpath + '/' + outfile + ".nc"
+if os.path.exists(outpathfile): os.remove(outpathfile)
+ds.to_netcdf(outpathfile, mode='w', format='NETCDF4', compute=True)
 #+END_SRC
 
 #+RESULTS:
+
+
 
 * Level 1
 :PROPERTIES:
@@ -563,28 +605,28 @@ variables:
 		rec:standard_name = "record" ;
 		rec:long_name = "Record" ;
 		rec:units = "" ;
-		rec:scale_factor = "1" ;
+		rec:scale_factor = 1. ;
 		rec:add_offset = 0. ;
 	double min_y(time) ;
 		min_y:_FillValue = NaN ;
 		min_y:standard_name = "minutes" ;
 		min_y:long_name = "Minutes in year" ;
 		min_y:units = "min" ;
-		min_y:scale_factor = "1" ;
+		min_y:scale_factor = 1. ;
 		min_y:add_offset = 0. ;
 	double p(time) ;
 		p:_FillValue = NaN ;
 		p:standard_name = "air_pressure" ;
 		p:long_name = "Air pressure" ;
 		p:units = "hPa" ;
-		p:scale_factor = "0.01" ;
+		p:scale_factor = 0.01 ;
 		p:add_offset = 0. ;
 	double t(time) ;
 		t:_FillValue = NaN ;
 		t:standard_name = "air_temperature_at_boom" ;
 		t:long_name = "Air temperature" ;
 		t:units = "C" ;
-		t:scale_factor = "1" ;
+		t:scale_factor = 1. ;
 		t:add_offset = 273.15 ;
 	double t_hygroclip(time) ;
 		t_hygroclip:_FillValue = NaN ;
@@ -602,14 +644,15 @@ Imports:
 #+BEGIN_SRC jupyter-python
 import pandas as pd
 import xarray as xr
+import os
 #+END_SRC
 
 #+RESULTS:
 
 ** Merge files
 #+BEGIN_SRC jupyter-python
-
-ds = xr.open_mfdataset("./data/L1/EGP/*raw.nc", combine='by_coords', mask_and_scale=False).load()
+infile = "./data/L1/EGP/*raw.nc"
+ds = xr.open_mfdataset(infile, combine='by_coords', mask_and_scale=False).load()
 print(ds)
 #+END_SRC
 
@@ -668,7 +711,7 @@ Attributes:
     nodata:              -999
     srid:                EPSG:4326
     geometry:            POINT(-35.9748, 75.6247)
-    tz:                  0
+    timezone:            0
     PROMICE_format:      raw
     hygroclip_t_offset:  0
     dswr_eng_coef:       12.71
@@ -735,4 +778,24 @@ for var in df.index:
 #+END_SRC
 
 #+RESULTS:
+
+
+** Export file as L1A
+
++ Check with ~cfchecks ./data/L1A/EGP/EGP-2016-raw.nc~
+
+#+BEGIN_SRC jupyter-python
+outpath = os.path.split(infile)[0].split("/")
+outpath[-2] = 'L1A'
+outfile = outpath[-1] + '-' + os.path.basename(infile).split('*')[1]
+outpath = '/'.join(outpath)
+
+outpathfile = outpath + '/' + outfile
+if os.path.exists(outpathfile): os.remove(outpathfile)
+ds.to_netcdf(outpathfile, mode='w', format='NETCDF4', compute=True)
+#+END_SRC
+
+#+RESULTS:
+
+
 
