@@ -5,7 +5,8 @@
 # nodata          = -999
 # srid            = EPSG:4326                
 # geometry        = POINT(<lon>, <lat>)  # Station location at last visit
-# tz              = 0                    # PROMICE stations should be on UTC time. Adjust here if not
+# timezone        = 0                    # PROMICE stations should be on UTC time. Adjust here if not
+## doi            =
 #
 ###
 ### PROMICE-specific logger and sensor offsets, serial numbers, etc.
