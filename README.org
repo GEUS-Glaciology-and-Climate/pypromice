@@ -43,9 +43,10 @@
   - [[#load-1][Load]]
   - [[#derived-properties][Derived properties]]
     - [[#notdone-comment-turbulent-heat-flux][NOTDONE COMMENT Turbulent heat flux]]
-  - [[#downsample-to-daily-hourly-and-daily][Downsample to daily hourly and daily]]
+  - [[#downsample-to-hourly-and-daily][Downsample to hourly and daily]]
   - [[#export-file-as-l3][Export file as L3]]
 - [[#helper-functions][Helper functions]]
+- [[#compare-python--idl][Compare Python & IDL]]
 
 * Introduction
 
@@ -1346,7 +1347,7 @@ u_star = kappa * WS_h / np.log(z_WS / z_0)
 #+END_SRC
 
 
-** Downsample to daily hourly and daily
+** Downsample to hourly and daily
 
 #+BEGIN_SRC jupyter-python
 ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minutes
@@ -1406,3 +1407,46 @@ import numpy as np
 deg2rad = np.pi / 180
 rad2deg = 1 / deg2rad
 #+END_SRC
+
+* Compare Python & IDL
+:PROPERTIES:
+:header-args:jupyter-python+: :session compare
+:END:
+
+#+BEGIN_SRC jupyter-python
+import pandas as pd
+
+py = pd.read_csv("./data/L3/EGP/EGP-raw_hour.csv", index_col=0, parse_dates=True)
+
+
+def mydf(y,m,d,h):
+    return pd.datetime(int(y),int(m),int(d),int(h))
+
+idl = pd.read_csv("./IDL/data/out/EGP_hour_v03.txt",
+                  delimiter="\s+",
+                  parse_dates={'time':[0,1,2,3]},
+                  infer_datetime_format=True,
+                  date_parser=mydf,
+                  index_col=0)
+
+
+# t
+clf()
+ax = py['t'].plot(linewidth=3, label='v4')
+idl['AirTemperature(C)'].plot(ax=ax, label='v3')
+legend()
+
+# dswr
+clf()
+ax = py['dswr'].plot(linewidth=3, label='v4')
+idl['ShortwaveRadiationDown(W/m2)'].plot(ax=ax, label='v3')
+legend()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: <ipython-input-37-4f0e9ef3a40c>:7: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
+:   return pd.datetime(int(y),int(m),int(d),int(h))
+: <matplotlib.legend.Legend at 0x7f9512cac040>
+:END:
+
