@@ -35,14 +35,14 @@
     - [[#correct-relative-humidity][Correct relative humidity]]
     - [[#cloud-cover][Cloud cover]]
     - [[#correct-shortwave-radiation][Correct shortwave radiation]]
+    - [[#wind-direction][Wind direction]]
   - [[#export-file-as-l2][Export file as L2]]
 - [[#l2---l3][L2 -> L3]]
   - [[#wrapper-3][Wrapper]]
   - [[#imports-3][Imports]]
   - [[#load-1][Load]]
   - [[#derived-properties][Derived properties]]
-    - [[#wind-direction][Wind direction]]
-    - [[#turbulent-heat-flux][Turbulent heat flux]]
+    - [[#notdone-comment-turbulent-heat-flux][NOTDONE COMMENT Turbulent heat flux]]
   - [[#downsample-to-daily-hourly-and-daily][Downsample to daily hourly and daily]]
   - [[#export-file-as-l3][Export file as L3]]
 - [[#helper-functions][Helper functions]]
@@ -194,7 +194,7 @@ We use the following processing levels, described textually and graphically.
 
 * Level 0
 
-Level 00 is converted to Level 0 in the CR1000 logger during download, or after the DNs are broadcast to the satellite and processed by the MCIT_script (see https://github.com/GEUS-PROMICE/awsrx).
+Level 00 is converted to Level 0 in the CR1000 logger during download, or after the DNs are broadcast to the satellite and processed by https://github.com/GEUS-PROMICE/awsrx.
 
 #+begin_src plantuml :file ./fig/L00_to_L0.png :exports results
 @startuml
@@ -251,12 +251,15 @@ Scientist --> SlimTableMem : Hand\ncarry
 ' DB -> satellite -> Transmitted
 cloud Satellite
 file Email
-queue MCIT_script
+queue awsrx
+note right
+   https://github.com/GEUS-PROMICE/awsrx
+end note
 
 DB_logger -[dashed]-> Satellite : Data subsampled and\npossible transmission loss
 Satellite -[dashed]-> Email
-Email --> MCIT_script : L00
-MCIT_script --> TX
+Email --> awsrx : L00
+awsrx --> TX
 
 @enduml
 #+end_src
@@ -308,7 +311,7 @@ We use the [[https://github.com/mankoff/NEAD/][NEAD 1.0]] file format with PROMI
 
 *** Additional files
 
-Any files that do not conform to the above name format requirement will be ignored. However, for cleanliness, additional files should be placed in sub-folders of =L0/<S>=. If any additional files are created in order to manually adjust problematic data or for any other purpose, an entry should be created in the top level =data/README.org= linking to the original file, the new file, describing what was done and why, and perhaps including a diff.
+Any files that do not conform to the above name format requirement will be ignored. However, for cleanliness, additional files should be placed in sub-folders of =L0M/<S>=. If any additional files are created in order to manually adjust problematic data or for any other purpose, an entry should be created in the top level =data/README.org= linking to the original file, the new file, describing what was done and why, and perhaps including a diff.
 
 *** L0M Reader
 
@@ -469,8 +472,8 @@ assert("pt_antifreeze" in ds.attrs.keys())
 + GitHub link: [[./IDL/AWSdataprocessing_v3.pro#L116]] through [[./IDL/AWSdataprocessing_v3.pro#L408]] 
 + Org link: [[./IDL/AWSdataprocessing_v3.pro::116]] through [[./IDL/AWSdataprocessing_v3.pro::408]] 
   + [-] Calculates derived date products (day of century, etc.)
-  + [-] Adjusts start times
-    + [X] ~if slimtablemem eq 'yes' then begin ; change time stamp to start of the hour instead of end~
+  + [ ] Adjusts start times
+    + [ ] ~if slimtablemem eq 'yes' then begin ; change time stamp to start of the hour instead of end~
     + [ ] ~if transmitted eq 'yes' then begin ; change transmission time to start of the hour/day instead of end~
       + [ ] ~if line[col_season-1] eq '!W' then begin ; daily transmissions~
       + [ ] ~if line[col_season-1] eq '!S' then begin ; hourly transmissions~
@@ -881,8 +884,8 @@ ds = xr.open_dataset(infile, mask_and_scale=False).load()
 *** Correct relative humidity
 
 + Correct relative humidity readings for T below 0 to give value with respect to ice
-  + GitHub: [[./AWSdataprocessing_v3.pro#L411]]
-  + Org Mode: [[./AWSdataprocessing_v3.pro::411]]
+  + GitHub: [[./IDL/AWSdataprocessing_v3.pro#L411]]
+  + Org Mode: [[./IDL/AWSdataprocessing_v3.pro::411]]
 
 + This section implements the Goff-Gratch equation
  
@@ -925,8 +928,8 @@ ds[var] = ds[var].where(ds[var] < df.loc[var, 'high limit'])
 *** Cloud cover
 
 + cloud cover (for iswr correction) and surface temperature
-  + GitHub: [[./AWSdataprocessing_v3.pro#L441]]
-  + Org Mode: [[./AWSdataprocessing_v3.pro::441]]
+  + GitHub: [[./IDL/AWSdataprocessing_v3.pro#L441]]
+  + Org Mode: [[./IDL/AWSdataprocessing_v3.pro::441]]
 
 This is a derived product and belongs is L2->L3 processing appearing in L3, but DifFrac is used in the iswr correction.
 
@@ -967,8 +970,8 @@ Tsurf[Tsurf > 0] = 0
 *** Correct shortwave radiation
 
 + Take into account station tilt, sun angle, etc.
-  + GitHub: [[./AWSdataprocessing_v3.pro#L475]]
-  + Org Mode: [[./AWSdataprocessing_v3.pro::475]]
+  + GitHub: [[./IDL/AWSdataprocessing_v3.pro#L475]]
+  + Org Mode: [[./IDL/AWSdataprocessing_v3.pro::475]]
 
 Calculate tilt angle and direction of sensor and rotating to a north-south aligned coordinate system
 #+BEGIN_SRC jupyter-python
@@ -1100,6 +1103,22 @@ ds['uswr_cor'][TOA_crit_nopass] = np.nan
 #+RESULTS:
 
 
+*** Wind direction
+
++ GitHub: [[./IDL/AWSdataprocessing_v3.pro#L423]]
++ Org Mode: [[./IDL/AWSdataprocessing_v3.pro::423]]
+    
+#+BEGIN_SRC jupyter-python
+
+ds['wspd_x'] = ds['wspd'] * np.sin(ds['wdir'] * deg2rad)
+ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
+
+# adjust properties
+#+END_SRC
+
+#+RESULTS:
+
+
 ** Export file as L2
 
 + Check with ~cfchecks ./data/L2/EGP/EGP-raw.nc~
@@ -1138,6 +1157,15 @@ infile = "./data/L2/EGP/EGP-raw.nc"
 <<L2_to_L3>>
 #+END_SRC
 
+#+RESULTS:
+:RESULTS:
+# [goto error]
+:   File "<tokenize>", line 78
+:     endfor
+:     ^
+: IndentationError: unindent does not match any outer indentation level
+:END:
+
 Run all:
 
 #+BEGIN_SRC bash
@@ -1166,158 +1194,70 @@ if __name__ == "__main__":
 #+BEGIN_SRC jupyter-python
 import xarray as xr
 import os
+
+<<constants>>
 #+END_SRC
 
 #+RESULTS:
 
 ** Load
 #+BEGIN_SRC jupyter-python :exports both
-# infile = "./data/L1A/EGP/EGP-raw.nc"
 ds = xr.open_dataset(infile, mask_and_scale=False).load()
 # print(ds)
 #+END_SRC
 
 #+RESULTS:
-:RESULTS:
-# [goto error]
-#+begin_example
-
-KeyErrorTraceback (most recent call last)
-~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/file_manager.py in _acquire_with_cache_info(self, needs_lock)
-    197             try:
---> 198                 file = self._cache[self._key]
-    199             except KeyError:
-
-~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/lru_cache.py in __getitem__(self, key)
-     52         with self._lock:
----> 53             value = self._cache[key]
-     54             self._cache.move_to_end(key)
-
-KeyError: [<class 'netCDF4._netCDF4.Dataset'>, ('/home/kdm/projects/GEUS-PROMICE/PROMICE-AWS-processing/data/L2/EGP/EGP-raw.nc',), 'r', (('clobber', True), ('diskless', False), ('format', 'NETCDF4'), ('persist', False))]
-
-During handling of the above exception, another exception occurred:
-
-FileNotFoundErrorTraceback (most recent call last)
-<ipython-input-16-5140b97edc57> in <module>
-      1 # infile = "./data/L1A/EGP/EGP-raw.nc"
-----> 2 ds = xr.open_dataset(infile, mask_and_scale=False).load()
-      3 # print(ds)
-
-~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/api.py in open_dataset(filename_or_obj, group, decode_cf, mask_and_scale, decode_times, autoclose, concat_characters, decode_coords, engine, chunks, lock, cache, drop_variables, backend_kwargs, use_cftime, decode_timedelta)
-    506             engine = _get_default_engine(filename_or_obj, allow_remote=True)
-    507         if engine == "netcdf4":
---> 508             store = backends.NetCDF4DataStore.open(
-    509                 filename_or_obj, group=group, lock=lock, **backend_kwargs
-    510             )
-
-~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/netCDF4_.py in open(cls, filename, mode, format, group, clobber, diskless, persist, lock, lock_maker, autoclose)
-    356             netCDF4.Dataset, filename, mode=mode, kwargs=kwargs
-    357         )
---> 358         return cls(manager, group=group, mode=mode, lock=lock, autoclose=autoclose)
-    359 
-    360     def _acquire(self, needs_lock=True):
-
-~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/netCDF4_.py in __init__(self, manager, group, mode, lock, autoclose)
-    312         self._group = group
-    313         self._mode = mode
---> 314         self.format = self.ds.data_model
-    315         self._filename = self.ds.filepath()
-    316         self.is_remote = is_remote_uri(self._filename)
-
-~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/netCDF4_.py in ds(self)
-    365     @property
-    366     def ds(self):
---> 367         return self._acquire()
-    368 
-    369     def open_store_variable(self, name, var):
-
-~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/netCDF4_.py in _acquire(self, needs_lock)
-    359 
-    360     def _acquire(self, needs_lock=True):
---> 361         with self._manager.acquire_context(needs_lock) as root:
-    362             ds = _nc4_require_group(root, self._group, self._mode)
-    363         return ds
-
-~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/contextlib.py in __enter__(self)
-    111         del self.args, self.kwds, self.func
-    112         try:
---> 113             return next(self.gen)
-    114         except StopIteration:
-    115             raise RuntimeError("generator didn't yield") from None
-
-~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/file_manager.py in acquire_context(self, needs_lock)
-    184     def acquire_context(self, needs_lock=True):
-    185         """Context manager for acquiring a file."""
---> 186         file, cached = self._acquire_with_cache_info(needs_lock)
-    187         try:
-    188             yield file
-
-~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/file_manager.py in _acquire_with_cache_info(self, needs_lock)
-    202                     kwargs = kwargs.copy()
-    203                     kwargs["mode"] = self._mode
---> 204                 file = self._opener(*self._args, **kwargs)
-    205                 if self._mode == "w":
-    206                     # ensure file doesn't get overriden when opened again
-
-netCDF4/_netCDF4.pyx in netCDF4._netCDF4.Dataset.__init__()
-
-netCDF4/_netCDF4.pyx in netCDF4._netCDF4._ensure_nc_success()
-
-FileNotFoundError: [Errno 2] No such file or directory: b'/home/kdm/projects/GEUS-PROMICE/PROMICE-AWS-processing/data/L2/EGP/EGP-raw.nc'
-#+end_example
-:END:
 
 ** Derived properties
 
-*** Wind direction
+*** NOTDONE COMMENT Turbulent heat flux
 
-+ GitHub: [[./AWSdataprocessing_v3.pro#L423]]
-+ Org Mode: [[./AWSdataprocessing_v3.pro::423]]
-    
++ GitHub: [[./IDL/AWSdataprocessing_v3.pro#L866]]
++ Org Mode: [[./IDL/AWSdataprocessing_v3.pro::866]]
+
+
++ Requires hourly averages
+
+Constants
+
 #+BEGIN_SRC jupyter-python
+z_0    =    0.001    # aerodynamic surface roughness length for momention (assumed constant for all ice/snow surfaces)
+eps    =    0.622
+es_0   =    6.1071   # saturation vapour pressure at the melting point (hPa)
+es_100 = 1013.246    # saturation vapour pressure at steam point temperature (hPa)
+g      =    9.82     # gravitational acceleration (m/s2)
+gamma  =   16.       # flux profile correction (Paulson & Dyer)
+kappa  =    0.4      # Von Karman constant (0.35-0.42)
+L_sub  =    2.83e6   # latent heat of sublimation (J/kg)
+R_d    =  287.05     # gas constant of dry air
+aa     =    0.7      # flux profile correction constants (Holtslag & De Bruin '88)
+bb     =    0.75
+cc     =    5.
+dd     =    0.35
+c_pd   = 1005.       # specific heat of dry air (J/kg/K)
+WS_lim =    1.
+L_dif_max = 0.01
 
-ds['wspd_x'] = ds['wspd'] * np.sin(ds['wdir'] * deg2rad)
-ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
 
-# adjust properties
+T_0 = 273.15
 #+END_SRC
 
-
-*** Turbulent heat flux
-
-+ GitHub: [[./AWSdataprocessing_v3.pro#L866]]
-+ Org Mode: [[./AWSdataprocessing_v3.pro::866]]
+#+RESULTS:
 
 #+BEGIN_SRC jupyter-python
-;----------------------------------------------------------------------------------------------------
-; Calculating turbulent heat fluxes -----------------------------------------------------------------
-; NB: Requires (hourly) averages. Only variables feeding into and out of this section have subscript "h", but all are hourly values.
-;q_h = RH_cor_h
-; Constant declariation
-     z_0    =    0.001          ; aerodynamic surface roughness length for momention (assumed constant for all ice/snow surfaces)
-     eps    =    0.622
-     es_0   =    6.1071         ; saturation vapour pressure at the melting point (hPa)
-     es_100 = 1013.246          ; saturation vapour pressure at steam point temperature (hPa)
-     g      =    9.82           ; gravitational acceleration (m/s2)
-     gamma  =   16.             ; flux profile correction (Paulson & Dyer)
-     kappa  =    0.4            ; Von Karman constant (0.35-0.42)
-     L_sub  =    2.83e6         ; latent heat of sublimation (J/kg)
-     R_d    =  287.05           ; gas constant of dry air
-     aa     =    0.7            ; flux profile correction constants (Holtslag & De Bruin '88)
-     bb     =    0.75
-     cc     =    5.
-     dd     =    0.35
-     c_pd   = 1005.             ; specific heat of dry air (J/kg/K)
-     WS_lim =    1.
-     L_dif_max = 0.01
+# ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minuteso
 
-; Array declaration and initial guesses
-     z_WS = Haws_h + 0.4
-     z_T = Haws_h - 0.1
-     rho_atm = 100.*p_h/R_d/(T_h+T_0)                             ; atmospheric density
-     mu = 18.27e-6*(291.15+120)/((T_h+T_0)+120)*((T_h+T_0)/291.15)^1.5 ; dynamic viscosity of air (Pa s) (Sutherlands' equation using C = 120 K)
-     nu = mu/rho_atm                                                   ; kinematic viscosity of air (m^2/s)
-     u_star = kappa*WS_h/alog(z_WS/z_0)
+T_h = ds_h['t']
+
+z_WS = ds_h['z_boom'] + 0.4  # height of W
+z_T = ds_h['z_boom'] - 0.1   # height of thermometer
+rho_atm = 100 * ds_h['p'] / R_d / (T_h + T_0)   # atmospheric density
+
+# dynamic viscosity of air (Pa s) (Sutherlands' equation using C = 120 K)
+mu = 18.27e-6 * (291.15 + 120) / ((T_h + T_0) + 120) * ((T_h + T_0) / 291.15)**1.5
+
+nu = mu / rho_atm                                                   # kinematic viscosity of air (m^2/s)
+u_star = kappa * WS_h / np.log(z_WS / z_0)
      Re = u_star*z_0/nu
      z_0h = z_0*exp(1.5-0.2*alog(Re)-0.11*(alog(Re))^2) ; rough surfaces: Smeets & Van den Broeke 2008
      z_0h[where(WS_h le 0)] = 1e-10
@@ -1408,6 +1348,27 @@ ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
 
 ** Downsample to daily hourly and daily
 
+#+BEGIN_SRC jupyter-python
+ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minutes
+ds_d = ds.resample({'time':"1D"}).mean()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+/home/kdm/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/core/common.py:1123: FutureWarning: 'base' in .resample() and in Grouper() is deprecated.
+The new arguments that you should use are 'offset' or 'origin'.
+
+>>> df.resample(freq="3s", base=2)
+
+becomes:
+
+>>> df.resample(freq="3s", offset="2s")
+
+  grouper = pd.Grouper(
+/home/kdm/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/core/nanops.py:142: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis=axis, dtype=dtype)
+#+end_example
+
 
 ** Export file as L3
 
@@ -1415,12 +1376,18 @@ ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
 
 #+BEGIN_SRC jupyter-python
 outpath = os.path.split(infile)[0].split("/")
-outpath[-2] = 'L2'
+outpath[-2] = 'L3'
 outpath = '/'.join(outpath)
-outfile = os.path.basename(infile)
-outpathfile = outpath + '/' + outfile
-if os.path.exists(outpathfile): os.remove(outpathfile)
-ds.to_netcdf(outpathfile, mode='w', format='NETCDF4', compute=True)
+outfile_base = os.path.splitext(os.path.basename(infile))[0]
+outpathfile = outpath + '/' + outfile_base
+
+if os.path.exists(outpathfile+"_hour.nc"): os.remove(outpathfile+"_hour.nc")
+ds_h.to_netcdf(outpathfile+"_hour.nc", mode='w', format='NETCDF4', compute=True)
+ds_h.to_dataframe().dropna(how='all').to_csv(outpathfile+"_hour.csv")
+
+if os.path.exists(outpathfile+"_day.nc"): os.remove(outpathfile+"_day.nc")
+ds_d.to_netcdf(outpathfile+"_day.nc", mode='w', format='NETCDF4', compute=True)
+ds_d.to_dataframe().dropna(how='all').to_csv(outpathfile+"_day.csv")
 #+END_SRC
 
 #+RESULTS:
