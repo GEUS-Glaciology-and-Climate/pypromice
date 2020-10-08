@@ -6,7 +6,7 @@ tilt_y,-40,40,,
 p,650,1100,,
 t,-80,30,,t > 30 is possible...
 t_hygroclip,-80,30,0,
-# rh_cor,,100,,
+rh_cor,0,100,,
 wspd,0,100,,
 wdir,0,360,,
 dswr,-10,1500,,

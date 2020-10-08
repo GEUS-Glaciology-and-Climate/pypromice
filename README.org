@@ -25,6 +25,27 @@
   - [[#merge-files][Merge files]]
   - [[#flag-data][Flag data]]
   - [[#export-file-as-l1a][Export file as L1A]]
+- [[#level-a1][Level A1]]
+- [[#l1a---l2][L1A -> L2]]
+  - [[#wrapper-2][Wrapper]]
+  - [[#imports-2][Imports]]
+  - [[#init][Init]]
+  - [[#load][Load]]
+  - [[#calibrate-using-secondary-sensors][Calibrate using secondary sensors]]
+    - [[#correct-relative-humidity][Correct relative humidity]]
+    - [[#cloud-cover][Cloud cover]]
+    - [[#correct-shortwave-radiation][Correct shortwave radiation]]
+  - [[#export-file-as-l2][Export file as L2]]
+- [[#l2---l3][L2 -> L3]]
+  - [[#wrapper-3][Wrapper]]
+  - [[#imports-3][Imports]]
+  - [[#load-1][Load]]
+  - [[#derived-properties][Derived properties]]
+    - [[#wind-direction][Wind direction]]
+    - [[#turbulent-heat-flux][Turbulent heat flux]]
+  - [[#downsample-to-daily-hourly-and-daily][Downsample to daily hourly and daily]]
+  - [[#export-file-as-l3][Export file as L3]]
+- [[#helper-functions][Helper functions]]
 
 * Introduction
 
@@ -46,7 +67,7 @@ We use the following processing levels, described textually and graphically.
   + Invalid / bad / suspicious data flagged
   + Files merged to one time series per station
 + L2:
-  + Ancillary data from other sensors (e.g. radiometric correction requires input of tilt sensor)
+  + Calibration using secondary sources (e.g. radiometric correction requires input of tilt sensor)
 + L3:
   + Derived products (e.g. SHF and LHF)
   + Merge formats to one product here?
@@ -373,6 +394,10 @@ Attributes:
 :header-args:jupyter-python+: :session L0_to_L1 :noweb-ref L0_to_L1 :noweb yes
 :END:
 
++ Convert engineering units to physical units
+
+** Wrapper
+
 Run one:
 #+BEGIN_SRC jupyter-python :noweb-ref
 infile = "./data/L0M/EGP/EGP-2016-raw.txt"
@@ -380,7 +405,6 @@ infile = "./data/L0M/EGP/EGP-2016-raw.txt"
 #+END_SRC
 
 Run all:
-
 #+BEGIN_SRC bash
 # conda activate PROMICE_dev
 for f in $(ls ./data/L0M/EGP/EGP-201*raw*); do
@@ -392,8 +416,6 @@ done
 ./L0_to_L1.py data/L0M/EGP/EGP-2019-TX.txt
 #+END_SRC
 
-
-** Wrapper
 
 #+BEGIN_SRC jupyter-python :tangle L0_to_L1.py :noweb-ref :tangle-mode (identity #o744)
 #!/usr/bin/env python
@@ -639,26 +661,38 @@ variables:
 :header-args:jupyter-python+: :session L1_to_L1A :noweb-ref L1_to_L1A :noweb yes
 :END:
 
++ Merge all files by type (keep =raw=, =STM=, and =TX=)
++ Flag out-of-limit (OOL) values from [[./flags.csv]]
+
+** Wrapper
+
 Run one:
 #+BEGIN_SRC jupyter-python :noweb-ref
-infile = "./data/L0M/EGP/EGP-2016-raw.txt"
+infile = "./data/L1/EGP/EGP-2016-raw.nc"
+infile = "./data/L1/EGP/EGP-2017-STM.nc"
 <<L1_to_L1A>>
 #+END_SRC
+
+#+RESULTS:
 
 Run all:
 
 #+BEGIN_SRC bash
 # conda activate PROMICE_dev
 
+# ./L1_to_L1A.py ./data/L1/EGP/EGP-2016-raw.nc
 ./L1_to_L1A.py data/L1/EGP/*raw.nc
 ./L1_to_L1A.py data/L1/EGP/*STM.nc
 ./L1_to_L1A.py data/L1/EGP/*TX.nc
 #+END_SRC
 
-** Wrapper
+#+RESULTS:
 
-#+BEGIN_SRC jupyter-python :tangle L1_to_L1A.py :noweb-ref :tangle-mode (identity #o744)
+#+header:  :tangle L1_to_L1A.py :noweb-ref :tangle-mode (identity #o744)
+#+BEGIN_SRC jupyter-python
 #!/usr/bin/env python
+
+<<L1_to_L1A_imports>>
 
 def L1_to_L1A(infile=None):
     <<L1_to_L1A>>
@@ -666,11 +700,13 @@ def L1_to_L1A(infile=None):
 
 if __name__ == "__main__":
     import sys
-    L1_to_L1A(sys.argv[1])
+    # print(sys.argv[1:])
+    L1_to_L1A(sys.argv[1:])
 #+END_SRC
 
 ** Imports
 
+#+header: :noweb-ref L1_to_L1A_imports
 #+BEGIN_SRC jupyter-python
 import pandas as pd
 import xarray as xr
@@ -681,9 +717,7 @@ import os
 
 ** Merge files
 #+BEGIN_SRC jupyter-python :exports both
-infile = "./data/L1/EGP/*raw.nc"
 ds = xr.open_mfdataset(infile, combine='by_coords', mask_and_scale=False).load()
-# print(ds)
 #+END_SRC
 
 #+RESULTS:
@@ -705,7 +739,7 @@ cat flags.csv
 | p           |       650 |       1100 |               |                                          |
 | t           |       -80 |         30 |               | t > 30 is possible...                    |
 | t_hygroclip |       -80 |         30 |             0 |                                          |
-| # rh_cor    |           |        100 |               |                                          |
+| rh_cor      |           |        100 |               |                                          |
 | wspd        |         0 |        100 |               |                                          |
 | wdir        |         0 |        360 |               |                                          |
 | dswr        |       -10 |       1500 |               |                                          |
@@ -740,8 +774,9 @@ Use the flag table to set out-of-limit (OOL) values to NaN.
 df = pd.read_csv("flags.csv", index_col=0, comment="#")
 
 for var in df.index:
-    ds[var] = ds[var].where(ds[var] < df.loc[var, 'low limit'])
-    ds[var] = ds[var].where(ds[var] > df.loc[var, 'high limit'])
+    if var not in list(ds.variables): continue
+    ds[var] = ds[var].where(ds[var] > df.loc[var, 'low limit'])
+    ds[var] = ds[var].where(ds[var] < df.loc[var, 'high limit'])
 #+END_SRC
 
 #+RESULTS:
@@ -752,11 +787,14 @@ for var in df.index:
 + Check with ~cfchecks ./data/L1A/EGP/EGP-2016-raw.nc~
 
 #+BEGIN_SRC jupyter-python
+if isinstance(infile, list): infile = infile[0]
+infile_parts = os.path.splitext(os.path.basename(infile))[0].split('-')
+outfile = infile_parts[0] + '-' + infile_parts[-1] + '.nc' # drop year
+
 outpath = os.path.split(infile)[0].split("/")
 outpath[-2] = 'L1A'
-outfile = outpath[-1] + '-' + os.path.basename(infile).split('*')[1]
+# outfile = os.path.splitext(os.path.basename(infile))[0] + '.nc'
 outpath = '/'.join(outpath)
-
 outpathfile = outpath + '/' + outfile
 if os.path.exists(outpathfile): os.remove(outpathfile)
 ds.to_netcdf(outpathfile, mode='w', format='NETCDF4', compute=True)
@@ -766,3 +804,638 @@ ds.to_netcdf(outpathfile, mode='w', format='NETCDF4', compute=True)
 
 
 
+
+* Level A1
+* L1A -> L2
+:PROPERTIES:
+:header-args:jupyter-python+: :session L1A_to_L2 :noweb-ref L1A_to_L2 :noweb yes
+:END:
+
++ Calibration using secondary sources
+
+** Wrapper
+
+Run one:
+#+BEGIN_SRC jupyter-python :noweb-ref
+infile = "./data/L1A/EGP/EGP-raw.nc"
+<<L1A_to_L2>>
+#+END_SRC
+
+#+RESULTS:
+
+Run all:
+
+#+BEGIN_SRC bash
+# conda activate PROMICE_dev
+
+./L1A_to_L2.py data/L1A/EGP/EGP-raw.nc
+./L1A_to_L2.py data/L1A/EGP/EGP-STM.nc
+./L1A_to_L2.py data/L1A/EGP/EGP-TX.nc
+#+END_SRC
+
+
+#+BEGIN_SRC jupyter-python :tangle L1A_to_L2.py :noweb-ref :tangle-mode (identity #o744)
+#!/usr/bin/env python
+
+<<L1A_to_L2_imports>>
+
+def L1A_to_L2(infile=None):
+    <<L1A_to_L2>>
+
+
+if __name__ == "__main__":
+    import sys
+    L1A_to_L2(sys.argv[1])
+#+END_SRC
+
+** Imports
+
+#+header: :noweb-ref L1A_to_L2_imports
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import pandas as pd
+import os
+
+#+END_SRC
+
+#+RESULTS:
+
+** Init
+
+#+BEGIN_SRC jupyter-python
+<<constants>>
+#+END_SRC
+
+
+** Load
+#+BEGIN_SRC jupyter-python :exports both
+# infile = "./data/L1A/EGP/EGP-raw.nc"
+ds = xr.open_dataset(infile, mask_and_scale=False).load()
+# print(ds)
+#+END_SRC
+
+#+RESULTS:
+
+** Calibrate using secondary sensors
+
+*** Correct relative humidity
+
++ Correct relative humidity readings for T below 0 to give value with respect to ice
+  + GitHub: [[./AWSdataprocessing_v3.pro#L411]]
+  + Org Mode: [[./AWSdataprocessing_v3.pro::411]]
+
++ This section implements the Goff-Gratch equation
+ 
+#+BEGIN_SRC jupyter-python
+T_0 = 273.15
+
+T_100 = T_0+100            # steam point temperature in K
+ews = 1013.246             # saturation pressure at steam point temperature, normal atmosphere
+ei0 = 6.1071
+
+T = ds['t']
+
+# in hPa (Goff & Gratch)
+e_s_wtr = 10**(-7.90298 * (T_100 / (T + T_0) - 1)
+               + 5.02808 * np.log10(T_100 / (T + T_0)) 
+               - 1.3816E-7 * (10**(11.344 * (1 - (T + T_0) / T_100)) - 1)
+               + 8.1328E-3 * (10**(-3.49149 * (T_100/(T + T_0) - 1)) -1)
+               + np.log10(ews))
+
+# in hPa (Goff & Gratch)
+e_s_ice = 10**(-9.09718 * (T_0 / (T + T_0) - 1)
+               - 3.56654 * np.log10(T_0 / (T + T_0))
+               + 0.876793 * (1 - (T + T_0) / T_0)
+               + np.log10(ei0))
+
+ds['rh_cor'] = (e_s_wtr / e_s_ice) * ds['rh'].where((ds['t'] < 0) & (ds['t'] > -100))
+
+# clean rh_cor
+df = pd.read_csv("flags.csv", index_col=0, comment="#")
+
+var = 'rh_cor'
+ds[var] = ds[var].where(ds[var] > df.loc[var, 'low limit'])
+ds[var] = ds[var].where(ds[var] < df.loc[var, 'high limit'])
+#+END_SRC
+
+#+RESULTS:
+
+
+
+*** Cloud cover
+
++ cloud cover (for iswr correction) and surface temperature
+  + GitHub: [[./AWSdataprocessing_v3.pro#L441]]
+  + Org Mode: [[./AWSdataprocessing_v3.pro::441]]
+
+This is a derived product and belongs is L2->L3 processing appearing in L3, but DifFrac is used in the iswr correction.
+
+#+BEGIN_SRC jupyter-python
+
+eps_overcast = 1.
+eps_clear = 9.36508e-6
+LR_overcast = eps_overcast * 5.67e-8 *(T + T_0)**4   # assumption
+LR_clear = eps_clear * 5.67e-8 * (T + T_0)**6        # Swinbank (1963)
+
+# Special case for selected stations (will need this for all stations eventually)
+if ds.attrs['station_id'] == 'KAN_M':
+   # print,'KAN_M cloud cover calculations'
+   LR_overcast = 315 + 4*T
+   LR_clear = 30 + 4.6e-13 * (T + T_0)**6
+elif ds.attrs['station_id'] == 'KAN_U':
+   # print,'KAN_U cloud cover calculations'
+   LR_overcast = 305 + 4*T
+   LR_clear = 220 + 3.5*T
+
+cc = (ds['dswr'] - LR_clear) / (LR_overcast - LR_clear)
+cc[cc > 1] = 1
+cc[cc < 0] = 0
+DifFrac = 0.2 + 0.8 * cc
+
+emissivity = 0.97
+Tsurf = ((ds['ulwr'] - (1 - emissivity) * ds['dswr']) / emissivity / 5.67e-8)**0.25 - T_0
+Tsurf[Tsurf > 0] = 0
+# too_warm = Tsurf > 0
+# if total(too_warm) ne -1 then Tsurf[too_warm] = 0
+
+#+END_SRC
+
+#+RESULTS:
+
+
+
+*** Correct shortwave radiation
+
++ Take into account station tilt, sun angle, etc.
+  + GitHub: [[./AWSdataprocessing_v3.pro#L475]]
+  + Org Mode: [[./AWSdataprocessing_v3.pro::475]]
+
+Calculate tilt angle and direction of sensor and rotating to a north-south aligned coordinate system
+#+BEGIN_SRC jupyter-python
+tx = ds['tilt_x'] * deg2rad
+ty = ds['tilt_y'] * deg2rad
+
+## cartesian coords
+X = np.sin(tx) * np.cos(tx) * np.sin(ty)**2 + np.sin(ty) * np.cos(ty)**2
+Y = np.sin(ty) * np.cos(ty) * np.sin(tx)**2 + np.sin(ty) * np.cos(tx)**2
+Z = np.cos(tx) * np.cos(ty) + np.sin(tx)**2 * np.sin(ty)**2
+
+# spherical coords
+phi_sensor_rad = -np.pi /2 - np.arctan(Y/X)
+phi_sensor_rad[X > 0] += np.pi
+phi_sensor_rad[(X == 0) & (Y < 0)] = np.pi
+phi_sensor_rad[(X == 0) & (Y == 0)] = 0
+phi_sensor_rad[phi_sensor_rad < 0] += 2*np.pi
+
+deg2rad = 1 / rad2deg 
+phi_sensor_deg = phi_sensor_rad * deg2rad
+
+# spherical coordinate (or actually total tilt of the sensor, i.e. 0 when horizontal)
+theta_sensor_rad = np.arccos(Z / (X**2 + Y**2 + Z**2)**0.5) 
+theta_sensor_deg = theta_sensor_rad * rad2deg
+
+## Offset correction (determine offset yourself using data for solar
+## zenith angles larger than 110 deg) I actually don't do this as it
+## shouldn't improve accuracy for well calibrated instruments
+# ;ds['dswr'] = ds['dswr'] - ds['dswr_offset']
+# ;SRout = SRout - SRout_offset
+
+# Calculating zenith and hour angle of the sun
+doy = ds['time'].to_dataframe().index.dayofyear.values
+hour = ds['time'].to_dataframe().index.hour.values
+minute = ds['time'].to_dataframe().index.minute.values
+lat = ds['gps_lat']
+lon = ds['gps_lon']
+
+d0_rad = 2 * np.pi * (doy + (hour + minute / 60) / 24 -1) / 365
+
+Declination_rad = np.arcsin(0.006918 - 0.399912 * np.cos(d0_rad) + 0.070257 * np.sin(d0_rad) - 0.006758 * np.cos(2 * d0_rad) + 0.000907 * np.sin(2 * d0_rad) - 0.002697 * np.cos(3 * d0_rad) + 0.00148 * np.sin(3 * d0_rad))
+
+HourAngle_rad = 2 * np.pi * (((hour + minute / 60) / 24 - 0.5) - lon/360)
+# ; - 15.*timezone/360.) ; NB: Make sure time is in UTC and longitude is positive when west! Hour angle should be 0 at noon.
+
+# This is 180 deg at noon (NH), as opposed to HourAngle.
+DirectionSun_deg = HourAngle_rad * 180/np.pi - 180
+
+DirectionSun_deg[DirectionSun_deg < 0] += 360
+DirectionSun_deg[DirectionSun_deg < 0] += 360
+
+ZenithAngle_rad = np.arccos(np.cos(lat * np.pi/180) * np.cos(Declination_rad) * np.cos(HourAngle_rad) + np.sin(lat * np.pi/180) * np.sin(Declination_rad))
+
+ZenithAngle_deg = ZenithAngle_rad * rad2deg
+
+sundown = ZenithAngle_deg >= 90
+dswr_toa = 1372 * np.cos(ZenithAngle_rad) # DSWR at the top of the atmosphere
+dswr_toa[sundown] = 0
+
+# Calculating the correction factor for direct beam radiation
+# http://solardat.uoregon.edu/SolarRadiationBasics.html
+CorFac = np.sin(Declination_rad) * np.sin(lat * deg2rad) * np.cos(theta_sensor_rad) - np.sin(Declination_rad) * np.cos(lat * deg2rad) * np.sin(theta_sensor_rad) * np.cos(phi_sensor_rad + np.pi) + np.cos(Declination_rad) * np.cos(lat * deg2rad) * np.cos(theta_sensor_rad) * np.cos(HourAngle_rad) + np.cos(Declination_rad) * np.sin(lat * deg2rad) * np.sin(theta_sensor_rad) * np.cos(phi_sensor_rad + np.pi) * np.cos(HourAngle_rad) + np.cos(Declination_rad) * np.sin(theta_sensor_rad) * np.sin(phi_sensor_rad + np.pi) * np.sin(HourAngle_rad)
+
+CorFac = np.cos(ZenithAngle_rad) / CorFac
+# sun out of field of view upper sensor
+CorFac[(CorFac < 0) | (ZenithAngle_deg > 90)] = 1
+
+# Calculating ds['dswr'] over a horizontal surface corrected for station/sensor tilt
+CorFac_all = CorFac / (1 - DifFrac + CorFac * DifFrac)
+ds['dswr_cor'] = ds['dswr'] * CorFac_all
+
+
+# Calculating albedo based on albedo values when sun is in sight of the upper sensor
+AngleDif_deg = 180 / np.pi * np.arccos(np.sin(ZenithAngle_rad) * np.cos(HourAngle_rad + np.pi) * np.sin(theta_sensor_rad) * np.cos(phi_sensor_rad) + np.sin(ZenithAngle_rad) * np.sin(HourAngle_rad + np.pi) * np.sin(theta_sensor_rad) * np.sin(phi_sensor_rad) + np.cos(ZenithAngle_rad) * np.cos(theta_sensor_rad)) # angle between sun and sensor
+
+# ;AngleDif_deg = 180./!pi*acos(cos(!pi/2.-ZenithAngle_rad)*cos(!pi/2.-theta_sensor_rad)*cos(HourAngle_rad-phi_sensor_rad)+sin(!pi/2.-ZenithAngle_rad)*sin(!pi/2.-theta_sensor_rad)) ; angle between sun and sensor
+
+albedo = ds['uswr'] / ds['dswr_cor']
+OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (albedo < 1) & (albedo > 0)
+albedo[~OKalbedos] = np.nan
+
+# ;OKalbedos = where(angleDif_deg lt 82.5 and ZenithAngle_deg lt 70 and albedo lt 1 and albedo gt 0, complement=notOKalbedos)
+# ;The running mean calculation doesn't work for non-continuous data sets or variable temporal resolution (e.g. with multiple files)
+# ;albedo_rm = 0*albedo
+# ;albedo_rm[OKalbedos] = smooth(albedo[OKalbedos],obsrate+1,/edge_truncate) ; boxcar average of reliable albedo values
+# ;albedo[notOKalbedos] = interpol(albedo_rm[OKalbedos],OKalbedos,notOKalbedos) ; interpolate over gaps
+# ;albedo_rm[notOKalbedos] = albedo[notOKalbedos]
+# ;So instead:
+
+# albedo[notOKalbedos] = interpol(albedo[OKalbedos],OKalbedos,notOKalbedos) ; interpolate over gaps - gives problems for discontinuous data sets, but is not the end of the world
+
+# Correcting SR using DSWR when sun is in field of view of lower sensor assuming sensor measures only diffuse radiation
+sunonlowerdome =(AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)
+ds['dswr_cor'][sunonlowerdome] = ds['dswr'][sunonlowerdome] / DifFrac[sunonlowerdome]
+ds['uswr_cor'] = ds['uswr']
+ds['uswr_cor'][sunonlowerdome] = albedo * ds['dswr'][sunonlowerdome] / DifFrac[sunonlowerdome]
+
+# Setting DSWR and USWR to zero for solar zenith angles larger than 95 deg or either DSWR or USWR are (less than) zero
+bad = (ZenithAngle_deg > 95) | (ds['dswr_cor'] <= 0) | (ds['uswr_cor'] <= 0)
+ds['dswr_cor'][bad] = 0
+ds['uswr_cor'][bad] = 0
+
+# Correcting DSWR using more reliable USWR when sun not in sight of upper sensor
+ds['dswr_cor'] = ds['uswr_cor'] / albedo
+# albedo[~OKalbedos] = np.nan
+# albedo[OKalbedos[n_elements(OKalbedos)-1]:*] = -999 ; Removing albedos that were extrapolated (as opposed to interpolated) at the end of the time series - see above
+# ds['dswr']_cor[OKalbedos[n_elements(OKalbedos)-1]:*] = -999 ; Removing the corresponding ds['dswr']_cor as well
+# ds['uswr_cor'][OKalbedos[n_elements(OKalbedos)-1]:*] = -999 ; Removing the corresponding ds['uswr_cor'] as well
+
+# ; Removing spikes by interpolation based on a simple top-of-the-atmosphere limitation
+#      TOA_crit_nopass = where(ds['dswr']_cor gt 0.9*dswr_toa+10)
+#      TOA_crit_pass = where(ds['dswr']_cor le 0.9*dswr_toa+10)
+#      if total(TOA_crit_nopass) ne -1 then begin
+#         ds['dswr']_cor[TOA_crit_nopass] = interpol(ds['dswr']_cor[TOA_crit_pass],TOA_crit_pass,TOA_crit_nopass)
+#         ds['uswr_cor'][TOA_crit_nopass] = interpol(ds['uswr_cor'][TOA_crit_pass],TOA_crit_pass,TOA_crit_nopass)
+#      endif
+TOA_crit_nopass = (ds['dswr_cor'] > (0.9 * dswr_toa + 10))
+ds['dswr_cor'][TOA_crit_nopass] = np.nan
+ds['uswr_cor'][TOA_crit_nopass] = np.nan
+
+# print,'- Sun in view of upper sensor / workable albedos:',n_elements(OKalbedos),100*n_elements(OKalbedos)/n_elements(ds['dswr']),'%'
+# print,'- Sun below horizon:',n_elements(sundown),100*n_elements(sundown)/n_elements(ds['dswr']),'%'
+# print,'- Sun in view of lower sensor:',n_elements(sunonlowerdome),100*n_elements(sunonlowerdome)/n_elements(ds['dswr']),'%'
+# print,'- Spikes removed using TOA criteria:',n_elements(TOA_crit_nopass),100*n_elements(TOA_crit_nopass)/n_elements(ds['dswr']),'%'
+# print,'- Mean net SR change by corrections:',total(ds['dswr']_cor-ds['uswr_cor']-ds['dswr']+SRout)/n_elements(ds['dswr']),' W/m2'
+     
+#+END_SRC
+
+#+RESULTS:
+
+
+** Export file as L2
+
++ Check with ~cfchecks ./data/L2/EGP/EGP-raw.nc~
+
+#+BEGIN_SRC jupyter-python
+outpath = os.path.split(infile)[0].split("/")
+outpath[-2] = 'L2'
+outpath = '/'.join(outpath)
+outfile = os.path.basename(infile)
+outpathfile = outpath + '/' + outfile
+if os.path.exists(outpathfile): os.remove(outpathfile)
+ds.to_netcdf(outpathfile, mode='w', format='NETCDF4', compute=True)
+#+END_SRC
+
+#+RESULTS:
+
+
+
+
+
+* L2 -> L3
+:PROPERTIES:
+:header-args:jupyter-python+: :session L2_to_L3 :noweb-ref L2_to_L3 :noweb yes
+:END:
+
++ Derived values
+  + [ ] Cloud cover
+  + [ ] Wind direction components
+  + [ ] Turbulent heat flux
+
+** Wrapper
+
+Run one:
+#+BEGIN_SRC jupyter-python :noweb-ref
+infile = "./data/L2/EGP/EGP-raw.nc"
+<<L2_to_L3>>
+#+END_SRC
+
+Run all:
+
+#+BEGIN_SRC bash
+# conda activate PROMICE_dev
+
+./L2_to_L3.py data/L2/EGP/*raw.nc
+./L2_to_L3.py data/L2/EGP/*STM.nc
+./L2_to_L3.py data/L2/EGP/*TX.nc
+#+END_SRC
+
+
+#+BEGIN_SRC jupyter-python :tangle L2_to_L3.py :noweb-ref :tangle-mode (identity #o744)
+#!/usr/bin/env python
+
+def L2_to_L3(infile=None):
+    <<L2_to_L3>>
+
+
+if __name__ == "__main__":
+    import sys
+    L2_to_L3(sys.argv[1])
+#+END_SRC
+
+** Imports
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import os
+#+END_SRC
+
+#+RESULTS:
+
+** Load
+#+BEGIN_SRC jupyter-python :exports both
+# infile = "./data/L1A/EGP/EGP-raw.nc"
+ds = xr.open_dataset(infile, mask_and_scale=False).load()
+# print(ds)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+# [goto error]
+#+begin_example
+
+KeyErrorTraceback (most recent call last)
+~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/file_manager.py in _acquire_with_cache_info(self, needs_lock)
+    197             try:
+--> 198                 file = self._cache[self._key]
+    199             except KeyError:
+
+~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/lru_cache.py in __getitem__(self, key)
+     52         with self._lock:
+---> 53             value = self._cache[key]
+     54             self._cache.move_to_end(key)
+
+KeyError: [<class 'netCDF4._netCDF4.Dataset'>, ('/home/kdm/projects/GEUS-PROMICE/PROMICE-AWS-processing/data/L2/EGP/EGP-raw.nc',), 'r', (('clobber', True), ('diskless', False), ('format', 'NETCDF4'), ('persist', False))]
+
+During handling of the above exception, another exception occurred:
+
+FileNotFoundErrorTraceback (most recent call last)
+<ipython-input-16-5140b97edc57> in <module>
+      1 # infile = "./data/L1A/EGP/EGP-raw.nc"
+----> 2 ds = xr.open_dataset(infile, mask_and_scale=False).load()
+      3 # print(ds)
+
+~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/api.py in open_dataset(filename_or_obj, group, decode_cf, mask_and_scale, decode_times, autoclose, concat_characters, decode_coords, engine, chunks, lock, cache, drop_variables, backend_kwargs, use_cftime, decode_timedelta)
+    506             engine = _get_default_engine(filename_or_obj, allow_remote=True)
+    507         if engine == "netcdf4":
+--> 508             store = backends.NetCDF4DataStore.open(
+    509                 filename_or_obj, group=group, lock=lock, **backend_kwargs
+    510             )
+
+~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/netCDF4_.py in open(cls, filename, mode, format, group, clobber, diskless, persist, lock, lock_maker, autoclose)
+    356             netCDF4.Dataset, filename, mode=mode, kwargs=kwargs
+    357         )
+--> 358         return cls(manager, group=group, mode=mode, lock=lock, autoclose=autoclose)
+    359 
+    360     def _acquire(self, needs_lock=True):
+
+~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/netCDF4_.py in __init__(self, manager, group, mode, lock, autoclose)
+    312         self._group = group
+    313         self._mode = mode
+--> 314         self.format = self.ds.data_model
+    315         self._filename = self.ds.filepath()
+    316         self.is_remote = is_remote_uri(self._filename)
+
+~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/netCDF4_.py in ds(self)
+    365     @property
+    366     def ds(self):
+--> 367         return self._acquire()
+    368 
+    369     def open_store_variable(self, name, var):
+
+~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/netCDF4_.py in _acquire(self, needs_lock)
+    359 
+    360     def _acquire(self, needs_lock=True):
+--> 361         with self._manager.acquire_context(needs_lock) as root:
+    362             ds = _nc4_require_group(root, self._group, self._mode)
+    363         return ds
+
+~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/contextlib.py in __enter__(self)
+    111         del self.args, self.kwds, self.func
+    112         try:
+--> 113             return next(self.gen)
+    114         except StopIteration:
+    115             raise RuntimeError("generator didn't yield") from None
+
+~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/file_manager.py in acquire_context(self, needs_lock)
+    184     def acquire_context(self, needs_lock=True):
+    185         """Context manager for acquiring a file."""
+--> 186         file, cached = self._acquire_with_cache_info(needs_lock)
+    187         try:
+    188             yield file
+
+~/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/backends/file_manager.py in _acquire_with_cache_info(self, needs_lock)
+    202                     kwargs = kwargs.copy()
+    203                     kwargs["mode"] = self._mode
+--> 204                 file = self._opener(*self._args, **kwargs)
+    205                 if self._mode == "w":
+    206                     # ensure file doesn't get overriden when opened again
+
+netCDF4/_netCDF4.pyx in netCDF4._netCDF4.Dataset.__init__()
+
+netCDF4/_netCDF4.pyx in netCDF4._netCDF4._ensure_nc_success()
+
+FileNotFoundError: [Errno 2] No such file or directory: b'/home/kdm/projects/GEUS-PROMICE/PROMICE-AWS-processing/data/L2/EGP/EGP-raw.nc'
+#+end_example
+:END:
+
+** Derived properties
+
+*** Wind direction
+
++ GitHub: [[./AWSdataprocessing_v3.pro#L423]]
++ Org Mode: [[./AWSdataprocessing_v3.pro::423]]
+    
+#+BEGIN_SRC jupyter-python
+
+ds['wspd_x'] = ds['wspd'] * np.sin(ds['wdir'] * deg2rad)
+ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
+
+# adjust properties
+#+END_SRC
+
+
+*** Turbulent heat flux
+
++ GitHub: [[./AWSdataprocessing_v3.pro#L866]]
++ Org Mode: [[./AWSdataprocessing_v3.pro::866]]
+
+#+BEGIN_SRC jupyter-python
+;----------------------------------------------------------------------------------------------------
+; Calculating turbulent heat fluxes -----------------------------------------------------------------
+; NB: Requires (hourly) averages. Only variables feeding into and out of this section have subscript "h", but all are hourly values.
+;q_h = RH_cor_h
+; Constant declariation
+     z_0    =    0.001          ; aerodynamic surface roughness length for momention (assumed constant for all ice/snow surfaces)
+     eps    =    0.622
+     es_0   =    6.1071         ; saturation vapour pressure at the melting point (hPa)
+     es_100 = 1013.246          ; saturation vapour pressure at steam point temperature (hPa)
+     g      =    9.82           ; gravitational acceleration (m/s2)
+     gamma  =   16.             ; flux profile correction (Paulson & Dyer)
+     kappa  =    0.4            ; Von Karman constant (0.35-0.42)
+     L_sub  =    2.83e6         ; latent heat of sublimation (J/kg)
+     R_d    =  287.05           ; gas constant of dry air
+     aa     =    0.7            ; flux profile correction constants (Holtslag & De Bruin '88)
+     bb     =    0.75
+     cc     =    5.
+     dd     =    0.35
+     c_pd   = 1005.             ; specific heat of dry air (J/kg/K)
+     WS_lim =    1.
+     L_dif_max = 0.01
+
+; Array declaration and initial guesses
+     z_WS = Haws_h + 0.4
+     z_T = Haws_h - 0.1
+     rho_atm = 100.*p_h/R_d/(T_h+T_0)                             ; atmospheric density
+     mu = 18.27e-6*(291.15+120)/((T_h+T_0)+120)*((T_h+T_0)/291.15)^1.5 ; dynamic viscosity of air (Pa s) (Sutherlands' equation using C = 120 K)
+     nu = mu/rho_atm                                                   ; kinematic viscosity of air (m^2/s)
+     u_star = kappa*WS_h/alog(z_WS/z_0)
+     Re = u_star*z_0/nu
+     z_0h = z_0*exp(1.5-0.2*alog(Re)-0.11*(alog(Re))^2) ; rough surfaces: Smeets & Van den Broeke 2008
+     z_0h[where(WS_h le 0)] = 1e-10
+     es_ice_surf = 10.^(-9.09718*(T_0/(Tsurf_h+T_0)-1.) - 3.56654*ALOG10(T_0/(Tsurf_h+T_0))+0.876793*(1.-(Tsurf_h+T_0)/T_0) + ALOG10(es_0))
+     q_surf = eps*es_ice_surf/(p_h-(1-eps)*es_ice_surf)
+     es_wtr = 10.^(-7.90298*(T_100/(T_h+T_0)-1.) + 5.02808 * ALOG10(T_100/(T_h+T_0)) $ ; saturation vapour pressure above 0 C (hPa)
+                   - 1.3816E-7 * (10.^(11.344*(1.-(T_h+T_0)/T_100))-1.) $
+                   + 8.1328E-3*(10.^(-3.49149*(T_100/(T_h+T_0)-1)) -1.) + ALOG10(es_100))
+     es_ice = 10.^(-9.09718 * (T_0 / (T_h+T_0) - 1.) - 3.56654 * ALOG10(T_0 / (T_h+T_0)) + 0.876793 * (1. - (T_h+T_0) / T_0) + ALOG10(es_0)) ; saturation vapour pressure below 0 C (hPa)
+     q_sat = eps * es_wtr/(p_h-(1-eps)*es_wtr) ; specific humidity at saturation (incorrect below melting point)
+     freezing = where(T_h lt 0)                ; replacing saturation specific humidity values below melting point
+     q_sat[freezing] = eps * es_ice[freezing]/(p_h[freezing]-(1-eps)*es_ice[freezing])
+     q_h = RH_cor_h*q_sat/100   ; specific humidity in kg/kg
+     theta = T_h + z_T*g/c_pd
+     SHF_h = T_h & SHF_h[*] = 0 & LHF_h = SHF_h & L = SHF_h+1e5
+
+     stable   = where(theta ge Tsurf_h and WS_h gt WS_lim and T_h ne -999 and Tsurf_h ne -999 and RH_cor_h ne -999 and p_h ne -999 and Haws_h ne -999)
+     unstable = where(theta lt Tsurf_h and WS_h gt WS_lim and T_h ne -999 and Tsurf_h ne -999 and RH_cor_h ne -999 and p_h ne -999 and Haws_h ne -999)
+;no_wind  = where( WS_h ne -999    and WS_h le WS_lim and T_h ne -999 and Tsurf_h ne -999 and RH_cor_h ne -999 and p_h ne -999 and Haws_h ne -999)
+
+     for i=0,30 do begin        ; stable stratification
+        psi_m1 = -(aa*         z_0/L[stable] + bb*(         z_0/L[stable]-cc/dd)*exp(-dd*         z_0/L[stable]) + bb*cc/dd)
+        psi_m2 = -(aa*z_WS[stable]/L[stable] + bb*(z_WS[stable]/L[stable]-cc/dd)*exp(-dd*z_WS[stable]/L[stable]) + bb*cc/dd)
+        psi_h1 = -(aa*z_0h[stable]/L[stable] + bb*(z_0h[stable]/L[stable]-cc/dd)*exp(-dd*z_0h[stable]/L[stable]) + bb*cc/dd)
+        psi_h2 = -(aa* z_T[stable]/L[stable] + bb*( z_T[stable]/L[stable]-cc/dd)*exp(-dd* z_T[stable]/L[stable]) + bb*cc/dd)
+        u_star[stable] = kappa*WS_h[stable]/(alog(z_WS[stable]/z_0)-psi_m2+psi_m1)
+        Re[stable] = u_star[stable]*z_0/nu[stable]
+        z_0h[stable] = z_0*exp(1.5-0.2*alog(Re[stable])-0.11*(alog(Re[stable]))^2)
+        if n_elements(where(z_0h[stable] lt 1e-6)) gt 1 then z_0h[stable[where(z_0h[stable] lt 1e-6)]] = 1e-6
+        th_star = kappa*(theta[stable]-Tsurf_h[stable])/(alog(z_T[stable]/z_0h[stable])-psi_h2+psi_h1)
+        q_star  = kappa*(  q_h[stable]- q_surf[stable])/(alog(z_T[stable]/z_0h[stable])-psi_h2+psi_h1)
+        SHF_h[stable] = rho_atm[stable]*c_pd *u_star[stable]*th_star
+        LHF_h[stable] = rho_atm[stable]*L_sub*u_star[stable]* q_star
+        L_prev = L[stable]
+        L[stable] = u_star[stable]^2*(theta[stable]+T_0)*(1+((1-eps)/eps)*q_h[stable])/(g*kappa*th_star*(1+((1-eps)/eps)*q_star))
+        L_dif = abs((L_prev-L[stable])/L_prev)
+;  print,"HF iterations stable stratification: ",i+1,n_elements(where(L_dif gt L_dif_max)),100.*n_elements(where(L_dif gt L_dif_max))/n_elements(where(L_dif))
+        if n_elements(where(L_dif gt L_dif_max)) eq 1 then break
+     endfor
+
+     if n_elements(unstable) gt 1 then begin
+        for i=0,20 do begin     ; unstable stratification
+           x1  = (1-gamma*z_0           /L[unstable])^0.25
+           x2  = (1-gamma*z_WS[unstable]/L[unstable])^0.25
+           y1  = (1-gamma*z_0h[unstable]/L[unstable])^0.5
+           y2  = (1-gamma*z_T[unstable] /L[unstable])^0.5
+           psi_m1 = alog(((1+x1)/2)^2*(1+x1^2)/2)-2*atan(x1)+!pi/2
+           psi_m2 = alog(((1+x2)/2)^2*(1+x2^2)/2)-2*atan(x2)+!pi/2
+           psi_h1 = alog(((1+y1)/2)^2)
+           psi_h2 = alog(((1+y2)/2)^2)
+           u_star[unstable] = kappa*WS_h[unstable]/(alog(z_WS[unstable]/z_0)-psi_m2+psi_m1)
+           Re[unstable] = u_star[unstable]*z_0/nu[unstable]
+           z_0h[unstable] = z_0*exp(1.5-0.2*alog(Re[unstable])-0.11*(alog(Re[unstable]))^2)
+           if n_elements(where(z_0h[unstable] lt 1e-6)) gt 1 then z_0h[unstable[where(z_0h[unstable] lt 1e-6)]] = 1e-6
+           th_star = kappa*(theta[unstable]-Tsurf_h[unstable])/(alog(z_T[unstable]/z_0h[unstable])-psi_h2+psi_h1)
+           q_star  = kappa*(  q_h[unstable]- q_surf[unstable])/(alog(z_T[unstable]/z_0h[unstable])-psi_h2+psi_h1)
+           SHF_h[unstable] = rho_atm[unstable]*c_pd *u_star[unstable]*th_star
+           LHF_h[unstable] = rho_atm[unstable]*L_sub*u_star[unstable]* q_star
+           L_prev = L[unstable]
+           L[unstable] = u_star[unstable]^2*(theta[unstable]+T_0)*(1+((1-eps)/eps)*q_h[unstable])/(g*kappa*th_star*(1+((1-eps)/eps)*q_star))
+           L_dif = abs((L_prev-L[unstable])/L_prev)
+;    print,"HF iterations unstable stratification: ",i+1,n_elements(where(L_dif gt L_dif_max)),100.*n_elements(where(L_dif gt L_dif_max))/n_elements(where(L_dif))
+           if n_elements(where(L_dif gt L_dif_max)) eq 1 then break
+        endfor
+     endif
+
+     q_h = 1000.*q_h            ; from kg/kg to g/kg
+;no_q = where(p_h eq -999 or T_h eq -999 or RH_cor_h eq -999)
+;if total(no_q) ne -1 then q_h[no_q] = -999
+;no_HF  = where(p_h eq -999 or T_h eq -999 or Tsurf_h eq -999 or WS_h eq -999 or Haws_h eq -999)
+     no_HF = where(p_h eq -999 or T_h eq -999 or Tsurf_h eq -999 or RH_cor_h eq -999 or WS_h eq -999 or Haws_h eq -999)
+     no_qh = where(T_h eq -999 or RH_cor_h eq -999 or p_h eq -999 or Tsurf_h eq -999)
+;no_SHF = where(p_h eq -999 or T_h eq -999 or Tsurf_h eq -999 or WS_h eq -999 or Haws_h eq -999)
+;no_LHF = where(p_h eq -999 or T_h eq -999 or Tsurf_h eq -999 or RH_cor_h eq -999 or WS_h eq -999 or Haws_h eq -999)
+;if total(no_LHF) ne -1 then LHF_h[no_LHF] = -999
+;if total(no_SHF) ne -1 then SHF_h[no_SHF] = -999
+     if total(no_HF) ne -1 then begin
+        SHF_h[no_HF] = -999
+        LHF_h[no_HF] = -999
+     endif
+     if total(no_qh) ne -1 then begin
+        q_h[no_qh] = -999
+     endif
+;print,'size q_h: ',size(q_h)
+
+#+END_SRC
+
+
+** Downsample to daily hourly and daily
+
+
+** Export file as L3
+
++ Check with ~cfchecks ./data/L2/EGP/EGP-raw.nc~
+
+#+BEGIN_SRC jupyter-python
+outpath = os.path.split(infile)[0].split("/")
+outpath[-2] = 'L2'
+outpath = '/'.join(outpath)
+outfile = os.path.basename(infile)
+outpathfile = outpath + '/' + outfile
+if os.path.exists(outpathfile): os.remove(outpathfile)
+ds.to_netcdf(outpathfile, mode='w', format='NETCDF4', compute=True)
+#+END_SRC
+
+#+RESULTS:
+
+
+
+
+
+
+* Helper functions
+
+#+NAME: constants
+#+BEGIN_SRC jupyter-python
+import numpy as np
+
+deg2rad = np.pi / 180
+rad2deg = 1 / deg2rad
+#+END_SRC
