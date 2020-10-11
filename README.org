@@ -1349,26 +1349,30 @@ u_star = kappa * WS_h / np.log(z_WS / z_0)
 
 ** Downsample to hourly and daily
 
-#+BEGIN_SRC jupyter-python
+Downsampling should be 1 line
+#+BEGIN_SRC jupyter-python :tangle no
 ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minutes
 ds_d = ds.resample({'time':"1D"}).mean()
 #+END_SRC
+But due to xarray implementation, this takes several minutes, while it takes << 1 second in Pandas.
+See https://github.com/pydata/xarray/issues/4498
+
+Therefore, we do downsampling in Pandas (for now) even though the code is more complex.
+
+#+BEGIN_SRC jupyter-python
+df_h = ds.to_dataframe().resample("1H").mean()  # what we want (quickly), but in Pandas form
+# now, rebuild xarray dataset (https://www.theurbanist.com.au/2020/03/how-to-create-an-xarray-dataset-from-scratch/)
+vals = [xr.DataArray(data=df_h[c], dims=['time'], coords={'time':df_h.index}, attrs=ds[c].attrs) for c in df_h.columns]
+ds_h = xr.Dataset(dict(zip(df_h.columns,vals)), attrs=ds.attrs)
+
+
+df_d = ds.to_dataframe().resample("1D").mean()  # what we want (quickly), but in Pandas form
+# now, rebuild xarray dataset (https://www.theurbanist.com.au/2020/03/how-to-create-an-xarray-dataset-from-scratch/)
+vals = [xr.DataArray(data=df_d[c], dims=['time'], coords={'time':df_d.index}, attrs=ds[c].attrs) for c in df_d.columns]
+ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds.attrs)
+#+END_SRC
 
 #+RESULTS:
-#+begin_example
-/home/kdm/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/core/common.py:1123: FutureWarning: 'base' in .resample() and in Grouper() is deprecated.
-The new arguments that you should use are 'offset' or 'origin'.
-
->>> df.resample(freq="3s", base=2)
-
-becomes:
-
->>> df.resample(freq="3s", offset="2s")
-
-  grouper = pd.Grouper(
-/home/kdm/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/xarray/core/nanops.py:142: RuntimeWarning: Mean of empty slice
-  return np.nanmean(a, axis=axis, dtype=dtype)
-#+end_example
 
 
 ** Export file as L3
