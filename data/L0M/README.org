@@ -23,42 +23,42 @@ grep -E "fields =|standard_name =|long_name =|units =|scale_factor =|add_offset 
      2	 rec, record, Record, , 1, 0
      3	 min_y, minutes, Minutes in year, min, 1, 0
      4	 p, air_pressure, Air pressure, hPa, 0.01, 0
-     5	 t, air_temperature_at_boom, Air temperature, C, 1, 273.15
-     6	 t_hygroclip, air_temperature_at_hygroclip, Air temperature (Hygroclip), C, 1, 273.15
+     5	 t_1, air_temperature, Air temperature 1, C, 1, 273.15
+     6	 t_2, air_temperature, Air temperature 2, C, 1, 273.15
      7	 rh, relative_humidity, Relative humidity, %, 1, 0
      8	 wspd, wind_speed, Wind speed, m s-1, 1, 0
      9	 wdir, wind_from_direction, Wind from direction, degrees, 1, 0
     10	 wd_std, wind_from_direction_standard_deviation, Wind from direction (standard deviation), degrees, 1, 0
-    11	 dswr, surface_downwelling_shortwave_flux, Downwelling shortwave radiation, W m-2, , 0
-    12	 uswr, surface_upwelling_shortwave_flux, Upwelling shortwave radiation, W m-2, , 0
-    13	 dlwr, surface_downwelling_longwave_flux, Downwelling longwave radiation, W m-2, , 0
-    14	 ulwr, surface_upwelling_longwave_flux, Upwelling longwave radiation, W m-2, , 0
-    15	 t_rad, temperature_at_radiation_sensor, Air temperature (Radiation Sensor), C, 1, 273.15
-    16	 z_boom, snow_height_at_boom, Snow height, m, 1, 0
-    17	 z_boom_q, snow_height_at_boom_quality, Snow height (quality), , 1, 0
-    18	 z_stake, snow_height_at_stake, Surface height, m, 1, 0
-    19	 z_stake_q, snow_height_at_stake_quality, Surface height (quality), , 1, 0
-    20	 z_ice, ice_height, Ice height, m, 1, 0
-    21	 t_i_1, ice_temperature_at_1m, Ice temperature at 1 m, C, 1, 273.15
-    22	 t_i_2, ice_temperature_at_2m, Ice temperature at 2 m, C, 1, 273.15
-    23	 t_i_3, ice_temperature_at_3m, Ice temperature at 3 m, C, 1, 273.15
-    24	 t_i_4, ice_temperature_at_4m, Ice temperature at 4 m, C, 1, 273.15
-    25	 t_i_5, ice_temperature_at_5m, Ice temperature at 5 m, C, 1, 273.15
-    26	 t_i_6, ice_temperature_at_6m, Ice temperature at 6 m, C, 1, 273.15
-    27	 t_i_7, ice_temperature_at_7m, Ice temperature at 7 m, C, 1, 273.15
-    28	 t_i_10, ice_temperature_at_10m, Ice temperature at 10 m, C, 1, 273.15
+    11	 dsr, surface_downwelling_shortwave_flux, Downwelling shortwave radiation, W m-2, 1, 0
+    12	 usr, surface_upwelling_shortwave_flux, Upwelling shortwave radiation, W m-2, 1, 0
+    13	 dlr, surface_downwelling_longwave_flux, Downwelling longwave radiation, W m-2, 1, 0
+    14	 ulr, surface_upwelling_longwave_flux, Upwelling longwave radiation, W m-2, 1, 0
+    15	 t_rad, temperature_of_radiation_sensor, Radiation sensor temperature, C, 1, 273.15
+    16	 z_boom, distance_to_surface_from_boom, Boom height, m, 1, 0
+    17	 z_boom_q, distance_to_surface_from_boom_quality, Boom height (quality), , 1, 0
+    18	 z_stake, distance_to_surface_from_stake_assembly, Stake height, m, 1, 0
+    19	 z_stake_q, distance_to_surface_from_stake_assembly_quality, Stake height (quality), , 1, 0
+    20	 z_pt, depth_of_pressure_transducer_in_ice, Depth of pressure transducer in ice , m, 1, 0
+    21	 t_i_1, ice_temperature_at_t1, Ice temperature at sensor 1, C, 1, 273.15
+    22	 t_i_2, ice_temperature_at_t2, Ice temperature at sensor 2, C, 1, 273.15
+    23	 t_i_3, ice_temperature_at_t3, Ice temperature at sensor 3, C, 1, 273.15
+    24	 t_i_4, ice_temperature_at_t4, Ice temperature at sensor 4, C, 1, 273.15
+    25	 t_i_5, ice_temperature_at_t5, Ice temperature at sensor 5, C, 1, 273.15
+    26	 t_i_6, ice_temperature_at_t6, Ice temperature at sensor 6, C, 1, 273.15
+    27	 t_i_7, ice_temperature_at_t7, Ice temperature at sensor 7, C, 1, 273.15
+    28	 t_i_8, ice_temperature_at_t8, Ice temperature at sensor 8, C, 1, 273.15
     29	 tilt_x, platform_view_angle_x, Tilt to east, degrees, 0.0174533, 0
     30	 tilt_y, platform_view_angle_y, Tilt to north, degrees, 0.0174533, 0
     31	 gps_time, gps_time, GPS time, s, 1, 0
     32	 gps_lat, gps_latitude, Latitude, degrees, 1, 0
     33	 gps_lon, gps_longitude, Longitude, degrees, 1, 0
     34	 gps_alt, gps_altitude, Altitude, m, 1, 0
-    35	 gps_giodal, gps_geoid_separation, Geoid separation, m, 1, 0
+    35	 gps_geoid, gps_geoid_separation, Height of EGM96 geoid over WGS84 ellipsoid, m, 1, 0
     36	 gps_geounit, gps_geounit, GeoUnit, , 1, 0
     37	 gps_q, gps_q, Quality, , 1, 0
     38	 gps_numsat, gps_numsat, GPS number of satellites, , 1, 0
-    39	 gps_hdop, gps_hdop, HDOP, m, 1, 0
-    40	 t_logger, temperature_at_logger, Air temperature (logger), C, 1, 273.15
+    39	 gps_hdop, gps_hdop, GPS horizontal dillution of preciosion (HDOP), m, 1, 0
+    40	 t_log, temperature_of_logger, Logger temperature, C, 1, 273.15
     41	 fan_dc, fan_current, Fan current, mA, 1000, 0
     42	 batt_v_ss, battery_voltage_at_sample_start, Battery voltage (sample start), V, 1, 0
     43	 batt_v, battery_voltage, Battery voltage, V, 1, 0
@@ -78,45 +78,45 @@ cat <<EOF | cut -c7- | datamash -t, transpose
      1	# fields = time,# standard_name = time,# long_name = Time,# units = yyyy-mm-dd HH:MM:SS,# scale_factor = 1,# add_offset = 0
      2	 rec, record, Record, , 1, 0
      4	 p, air_pressure, Air pressure, hPa, 0.01, 0
-     5	 t, air_temperature_at_boom, Air temperature, C, 1, 273.15
-     6	 t_hygroclip, air_temperature_at_hygroclip, Air temperature (Hygroclip), C, 1, 273.15
+     5	 t_1, air_temperature, Air temperature 1, C, 1, 273.15
+     6	 t_2, air_temperature, Air temperature 2, C, 1, 273.15
      7	 rh, relative_humidity, Relative humidity, %, 1, 0
      8	 wspd, wind_speed, Wind speed, m s-1, 1, 0
      9	 wdir, wind_from_direction, Wind from direction, degrees, 1, 0
-    11	 dswr, surface_downwelling_shortwave_flux, Downwelling shortwave radiation, W m-2, , 0
-    12	 uswr, surface_upwelling_shortwave_flux, Upwelling shortwave radiation, W m-2, , 0
-    13	 dlwr, surface_downwelling_longwave_flux, Downwelling longwave radiation, W m-2, , 0
-    14	 ulwr, surface_upwelling_longwave_flux, Upwelling longwave radiation, W m-2, , 0
-    15	 t_rad, temperature_at_radiation_sensor, Air temperature (Radiation Sensor), C, 1, 273.15
-    16	 z_boom, snow_height_at_boom, Snow height, m, 1, 0
-    18	 z_stake, snow_height_at_stake, Surface height, m, 1, 0
-    20	 z_ice, ice_height, Ice height, m, 1, 0
-    21	 t_i_1, ice_temperature_at_1m, Ice temperature at 1 m, C, 1, 273.15
-    22	 t_i_2, ice_temperature_at_2m, Ice temperature at 2 m, C, 1, 273.15
-    23	 t_i_3, ice_temperature_at_3m, Ice temperature at 3 m, C, 1, 273.15
-    24	 t_i_4, ice_temperature_at_4m, Ice temperature at 4 m, C, 1, 273.15
-    25	 t_i_5, ice_temperature_at_5m, Ice temperature at 5 m, C, 1, 273.15
-    26	 t_i_6, ice_temperature_at_6m, Ice temperature at 6 m, C, 1, 273.15
-    27	 t_i_7, ice_temperature_at_7m, Ice temperature at 7 m, C, 1, 273.15
-    28	 t_i_10, ice_temperature_at_10m, Ice temperature at 10 m, C, 1, 273.15
+    11	 dsr, surface_downwelling_shortwave_flux, Downwelling shortwave radiation, W m-2, 1, 0
+    12	 usr, surface_upwelling_shortwave_flux, Upwelling shortwave radiation, W m-2, 1, 0
+    13	 dlr, surface_downwelling_longwave_flux, Downwelling longwave radiation, W m-2, 1, 0
+    14	 ulr, surface_upwelling_longwave_flux, Upwelling longwave radiation, W m-2, 1, 0
+    15	 t_rad, temperature_of_radiation_sensor, Radiation sensor temperature, C, 1, 273.15
+    16	 z_boom, distance_to_surface_from_boom, Boom height, m, 1, 0
+    18	 z_stake, distance_to_surface_from_stake_assembly, Stake height, m, 1, 0
+    20	 z_pt, depth_of_pressure_transducer_in_ice, Depth of pressure transducer in ice , m, 1, 0
+    21	 t_i_1, ice_temperature_at_t1, Ice temperature at sensor 1, C, 1, 273.15
+    22	 t_i_2, ice_temperature_at_t2, Ice temperature at sensor 2, C, 1, 273.15
+    23	 t_i_3, ice_temperature_at_t3, Ice temperature at sensor 3, C, 1, 273.15
+    24	 t_i_4, ice_temperature_at_t4, Ice temperature at sensor 4, C, 1, 273.15
+    25	 t_i_5, ice_temperature_at_t5, Ice temperature at sensor 5, C, 1, 273.15
+    26	 t_i_6, ice_temperature_at_t6, Ice temperature at sensor 6, C, 1, 273.15
+    27	 t_i_7, ice_temperature_at_t7, Ice temperature at sensor 7, C, 1, 273.15
+    28	 t_i_8, ice_temperature_at_t8, Ice temperature at sensor 8, C, 1, 273.15
     29	 tilt_x, platform_view_angle_x, Tilt to east, degrees, 0.0174533, 0
     30	 tilt_y, platform_view_angle_y, Tilt to north, degrees, 0.0174533, 0
     31	 gps_time, gps_time, GPS time, s, 1, 0
     32	 gps_lat, gps_latitude, Latitude, degrees, 1, 0
     33	 gps_lon, gps_longitude, Longitude, degrees, 1, 0
     34	 gps_alt, gps_altitude, Altitude, m, 1, 0
-    39	 gps_hdop, gps_hdop, HDOP, m, 1, 0
+    39	 gps_hdop, gps_hdop, GPS horizontal dillution of preciosion (HDOP), m, 1, 0
     41	 fan_dc, fan_current, Fan current, mA, 1000, 0
-    43	 batt_v, battery_voltage, Battery voltage, V, 1, 0
+    43	 batt_v, battery_voltage, Battery voltage, V, 1, 0
 EOF
 #+END_SRC
 
 #+RESULTS:
-: 	# fields = time,	 rec,	 p,	 t,	 t_hygroclip,	 rh,	 wspd,	 wdir,	 dswr,	 uswr,	 dlwr,	 ulwr,	 t_rad,	 z_boom,	 z_stake,	 z_ice,	 t_i_1,	 t_i_2,	 t_i_3,	 t_i_4,	 t_i_5,	 t_i_6,	 t_i_7,	 t_i_10,	 tilt_x,	 tilt_y,	 gps_time,	 gps_lat,	 gps_lon,	 gps_alt,	 gps_hdop,	 fan_dc,	 batt_v
-: # standard_name = time, record, air_pressure, air_temperature_at_boom, air_temperature_at_hygroclip, relative_humidity, wind_speed, wind_from_direction, surface_downwelling_shortwave_flux, surface_upwelling_shortwave_flux, surface_downwelling_longwave_flux, surface_upwelling_longwave_flux, temperature_at_radiation_sensor, snow_height_at_boom, snow_height_at_stake, ice_height, ice_temperature_at_1m, ice_temperature_at_2m, ice_temperature_at_3m, ice_temperature_at_4m, ice_temperature_at_5m, ice_temperature_at_6m, ice_temperature_at_7m, ice_temperature_at_10m, platform_view_angle_x, platform_view_angle_y, gps_time, gps_latitude, gps_longitude, gps_altitude, gps_hdop, fan_current, battery_voltage
-: # long_name = Time, Record, Air pressure, Air temperature, Air temperature (Hygroclip), Relative humidity, Wind speed, Wind from direction, Downwelling shortwave radiation, Upwelling shortwave radiation, Downwelling longwave radiation, Upwelling longwave radiation, Air temperature (Radiation Sensor), Snow height, Surface height, Ice height, Ice temperature at 1 m, Ice temperature at 2 m, Ice temperature at 3 m, Ice temperature at 4 m, Ice temperature at 5 m, Ice temperature at 6 m, Ice temperature at 7 m, Ice temperature at 10 m, Tilt to east, Tilt to north, GPS time, Latitude, Longitude, Altitude, HDOP, Fan current, Battery voltage
+: 	# fields = time,	 rec,	 p,	 t_1,	 t_2,	 rh,	 wspd,	 wdir,	 dsr,	 usr,	 dlr,	 ulr,	 t_rad,	 z_boom,	 z_stake,	 z_pt,	 t_i_1,	 t_i_2,	 t_i_3,	 t_i_4,	 t_i_5,	 t_i_6,	 t_i_7,	 t_i_8,	 tilt_x,	 tilt_y,	 gps_time,	 gps_lat,	 gps_lon,	 gps_alt,	 gps_hdop,	 fan_dc,	 batt_v
+: # standard_name = time, record, air_pressure, air_temperature, air_temperature, relative_humidity, wind_speed, wind_from_direction, surface_downwelling_shortwave_flux, surface_upwelling_shortwave_flux, surface_downwelling_longwave_flux, surface_upwelling_longwave_flux, temperature_of_radiation_sensor, distance_to_surface_from_boom, distance_to_surface_from_stake_assembly, depth_of_pressure_transducer_in_ice, ice_temperature_at_t1, ice_temperature_at_t2, ice_temperature_at_t3, ice_temperature_at_t4, ice_temperature_at_t5, ice_temperature_at_t6, ice_temperature_at_t7, ice_temperature_at_t8, platform_view_angle_x, platform_view_angle_y, gps_time, gps_latitude, gps_longitude, gps_altitude, gps_hdop, fan_current, battery_voltage
+: # long_name = Time, Record, Air pressure, Air temperature 1, Air temperature 2, Relative humidity, Wind speed, Wind from direction, Downwelling shortwave radiation, Upwelling shortwave radiation, Downwelling longwave radiation, Upwelling longwave radiation, Radiation sensor temperature, Boom height, Stake height, Depth of pressure transducer in ice , Ice temperature at sensor 1, Ice temperature at sensor 2, Ice temperature at sensor 3, Ice temperature at sensor 4, Ice temperature at sensor 5, Ice temperature at sensor 6, Ice temperature at sensor 7, Ice temperature at sensor 8, Tilt to east, Tilt to north, GPS time, Latitude, Longitude, Altitude, GPS horizontal dillution of preciosion (HDOP), Fan current, Battery voltage
 : # units = yyyy-mm-dd HH:MM:SS, , hPa, C, C, %, m s-1, degrees, W m-2, W m-2, W m-2, W m-2, C, m, m, m, C, C, C, C, C, C, C, C, degrees, degrees, s, degrees, degrees, m, m, mA, V
-: # scale_factor = 1, 1, 0.01, 1, 1, 1, 1, 1, , , , , 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.0174533, 0.0174533, 1, 1, 1, 1, 1, 1000, 1
+: # scale_factor = 1, 1, 0.01, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.0174533, 0.0174533, 1, 1, 1, 1, 1, 1000, 1
 : # add_offset = 0, 0, 0, 273.15, 273.15, 0, 0, 0, 0, 0, 0, 0, 273.15, 0, 0, 0, 273.15, 273.15, 273.15, 273.15, 273.15, 273.15, 273.15, 273.15, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 Then, cut-and-paste that back into the NEAD header

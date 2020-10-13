@@ -333,22 +333,22 @@ Data variables:
     rec          (time) float64 51.0 52.0 53.0 ... 1.09e+04 1.09e+04 1.09e+04
     min_y        (time) float64 1.765e+05 1.766e+05 ... 2.905e+05 2.905e+05
     p            (time) float64 724.4 724.1 724.4 724.4 ... 730.8 731.2 730.7
-    t            (time) float64 -20.1 -19.79 -19.31 ... -6.904 -6.904 -6.861
-    t_hygroclip  (time) float64 -19.56 -19.11 -18.92 ... -6.866 -6.86 -6.799
+    t_1          (time) float64 -20.1 -19.79 -19.31 ... -6.904 -6.904 -6.861
+    t_2          (time) float64 -19.56 -19.11 -18.92 ... -6.866 -6.86 -6.799
     rh           (time) float64 54.1 51.7 50.23 49.51 ... 80.28 80.93 81.81
     wspd         (time) float64 1.062 0.918 0.636 0.486 ... 2.793 2.951 3.069
     wdir         (time) float64 265.1 259.2 216.8 208.4 ... 217.7 216.6 225.4
     wd_std       (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
-    dswr         (time) float64 681.7 732.4 688.3 689.6 ... 724.7 711.4 698.8
-    uswr         (time) float64 518.6 559.3 531.8 534.4 ... 559.2 549.6 524.1
-    dlwr         (time) float64 -81.57 -102.0 -101.3 ... -135.8 -135.6 -132.4
-    ulwr         (time) float64 -23.97 -28.65 -33.92 ... -32.33 -32.52 -28.84
+    dsr          (time) float64 681.7 732.4 688.3 689.6 ... 724.7 711.4 698.8
+    usr          (time) float64 518.6 559.3 531.8 534.4 ... 559.2 549.6 524.1
+    dlr          (time) float64 -81.57 -102.0 -101.3 ... -135.8 -135.6 -132.4
+    ulr          (time) float64 -23.97 -28.65 -33.92 ... -32.33 -32.52 -28.84
     t_rad        (time) float64 -12.78 -11.42 -9.929 ... -1.114 -1.03 -1.135
     z_boom       (time) float64 2.685 2.683 2.683 2.68 ... 2.583 2.584 2.58
     z_boom_q     (time) float64 190.0 192.0 189.0 187.0 ... 192.0 182.0 168.0
     z_stake      (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
     z_stake_q    (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
-    z_ice        (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
+    z_pt         (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
     t_i_1        (time) float64 nan -109.0 -109.0 ... -8.478 -8.458 -8.448
     t_i_2        (time) float64 nan nan -109.0 -109.0 ... -9.67 -9.67 -9.67
     t_i_3        (time) float64 nan -109.0 -109.0 ... -8.879 -8.859 -8.849
@@ -356,19 +356,19 @@ Data variables:
     t_i_5        (time) float64 nan -109.0 -109.0 ... -12.67 -12.67 -12.67
     t_i_6        (time) float64 nan -109.0 nan -109.0 ... -14.9 -14.9 -14.9
     t_i_7        (time) float64 nan -109.0 -109.0 nan ... -17.16 -17.16 -17.16
-    t_i_10       (time) float64 nan nan -109.0 nan ... -20.75 -20.76 -20.76
+    t_i_8        (time) float64 nan nan -109.0 nan ... -20.75 -20.76 -20.76
     tilt_x       (time) float64 3.527 3.492 3.516 3.489 ... 0.109 0.095 0.174
     tilt_y       (time) float64 -0.945 -0.938 -0.924 ... -0.828 -0.849 -0.859
     gps_time     (time) object nan nan nan ... 'GT170007.00' 'GT170007.00'
     gps_lat      (time) object nan nan nan ... 'NH7537.47563' 'NH7537.47563'
     gps_lon      (time) object nan nan nan ... 'WH03558.49655' 'WH03558.49655'
     gps_alt      (time) float64 nan nan nan ... 2.663e+03 2.663e+03 2.663e+03
-    gps_giodal   (time) float64 nan nan nan nan nan ... 41.6 41.6 41.6 41.6 41.6
+    gps_geoid    (time) float64 nan nan nan nan nan ... 41.6 41.6 41.6 41.6 41.6
     gps_geounit  (time) object nan nan nan nan nan nan ... 'M' 'M' 'M' 'M' 'M'
     gps_q        (time) float64 nan nan nan nan nan nan ... 1.0 1.0 1.0 1.0 1.0
     gps_numsat   (time) float64 nan nan nan nan nan ... 11.0 12.0 12.0 12.0 12.0
     gps_hdop     (time) float64 nan nan nan nan nan ... 0.71 0.73 0.73 0.73 0.73
-    t_logger     (time) float64 -12.6 -12.08 -11.65 ... -1.801 -1.735 -1.5
+    t_log        (time) float64 -12.6 -12.08 -11.65 ... -1.801 -1.735 -1.5
     fan_dc       (time) float64 137.5 141.3 142.3 141.8 ... 123.5 123.9 124.1
     batt_v_ss    (time) float64 15.52 15.81 15.79 15.81 ... 14.47 14.47 14.47
     batt_v       (time) float64 15.23 15.56 15.53 15.63 ... 14.4 14.41 14.41
@@ -504,12 +504,13 @@ elif ds.attrs['pt_antifreeze'] == 100:
     rho_af = 1145
 else:
     rho_af = np.nan
-    if np.any(~np.isnan(ds['z_ice'].values)):
+    if np.any(~np.isnan(ds['z_pt'].values)):
         print("Antifreeze mix only supported at 50 % or 100%")
         assert(False)
     
 
-if 'gps_geounit' in list(ds.variables): ds = ds.drop_vars('gps_geounit')        
+for v in ['gps_geounit','min_y']:
+    if v in list(ds.variables): ds = ds.drop_vars(v)
         
 ## adjust times based on file format.
 # raw: No adjust (timestamp is at start of period)
@@ -520,24 +521,24 @@ if 'gps_geounit' in list(ds.variables): ds = ds.drop_vars('gps_geounit')
 if ds.attrs['timezone'] != 0: ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=ds.attrs['timezone'], freq='H'))
 
 # Remove HygroClip temperature offset
-ds['t_hygroclip'] = ds['t_hygroclip'] - ds.attrs['hygroclip_t_offset']
+ds['t_2'] = ds['t_2'] - ds.attrs['hygroclip_t_offset']
 
 # convert radiation from engineering to physical units
-ds['dswr'] = (ds['dswr'] * 10) / ds.attrs['dswr_eng_coef']
-ds['uswr'] = (ds['uswr'] * 10) / ds.attrs['dswr_eng_coef']
-ds['dlwr'] = ((ds['dlwr'] * 10) / ds.attrs['dlwr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
-ds['ulwr'] = ((ds['ulwr'] * 10) / ds.attrs['dlwr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
+ds['dsr'] = (ds['dsr'] * 10) / ds.attrs['dsr_eng_coef']
+ds['usr'] = (ds['usr'] * 10) / ds.attrs['usr_eng_coef']
+ds['dlr'] = ((ds['dlr'] * 10) / ds.attrs['dlr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
+ds['ulr'] = ((ds['ulr'] * 10) / ds.attrs['ulr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
 
 # Adjust sonic ranger readings for sensitivity to air temperature
-ds['z_boom'] = ds['z_boom'] * ((ds['t'] + T_0)/T_0)**0.5 
-ds['z_stake'] = ds['z_stake'] * ((ds['t'] + T_0)/T_0)**0.5
+ds['z_boom'] = ds['z_boom'] * ((ds['t_1'] + T_0)/T_0)**0.5 
+ds['z_stake'] = ds['z_stake'] * ((ds['t_1'] + T_0)/T_0)**0.5
 # Adjust pressure transducer due to fluid properties
-ds['z_ice'] = ds['z_ice'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af
+ds['z_pt'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af
 
 # Calculate pressure transducer depth
-ds['z_ice_corr'] = ds['z_ice'] * np.nan # new 'z_ice_corr' copied from 'z_ice'
-ds['z_ice_corr'].attrs['long_name'] = ds['z_ice'].long_name + " corrected"
-ds['z_ice_corr'] = ds['z_ice'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af \
+ds['z_pt_corr'] = ds['z_pt'] * np.nan # new 'z_pt_corr' copied from 'z_pt'
+ds['z_pt_corr'].attrs['long_name'] = ds['z_pt'].long_name + " corrected"
+ds['z_pt_corr'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af \
     + 100 * (ds.attrs['pt_z_p_coef'] - ds['p']) / (rho_af * 9.81)
 
 
@@ -611,9 +612,18 @@ find ./data/L1
 #+END_SRC
 
 #+RESULTS:
-: ./data/L1
-: ./data/L1/EGP
-: ./data/L1/EGP/EGP-2016-raw.nc
+#+begin_example
+./data/L1
+./data/L1/EGP
+./data/L1/EGP/EGP-2017-STM.nc
+./data/L1/EGP/EGP-2016-raw.nc
+./data/L1/EGP/EGP-2019-TX.nc
+./data/L1/EGP/EGP-2017-raw.nc
+./data/L1/EGP/EGP-2019.1-raw.nc
+./data/L1/EGP/EGP-2018.2-raw.nc
+./data/L1/EGP/EGP-2018.1-raw.nc
+./data/L1/EGP/EGP-2019.2-raw.nc
+#+end_example
 
 NetCDF format
 
@@ -634,13 +644,6 @@ variables:
 		rec:units = "" ;
 		rec:scale_factor = 1. ;
 		rec:add_offset = 0. ;
-	double min_y(time) ;
-		min_y:_FillValue = NaN ;
-		min_y:standard_name = "minutes" ;
-		min_y:long_name = "Minutes in year" ;
-		min_y:units = "min" ;
-		min_y:scale_factor = 1. ;
-		min_y:add_offset = 0. ;
 	double p(time) ;
 		p:_FillValue = NaN ;
 		p:standard_name = "air_pressure" ;
@@ -648,16 +651,23 @@ variables:
 		p:units = "hPa" ;
 		p:scale_factor = 0.01 ;
 		p:add_offset = 0. ;
-	double t(time) ;
-		t:_FillValue = NaN ;
-		t:standard_name = "air_temperature_at_boom" ;
-		t:long_name = "Air temperature" ;
-		t:units = "C" ;
-		t:scale_factor = 1. ;
-		t:add_offset = 273.15 ;
-	double t_hygroclip(time) ;
-		t_hygroclip:_FillValue = NaN ;
-		t_hygroclip:standard_name = "air_temperature_at_hygroclip" ;
+	double t_1(time) ;
+		t_1:_FillValue = NaN ;
+		t_1:standard_name = "air_temperature" ;
+		t_1:long_name = "Air temperature 1" ;
+		t_1:units = "C" ;
+		t_1:scale_factor = 1. ;
+		t_1:add_offset = 273.15 ;
+	double t_2(time) ;
+		t_2:_FillValue = NaN ;
+		t_2:standard_name = "air_temperature" ;
+		t_2:long_name = "Air temperature 2" ;
+		t_2:units = "C" ;
+		t_2:scale_factor = 1. ;
+		t_2:add_offset = 273.15 ;
+	double rh(time) ;
+		rh:_FillValue = NaN ;
+		rh:standard_name = "relative_humidity" ;
 #+end_example
 
 
@@ -729,59 +739,24 @@ ds = xr.open_mfdataset(infile, combine='by_coords', mask_and_scale=False).load()
 
 ** Flag data
 
-The following table, from [[./flags.csv]], lists the high and low threshold for each variable.
+Out of limit (OOL) data comes from the [[./data/variables.csv]] file.
 
-#+BEGIN_SRC bash :exports results
-cat flags.csv
-#+END_SRC
-
-#+RESULTS:
-| property    | low limit | high limit | other invalid | comment                                  |
-| tilt_x      |       -40 |         40 |               | [[file:./IDL/AWSdataprocessing_v3.pro#L390]] |
-| tilt_y      |       -40 |         40 |               |                                          |
-| # tilt_x    |       -30 |         30 |               | [[file:./IDL/AWSdataprocessing_v3.pro#L675]] |
-| # tilt_y    |       -30 |         30 |               |                                          |
-| p           |       650 |       1100 |               |                                          |
-| t           |       -80 |         30 |               | t > 30 is possible...                    |
-| t_hygroclip |       -80 |         30 |             0 |                                          |
-| rh_cor      |           |        100 |               |                                          |
-| wspd        |         0 |        100 |               |                                          |
-| wdir        |         0 |        360 |               |                                          |
-| dswr        |       -10 |       1500 |               |                                          |
-| uswr        |       -10 |       1000 |               |                                          |
-| dlwr        |        50 |        500 |               |                                          |
-| ulwr        |        50 |        500 |               |                                          |
-| t_rad       |      -180 |         50 |               |                                          |
-| z_boom      |       0.3 |          3 |               |                                          |
-| z_boom_q    |         0 |            |               |                                          |
-| z_stake     |       0.3 |          8 |               |                                          |
-| z_ice       |         0 |         30 |               |                                          |
-| t_i_1       |       -80 |         30 |               |                                          |
-| t_i_2       |       -80 |         30 |               |                                          |
-| t_i_3       |       -80 |         30 |               |                                          |
-| t_i_4       |       -80 |         30 |               |                                          |
-| t_i_5       |       -80 |         30 |               |                                          |
-| t_i_6       |       -80 |         30 |               |                                          |
-| t_i_7       |       -80 |         30 |               |                                          |
-| t_i_10      |       -30 |         30 |               | NOTE difference                          |
-| gps_time    |         0 |     240000 |               |                                          |
-| gps_lat     |        60 |         83 |               |                                          |
-| gps_lon     |        20 |         70 |               |                                          |
-| gps_alt     |         0 |       3000 |               |                                          |
-| gps_hdop    |         0 |            |               |                                          |
-| t_logger    |       -80 |         30 |               |                                          |
-| fan_dc      |      -200 |        200 |               |                                          |
-| batt_v      |         0 |         30 |               |                                          |
-
-Use the flag table to set out-of-limit (OOL) values to NaN.
++ Set each variable to NaN where it is OOL
++ Also set paired or associated variables to NaN
 
 #+BEGIN_SRC jupyter-python
-df = pd.read_csv("flags.csv", index_col=0, comment="#")
+df = pd.read_csv("./data/variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
+df = df.dropna(how='all')
 
 for var in df.index:
     if var not in list(ds.variables): continue
-    ds[var] = ds[var].where(ds[var] > df.loc[var, 'low limit'])
-    ds[var] = ds[var].where(ds[var] < df.loc[var, 'high limit'])
+    ds[var] = ds[var].where(ds[var] > df.loc[var, 'lo'])
+    ds[var] = ds[var].where(ds[var] < df.loc[var, 'hi'])
+    other_vars = df.loc[var]['OOL'] # either NaN or "foo" or "foo bar baz ..."
+    if isinstance(other_vars, str): 
+        for o in other_vars.split():
+            ds[o] = ds[var].where(ds[var] > df.loc[var, 'lo'])
+            ds[o] = ds[var].where(ds[var] < df.loc[var, 'hi'])
 #+END_SRC
 
 #+RESULTS:
@@ -898,7 +873,7 @@ T_100 = T_0+100            # steam point temperature in K
 ews = 1013.246             # saturation pressure at steam point temperature, normal atmosphere
 ei0 = 6.1071
 
-T = ds['t']
+T = ds['t_1']
 
 # in hPa (Goff & Gratch)
 e_s_wtr = 10**(-7.90298 * (T_100 / (T + T_0) - 1)
@@ -913,7 +888,7 @@ e_s_ice = 10**(-9.09718 * (T_0 / (T + T_0) - 1)
                + 0.876793 * (1 - (T + T_0) / T_0)
                + np.log10(ei0))
 
-ds['rh_cor'] = (e_s_wtr / e_s_ice) * ds['rh'].where((ds['t'] < 0) & (ds['t'] > -100))
+ds['rh_cor'] = (e_s_wtr / e_s_ice) * ds['rh'].where((ds['t_1'] < 0) & (ds['t_1'] > -100))
 
 # clean rh_cor
 df = pd.read_csv("flags.csv", index_col=0, comment="#")
@@ -952,13 +927,13 @@ elif ds.attrs['station_id'] == 'KAN_U':
    LR_overcast = 305 + 4*T
    LR_clear = 220 + 3.5*T
 
-cc = (ds['dswr'] - LR_clear) / (LR_overcast - LR_clear)
+cc = (ds['dsr'] - LR_clear) / (LR_overcast - LR_clear)
 cc[cc > 1] = 1
 cc[cc < 0] = 0
 DifFrac = 0.2 + 0.8 * cc
 
 emissivity = 0.97
-Tsurf = ((ds['ulwr'] - (1 - emissivity) * ds['dswr']) / emissivity / 5.67e-8)**0.25 - T_0
+Tsurf = ((ds['ulr'] - (1 - emissivity) * ds['dsr']) / emissivity / 5.67e-8)**0.25 - T_0
 Tsurf[Tsurf > 0] = 0
 # too_warm = Tsurf > 0
 # if total(too_warm) ne -1 then Tsurf[too_warm] = 0
@@ -1002,7 +977,7 @@ theta_sensor_deg = theta_sensor_rad * rad2deg
 ## Offset correction (determine offset yourself using data for solar
 ## zenith angles larger than 110 deg) I actually don't do this as it
 ## shouldn't improve accuracy for well calibrated instruments
-# ;ds['dswr'] = ds['dswr'] - ds['dswr_offset']
+# ;ds['dsr'] = ds['dsr'] - ds['dwr_offset']
 # ;SRout = SRout - SRout_offset
 
 # Calculating zenith and hour angle of the sun
@@ -1030,8 +1005,8 @@ ZenithAngle_rad = np.arccos(np.cos(lat * np.pi/180) * np.cos(Declination_rad) * 
 ZenithAngle_deg = ZenithAngle_rad * rad2deg
 
 sundown = ZenithAngle_deg >= 90
-dswr_toa = 1372 * np.cos(ZenithAngle_rad) # DSWR at the top of the atmosphere
-dswr_toa[sundown] = 0
+dwr_toa = 1372 * np.cos(ZenithAngle_rad) # DWR at the top of the atmosphere
+dwr_toa[sundown] = 0
 
 # Calculating the correction factor for direct beam radiation
 # http://solardat.uoregon.edu/SolarRadiationBasics.html
@@ -1041,9 +1016,9 @@ CorFac = np.cos(ZenithAngle_rad) / CorFac
 # sun out of field of view upper sensor
 CorFac[(CorFac < 0) | (ZenithAngle_deg > 90)] = 1
 
-# Calculating ds['dswr'] over a horizontal surface corrected for station/sensor tilt
+# Calculating ds['dsr'] over a horizontal surface corrected for station/sensor tilt
 CorFac_all = CorFac / (1 - DifFrac + CorFac * DifFrac)
-ds['dswr_cor'] = ds['dswr'] * CorFac_all
+ds['dwr_cor'] = ds['dsr'] * CorFac_all
 
 
 # Calculating albedo based on albedo values when sun is in sight of the upper sensor
@@ -1051,7 +1026,7 @@ AngleDif_deg = 180 / np.pi * np.arccos(np.sin(ZenithAngle_rad) * np.cos(HourAngl
 
 # ;AngleDif_deg = 180./!pi*acos(cos(!pi/2.-ZenithAngle_rad)*cos(!pi/2.-theta_sensor_rad)*cos(HourAngle_rad-phi_sensor_rad)+sin(!pi/2.-ZenithAngle_rad)*sin(!pi/2.-theta_sensor_rad)) ; angle between sun and sensor
 
-albedo = ds['uswr'] / ds['dswr_cor']
+albedo = ds['usr'] / ds['dwr_cor']
 OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (albedo < 1) & (albedo > 0)
 albedo[~OKalbedos] = np.nan
 
@@ -1065,40 +1040,40 @@ albedo[~OKalbedos] = np.nan
 
 # albedo[notOKalbedos] = interpol(albedo[OKalbedos],OKalbedos,notOKalbedos) ; interpolate over gaps - gives problems for discontinuous data sets, but is not the end of the world
 
-# Correcting SR using DSWR when sun is in field of view of lower sensor assuming sensor measures only diffuse radiation
+# Correcting SR using DWR when sun is in field of view of lower sensor assuming sensor measures only diffuse radiation
 sunonlowerdome =(AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)
-ds['dswr_cor'][sunonlowerdome] = ds['dswr'][sunonlowerdome] / DifFrac[sunonlowerdome]
-ds['uswr_cor'] = ds['uswr']
-ds['uswr_cor'][sunonlowerdome] = albedo * ds['dswr'][sunonlowerdome] / DifFrac[sunonlowerdome]
+ds['dwr_cor'][sunonlowerdome] = ds['dsr'][sunonlowerdome] / DifFrac[sunonlowerdome]
+ds['uswr_cor'] = ds['usr']
+ds['uswr_cor'][sunonlowerdome] = albedo * ds['dsr'][sunonlowerdome] / DifFrac[sunonlowerdome]
 
-# Setting DSWR and USWR to zero for solar zenith angles larger than 95 deg or either DSWR or USWR are (less than) zero
-bad = (ZenithAngle_deg > 95) | (ds['dswr_cor'] <= 0) | (ds['uswr_cor'] <= 0)
-ds['dswr_cor'][bad] = 0
+# Setting DWR and USWR to zero for solar zenith angles larger than 95 deg or either DWR or USWR are (less than) zero
+bad = (ZenithAngle_deg > 95) | (ds['dwr_cor'] <= 0) | (ds['uswr_cor'] <= 0)
+ds['dwr_cor'][bad] = 0
 ds['uswr_cor'][bad] = 0
 
-# Correcting DSWR using more reliable USWR when sun not in sight of upper sensor
-ds['dswr_cor'] = ds['uswr_cor'] / albedo
+# Correcting DWR using more reliable USWR when sun not in sight of upper sensor
+ds['dwr_cor'] = ds['uswr_cor'] / albedo
 # albedo[~OKalbedos] = np.nan
 # albedo[OKalbedos[n_elements(OKalbedos)-1]:*] = -999 ; Removing albedos that were extrapolated (as opposed to interpolated) at the end of the time series - see above
-# ds['dswr']_cor[OKalbedos[n_elements(OKalbedos)-1]:*] = -999 ; Removing the corresponding ds['dswr']_cor as well
+# ds['dsr']_cor[OKalbedos[n_elements(OKalbedos)-1]:*] = -999 ; Removing the corresponding ds['dsr']_cor as well
 # ds['uswr_cor'][OKalbedos[n_elements(OKalbedos)-1]:*] = -999 ; Removing the corresponding ds['uswr_cor'] as well
 
 # ; Removing spikes by interpolation based on a simple top-of-the-atmosphere limitation
-#      TOA_crit_nopass = where(ds['dswr']_cor gt 0.9*dswr_toa+10)
-#      TOA_crit_pass = where(ds['dswr']_cor le 0.9*dswr_toa+10)
+#      TOA_crit_nopass = where(ds['dsr']_cor gt 0.9*dwr_toa+10)
+#      TOA_crit_pass = where(ds['dsr']_cor le 0.9*dwr_toa+10)
 #      if total(TOA_crit_nopass) ne -1 then begin
-#         ds['dswr']_cor[TOA_crit_nopass] = interpol(ds['dswr']_cor[TOA_crit_pass],TOA_crit_pass,TOA_crit_nopass)
+#         ds['dsr']_cor[TOA_crit_nopass] = interpol(ds['dsr']_cor[TOA_crit_pass],TOA_crit_pass,TOA_crit_nopass)
 #         ds['uswr_cor'][TOA_crit_nopass] = interpol(ds['uswr_cor'][TOA_crit_pass],TOA_crit_pass,TOA_crit_nopass)
 #      endif
-TOA_crit_nopass = (ds['dswr_cor'] > (0.9 * dswr_toa + 10))
-ds['dswr_cor'][TOA_crit_nopass] = np.nan
+TOA_crit_nopass = (ds['dwr_cor'] > (0.9 * dwr_toa + 10))
+ds['dwr_cor'][TOA_crit_nopass] = np.nan
 ds['uswr_cor'][TOA_crit_nopass] = np.nan
 
-# print,'- Sun in view of upper sensor / workable albedos:',n_elements(OKalbedos),100*n_elements(OKalbedos)/n_elements(ds['dswr']),'%'
-# print,'- Sun below horizon:',n_elements(sundown),100*n_elements(sundown)/n_elements(ds['dswr']),'%'
-# print,'- Sun in view of lower sensor:',n_elements(sunonlowerdome),100*n_elements(sunonlowerdome)/n_elements(ds['dswr']),'%'
-# print,'- Spikes removed using TOA criteria:',n_elements(TOA_crit_nopass),100*n_elements(TOA_crit_nopass)/n_elements(ds['dswr']),'%'
-# print,'- Mean net SR change by corrections:',total(ds['dswr']_cor-ds['uswr_cor']-ds['dswr']+SRout)/n_elements(ds['dswr']),' W/m2'
+# print,'- Sun in view of upper sensor / workable albedos:',n_elements(OKalbedos),100*n_elements(OKalbedos)/n_elements(ds['dsr']),'%'
+# print,'- Sun below horizon:',n_elements(sundown),100*n_elements(sundown)/n_elements(ds['dsr']),'%'
+# print,'- Sun in view of lower sensor:',n_elements(sunonlowerdome),100*n_elements(sunonlowerdome)/n_elements(ds['dsr']),'%'
+# print,'- Spikes removed using TOA criteria:',n_elements(TOA_crit_nopass),100*n_elements(TOA_crit_nopass)/n_elements(ds['dsr']),'%'
+# print,'- Mean net SR change by corrections:',total(ds['dsr']_cor-ds['uswr_cor']-ds['dsr']+SRout)/n_elements(ds['dsr']),' W/m2'
      
 #+END_SRC
 
@@ -1249,7 +1224,7 @@ T_0 = 273.15
 #+BEGIN_SRC jupyter-python
 # ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minuteso
 
-T_h = ds_h['t']
+T_h = ds_h['t_1']
 
 z_WS = ds_h['z_boom'] + 0.4  # height of W
 z_T = ds_h['z_boom'] - 0.1   # height of thermometer
@@ -1468,13 +1443,13 @@ idl = pd.read_csv("./IDL/data/out/EGP_hour_v03.txt",
 
 # t
 clf()
-ax = py['t'].plot(linewidth=3, label='v4')
+ax = py['t_1'].plot(linewidth=3, label='v4')
 idl['AirTemperature(C)'].plot(ax=ax, label='v3')
 legend()
 
-# dswr
+# dwr
 clf()
-ax = py['dswr'].plot(linewidth=3, label='v4')
+ax = py['dsr'].plot(linewidth=3, label='v4')
 idl['ShortwaveRadiationDown(W/m2)'].plot(ax=ax, label='v3')
 legend()
 #+END_SRC

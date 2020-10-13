@@ -4,17 +4,17 @@ time,time,Time,yyyy-mm-dd HH:MM:SS,1,0,,,,
 rec,record,Record,,1,0,0,,,L0 only
 min_y,minutes,Minutes in year,min,1,0,0,527040,,L0 only
 p,air_pressure,Air pressure,hPa,0.01,0,650,1100,z_pt,
-t_1,air_temperature,Air temperature 1,C,1,273.15,-80,40,"rh_cor, cc, dsr, usr, z_boom, z_stake",PT100 temperature at boom
+t_1,air_temperature,Air temperature 1,C,1,273.15,-80,40,rh_cor cc dsr usr z_boom z_stake,PT100 temperature at boom
 t_2,air_temperature,Air temperature 2,C,1,273.15,-80,40,,Hygroclip temperature at boom
 rh,relative_humidity,Relative humidity,%,1,0,0,150,rh_cor,
-wspd,wind_speed,Wind speed,m s-1,1,0,0,100,"wdir, wdir_std",
+wspd,wind_speed,Wind speed,m s-1,1,0,0,100,wdir wdir_std,
 wdir,wind_from_direction,Wind from direction,degrees,1,0,0,360,,
 wd_std,wind_from_direction_standard_deviation,Wind from direction (standard deviation),degrees,1,0,,,,L0 only ??
-dsr,surface_downwelling_shortwave_flux,Downwelling shortwave radiation,W m-2,1,0,-10,1500,"usr, albedo","Actually radiation_at_sensor, not flux. Units 1E-5 V. Engineering units."
-usr,surface_upwelling_shortwave_flux,Upwelling shortwave radiation,W m-2,1,0,-10,1000,"dsr, albedo",
-dlr,surface_downwelling_longwave_flux,Downwelling longwave radiation,W m-2,1,0,50,500,"t, cc, dsr, usr, albedo",
+dsr,surface_downwelling_shortwave_flux,Downwelling shortwave radiation,W m-2,1,0,-10,1500,usr albedo,"Actually radiation_at_sensor, not flux. Units 1E-5 V. Engineering units."
+usr,surface_upwelling_shortwave_flux,Upwelling shortwave radiation,W m-2,1,0,-10,1000,dsr albedo,
+dlr,surface_downwelling_longwave_flux,Downwelling longwave radiation,W m-2,1,0,50,500,t cc dsr usr albedo,
 ulr,surface_upwelling_longwave_flux,Upwelling longwave radiation,W m-2,1,0,50,500,t_1,
-t_rad,temperature_of_radiation_sensor,Radiation sensor temperature,C,1,273.15,-80,40,"t_1, dlr, ulr",
+t_rad,temperature_of_radiation_sensor,Radiation sensor temperature,C,1,273.15,-80,40,t_1 dlr ulr,
 z_boom,distance_to_surface_from_boom,Boom height,m,1,0,0.3,3,,
 z_boom_q,distance_to_surface_from_boom_quality,Boom height (quality),,1,0,,,,
 z_stake,distance_to_surface_from_stake_assembly,Stake height,m,1,0,0.3,8,,
@@ -28,8 +28,8 @@ t_i_5,ice_temperature_at_t5,Ice temperature at sensor 5,C,1,273.15,-80,40,,
 t_i_6,ice_temperature_at_t6,Ice temperature at sensor 6,C,1,273.15,-80,40,,
 t_i_7,ice_temperature_at_t7,Ice temperature at sensor 7,C,1,273.15,-80,40,,
 t_i_8,ice_temperature_at_t8,Ice temperature at sensor 8,C,1,273.15,-80,40,,t8 is installed @ 10 m depth
-tilt_x,platform_view_angle_x,Tilt to east,degrees,0.0174533,0,-40,40,"dsr, usr, albedo",
-tilt_y,platform_view_angle_y,Tilt to north,degrees,0.0174533,0,-40,40,"dsr, usr, albedo",
+tilt_x,platform_view_angle_x,Tilt to east,degrees,0.0174533,0,-40,40,dsr usr albedo,
+tilt_y,platform_view_angle_y,Tilt to north,degrees,0.0174533,0,-40,40,dsr usr albedo,
 gps_time,gps_time,GPS time,s,1,0,0,240000,,
 gps_lat,gps_latitude,Latitude,degrees,1,0,60,83,,
 gps_lon,gps_longitude,Longitude,degrees,1,0,20,70,,
