@@ -1,0 +1,55 @@
+# required,CF standard,human,final physical (not eng),MKS conversion,MKS conversion,out of limits,,,
+fields,standard_name,long_name,units,scale_factor,add_offset,lo,hi,OOL,comment
+time,time,Time,yyyy-mm-dd HH:MM:SS,1,0,,,,
+rec,record,Record,,1,0,0,,,L0 only
+min_y,minutes,Minutes in year,min,1,0,0,527040,,L0 only
+p,air_pressure,Air pressure,hPa,0.01,0,650,1100,z_pt,
+t_1,air_temperature,Air temperature 1,C,1,273.15,-80,40,"rh_cor, cc, dsr, usr, z_boom, z_stake",PT100 temperature at boom
+t_2,air_temperature,Air temperature 2,C,1,273.15,-80,40,,Hygroclip temperature at boom
+rh,relative_humidity,Relative humidity,%,1,0,0,150,rh_cor,
+wspd,wind_speed,Wind speed,m s-1,1,0,0,100,"wdir, wdir_std",
+wdir,wind_from_direction,Wind from direction,degrees,1,0,0,360,,
+wd_std,wind_from_direction_standard_deviation,Wind from direction (standard deviation),degrees,1,0,,,,L0 only ??
+dsr,surface_downwelling_shortwave_flux,Downwelling shortwave radiation,W m-2,1,0,-10,1500,"usr, albedo","Actually radiation_at_sensor, not flux. Units 1E-5 V. Engineering units."
+usr,surface_upwelling_shortwave_flux,Upwelling shortwave radiation,W m-2,1,0,-10,1000,"dsr, albedo",
+dlr,surface_downwelling_longwave_flux,Downwelling longwave radiation,W m-2,1,0,50,500,"t, cc, dsr, usr, albedo",
+ulr,surface_upwelling_longwave_flux,Upwelling longwave radiation,W m-2,1,0,50,500,t_1,
+t_rad,temperature_of_radiation_sensor,Radiation sensor temperature,C,1,273.15,-80,40,"t_1, dlr, ulr",
+z_boom,distance_to_surface_from_boom,Boom height,m,1,0,0.3,3,,
+z_boom_q,distance_to_surface_from_boom_quality,Boom height (quality),,1,0,,,,
+z_stake,distance_to_surface_from_stake_assembly,Stake height,m,1,0,0.3,8,,
+z_stake_q,distance_to_surface_from_stake_assembly_quality,Stake height (quality),,1,0,,,,
+z_pt,depth_of_pressure_transducer_in_ice,Depth of pressure transducer in ice ,m,1,0,0,30,,
+t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,C,1,273.15,-80,40,,t1 is installed @ 1 m depth
+t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,C,1,273.15,-80,40,,
+t_i_3,ice_temperature_at_t3,Ice temperature at sensor 3,C,1,273.15,-80,40,,
+t_i_4,ice_temperature_at_t4,Ice temperature at sensor 4,C,1,273.15,-80,40,,
+t_i_5,ice_temperature_at_t5,Ice temperature at sensor 5,C,1,273.15,-80,40,,
+t_i_6,ice_temperature_at_t6,Ice temperature at sensor 6,C,1,273.15,-80,40,,
+t_i_7,ice_temperature_at_t7,Ice temperature at sensor 7,C,1,273.15,-80,40,,
+t_i_8,ice_temperature_at_t8,Ice temperature at sensor 8,C,1,273.15,-80,40,,t8 is installed @ 10 m depth
+tilt_x,platform_view_angle_x,Tilt to east,degrees,0.0174533,0,-40,40,"dsr, usr, albedo",
+tilt_y,platform_view_angle_y,Tilt to north,degrees,0.0174533,0,-40,40,"dsr, usr, albedo",
+gps_time,gps_time,GPS time,s,1,0,0,240000,,
+gps_lat,gps_latitude,Latitude,degrees,1,0,60,83,,
+gps_lon,gps_longitude,Longitude,degrees,1,0,20,70,,
+gps_alt,gps_altitude,Altitude,m,1,0,0,3000,,
+gps_geoid,gps_geoid_separation,Height of EGM96 geoid over WGS84 ellipsoid,m,1,0,,,,WGS84 ellipsoid vs EGM96 geoid - or other way around?
+gps_geounit,gps_geounit,GeoUnit,,1,0,,,,
+gps_q,gps_q,Quality,,1,0,,,,
+gps_numsat,gps_numsat,GPS number of satellites,,1,0,,,,
+gps_hdop,gps_hdop,GPS horizontal dillution of preciosion (HDOP),m,1,0,,,,NMEA: Horizontal dilution of precision
+t_log,temperature_of_logger,Logger temperature,C,1,273.15,-80,40,,
+fan_dc,fan_current,Fan current,mA,1000,0,0,200,,
+batt_v_ss,battery_voltage_at_sample_start,Battery voltage (sample start),V,1,0,0,30,,
+batt_v,battery_voltage,Battery voltage,V,1,0,0,30,,
+rot,platform_azimuth_angle,Station rotation from true North,degrees,0.0174533,0,0,360,,v4 addition
+dshf,surface_downward_sensible_heat_flux,Sensible heat flux,W m-2,1,0,,,,derived (L2 or later)
+dlhf,surface_downward_latent_heat_flux,Latent heat flux,W m-2,1,0,,,,derived (L2 or later)
+albedo,surface_albedo,Albedo,,1,0,,,,derived (L2 or later)
+cc,cloud_area_fraction,Cloud cover,%,1,0,,,,derived (L2 or later)
+t_surf,surface_temperature,Surface temperature,C,1,273.15,-80,40,,derived (L2 or later)
+z_snow,snow_depth,Snow depth,m,1,0,0,3,,derived (L2 or later)
+z_boom_ice,distance_to_ice_surface_from_boom,Ice height,m,1,0,0,3,,derived (L2 or later)
+z_surf,surface_height,Surface height,m,1,0,0,,,derived (L2 or later)
+z_ice,ice_surface_height,Ice surface height,m,1,0,0,,,derived (L2 or later)
