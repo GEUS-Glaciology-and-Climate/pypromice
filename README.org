@@ -505,8 +505,9 @@ elif ds.attrs['pt_antifreeze'] == 100:
 else:
     rho_af = np.nan
     if np.any(~np.isnan(ds['z_pt'].values)):
+        print("ERROR: Incorrect NEAD metadata: 'pt_antifreez =' ", ds.attrs['pt_antifreeze'])
         print("Antifreeze mix only supported at 50 % or 100%")
-        assert(False)
+        # assert(False)
     
 
 for v in ['gps_geounit','min_y']:
@@ -890,12 +891,18 @@ e_s_ice = 10**(-9.09718 * (T_0 / (T + T_0) - 1)
 
 ds['rh_cor'] = (e_s_wtr / e_s_ice) * ds['rh'].where((ds['t_1'] < 0) & (ds['t_1'] > -100))
 
-# clean rh_cor
-df = pd.read_csv("flags.csv", index_col=0, comment="#")
 
+
+df = pd.read_csv("./data/variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
 var = 'rh_cor'
-ds[var] = ds[var].where(ds[var] > df.loc[var, 'low limit'])
-ds[var] = ds[var].where(ds[var] < df.loc[var, 'high limit'])
+if var in list(ds.variables):
+    ds[var] = ds[var].where(ds[var] > df.loc[var, 'lo'])
+    ds[var] = ds[var].where(ds[var] < df.loc[var, 'hi'])
+    other_vars = df.loc[var]['OOL'] # either NaN or "foo" or "foo bar baz ..."
+    if isinstance(other_vars, str): 
+        for o in other_vars.split():
+            ds[o] = ds[var].where(ds[var] > df.loc[var, 'lo'])
+            ds[o] = ds[var].where(ds[var] < df.loc[var, 'hi'])
 #+END_SRC
 
 #+RESULTS:
@@ -1380,31 +1387,31 @@ ds_d.to_dataframe().dropna(how='all').to_csv(outpathfile+"_day.csv")
 
 * L0M to L3
 
-#+BEGIN_SRC bash :tangle ppp.sh :tangle-mode (identity #o744)
+#+BEGIN_SRC bash :tangle ppp.sh :tangle-mode (identity #o744) :var s="CEN"
 
 # conda activate PROMICE_dev
 
 # L0M -> L1
-# for f in $(ls ./data/L0M/EGP/*); do ./L0_to_L1.py ${f}; done
-parallel "./L0_to_L1.py {}" ::: $(ls ./data/L0M/EGP/*)
+# for f in $(ls ./data/L0M/${s}/*); do ./L0_to_L1.py ${f}; done
+parallel "./L0_to_L1.py {}" ::: $(ls ./data/L0M/${s}/*)
 
 # L1 -> L1A
-# ./L1_to_L1A.py data/L1/EGP/*raw.nc
-# ./L1_to_L1A.py data/L1/EGP/*STM.nc
-# ./L1_to_L1A.py data/L1/EGP/*TX.nc
-parallel "./L1_to_L1A.py {}" ::: $(ls data/L1/EGP/*)
+# ./L1_to_L1A.py data/L1/${s}/*raw.nc
+# ./L1_to_L1A.py data/L1/${s}/*STM.nc
+# ./L1_to_L1A.py data/L1/${s}/*TX.nc
+parallel "./L1_to_L1A.py {}" ::: $(ls data/L1/${s}/*)
 
 # L1A to L2
-# ./L1A_to_L2.py data/L1A/EGP/EGP-raw.nc
-# ./L1A_to_L2.py data/L1A/EGP/EGP-STM.nc
-# ./L1A_to_L2.py data/L1A/EGP/EGP-TX.nc
-parallel "./L1A_to_L2.py {}" ::: $(ls data/L1A/EGP/*)
+# ./L1A_to_L2.py data/L1A/${s}/${s}-raw.nc
+# ./L1A_to_L2.py data/L1A/${s}/${s}-STM.nc
+# ./L1A_to_L2.py data/L1A/${s}/${s}-TX.nc
+parallel "./L1A_to_L2.py {}" ::: $(ls data/L1A/${s}/*)
 
 # L2 to L3
-# ./L2_to_L3.py data/L2/EGP/*raw.nc
-# ./L2_to_L3.py data/L2/EGP/*STM.nc
-# ./L2_to_L3.py data/L2/EGP/*TX.nc
-parallel "./L2_to_L3.py {}" ::: $(ls data/L2/EGP/*)
+# ./L2_to_L3.py data/L2/${s}/*raw.nc
+# ./L2_to_L3.py data/L2/${s}/*STM.nc
+# ./L2_to_L3.py data/L2/${s}/*TX.nc
+parallel "./L2_to_L3.py {}" ::: $(ls data/L2/${s}/*)
 
 #+END_SRC
 
