@@ -509,7 +509,7 @@ elif ds.attrs['pt_antifreeze'] == 100:
 else:
     rho_af = np.nan
     if np.any(~np.isnan(ds['z_pt'].values)):
-        print("ERROR: Incorrect NEAD metadata: 'pt_antifreez =' ", ds.attrs['pt_antifreeze'])
+        print("ERROR: Incorrect NEAD metadata: 'pt_antifreeze =' ", ds.attrs['pt_antifreeze'])
         print("Antifreeze mix only supported at 50 % or 100%")
         # assert(False)
     
