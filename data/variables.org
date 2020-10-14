@@ -29,10 +29,10 @@ If an AWS data file has columns not included in [[./variables.csv]], the informa
 
 If an AWS data file does not include columns in [[./variables.csv]], remove those rows before running the code below, so that those columns are not entered into the required NEAD header.
 
-Example code extracting first 6 columns and 8 (10-2) rows:
+Example code extracting first 6 columns:
 #+BEGIN_SRC bash :results verbatim :exports both
 for col in $(seq 6); do
-  cat ./variables.csv | head -n 10 | tail -n +2 | cut -d, -f${col} | tr '\n' ',' | sed 's/,/ = /'  | sed 's/,/,\ /g'| sed 's/^/#\ /' | sed 's/,\ *$//g'
+  cat ./variables.csv | tail -n +2 | cut -d, -f${col} | tr '\n' ',' | sed 's/,/ = /'  | sed 's/,/,\ /g'| sed 's/^/#\ /' | sed 's/,\ *$//g'
   echo ""
   echo ""
 done
@@ -42,17 +42,17 @@ cat ./variables.csv | head -n $(( ${ncols} + 2 )) | tail -n +3 | cut -d, -f1 | c
 
 #+RESULTS:
 #+begin_example
-# fields = time, rec, min_y, p, t_1, t_2, rh, wspd
+# fields = time, rec, min_y, p, t_1, t_2, rh, wspd, wdir, wd_std, dsr, usr, dlr, ulr, t_rad, z_boom, z_boom_q, z_stake, z_stake_q, z_pt, t_i_1, t_i_2, t_i_3, t_i_4, t_i_5, t_i_6, t_i_7, t_i_8, tilt_x, tilt_y, gps_time, gps_lat, gps_lon, gps_alt, gps_geoid, gps_geounit, gps_q, gps_numsat, gps_hdop, t_log, fan_dc, batt_v_ss, batt_v
 
-# standard_name = time, record, minutes, air_pressure, air_temperature, air_temperature, relative_humidity, wind_speed
+# standard_name = time, record, minutes, air_pressure, air_temperature, air_temperature, relative_humidity, wind_speed, wind_from_direction, wind_from_direction_standard_deviation, surface_downwelling_shortwave_flux, surface_upwelling_shortwave_flux, surface_downwelling_longwave_flux, surface_upwelling_longwave_flux, temperature_of_radiation_sensor, distance_to_surface_from_boom, distance_to_surface_from_boom_quality, distance_to_surface_from_stake_assembly, distance_to_surface_from_stake_assembly_quality, depth_of_pressure_transducer_in_ice, ice_temperature_at_t1, ice_temperature_at_t2, ice_temperature_at_t3, ice_temperature_at_t4, ice_temperature_at_t5, ice_temperature_at_t6, ice_temperature_at_t7, ice_temperature_at_t8, platform_view_angle_x, platform_view_angle_y, gps_time, gps_latitude, gps_longitude, gps_altitude, gps_geoid_separation, gps_geounit, gps_q, gps_numsat, gps_hdop, temperature_of_logger, fan_current, battery_voltage_at_sample_start, battery_voltage
 
-# long_name = Time, Record, Minutes in year, Air pressure, Air temperature 1, Air temperature 2, Relative humidity, Wind speed
+# long_name = Time, Record, Minutes in year, Air pressure, Air temperature 1, Air temperature 2, Relative humidity, Wind speed, Wind from direction, Wind from direction (standard deviation), Downwelling shortwave radiation, Upwelling shortwave radiation, Downwelling longwave radiation, Upwelling longwave radiation, Radiation sensor temperature, Boom height, Boom height (quality), Stake height, Stake height (quality), Depth of pressure transducer in ice , Ice temperature at sensor 1, Ice temperature at sensor 2, Ice temperature at sensor 3, Ice temperature at sensor 4, Ice temperature at sensor 5, Ice temperature at sensor 6, Ice temperature at sensor 7, Ice temperature at sensor 8, Tilt to east, Tilt to north, GPS time, Latitude, Longitude, Altitude, Height of EGM96 geoid over WGS84 ellipsoid, GeoUnit, Quality, GPS number of satellites, GPS horizontal dillution of preciosion (HDOP), Logger temperature, Fan current, Battery voltage (sample start), Battery voltage
 
-# units = yyyy-mm-dd HH:MM:SS, , min, hPa, C, C, %, m s-1
+# units = yyyy-mm-dd HH:MM:SS, , min, hPa, C, C, %, m s-1, degrees, degrees, W m-2, W m-2, W m-2, W m-2, C, m, , m, , m, C, C, C, C, C, C, C, C, degrees, degrees, s, degrees, degrees, m, m, , , , m, C, mA, V, V
 
-# scale_factor = 1, 1, 1, 0.01, 1, 1, 1, 1
+# scale_factor = 1, 1, 1, 0.01, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.0174533, 0.0174533, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1000, 1, 1
 
-# add_offset = 0, 0, 0, 0, 273.15, 273.15, 0, 0
+# add_offset = 0, 0, 0, 0, 273.15, 273.15, 0, 0, 0, 0, 0, 0, 0, 0, 273.15, 0, 0, 0, 0, 0, 273.15, 273.15, 273.15, 273.15, 273.15, 273.15, 273.15, 273.15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 273.15, 0, 0, 0
 
 #+end_example
 
