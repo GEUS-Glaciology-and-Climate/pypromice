@@ -36,6 +36,8 @@ for col in $(seq 6); do
   echo ""
   echo ""
 done
+
+cat ./variables.csv | head -n $(( ${ncols} + 2 )) | tail -n +3 | cut -d, -f1 | cat -n
 #+END_SRC
 
 #+RESULTS:

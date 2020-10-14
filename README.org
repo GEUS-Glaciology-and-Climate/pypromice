@@ -406,6 +406,9 @@ Attributes:
 Run one:
 #+BEGIN_SRC jupyter-python :noweb-ref
 infile = "./data/L0M/EGP/EGP-2016-raw.txt"
+#+END_SRC
+
+#+BEGIN_SRC jupyter-python :noweb-ref
 <<L0_to_L1>>
 #+END_SRC
 
@@ -445,6 +448,7 @@ import nead
 import os
 import sys
 import numpy as np
+import pandas as pd
 #+END_SRC
 
 #+RESULTS:
@@ -458,13 +462,13 @@ import numpy as np
 
 #+BEGIN_SRC jupyter-python
 ds = nead.read(infile, index_col=0)
-
 assert("geometry" in ds.attrs.keys())
 assert(ds.attrs['geometry'][0:5] == "POINT")
 assert("srid" in ds.attrs.keys())
 assert(ds.attrs['srid'] == "EPSG:4326")
 assert("timezone" in ds.attrs.keys())
 assert("pt_antifreeze" in ds.attrs.keys())
+if 't_2' in list(ds.variables): assert("hygroclip_t_offset" in ds.attrs.keys())
 #+END_SRC
 
 #+RESULTS:
@@ -519,7 +523,10 @@ for v in ['gps_geounit','min_y']:
 # TX: Adjust timestamp start of period (hour/day) also depending on season
 # if ds.attrs['PROMICE_format'] == 'STM': ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=1))
 # if ds.attrs['PROMICE_format'] == 'TX': ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=1))
-if ds.attrs['timezone'] != 0: ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=ds.attrs['timezone'], freq='H'))
+if ds.attrs['timezone'] != 0:
+    a = ds['time'].attrs
+    ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=ds.attrs['timezone'], freq='H').index)
+    ds['time'].attrs = a
 
 # Remove HygroClip temperature offset
 ds['t_2'] = ds['t_2'] - ds.attrs['hygroclip_t_offset']
@@ -546,14 +553,12 @@ ds['z_pt_corr'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] *
 # Decode GPS
 if ds['gps_lat'].dtype.kind == 'O': # not a float. Probably has "NH"
     assert('NH' in ds['gps_lat'].dropna(dim='time').values[0])
-    # for i,v in enumerate(ds['gps_lat'].values): ds['gps_lat'][i] = v[2:] if isinstance(v, str) else np.nan
-    # for i,v in enumerate(ds['gps_lon'].values): ds['gps_lon'][i] = v[2:] if isinstance(v, str) else np.nan
-    # for i,v in enumerate(ds['gps_time'].values): ds['gps_time'][i] = v[2:] if isinstance(v, str) else np.nan
     for v in ['gps_lat','gps_lon','gps_time']:
         a = ds[v].attrs # store
-        ds[v][:] = np.array([_[2:] if isinstance(_, str) else np.nan for _ in ds[v].values]).astype(np.float)
+        str2nums = [re.findall(r"[-+]?\d*\.\d+|\d+", _) if isinstance(_, str) else [np.nan] for _ in ds[v].values]
+        ds[v][:] = pd.DataFrame(str2nums).astype(np.float).T.values[0]
         ds[v] = ds[v].astype(np.float)
-        for k in a.keys(): ds[v].attrs[k] = a[k] # restore
+        ds[v].attrs = a # restore
 
 if np.any((ds['gps_lat'] <= 90) & (ds['gps_lat'] > 0)):  # Some stations only recorded minutes, not degrees
     xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", ds.attrs['geometry'])).astype(np.float)
@@ -563,13 +568,10 @@ if np.any((ds['gps_lat'] <= 90) & (ds['gps_lat'] > 0)):  # Some stations only re
 if np.any((ds['gps_lon'] <= 90) & (ds['gps_lon'] > 0)):
     ds['gps_lon'] = ds['gps_lon'] + 100*p.x
 
-# ds['gps_lat'] = np.floor(ds['gps_lat'] / 100) + (ds['gps_lat'] / 100 - np.floor(ds['gps_lat'] / 100)) * 100 / 60
-# ds['gps_lon'] = np.floor(ds['gps_lon'] / 100) + (ds['gps_lon'] / 100 - np.floor(ds['gps_lon'] / 100)) * 100 / 60
 for v in ['gps_lat','gps_lon']:
     a = ds[v].attrs # store
     ds[v] = np.floor(ds[v] / 100) + (ds[v] / 100 - np.floor(ds[v] / 100)) * 100 / 60
-    for k in a.keys(): ds[v].attrs[k] = a[k] # restore
-    
+    ds[v].attrs = a # restore
 
 # tilt-o-meter voltage to degrees
 abst = np.abs(ds['tilt_x'])
