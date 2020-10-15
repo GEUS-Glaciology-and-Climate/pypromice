@@ -16,9 +16,9 @@
 # usr_eng_coef      = 12.71   # from manufacturer to convert from eng units (1E-5 V) to  physical units (W m-2)
 # dlr_eng_coef      = 12.71   # from manufacturer to convert from eng units (1E-5 V) to  physical units (W m-2)
 # ulr_eng_coef      = 12.71   # from manufacturer to convert from eng units (1E-5 V) to  physical units (W m-2)
-# pt_z_coef          = 0
-# pt_z_p_coef        = 0
-# pt_z_factor        = 0
+# pt_z_coef          = 0       # Pressure transducer calibibration coefficiont [m water @ 20 C] (TBD: T @ calib?)
+# pt_z_p_coef        = 0       # Air pressure at which the pt was calibrated [hPa]
+# pt_z_factor        = 0       # Unitless. Scale for logger voltage measurement range (2.5 for CR1000, 1 for CR10X)
 # pt_antifreeze      = 0       # Percent antifreeze in the pressure transducer
 # boom_azimuth       = 0       # degrees
 
