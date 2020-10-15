@@ -1,0 +1,17 @@
+t0,t1,station,variable,flag,comment
+,,,,,
+#,,,,-1,Known to be completely invalid. Set to NaN in early processing
+#,,,,-2,DROP. Must be applied to entire row or column
+#,,,,0,Valid data – no known issues
+#,,,,1,"Unverified suspicious. If cannot be classified further, set to 2"
+#,,,,2,"Verified suspicious, but cannot be classified"
+#,,,,4,OOL (see variables DB)
+#,,,,8,Station visit
+#,,,,16,Buried by snow ?
+#,,,,32,
+#,,,,64,
+#,,,,128,
+#,,,,256,
+,,,,,
+2017-05-23 10:00:00,2017-06-10 11:00:00,CEN,*,-1,suspicious early data including pressure logger which isn’t at the station?
+n/a,n/a,CEN,z_pt,-1,not processed per V3 metadata.csv files

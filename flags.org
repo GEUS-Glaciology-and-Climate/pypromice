@@ -1,0 +1,72 @@
+#+TITLE: PROMICE AWS flags
+
+* Table of contents                               :toc_2:noexport:
+- [[#introduction][Introduction]]
+- [[#flag-values][Flag values]]
+- [[#application-of-flags][Application of flags]]
+- [[#how-to-use-this-file][How to use this file]]
+
+* Introduction
+
+This documents the flags used in PROMICE AWS products and the [[./flags.csv][flags DB]].
+
+The flags DB is a self-documenting database of flag values, flag meanings, and advice where the flags should be applied. Flags may be applied elsewhere by the code, but will be explicitly applied based on this DB.
+
+The first portion of the flags DB, denoted by "#" in the first column, is meant for human consumption. It documents the definition of each flag value.
+
+The second portion of the flags DB (plus the header line) is composed by humans for the algorithm. It defines where each flag should be applied.
+
+* Flag values
+
+#+BEGIN_SRC bash :exports both
+grep "^#" flags.csv | cut -d, -f5-
+#+END_SRC
+
+#+RESULTS:
+|  -1 | Known to be completely invalid. Set to NaN in early processing   |
+|  -2 | DROP. Must be applied to entire row or column                    |
+|   0 | Valid data – no known issues                                     |
+|   1 | Unverified suspicious. If cannot be classified further, set to 2 |
+|   2 | Verified suspicious, but cannot be classified                    |
+|   4 | OOL (see variables DB)                                           |
+|   8 | Station visit                                                    |
+|  16 | Buried by snow ?                                                 |
+|  32 |                                                                  |
+|  64 |                                                                  |
+| 128 |                                                                  |
+| 256 |                                                                  |
+
+* Application of flags
+
+Flags are applied to one or more of a time span, a sensor, or a station. The format of [[./flags.csv]] is:
+
+| t0                  | t1                  | station   | variable  | flag |
+|---------------------+---------------------+-----------+-----------+------|
+| <t0>                | <t1>                | <s> [<s>] | <v> [<v>] |  <f> |
+
+Where
++ =<t0>= and =<t1>= are timestamps of the format =YYYY-MM-DD HH:MM:SS= or =n/a= to represent all times
+  + Either both times must be defined, with =<t0>= earlier than =<t1>=, or both must be set to =n/a=
++ =<s>= is a space-separated list of station IDs
++ =<v>= is a space-separated list of variables
++ =<f>= is the flag value, where values have the meanings defined above
+  + NOTE: Currently only flags of =-1= (setting data to =NaN=) are handled by the code
+
+As an example, the first 10 flag lines of the flags DB (at the time of this writing) are:
+
+#+BEGIN_SRC bash :exports both
+grep -v "^#" flags.csv | grep -v ",,," | head -n11
+#+END_SRC
+
+#+RESULTS:
+| t0                  | t1                  | station | variable | flag | comment                                                                     |
+| 2017-05-23 10:00:00 | 2017-06-10 11:00:00 | CEN     | *        |   -1 | suspicious early data including pressure logger which isn’t at the station? |
+| n/a                 | n/a                 | CEN     | z_pt     |   -1 | not processed per V3 metadata.csv files                                     |
+
+* How to use this file
+
++ When suspicious data is noticed, at a minimum the flag =1: Unverified suspicious= should be set, along with the relevant time(s), station(s), and sensor(s).
++ If the reason for the suspicious data is identified, the relevant flag should be set instead of =1=.
+  + If a relevant flag does not exist create, add a new flag value and description in the first part of the flag DB.
+
+The AWS processing code will use this database to either drop a column or row, set to NaN, or set a flag for the final output product.

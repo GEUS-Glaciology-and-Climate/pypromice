@@ -41,13 +41,17 @@
   - [[#wrapper-3][Wrapper]]
   - [[#imports-3][Imports]]
   - [[#load-1][Load]]
-  - [[#derived-properties][Derived properties]]
-    - [[#notdone-comment-turbulent-heat-flux][NOTDONE COMMENT Turbulent heat flux]]
   - [[#downsample-to-hourly-and-daily][Downsample to hourly and daily]]
+  - [[#derived-properties][Derived properties]]
+    - [[#turbulent-heat-flux][Turbulent heat flux]]
   - [[#export-file-as-l3][Export file as L3]]
 - [[#l0m-to-l3][L0M to L3]]
 - [[#helper-functions][Helper functions]]
+  - [[#flag-invalid-data][Flag invalid data]]
+  - [[#add-variable-metadata][Add variable metadata]]
 - [[#compare-python--idl][Compare Python & IDL]]
+  - [[#graphic][Graphic]]
+  - [[#columns][Columns]]
 
 * Introduction
 
@@ -462,12 +466,22 @@ import pandas as pd
 
 #+BEGIN_SRC jupyter-python
 ds = nead.read(infile, index_col=0)
+
+<<flag_invalid>>
+ds = flag_invalid(ds)
+
+<<add_variable_metadata>>
+ds = add_variable_metadata(ds)
+
 assert("geometry" in ds.attrs.keys())
 assert(ds.attrs['geometry'][0:5] == "POINT")
 assert("srid" in ds.attrs.keys())
 assert(ds.attrs['srid'] == "EPSG:4326")
 assert("timezone" in ds.attrs.keys())
-assert("pt_antifreeze" in ds.attrs.keys())
+
+if 'z_pt' in list(ds.variables):
+    if ~ds['z_pt'].isnull().any():
+        assert("pt_antifreeze" in ds.attrs.keys())
 if 't_2' in list(ds.variables): assert("hygroclip_t_offset" in ds.attrs.keys())
 #+END_SRC
 
@@ -502,13 +516,13 @@ if 't_2' in list(ds.variables): assert("hygroclip_t_offset" in ds.attrs.keys())
 T_0 = 273.15
 
 # Calculate pressure transducer fluid density
-if ds.attrs['pt_antifreeze'] == 50:
-    rho_af = 1092
-elif ds.attrs['pt_antifreeze'] == 100:
-    rho_af = 1145
-else:
-    rho_af = np.nan
-    if np.any(~np.isnan(ds['z_pt'].values)):
+if ~ds['z_pt'].isnull().any():
+    if ds.attrs['pt_antifreeze'] == 50:
+        rho_af = 1092
+    elif ds.attrs['pt_antifreeze'] == 100:
+        rho_af = 1145
+    else:
+        rho_af = np.nan
         print("ERROR: Incorrect NEAD metadata: 'pt_antifreeze =' ", ds.attrs['pt_antifreeze'])
         print("Antifreeze mix only supported at 50 % or 100%")
         # assert(False)
@@ -540,14 +554,16 @@ ds['ulr'] = ((ds['ulr'] * 10) / ds.attrs['ulr_eng_coef']) + 5.67E-8*(ds['t_rad']
 # Adjust sonic ranger readings for sensitivity to air temperature
 ds['z_boom'] = ds['z_boom'] * ((ds['t_1'] + T_0)/T_0)**0.5 
 ds['z_stake'] = ds['z_stake'] * ((ds['t_1'] + T_0)/T_0)**0.5
-# Adjust pressure transducer due to fluid properties
-ds['z_pt'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af
 
-# Calculate pressure transducer depth
-ds['z_pt_corr'] = ds['z_pt'] * np.nan # new 'z_pt_corr' copied from 'z_pt'
-ds['z_pt_corr'].attrs['long_name'] = ds['z_pt'].long_name + " corrected"
-ds['z_pt_corr'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af \
-    + 100 * (ds.attrs['pt_z_p_coef'] - ds['p']) / (rho_af * 9.81)
+# Adjust pressure transducer due to fluid properties
+if ~ds['z_pt'].isnull().any():
+    ds['z_pt'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af
+
+    # Calculate pressure transducer depth
+    ds['z_pt_corr'] = ds['z_pt'] * np.nan # new 'z_pt_corr' copied from 'z_pt'
+    ds['z_pt_corr'].attrs['long_name'] = ds['z_pt'].long_name + " corrected"
+    ds['z_pt_corr'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af \
+        + 100 * (ds.attrs['pt_z_p_coef'] - ds['p']) / (rho_af * 9.81)
 
 
 # Decode GPS
@@ -742,13 +758,13 @@ ds = xr.open_mfdataset(infile, combine='by_coords', mask_and_scale=False).load()
 
 ** Flag data
 
-Out of limit (OOL) data comes from the [[./data/variables.csv]] file.
+Out of limit (OOL) data comes from the [[./variables.csv]] file.
 
 + Set each variable to NaN where it is OOL
 + Also set paired or associated variables to NaN
 
 #+BEGIN_SRC jupyter-python
-df = pd.read_csv("./data/variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
+df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
 df = df.dropna(how='all')
 
 for var in df.index:
@@ -895,7 +911,7 @@ ds['rh_cor'] = (e_s_wtr / e_s_ice) * ds['rh'].where((ds['t_1'] < 0) & (ds['t_1']
 
 
 
-df = pd.read_csv("./data/variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
+df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
 var = 'rh_cor'
 if var in list(ds.variables):
     ds[var] = ds[var].where(ds[var] > df.loc[var, 'lo'])
@@ -941,12 +957,15 @@ cc[cc > 1] = 1
 cc[cc < 0] = 0
 DifFrac = 0.2 + 0.8 * cc
 
+ds['cc'] = (('time'), cc)
+
 emissivity = 0.97
 Tsurf = ((ds['ulr'] - (1 - emissivity) * ds['dsr']) / emissivity / 5.67e-8)**0.25 - T_0
 Tsurf[Tsurf > 0] = 0
 # too_warm = Tsurf > 0
 # if total(too_warm) ne -1 then Tsurf[too_warm] = 0
 
+ds['t_surf'] = (('time'), Tsurf)
 #+END_SRC
 
 #+RESULTS:
@@ -976,7 +995,6 @@ phi_sensor_rad[(X == 0) & (Y < 0)] = np.pi
 phi_sensor_rad[(X == 0) & (Y == 0)] = 0
 phi_sensor_rad[phi_sensor_rad < 0] += 2*np.pi
 
-deg2rad = 1 / rad2deg 
 phi_sensor_deg = phi_sensor_rad * deg2rad
 
 # spherical coordinate (or actually total tilt of the sensor, i.e. 0 when horizontal)
@@ -1194,9 +1212,37 @@ ds = xr.open_dataset(infile, mask_and_scale=False).load()
 
 #+RESULTS:
 
+** Downsample to hourly and daily
+
+Downsampling should be 1 line
+#+BEGIN_SRC jupyter-python :noweb-ref nil
+ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minutes
+ds_d = ds.resample({'time':"1D"}).mean()
+#+END_SRC
+But due to xarray implementation, this takes several minutes, while it takes << 1 second in Pandas.
+See https://github.com/pydata/xarray/issues/4498
+
+Therefore, we do downsampling in Pandas (for now) even though the code is more complex.
+
+#+BEGIN_SRC jupyter-python
+df_h = ds.to_dataframe().resample("1H").mean()  # what we want (quickly), but in Pandas form
+# now, rebuild xarray dataset (https://www.theurbanist.com.au/2020/03/how-to-create-an-xarray-dataset-from-scratch/)
+vals = [xr.DataArray(data=df_h[c], dims=['time'], coords={'time':df_h.index}, attrs=ds[c].attrs) for c in df_h.columns]
+ds_h = xr.Dataset(dict(zip(df_h.columns,vals)), attrs=ds.attrs)
+
+
+df_d = ds.to_dataframe().resample("1D").mean()  # what we want (quickly), but in Pandas form
+# now, rebuild xarray dataset (https://www.theurbanist.com.au/2020/03/how-to-create-an-xarray-dataset-from-scratch/)
+vals = [xr.DataArray(data=df_d[c], dims=['time'], coords={'time':df_d.index}, attrs=ds[c].attrs) for c in df_d.columns]
+ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds.attrs)
+#+END_SRC
+
+#+RESULTS:
+
+
 ** Derived properties
 
-*** NOTDONE COMMENT Turbulent heat flux
+*** Turbulent heat flux
 
 + GitHub: [[./IDL/AWSdataprocessing_v3.pro#L866]]
 + Org Mode: [[./IDL/AWSdataprocessing_v3.pro::866]]
@@ -1226,6 +1272,8 @@ L_dif_max = 0.01
 
 
 T_0 = 273.15
+T_100 = T_0+100            # steam point temperature in K
+
 #+END_SRC
 
 #+RESULTS:
@@ -1234,130 +1282,105 @@ T_0 = 273.15
 # ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minuteso
 
 T_h = ds_h['t_1']
+p_h = ds_h['p']
+WS_h = ds_h['wspd']
+Tsurf_h = ds_h['t_surf']
+RH_cor_h = ds_h['rh_cor']
 
 z_WS = ds_h['z_boom'] + 0.4  # height of W
 z_T = ds_h['z_boom'] - 0.1   # height of thermometer
-rho_atm = 100 * ds_h['p'] / R_d / (T_h + T_0)   # atmospheric density
+
+rho_atm = 100 * p_h / R_d / (T_h + T_0)   # atmospheric density
 
 # dynamic viscosity of air (Pa s) (Sutherlands' equation using C = 120 K)
 mu = 18.27e-6 * (291.15 + 120) / ((T_h + T_0) + 120) * ((T_h + T_0) / 291.15)**1.5
 
 nu = mu / rho_atm                                                   # kinematic viscosity of air (m^2/s)
 u_star = kappa * WS_h / np.log(z_WS / z_0)
-     Re = u_star*z_0/nu
-     z_0h = z_0*exp(1.5-0.2*alog(Re)-0.11*(alog(Re))^2) ; rough surfaces: Smeets & Van den Broeke 2008
-     z_0h[where(WS_h le 0)] = 1e-10
-     es_ice_surf = 10.^(-9.09718*(T_0/(Tsurf_h+T_0)-1.) - 3.56654*ALOG10(T_0/(Tsurf_h+T_0))+0.876793*(1.-(Tsurf_h+T_0)/T_0) + ALOG10(es_0))
-     q_surf = eps*es_ice_surf/(p_h-(1-eps)*es_ice_surf)
-     es_wtr = 10.^(-7.90298*(T_100/(T_h+T_0)-1.) + 5.02808 * ALOG10(T_100/(T_h+T_0)) $ ; saturation vapour pressure above 0 C (hPa)
-                   - 1.3816E-7 * (10.^(11.344*(1.-(T_h+T_0)/T_100))-1.) $
-                   + 8.1328E-3*(10.^(-3.49149*(T_100/(T_h+T_0)-1)) -1.) + ALOG10(es_100))
-     es_ice = 10.^(-9.09718 * (T_0 / (T_h+T_0) - 1.) - 3.56654 * ALOG10(T_0 / (T_h+T_0)) + 0.876793 * (1. - (T_h+T_0) / T_0) + ALOG10(es_0)) ; saturation vapour pressure below 0 C (hPa)
-     q_sat = eps * es_wtr/(p_h-(1-eps)*es_wtr) ; specific humidity at saturation (incorrect below melting point)
-     freezing = where(T_h lt 0)                ; replacing saturation specific humidity values below melting point
-     q_sat[freezing] = eps * es_ice[freezing]/(p_h[freezing]-(1-eps)*es_ice[freezing])
-     q_h = RH_cor_h*q_sat/100   ; specific humidity in kg/kg
-     theta = T_h + z_T*g/c_pd
-     SHF_h = T_h & SHF_h[*] = 0 & LHF_h = SHF_h & L = SHF_h+1e5
+Re = u_star * z_0 / nu
+z_0h = z_0 * np.exp(1.5 - 0.2 * np.log(Re) - 0.11 * np.log(Re)**2) # rough surfaces: Smeets & Van den Broeke 2008
+z_0h[WS_h <= 0] = 1e-10
+es_ice_surf = 10**(-9.09718 * (T_0 / (Tsurf_h + T_0) -1) - 3.56654 * np.log10(T_0 / (Tsurf_h + T_0)) + 0.876793 * (1 - (Tsurf_h + T_0) / T_0) + np.log10(es_0))
+q_surf = eps * es_ice_surf / (p_h - (1 - eps) * es_ice_surf)
+# saturation vapour pressure above 0 C (hPa)
+es_wtr = 10**(-7.90298 * (T_100 / (T_h + T_0) - 1) + 5.02808 * np.log10(T_100 / (T_h + T_0))
+              - 1.3816E-7 * (10**(11.344 * (1 - (T_h + T_0) / T_100)) - 1)
+              + 8.1328E-3 * (10**(-3.49149 * (T_100 / (T_h + T_0) -1)) - 1) + np.log10(es_100))
+es_ice = 10**(-9.09718 * (T_0 / (T_h + T_0) - 1) - 3.56654 * np.log10(T_0 / (T_h + T_0)) + 0.876793 * (1 - (T_h + T_0) / T_0) + np.log10(es_0)) # saturation vapour pressure below 0 C (hPa)
+q_sat = eps * es_wtr / (p_h - (1 - eps) * es_wtr) # specific humidity at saturation (incorrect below melting point)
+freezing = T_h < 0  # replacing saturation specific humidity values below melting point
+q_sat[freezing] = eps * es_ice[freezing] / (p_h[freezing] - (1 - eps) * es_ice[freezing])
+q_h = RH_cor_h * q_sat / 100   # specific humidity in kg/kg
+theta = T_h + z_T *g / c_pd
+SHF_h = T_h
+SHF_h[:] = 0
+LHF_h = SHF_h
+L = SHF_h + 1E5
 
-     stable   = where(theta ge Tsurf_h and WS_h gt WS_lim and T_h ne -999 and Tsurf_h ne -999 and RH_cor_h ne -999 and p_h ne -999 and Haws_h ne -999)
-     unstable = where(theta lt Tsurf_h and WS_h gt WS_lim and T_h ne -999 and Tsurf_h ne -999 and RH_cor_h ne -999 and p_h ne -999 and Haws_h ne -999)
-;no_wind  = where( WS_h ne -999    and WS_h le WS_lim and T_h ne -999 and Tsurf_h ne -999 and RH_cor_h ne -999 and p_h ne -999 and Haws_h ne -999)
+stable = (theta > Tsurf_h) & (WS_h > WS_lim)
+unstable = (theta < Tsurf_h) & (WS_h > WS_lim)
+# no_wind  = (WS_h <= WS_lim)
 
-     for i=0,30 do begin        ; stable stratification
-        psi_m1 = -(aa*         z_0/L[stable] + bb*(         z_0/L[stable]-cc/dd)*exp(-dd*         z_0/L[stable]) + bb*cc/dd)
-        psi_m2 = -(aa*z_WS[stable]/L[stable] + bb*(z_WS[stable]/L[stable]-cc/dd)*exp(-dd*z_WS[stable]/L[stable]) + bb*cc/dd)
-        psi_h1 = -(aa*z_0h[stable]/L[stable] + bb*(z_0h[stable]/L[stable]-cc/dd)*exp(-dd*z_0h[stable]/L[stable]) + bb*cc/dd)
-        psi_h2 = -(aa* z_T[stable]/L[stable] + bb*( z_T[stable]/L[stable]-cc/dd)*exp(-dd* z_T[stable]/L[stable]) + bb*cc/dd)
-        u_star[stable] = kappa*WS_h[stable]/(alog(z_WS[stable]/z_0)-psi_m2+psi_m1)
-        Re[stable] = u_star[stable]*z_0/nu[stable]
-        z_0h[stable] = z_0*exp(1.5-0.2*alog(Re[stable])-0.11*(alog(Re[stable]))^2)
-        if n_elements(where(z_0h[stable] lt 1e-6)) gt 1 then z_0h[stable[where(z_0h[stable] lt 1e-6)]] = 1e-6
-        th_star = kappa*(theta[stable]-Tsurf_h[stable])/(alog(z_T[stable]/z_0h[stable])-psi_h2+psi_h1)
-        q_star  = kappa*(  q_h[stable]- q_surf[stable])/(alog(z_T[stable]/z_0h[stable])-psi_h2+psi_h1)
-        SHF_h[stable] = rho_atm[stable]*c_pd *u_star[stable]*th_star
-        LHF_h[stable] = rho_atm[stable]*L_sub*u_star[stable]* q_star
-        L_prev = L[stable]
-        L[stable] = u_star[stable]^2*(theta[stable]+T_0)*(1+((1-eps)/eps)*q_h[stable])/(g*kappa*th_star*(1+((1-eps)/eps)*q_star))
-        L_dif = abs((L_prev-L[stable])/L_prev)
-;  print,"HF iterations stable stratification: ",i+1,n_elements(where(L_dif gt L_dif_max)),100.*n_elements(where(L_dif gt L_dif_max))/n_elements(where(L_dif))
-        if n_elements(where(L_dif gt L_dif_max)) eq 1 then break
-     endfor
+for i in np.arange(0,31): # stable stratification
+    psi_m1 = -(aa*         z_0/L[stable] + bb*(         z_0/L[stable]-cc/dd)*np.exp(-dd*         z_0/L[stable]) + bb*cc/dd)
+    psi_m2 = -(aa*z_WS[stable]/L[stable] + bb*(z_WS[stable]/L[stable]-cc/dd)*np.exp(-dd*z_WS[stable]/L[stable]) + bb*cc/dd)
+    psi_h1 = -(aa*z_0h[stable]/L[stable] + bb*(z_0h[stable]/L[stable]-cc/dd)*np.exp(-dd*z_0h[stable]/L[stable]) + bb*cc/dd)
+    psi_h2 = -(aa* z_T[stable]/L[stable] + bb*( z_T[stable]/L[stable]-cc/dd)*np.exp(-dd* z_T[stable]/L[stable]) + bb*cc/dd)
+    u_star[stable] = kappa*WS_h[stable]/(np.log(z_WS[stable]/z_0)-psi_m2+psi_m1)
+    Re[stable] = u_star[stable]*z_0/nu[stable]
+    z_0h[stable] = z_0*np.exp(1.5-0.2*np.log(Re[stable])-0.11*(np.log(Re[stable]))**2)
+    # if n_elements(where(z_0h[stable] lt 1e-6)) gt 1 then z_0h[stable[where(z_0h[stable] lt 1e-6)]] = 1e-6
+    z_0h[stable][z_0h[stable] < 1E-6] == 1E-6
+    th_star = kappa*(theta[stable]-Tsurf_h[stable])/(np.log(z_T[stable]/z_0h[stable])-psi_h2+psi_h1)
+    q_star  = kappa*(  q_h[stable]- q_surf[stable])/(np.log(z_T[stable]/z_0h[stable])-psi_h2+psi_h1)
+    SHF_h[stable] = rho_atm[stable]*c_pd *u_star[stable]*th_star
+    LHF_h[stable] = rho_atm[stable]*L_sub*u_star[stable]* q_star
+    L_prev = L[stable]
+    L[stable] = u_star[stable]**2*(theta[stable]+T_0)*(1+((1-eps)/eps)*q_h[stable])/(g*kappa*th_star*(1+((1-eps)/eps)*q_star))
+    L_dif = np.abs((L_prev-L[stable])/L_prev)
+    # print,"HF iterations stable stratification: ",i+1,n_elements(where(L_dif gt L_dif_max)),100.*n_elements(where(L_dif gt L_dif_max))/n_elements(where(L_dif))
+    # if n_elements(where(L_dif gt L_dif_max)) eq 1 then break
+    if np.all(L_dif <= L_dif_max):
+        print("LDIF BREAK: ", i)
+        break
 
-     if n_elements(unstable) gt 1 then begin
-        for i=0,20 do begin     ; unstable stratification
-           x1  = (1-gamma*z_0           /L[unstable])^0.25
-           x2  = (1-gamma*z_WS[unstable]/L[unstable])^0.25
-           y1  = (1-gamma*z_0h[unstable]/L[unstable])^0.5
-           y2  = (1-gamma*z_T[unstable] /L[unstable])^0.5
-           psi_m1 = alog(((1+x1)/2)^2*(1+x1^2)/2)-2*atan(x1)+!pi/2
-           psi_m2 = alog(((1+x2)/2)^2*(1+x2^2)/2)-2*atan(x2)+!pi/2
-           psi_h1 = alog(((1+y1)/2)^2)
-           psi_h2 = alog(((1+y2)/2)^2)
-           u_star[unstable] = kappa*WS_h[unstable]/(alog(z_WS[unstable]/z_0)-psi_m2+psi_m1)
-           Re[unstable] = u_star[unstable]*z_0/nu[unstable]
-           z_0h[unstable] = z_0*exp(1.5-0.2*alog(Re[unstable])-0.11*(alog(Re[unstable]))^2)
-           if n_elements(where(z_0h[unstable] lt 1e-6)) gt 1 then z_0h[unstable[where(z_0h[unstable] lt 1e-6)]] = 1e-6
-           th_star = kappa*(theta[unstable]-Tsurf_h[unstable])/(alog(z_T[unstable]/z_0h[unstable])-psi_h2+psi_h1)
-           q_star  = kappa*(  q_h[unstable]- q_surf[unstable])/(alog(z_T[unstable]/z_0h[unstable])-psi_h2+psi_h1)
-           SHF_h[unstable] = rho_atm[unstable]*c_pd *u_star[unstable]*th_star
-           LHF_h[unstable] = rho_atm[unstable]*L_sub*u_star[unstable]* q_star
-           L_prev = L[unstable]
-           L[unstable] = u_star[unstable]^2*(theta[unstable]+T_0)*(1+((1-eps)/eps)*q_h[unstable])/(g*kappa*th_star*(1+((1-eps)/eps)*q_star))
-           L_dif = abs((L_prev-L[unstable])/L_prev)
-;    print,"HF iterations unstable stratification: ",i+1,n_elements(where(L_dif gt L_dif_max)),100.*n_elements(where(L_dif gt L_dif_max))/n_elements(where(L_dif))
-           if n_elements(where(L_dif gt L_dif_max)) eq 1 then break
-        endfor
-     endif
+if len(unstable) > 0:
+    for i in np.arange(0,21):
+        x1  = (1-gamma*z_0           /L[unstable])**0.25
+        x2  = (1-gamma*z_WS[unstable]/L[unstable])**0.25
+        y1  = (1-gamma*z_0h[unstable]/L[unstable])**0.5
+        y2  = (1-gamma*z_T[unstable] /L[unstable])**0.5
+        psi_m1 = np.log(((1+x1)/2)**2*(1+x1**2)/2)-2*np.arctan(x1)+np.pi/2
+        psi_m2 = np.log(((1+x2)/2)**2*(1+x2**2)/2)-2*np.arctan(x2)+np.pi/2
+        psi_h1 = np.log(((1+y1)/2)**2)
+        psi_h2 = np.log(((1+y2)/2)**2)
+        u_star[unstable] = kappa*WS_h[unstable]/(np.log(z_WS[unstable]/z_0)-psi_m2+psi_m1)
+        Re[unstable] = u_star[unstable]*z_0/nu[unstable]
+        z_0h[unstable] = z_0*np.exp(1.5-0.2*np.log(Re[unstable])-0.11*(np.log(Re[unstable]))**2)
+        # if n_elements(where(z_0h[unstable] lt 1e-6)) gt 1 then z_0h[unstable[where(z_0h[unstable] lt 1e-6)]] = 1e-6
+        z_0h[stable][z_0h[stable] < 1E-6] == 1E-6
+        th_star = kappa*(theta[unstable]-Tsurf_h[unstable])/(np.log(z_T[unstable]/z_0h[unstable])-psi_h2+psi_h1)
+        q_star  = kappa*(  q_h[unstable]- q_surf[unstable])/(np.log(z_T[unstable]/z_0h[unstable])-psi_h2+psi_h1)
+        SHF_h[unstable] = rho_atm[unstable]*c_pd *u_star[unstable]*th_star
+        LHF_h[unstable] = rho_atm[unstable]*L_sub*u_star[unstable]* q_star
+        L_prev = L[unstable]
+        L[unstable] = u_star[unstable]**2*(theta[unstable]+T_0)*(1+((1-eps)/eps)*q_h[unstable])/(g*kappa*th_star*(1+((1-eps)/eps)*q_star))
+        L_dif = abs((L_prev-L[unstable])/L_prev)
+        # print,"HF iterations unstable stratification: ",i+1,n_elements(where(L_dif gt L_dif_max)),100.*n_elements(where(L_dif gt L_dif_max))/n_elements(where(L_dif))
+        # if n_elements(where(L_dif gt L_dif_max)) eq 1 then break
+        if np.all(L_dif <= L_dif_max):
+            print("LDIF BREAK: ", i)
+            break
 
-     q_h = 1000.*q_h            ; from kg/kg to g/kg
-;no_q = where(p_h eq -999 or T_h eq -999 or RH_cor_h eq -999)
-;if total(no_q) ne -1 then q_h[no_q] = -999
-;no_HF  = where(p_h eq -999 or T_h eq -999 or Tsurf_h eq -999 or WS_h eq -999 or Haws_h eq -999)
-     no_HF = where(p_h eq -999 or T_h eq -999 or Tsurf_h eq -999 or RH_cor_h eq -999 or WS_h eq -999 or Haws_h eq -999)
-     no_qh = where(T_h eq -999 or RH_cor_h eq -999 or p_h eq -999 or Tsurf_h eq -999)
-;no_SHF = where(p_h eq -999 or T_h eq -999 or Tsurf_h eq -999 or WS_h eq -999 or Haws_h eq -999)
-;no_LHF = where(p_h eq -999 or T_h eq -999 or Tsurf_h eq -999 or RH_cor_h eq -999 or WS_h eq -999 or Haws_h eq -999)
-;if total(no_LHF) ne -1 then LHF_h[no_LHF] = -999
-;if total(no_SHF) ne -1 then SHF_h[no_SHF] = -999
-     if total(no_HF) ne -1 then begin
-        SHF_h[no_HF] = -999
-        LHF_h[no_HF] = -999
-     endif
-     if total(no_qh) ne -1 then begin
-        q_h[no_qh] = -999
-     endif
-;print,'size q_h: ',size(q_h)
+           
+q_h = 1000 * q_h            # from kg/kg to g/kg
+HF_nan = np.isnan(p_h) | np.isnan(T_h) | np.isnan(Tsurf_h) | np.isnan(RH_cor_h) | np.isnan(WS_h) | np.isnan(ds_h['z_boom'])
+qh_nan = np.isnan(T_h) | np.isnan(RH_cor_h) | np.isnan(p_h) | np.isnan(Tsurf_h)
+SHF_h[HF_nan] = np.nan
+LHF_h[HF_nan] = np.nan
+q_h[qh_nan] = np.nan
 
 #+END_SRC
-
-
-** Downsample to hourly and daily
-
-Downsampling should be 1 line
-#+BEGIN_SRC jupyter-python :noweb-ref nil
-ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minutes
-ds_d = ds.resample({'time':"1D"}).mean()
-#+END_SRC
-But due to xarray implementation, this takes several minutes, while it takes << 1 second in Pandas.
-See https://github.com/pydata/xarray/issues/4498
-
-Therefore, we do downsampling in Pandas (for now) even though the code is more complex.
-
-#+BEGIN_SRC jupyter-python
-df_h = ds.to_dataframe().resample("1H").mean()  # what we want (quickly), but in Pandas form
-# now, rebuild xarray dataset (https://www.theurbanist.com.au/2020/03/how-to-create-an-xarray-dataset-from-scratch/)
-vals = [xr.DataArray(data=df_h[c], dims=['time'], coords={'time':df_h.index}, attrs=ds[c].attrs) for c in df_h.columns]
-ds_h = xr.Dataset(dict(zip(df_h.columns,vals)), attrs=ds.attrs)
-
-
-df_d = ds.to_dataframe().resample("1D").mean()  # what we want (quickly), but in Pandas form
-# now, rebuild xarray dataset (https://www.theurbanist.com.au/2020/03/how-to-create-an-xarray-dataset-from-scratch/)
-vals = [xr.DataArray(data=df_d[c], dims=['time'], coords={'time':df_d.index}, attrs=ds[c].attrs) for c in df_d.columns]
-ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds.attrs)
-#+END_SRC
-
-#+RESULTS:
 
 
 ** Export file as L3
@@ -1389,31 +1412,31 @@ ds_d.to_dataframe().dropna(how='all').to_csv(outpathfile+"_day.csv")
 
 * L0M to L3
 
-#+BEGIN_SRC bash :tangle ppp.sh :tangle-mode (identity #o744) :var s="CEN"
+#+BEGIN_SRC bash :tangle ppp.sh :tangle-mode (identity #o744) :var s="EGP"
 
 # conda activate PROMICE_dev
 
 # L0M -> L1
 # for f in $(ls ./data/L0M/${s}/*); do ./L0_to_L1.py ${f}; done
-parallel "./L0_to_L1.py {}" ::: $(ls ./data/L0M/${s}/*)
+parallel --bar "./L0_to_L1.py {}" ::: $(ls ./data/L0M/${s}/*)
 
 # L1 -> L1A
 # ./L1_to_L1A.py data/L1/${s}/*raw.nc
 # ./L1_to_L1A.py data/L1/${s}/*STM.nc
 # ./L1_to_L1A.py data/L1/${s}/*TX.nc
-parallel "./L1_to_L1A.py {}" ::: $(ls data/L1/${s}/*)
+parallel --bar "./L1_to_L1A.py {}" ::: $(ls data/L1/${s}/*)
 
 # L1A to L2
 # ./L1A_to_L2.py data/L1A/${s}/${s}-raw.nc
 # ./L1A_to_L2.py data/L1A/${s}/${s}-STM.nc
 # ./L1A_to_L2.py data/L1A/${s}/${s}-TX.nc
-parallel "./L1A_to_L2.py {}" ::: $(ls data/L1A/${s}/*)
+parallel --bar "./L1A_to_L2.py {}" ::: $(ls data/L1A/${s}/*)
 
 # L2 to L3
 # ./L2_to_L3.py data/L2/${s}/*raw.nc
 # ./L2_to_L3.py data/L2/${s}/*STM.nc
 # ./L2_to_L3.py data/L2/${s}/*TX.nc
-parallel "./L2_to_L3.py {}" ::: $(ls data/L2/${s}/*)
+parallel --bar "./L2_to_L3.py {}" ::: $(ls data/L2/${s}/*)
 
 #+END_SRC
 
@@ -1428,11 +1451,59 @@ deg2rad = np.pi / 180
 rad2deg = 1 / deg2rad
 #+END_SRC
 
+** Flag invalid data
+
+#+NAME: flag_invalid
+#+BEGIN_SRC jupyter-python
+def flag_invalid(ds):
+    """Uses the flag DB (flags.csv) to set stations, sensors, and times to NaN."""
+    df = pd.read_csv("./flags.csv", parse_dates=[0,1], comment="#").dropna(how='all')
+
+    # check format of flags.csv. Either both or neither of t0 and t1 must be defined.
+    assert(((np.isnan(df['t0']).astype(np.int) + np.isnan(df['t1']).astype(np.int)) % 2).sum() == 0)
+    # for now we only process the "invalid" flag: -1
+    df = df[df['flag'] == -1]
+    if df.shape[0] == 0: return ds
+    # subset to this station
+    df = df[[((ds.attrs['station_id'] in _) | ('*' in _)) for _ in df['station']]]
+    if df.shape[0] == 0: return ds
+
+    for i in df.index:
+        t0, t1, avar = df.loc[i,['t0','t1','variable']]
+        varlist = avar.split() if avar != '*' else list(ds.variables)
+        if 'time' in varlist: varlist.remove("time")
+        if pd.isnull(t0): t0, t1 = ds['time'].values[[0,-1]]
+        for v in varlist:
+            ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
+            
+    return ds
+#+END_SRC
+
+** Add variable metadata
+
+This function reads in the variables db ([[./variables.csv]]) and adds the metadata contained therein to the xarray variable (and therefore, eventually, the NetCDF file). See [[./variables.org]] for documentation on the variable DB.
+
+#+NAME: add_variable_metadata
+#+BEGIN_SRC jupyter-python
+def add_variable_metadata(ds):
+    """Uses the variable DB (variables.csv) to add metadata to the xarray dataset."""
+    df = pd.read_csv("./variables.csv", index_col=0, comment="#")
+
+    for v in df.index:
+        if v == 'time': continue # coordinate variable, not normal var
+        if v not in list(ds.variables): continue
+        for c in ['standard_name', 'long_name', 'units', 'scale_factor', 'add_offset']:
+            if isinstance(df[c][v], np.float) and np.isnan(df[c][v]): continue
+            ds[v].attrs[c] = df[c][v]
+            
+    return ds
+#+END_SRC
+
 * Compare Python & IDL
 :PROPERTIES:
 :header-args:jupyter-python+: :session compare
 :END:
-
+** Graphic
 #+BEGIN_SRC jupyter-python
 import pandas as pd
 
@@ -1470,3 +1541,119 @@ legend()
 : <matplotlib.legend.Legend at 0x7f9512cac040>
 :END:
 
+
+** Columns
+
+IDL output
+#+BEGIN_SRC bash
+# head -n1 ./IDL/data/out/EGP_month_v03.txt | tr ' ' '\n'
+head -n1 ./IDL/data/out/EGP_hour_v03.txt | tr ' ' '\n'
+#+END_SRC
+
+#+RESULTS:
+|                                  |
+| Year                             |
+| MonthOfYear                      |
+| DayOfMonth                       |
+| HourOfDay(UTC)                   |
+| DayOfYear                        |
+| DayOfCentury                     |
+| AirPressure(hPa)                 |
+| AirTemperature(C)                |
+| AirTemperatureHygroClip(C)       |
+| RelativeHumidity(%)              |
+| SpecificHumidity(g/kg)           |
+| WindSpeed(m/s)                   |
+| WindDirection(d)                 |
+| SensibleHeatFlux(W/m2)           |
+| LatentHeatFlux(W/m2)             |
+| ShortwaveRadiationDown(W/m2)     |
+| ShortwaveRadiationDown_Cor(W/m2) |
+| ShortwaveRadiationUp(W/m2)       |
+| ShortwaveRadiationUp_Cor(W/m2)   |
+| Albedo_theta<70d                 |
+| LongwaveRadiationDown(W/m2)      |
+| LongwaveRadiationUp(W/m2)        |
+| CloudCover                       |
+| SurfaceTemperature(C)            |
+| HeightSensorBoom(m)              |
+| HeightStakes(m)                  |
+| DepthPressureTransducer(m)       |
+| DepthPressureTransducer_Cor(m)   |
+| IceTemperature1(C)               |
+| IceTemperature2(C)               |
+| IceTemperature3(C)               |
+| IceTemperature4(C)               |
+| IceTemperature5(C)               |
+| IceTemperature6(C)               |
+| IceTemperature7(C)               |
+| IceTemperature8(C)               |
+| TiltToEast(d)                    |
+| TiltToNorth(d)                   |
+| TimeGPS(hhmmssUTC)               |
+| LatitudeGPS(degN)                |
+| LongitudeGPS(degW)               |
+| ElevationGPS(m)                  |
+| HorDilOfPrecGPS                  |
+| LoggerTemperature(C)             |
+| FanCurrent(mA)                   |
+| BatteryVoltage(V)                |
+
+Python outputs:
+#+BEGIN_SRC bash
+head -n1 ./data/L3/EGP/EGP-raw_hour.csv | tr ',' '\n'
+#+END_SRC
+
+#+RESULTS:
+| time       |
+| rec        |
+| p          |
+| t_1        |
+| t_2        |
+| rh         |
+| wspd       |
+| wdir       |
+| wd_std     |
+| dsr        |
+| usr        |
+| dlr        |
+| ulr        |
+| t_rad      |
+| z_boom     |
+| z_boom_q   |
+| z_stake    |
+| z_stake_q  |
+| z_pt       |
+| t_i_1      |
+| t_i_2      |
+| t_i_3      |
+| t_i_4      |
+| t_i_5      |
+| t_i_6      |
+| t_i_7      |
+| t_i_8      |
+| tilt_x     |
+| tilt_y     |
+| gps_time   |
+| gps_lat    |
+| gps_lon    |
+| gps_alt    |
+| gps_geoid  |
+| gps_q      |
+| gps_numsat |
+| gps_hdop   |
+| t_log      |
+| fan_dc     |
+| batt_v_ss  |
+| batt_v     |
+| z_pt_corr  |
+| rh_cor     |
+| cc         |
+| wdir_std   |
+| albedo     |
+| t          |
+| t_surf     |
+| dwr_cor    |
+| uswr_cor   |
+| wspd_x     |
+| wspd_y     |
