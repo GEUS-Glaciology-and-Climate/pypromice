@@ -5,6 +5,7 @@
 - [[#flag-values][Flag values]]
 - [[#application-of-flags][Application of flags]]
 - [[#how-to-use-this-file][How to use this file]]
+- [[#notes][Notes]]
 
 * Introduction
 
@@ -19,30 +20,26 @@ The second portion of the flags DB (plus the header line) is composed by humans 
 * Flag values
 
 #+BEGIN_SRC bash :exports both
-grep "^#" flags.csv | cut -d, -f5-
+grep "^#" flags.csv | cut -d, -f4- | grep -v ",,"
+# grep "^#" flags.csv | awk -F, 'BEGIN{OFS=",";} {print $5, $4, $6}' | grep -v ",,"
 #+END_SRC
 
 #+RESULTS:
-|  -1 | Known to be completely invalid. Set to NaN in early processing   |
-|  -2 | DROP. Must be applied to entire row or column                    |
-|   0 | Valid data – no known issues                                     |
-|   1 | Unverified suspicious. If cannot be classified further, set to 2 |
-|   2 | Verified suspicious, but cannot be classified                    |
-|   4 | OOL (see variables DB)                                           |
-|   8 | Station visit                                                    |
-|  16 | Buried by snow ?                                                 |
-|  32 |                                                                  |
-|  64 |                                                                  |
-| 128 |                                                                  |
-| 256 |                                                                  |
+| value | flag    | comment                                                               |
+|     1 | CHECKME | Unverified suspicious. If cannot be classified further set to UNKNOWN |
+|     2 | UNKNOWN | Verified suspicious but cannot be classified                          |
+|     4 | NAN     | Known to be completely invalid. Set to NaN in early processing        |
+|     8 | OOL     | Out of limits                                                         |
+|    16 | OOL_2   | Flagged because another variable is OOL                               |
+|    32 | VISIT   | Station visit                                                         |
 
 * Application of flags
 
 Flags are applied to one or more of a time span, a sensor, or a station. The format of [[./flags.csv]] is:
 
-| t0                  | t1                  | station   | variable  | flag |
-|---------------------+---------------------+-----------+-----------+------|
-| <t0>                | <t1>                | <s> [<s>] | <v> [<v>] |  <f> |
+| t0   | t1   | station   | variable  | flag |
+|------+------+-----------+-----------+------|
+| <t0> | <t1> | <s> [<s>] | <v> [<v>] | <f>  |
 
 Where
 + =<t0>= and =<t1>= are timestamps of the format =YYYY-MM-DD HH:MM:SS= or =n/a= to represent all times
@@ -50,7 +47,7 @@ Where
 + =<s>= is a space-separated list of station IDs
 + =<v>= is a space-separated list of variables
 + =<f>= is the flag value, where values have the meanings defined above
-  + NOTE: Currently only flags of =-1= (setting data to =NaN=) are handled by the code
+  + NOTE: Currently only flag =NAN= is handled by the code
 
 As an example, the first 10 flag lines of the flags DB (at the time of this writing) are:
 
@@ -60,8 +57,8 @@ grep -v "^#" flags.csv | grep -v ",,," | head -n11
 
 #+RESULTS:
 | t0                  | t1                  | station | variable | flag | comment                                                                     |
-| 2017-05-23 10:00:00 | 2017-06-10 11:00:00 | CEN     | *        |   -1 | suspicious early data including pressure logger which isn’t at the station? |
-| n/a                 | n/a                 | CEN     | z_pt     |   -1 | not processed per V3 metadata.csv files                                     |
+| 2017-05-23 10:00:00 | 2017-06-10 11:00:00 | CEN     | *        |  NAN | suspicious early data including pressure logger which isn’t at the station? |
+| n/a                 | n/a                 | CEN     | z_pt     |  NAN | not processed per V3 metadata.csv files                                     |
 
 * How to use this file
 
@@ -70,3 +67,19 @@ grep -v "^#" flags.csv | grep -v ",,," | head -n11
   + If a relevant flag does not exist create, add a new flag value and description in the first part of the flag DB.
 
 The AWS processing code will use this database to either drop a column or row, set to NaN, or set a flag for the final output product.
+
+* Notes
+
+Architecture & implementation notes and thoughts...
+
++ The =ds= variable (an xarray dataset representing a NetCDF file) should have an identical =dsf= variable, where each cell contains the bitwise OR of flag values, initially all 0.
++ Only NAN flag modifies the data (=ds=), everything else adjusts values in =dsf=
+  + As a final step, before writing L3 CSV data, =ds= is set to =NaN= where ~dsf != 0~
++ For more technical users (early processing levels or the L3 NetCDF files), =ds= and =dsf= can be merged and shared as a single file, or kept as separate files
++ If merging...
+  + each variable has a paired flag (e.g. t_1 & t_1_flag; rh & rh_flag).
+  + The paired flag could be an attribute of the variable (length: size(times))
++ Two global attributes, flag_and and flag_or, can provide the bitwise AND and OR of all the individual variable flags
+  + flag_and shows when all variables have a flag set at a given time
+  + flag_or shows when any variable has a flag set
+

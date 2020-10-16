@@ -467,8 +467,8 @@ import pandas as pd
 #+BEGIN_SRC jupyter-python
 ds = nead.read(infile, index_col=0)
 
-<<flag_invalid>>
-ds = flag_invalid(ds)
+<<flag_NAN>>
+ds = flag_NAN(ds)
 
 <<add_variable_metadata>>
 ds = add_variable_metadata(ds)
@@ -1453,16 +1453,21 @@ rad2deg = 1 / deg2rad
 
 ** Flag invalid data
 
-#+NAME: flag_invalid
+#+NAME: flag_NAN
 #+BEGIN_SRC jupyter-python
-def flag_invalid(ds):
+def flag_NAN(ds):
     """Uses the flag DB (flags.csv) to set stations, sensors, and times to NaN."""
-    df = pd.read_csv("./flags.csv", parse_dates=[0,1], comment="#").dropna(how='all')
+    flag_LUT = pd.read_csv("./flags.csv", index_col=2, usecols=(0,3,4,5))
+    flag_LUT = flag_LUT[flag_LUT['#'] == '#'].drop(columns="#").dropna(how='all', axis='rows')
+    
+    df = pd.read_csv("./flags.csv", parse_dates=[0,1], comment="#", header=1)\
+           .dropna(how='all', axis='rows')\
+           .drop(columns="comment")
 
     # check format of flags.csv. Either both or neither of t0 and t1 must be defined.
     assert(((np.isnan(df['t0']).astype(np.int) + np.isnan(df['t1']).astype(np.int)) % 2).sum() == 0)
-    # for now we only process the "invalid" flag: -1
-    df = df[df['flag'] == -1]
+    # for now we only process the NAN flag
+    df = df[df['flag'] == "NAN"]
     if df.shape[0] == 0: return ds
     # subset to this station
     df = df[[((ds.attrs['station_id'] in _) | ('*' in _)) for _ in df['station']]]
@@ -1475,7 +1480,9 @@ def flag_invalid(ds):
         if pd.isnull(t0): t0, t1 = ds['time'].values[[0,-1]]
         for v in varlist:
             ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
-            
+
+        # TODO: Mark these values in the ds_flags dataset using perhaps flag_LUT.loc[NAN]['value']
+
     return ds
 #+END_SRC
 
