@@ -1,15 +1,16 @@
-#,,,value,flag,comment
-#,,,1,CHECKME,Unverified suspicious. If cannot be classified further set to UNKNOWN
-#,,,2,UNKNOWN,Verified suspicious but cannot be classified
-#,,,4,NAN,Known to be completely invalid. Set to NaN in early processing
-#,,,8,OOL,Out of limits
-#,,,16,OOL_2,Flagged because another variable is OOL
-#,,,32,VISIT,Station visit
-#,,,,,
-#,,,,,
-#,,,,,
-#,,,,,
-,,,,,
-t0,t1,station,variable,flag,comment
-2017-05-23 10:00:00,2017-06-10 11:00:00,CEN,*,NAN,suspicious early data including pressure logger which isn’t at the station?
-n/a,n/a,CEN,z_pt,NAN,not processed per V3 metadata.csv files
+#,,,value,flag,comment,
+#,,,1,CHECKME,Unverified suspicious. If cannot be classified further set to UNKNOWN,
+#,,,2,UNKNOWN,Verified suspicious but cannot be classified,
+#,,,4,NAN,Known to be completely invalid. Set to NaN in early processing,
+#,,,8,OOL,Out of limits,
+#,,,16,OOL_2,Flagged because another variable is OOL,
+#,,,32,VISIT,Station visit,
+#,,,,,,
+#,,,,,,
+#,,,,,,
+#,,,,,,
+,,,,,,
+t0,t1,station,variable,flag,comment,URL_graphic
+2017-05-23 10:00:00,2017-06-10 11:00:00,CEN,*,NAN,First 44 rows suspicious. Includes sensors not at station?,
+n/a,n/a,CEN,z_pt,NAN,not processed per V3 metadata.csv files,
+2012-06-01,2015-10-01,UPE_U,wdir,CHECKME,Rotated by ~180 degrees. Step change again mid-2013.,https://user-images.githubusercontent.com/145117/92995442-99d11e00-f4b8-11ea-9498-7fc6b05e5efa.png
