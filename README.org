@@ -773,10 +773,11 @@ for var in df.index:
     ds[var] = ds[var].where(ds[var] > df.loc[var, 'lo'])
     ds[var] = ds[var].where(ds[var] < df.loc[var, 'hi'])
     other_vars = df.loc[var]['OOL'] # either NaN or "foo" or "foo bar baz ..."
-    if isinstance(other_vars, str): 
+    if isinstance(other_vars, str):
         for o in other_vars.split():
-            ds[o] = ds[var].where(ds[var] > df.loc[var, 'lo'])
-            ds[o] = ds[var].where(ds[var] < df.loc[var, 'hi'])
+            if o not in list(ds.variables): continue
+            ds[o] = ds[o].where(ds[var] > df.loc[var, 'lo'])
+            ds[o] = ds[o].where(ds[var] < df.loc[var, 'hi'])
 #+END_SRC
 
 #+RESULTS:
