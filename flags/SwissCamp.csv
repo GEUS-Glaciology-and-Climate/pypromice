@@ -1,0 +1,6 @@
+t0,t1,variable,flag,comment,URL_graphic
+2015-01-01 00:00:00,2017-01-01 00:00:00,RelativeHumidity1Perc,UNKNOWN,Manually flagged by bav,
+2015-01-01 00:00:00,2017-01-01 00:00:00,RelativeHumidity2Perc,UNKNOWN,Manually flagged by bav,
+1997-01-01 00:00:00,1999-01-01 00:00:00,ShortwaveRadiationUpWm2,UNKNOWN,Manually flagged by bav,
+1997-01-01 00:00:00,1999-01-01 00:00:00,ShortwaveRadiationDownWm2,UNKNOWN,Manually flagged by bav,
+1996-01-05 00:00:00,2019-01-01 00:00:00,ShortwaveRadiationDownWm2,UNKNOWN,Manually flagged by bav,

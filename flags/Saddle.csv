@@ -1,0 +1,5 @@
+t0,t1,variable,flag,comment,URL_graphic
+2015-07-20 00:00:00,2015-12-20 00:00:00,SnowHeight1m,UNKNOWN,Manually flagged by bav,
+2015-01-01 00:00:00,2015-12-20 00:00:00,AirTemperature1C,UNKNOWN,Manually flagged by bav,
+2014-01-01 00:00:00,2018-12-20 00:00:00,RelativeHumidity1Perc,UNKNOWN,Manually flagged by bav,
+2014-01-01 00:00:00,2018-12-20 00:00:00,RelativeHumidity2Perc,UNKNOWN,Manually flagged by bav,
