@@ -30,8 +30,8 @@ pro AWSdataprocessing_v3
 
 ; dir = 'D:\CentOS\AWS_PROMICE\AWS_data_PROMICE\'
 ; datadir = 'data\'
-  dir='./data/'
-  datadir='./data/out/'
+  dir='../data/L0/'
+  datadir='./out/'
   version_no = '_v03'           ; Version of processing routine. Change when implementing a significant improvement / addition.
   columns_inst=53               ; Columns in inst. data file v03
   columns_hour=46               ; Columns in hourly data file v03
@@ -197,7 +197,7 @@ pro AWSdataprocessing_v3
            endelse
         endif
 ;  print,filename
-        openr,unit2,dir+'data_raw/'+AWS[i_AWS]+' raw/'+filename,/get_lun
+        openr,unit2,dir+AWS[i_AWS] + '/' +filename,/get_lun
         print,'File: ',filename
 ;  if lines_hdr gt 0 then for i=1,lines_hdr do readf,unit2,header
         if lines_hdr gt 0 then header = STRARR(lines_hdr) 
@@ -1429,7 +1429,7 @@ pro AWSdataprocessing_v3
         if updaterun eq 'yes' then begin
            openw,lun,dir+datadir+AWS[i_AWS]+'_inst'+version_no+'_upd.txt',/get_lun
         endif else begin
-           openw,lun,dir+datadir+AWS[i_AWS]+'_inst'+version_no+'.txt',/get_lun
+           openw,lun,datadir+AWS[i_AWS]+'_inst'+version_no+'.txt',/get_lun
         endelse
         printf,lun,' Year MonthOfYear DayOfMonth HourOfDay(UTC) MinuteOfHour DayOfYear'+ $
                ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity_wrtWater(%) RelativeHumidity(%)'+ $
@@ -1472,7 +1472,7 @@ pro AWSdataprocessing_v3
            GPStime_h[i],GPSlat_h[i],GPSlon_h[i],GPSelev_h[i],GPShdop_h[i],Tlog_h[i],Ifan_h[i],Vbat_h[i]
         free_lun,lun1
      endif else begin
-        openw,lun1,dir+datadir+AWS[i_AWS]+'_hour'+version_no+'.txt',/get_lun
+        openw,lun1,datadir+AWS[i_AWS]+'_hour'+version_no+'.txt',/get_lun
         printf,lun1,' Year MonthOfYear DayOfMonth HourOfDay(UTC) DayOfYear DayOfCentury'+ $
                ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity(%) SpecificHumidity(g/kg)'+ $
                ' WindSpeed(m/s) WindDirection(d) SensibleHeatFlux(W/m2) LatentHeatFlux(W/m2) ShortwaveRadiationDown(W/m2) ShortwaveRadiationDown_Cor(W/m2)'+ $
@@ -1510,7 +1510,7 @@ pro AWSdataprocessing_v3
            GPSlat_d[i],GPSlon_d[i],GPSelev_d[i],GPShdop_d[i],Tlog_d[i],Ifan_d[i],Vbat_d[i]
         free_lun,lun2
      endif else begin
-        openw,lun2,dir+datadir+AWS[i_AWS]+'_day'+version_no+'.txt',/get_lun
+        openw,lun2,datadir+AWS[i_AWS]+'_day'+version_no+'.txt',/get_lun
         printf,lun2,' Year MonthOfYear DayOfMonth DayOfYear DayOfCentury'+ $
                ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity(%) SpecificHumidity(g/kg)'+ $
                ' WindSpeed(m/s) WindDirection(d) SensibleHeatFlux(W/m2) LatentHeatFlux(W/m2) ShortwaveRadiationDown(W/m2) ShortwaveRadiationDown_Cor(W/m2)'+ $
@@ -1541,7 +1541,7 @@ pro AWSdataprocessing_v3
            LRin_m[i],LRout_m[i],Haws_m[i],GPSlat_m[i],GPSlon_m[i],GPSelev_m[i],fanOK_m[i]
         free_lun,lun3
      endif else begin
-        openw,lun3,dir+datadir+AWS[i_AWS]+'_month'+version_no+'.txt',/get_lun
+        openw,lun3,datadir+AWS[i_AWS]+'_month'+version_no+'.txt',/get_lun
         printf,lun3,' Year MonthOfYear MonthOfCentury'+ $
                ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity(%) SpecificHumidity(g/kg)'+ $
                ' WindSpeed(m/s) WindDirection(d) SensibleHeatFlux(W/m2) LatentHeatFlux(W/m2) ShortwaveRadiationDown(W/m2) ShortwaveRadiationDown_Cor(W/m2)' + $
@@ -1552,153 +1552,12 @@ pro AWSdataprocessing_v3
            LRin_m[i],LRout_m[i],Haws_m[i],GPSlat_m[i],GPSlon_m[i],GPSelev_m[i],fanOK_m[i]
         free_lun,lun3
      endelse
-;----------End updating data files-------------------------------------------------------------------
-; Plotting ------------------------------------------------------------------------------------------
-
-     set_plot,'ps'
-
-;!p.background = 255
-;!p.color = 0
-;!p.thick = 2
-;!p.charsize = 1
-;!p.charthick = 2
-;!x.range = [0,24]
-;!y.range = [0,200]
-;!x.style = 1
-;!y.style = 1
-;!x.thick = 2
-;!y.thick = 2
-;!x.tickformat = '(f6.1)'
-;!x.title=''
-;!y.title=''
-;!x.margin=[6,1]
-;!y.margin=[3,1]
-;!x.ticklen = 0.06
-;!y.ticklen = 0.01
-;!x.minor = 6
-;!x.tickinterval = 6
-;!y.minor = 2
-;!y.tickinterval = 50
-;!y.margin=[4,2]
-     !y.style = 16              ; = ynozero
-
-     A = FINDGEN(17) * (!PI*2/16.)
-     USERSYM, COS(A), SIN(A)
-
-     !p.multi = [0,1,5,0,0]
-
-     device,filename=dir+datadir+AWS[i_AWS]+'_day'+version_no+'.ps',xsize=18,ysize=25,yoffset=2
-
-     plot,day_cent_d/365.25+2000,p_d,min_value=-998,ytitle='Air pressure (hPa)'
-     oplot,(month_cent_m-0.5)/12.+2000,p_m,psym=8
-
-     plot,day_cent_d/365.25+2000,T_d,min_value=-998,ytitle='Air temperature PT100 (!eO!nC)'
-     oplot,(month_cent_m-0.5)/12.+2000,T_m,psym=8
-     oplot,[2007,2025],[0,0],linestyle=1
-
-     plot,day_cent_d/365.25+2000,Thc_d,min_value=-998,ytitle='Air temperature HygroClip (!eO!nC)'
-     oplot,(month_cent_m-0.5)/12.+2000,Thc_m,psym=8
-     oplot,[2007,2025],[0,0],linestyle=1
-
-;plot,day_cent_d/365.25+2000,RH_d,min_value=-998,ytitle='Relative humidity uncor (%)'
-
-     plot,day_cent_d/365.25+2000,RH_cor_d,min_value=-998,ytitle='Relative humidity (%)'
-     oplot,(month_cent_m-0.5)/12.+2000,RH_cor_m,psym=8
-
-     plot,day_cent_d/365.25+2000,q_d,min_value=-998,ytitle='Specific humidity (g kg!e-1!n)'
-     oplot,(month_cent_m-0.5)/12.+2000,q_m,psym=8
-
-     plot,day_cent_d/365.25+2000,WS_d,min_value=-998,ytitle='Wind speed (m s!e-1!n)'
-     oplot,(month_cent_m-0.5)/12.+2000,WS_m,psym=8
-
-     plot,day_cent_d/365.25+2000,WD_d,min_value=-998,ytitle='Wind direction (!eO!n)',yrange=[0,360]
-     oplot,(month_cent_m-0.5)/12.+2000,WD_m,psym=8
-
-     plot,day_cent_d/365.25+2000,SHF_d,min_value=-998,ytitle='Sensible heat flux (W m!e-1!n)'
-     oplot,(month_cent_m-0.5)/12.+2000,SHF_m,psym=8
-     oplot,[2007,2025],[0,0],linestyle=1
-
-     plot,day_cent_d/365.25+2000,LHF_d,min_value=-998,ytitle='Latent heat flux (W m!e-1!n)'
-     oplot,(month_cent_m-0.5)/12.+2000,LHF_m,psym=8
-     oplot,[2007,2025],[0,0],linestyle=1
-
-     plot,day_cent_d/365.25+2000,SRin_d,min_value=-998,ytitle='Shortwave radiation down uncor (W m!e-1!n)'
-     oplot,(month_cent_m-0.5)/12.+2000,SRin_m,psym=8
-     oplot,[2007,2025],[0,0],linestyle=1
-
-     plot,day_cent_d/365.25+2000,SRin_cor_d,min_value=-998,ytitle='Shortwave radiation down cor (W m!e-1!n)'
-     oplot,(month_cent_m-0.5)/12.+2000,SRin_cor_m,psym=8
-
-     plot,day_cent_d/365.25+2000,SRout_d,min_value=-998,ytitle='Shortwave radiation up uncor (W m!e-1!n)'
-     oplot,(month_cent_m-0.5)/12.+2000,SRout_m,psym=8
-     oplot,[2007,2025],[0,0],linestyle=1
-
-     plot,day_cent_d/365.25+2000,SRout_cor_d,min_value=-998,ytitle='Shortwave radiation up cor (W m!e-1!n)'
-     oplot,(month_cent_m-0.5)/12.+2000,SRout_cor_m,psym=8
-
-     plot,day_cent_d/365.25+2000,albedo_d,min_value=-998,ytitle='Surface albedo'
-     oplot,(month_cent_m-0.5)/12.+2000,albedo_m,psym=8
-
-     plot,day_cent_d/365.25+2000,LRin_d,min_value=-998,ytitle='Longwave radiation down (W m!e-1!n)'
-     oplot,(month_cent_m-0.5)/12.+2000,LRin_m,psym=8
-
-     plot,day_cent_d/365.25+2000,LRout_d,min_value=-998,ytitle='Longwave radiation up (W m!e-1!n)'
-     oplot,(month_cent_m-0.5)/12.+2000,LRout_m,psym=8
-
-     plot,day_cent_d/365.25+2000,CloudCov_d,min_value=-998,ytitle='Cloud cover'
-
-     plot,day_cent_d/365.25+2000,Tsurf_d,min_value=-998,ytitle='Surface temperature (!eO!nC)'
-     oplot,[2007,2025],[0,0],linestyle=1
-
-     plot,day_cent_d/365.25+2000,Haws_d,min_value=-998,ytitle='Height of sensor boom (m)'
-;oplot,(month_cent_m-0.5)/12.+2000,Haws_m,psym=8
-
-     plot,day_cent_d/365.25+2000,Hstk_d,min_value=-998,ytitle='Height of stake assembly (m)'
-;oplot,(month_cent_m-0.5)/12.+2000,Hstk_m,psym=8
-
-     plot,day_cent_d/365.25+2000,Hpt_d,min_value=-998,max_value=30,ytitle='Depth of pressure transducer cor&uncor (m)'
-;oplot,(month_cent_m-0.5)/12.+2000,Hpt_m,psym=8
-     oplot,day_cent_d/365.25+2000,Hpt_cor_d,min_value=-998
-;oplot,(month_cent_m-0.5)/12.+2000,Hpt_cor_m,psym=8
-
-     plot,day_cent_d/365.25+2000,ablation_pt_d,min_value=-998,max_value=200,ytitle='Ablation pressure transducer (mm)'
-
-     plot,day_cent_d/365.25+2000,Tice1_d,min_value=-998,ytitle='Ice temperature (!eO!nC)'
-     oplot,day_cent_d/365.25+2000,Tice2_d,min_value=-998
-     oplot,day_cent_d/365.25+2000,Tice3_d,min_value=-998
-     oplot,day_cent_d/365.25+2000,Tice4_d,min_value=-998
-     oplot,day_cent_d/365.25+2000,Tice5_d,min_value=-998
-     oplot,day_cent_d/365.25+2000,Tice6_d,min_value=-998
-     oplot,day_cent_d/365.25+2000,Tice7_d,min_value=-998
-     oplot,day_cent_d/365.25+2000,Tice8_d,min_value=-998
-     oplot,[2007,2025],[0,0],linestyle=1
-
-     plot,day_cent_d/365.25+2000,tiltX_d,min_value=-998,ytitle='Tilt of station (!eO!n)',yrange=[-30,30]
-     oplot,day_cent_d/365.25+2000,tiltY_d,min_value=-998
-     oplot,[2007,2025],[0,0],linestyle=1
-
-     plot,day_cent_d/365.25+2000,GPSlat_d,min_value=-998,ytitle='GPS latitude (degN)',psym=8
-
-     plot,day_cent_d/365.25+2000,GPSlon_d,min_value=-998,ytitle='GPS longitude (degW)',psym=8
-
-     plot,day_cent_d/365.25+2000,GPSelev_d,min_value=-998,ytitle='GPS elevation (m)',psym=8
-
-     plot,day_cent_d/365.25+2000,GPShdop_d,min_value=-998,ytitle='GPS HDOP',psym=8
-
-     plot,day_cent_d/365.25+2000,Tlog_d,min_value=-998,ytitle='Logger temperature (!eO!nC)'
-     oplot,[2007,2025],[0,0],linestyle=1
-
-     plot,day_cent_d/365.25+2000,Ifan_d,min_value=-998,ytitle='Current drawn by fan (mA)'
-     oplot,[2007,2025],[0,0],linestyle=1
-
-     plot,day_cent_d/365.25+2000,Vbat_d,min_value=-998,ytitle='Battery voltage (V)'
-
-     device,/close
-
-;----------------------------------------------------------------------------------------------------
-
-     beep
+;----------End updating data
+;files-------------------------------------------------------------------
+     
+     ; beep
      print,'Done with this station. Run time (minutes) = ', (SYSTIME(1) - starttime)/60.
      print,'-----------------------------------------------------------'
   endfor
+  stop
 END

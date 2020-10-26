@@ -14,29 +14,24 @@ This documents and demonstrates the historical IDL workflow
 
 ** Inputs
 
-+ These are the input files (using EGP as one example station).
-+ All raw data files have entries in the [[./data/metadata/EGP_metadata.csv]].
++ Proof of concept using just EGP 2016 raw
++ All raw data files have entries in the [[../data/L0/metadata/EGP_metadata.csv]].
++ Therefore, edit metadata.csv to contain only EGP 216 raw
 
 #+BEGIN_SRC bash :results verbatim :exports results
-find ./data | grep -v ./data/out
+ls ../data/L0/EGP/*2016_raw.txt
 #+END_SRC
 
 #+RESULTS:
-#+begin_example
-./data
-./data/data_raw
-./data/data_raw/EGP raw
-./data/data_raw/EGP raw/EGP_2018_raw.txt
-./data/data_raw/EGP raw/EGP_2016_raw.txt
-./data/data_raw/EGP raw/EGP_2019_raw1.txt
-./data/data_raw/EGP raw/EGP_2019_raw_transmitted.txt
-./data/data_raw/EGP raw/EGP_2017_raw_2.txt
-./data/data_raw/EGP raw/EGP_2017_raw_SlimTableMem.txt
-./data/data_raw/EGP raw/EGP_2018_raw_2.txt
-./data/data_raw/EGP raw/EGP_2019_raw.txt
-./data/metadata
-./data/metadata/EGP_metadata.csv
-#+end_example
+: ../data/L0/EGP/EGP_2016_raw.txt
+
+#+BEGIN_SRC bash :exports results
+cat ../data/L0/metadata/EGP_metadata.csv | cut -d, -f-7
+#+END_SRC
+
+#+RESULTS:
+| file_number | filename         | slimtablemem? | transmitted? | header_lines | data_lines | columns |
+|           1 | EGP_2016_raw.txt | no            | no           |            3 |      10847 |      43 |
 
 
 ** Process
