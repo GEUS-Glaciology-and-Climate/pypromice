@@ -39,6 +39,7 @@
   - [[#imports-3][Imports]]
   - [[#load-1][Load]]
   - [[#downsample-to-hourly-and-daily][Downsample to hourly and daily]]
+    - [[#circular-averaging][Circular averaging]]
   - [[#derived-properties][Derived properties]]
     - [[#turbulent-heat-flux][Turbulent heat flux]]
   - [[#export-file-as-l3][Export file as L3]]
@@ -413,12 +414,16 @@ Attributes:
 
 Run one:
 #+BEGIN_SRC jupyter-python :noweb-ref
-infile = "./data/L0/EGP/EGP-2016-raw.txt.hdr"
+infile = "./data/L0/EGP/EGP_2016_raw.txt.hdr"
 #+END_SRC
+
+#+RESULTS:
 
 #+BEGIN_SRC jupyter-python :noweb-ref
 <<L0_to_L1>>
 #+END_SRC
+
+#+RESULTS:
 
 Run all:
 #+BEGIN_SRC bash
@@ -445,7 +450,6 @@ if __name__ == "__main__":
     for arg in sys.argv[1:]: L0_to_L1(arg)
     
 #+END_SRC
-
 
 ** Imports
 
@@ -591,15 +595,60 @@ for v in ['gps_lat','gps_lon']:
     ds[v].attrs = a # restore
 
 # tilt-o-meter voltage to degrees
-abst = np.abs(ds['tilt_x'])
-ds['tilt_x'] = ds['tilt_x'] / 10
-ds['tilt_x'] = ds['tilt_x'] / (abst * (-0.49*abst**4 + 3.6*abst**3 - 10.4*abst**2 + 21.1*abst))
-abst = np.abs(ds['tilt_y'])
-ds['tilt_y'] = ds['tilt_y'] / 10
-ds['tilt_y'] = ds['tilt_y'] / (abst * (-0.49*abst**4 + 3.6*abst**3 - 10.4*abst**2 + 21.1*abst))
-#+END_SRC
+# if transmitted ne 'yes' then begin
+#    tiltX = smooth(tiltX,7,/EDGE_MIRROR,MISSING=-999) & tiltY = smooth(tiltY,7,/EDGE_MIRROR, MISSING=-999)
+# endif
 
-#+RESULTS:
+# Should just be
+# if ds.attrs['PROMICE_format'] != 'TX': dstxy = dstxy.rolling(time=7, win_type='boxcar', center=True).mean()
+# but the /EDGE_MIRROR makes it a bit more complicated...
+win_size=7
+s = np.int(win_size/2)
+tdf = ds['tilt_x'].to_dataframe()
+ds['tilt_x'] = (('time'), tdf.iloc[:s][::-1].append(tdf).append(tdf.iloc[-s:][::-1]).rolling(win_size, win_type='boxcar', center=True).mean()[s:-s].values.flatten())
+tdf = ds['tilt_y'].to_dataframe()
+ds['tilt_y'] = (('time'), tdf.iloc[:s][::-1].append(tdf).append(tdf.iloc[-s:][::-1]).rolling(win_size, win_type='boxcar', center=True).mean()[s:-s].values.flatten())
+
+# # notOKtiltX = where(tiltX lt -100, complement=OKtiltX) & notOKtiltY = where(tiltY lt -100, complement=OKtiltY)
+notOKtiltX = (ds['tilt_x'] < -100)
+OKtiltX = (ds['tilt_x'] >= -100)
+notOKtiltY = (ds['tilt_y'] < -100)
+OKtiltY = (ds['tilt_y'] >= -100)
+
+# tiltX = tiltX/10.
+ds['tilt_x'] = ds['tilt_x'] / 10
+ds['tilt_y'] = ds['tilt_y'] / 10
+
+# tiltnonzero = where(tiltX ne 0 and tiltX gt -40 and tiltX lt 40)
+# if n_elements(tiltnonzero) ne 1 then tiltX[tiltnonzero] = tiltX[tiltnonzero]/abs(tiltX[tiltnonzero])*(-0.49*(abs(tiltX[tiltnonzero]))^4 + 3.6*(abs(tiltX[tiltnonzero]))^3 - 10.4*(abs(tiltX[tiltnonzero]))^2 +21.1*(abs(tiltX[tiltnonzero])))
+
+# tiltY = tiltY/10.
+# tiltnonzero = where(tiltY ne 0 and tiltY gt -40 and tiltY lt 40)
+# if n_elements(tiltnonzero) ne 1 then tiltY[tiltnonzero] = tiltY[tiltnonzero]/abs(tiltY[tiltnonzero])*(-0.49*(abs(tiltY[tiltnonzero]))^4 + 3.6*(abs(tiltY[tiltnonzero]))^3 - 10.4*(abs(tiltY[tiltnonzero]))^2 +21.1*(abs(tiltY[tiltnonzero])))
+
+dstx = ds['tilt_x']
+nz = (dstx != 0) & (np.abs(dstx) < 40)
+dstx = dstx.where(~nz, other = dstx / np.abs(dstx) * (-0.49 * (np.abs(dstx))**4 + 3.6 * (np.abs(dstx))**3 - 10.4 * (np.abs(dstx))**2 + 21.1 * (np.abs(dstx))))
+ds['tilt_x'] = dstx
+
+dsty = ds['tilt_y']
+nz = (dsty != 0) & (np.abs(dsty) < 40)
+dsty = dsty.where(~nz, other = dsty / np.abs(dsty) * (-0.49 * (np.abs(dsty))**4 + 3.6 * (np.abs(dsty))**3 - 10.4 * (np.abs(dsty))**2 + 21.1 * (np.abs(dsty))))
+ds['tilt_y'] = dsty
+
+# if n_elements(OKtiltX) gt 1 then tiltX[notOKtiltX] = interpol(tiltX[OKtiltX],OKtiltX,notOKtiltX) ; Interpolate over gaps for radiation correction; set to -999 again below.
+# if n_elements(OKtiltY) gt 1 then tiltY[notOKtiltY] = interpol(tiltY[OKtiltY],OKtiltY,notOKtiltY) ; Interpolate over gaps for radiation correction; set to -999 again below.
+ds['tilt_x'] = ds['tilt_x'].interpolate_na(dim='time', method='linear')
+ds['tilt_y'] = ds['tilt_y'].interpolate_na(dim='time', method='linear')
+
+ds['tilt_x'] = ds['tilt_x'].where(~notOKtiltX)
+ds['tilt_y'] = ds['tilt_y'].where(~notOKtiltY)
+
+deg2rad = np.pi / 180
+ds['wdir'] = ds['wdir'].where(ds['wspd'] != 0)
+ds['wspd_x'] = ds['wspd'] * np.sin(ds['wdir'] * deg2rad)
+ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
+#+END_SRC
 
 ** Export file as L1
 
@@ -609,7 +658,7 @@ ds['tilt_y'] = ds['tilt_y'] / (abst * (-0.49*abst**4 + 3.6*abst**3 - 10.4*abst**
 outpath = os.path.split(infile)[0].split("/")
 outpath[-2] = 'L1'
 outpath = '/'.join(outpath)
-outfile = os.path.splitext(os.path.basename(infile))[0]
+outfile = os.path.splitext(os.path.splitext(os.path.basename(infile))[0])[0]
 
 outpathfile = outpath + '/' + outfile + ".nc"
 if os.path.exists(outpathfile): os.remove(outpathfile)
@@ -703,8 +752,7 @@ variables:
 
 Run one:
 #+BEGIN_SRC jupyter-python :noweb-ref
-infile = "./data/L1/EGP/EGP-2016-raw.nc"
-infile = "./data/L1/EGP/EGP-2017-STM.nc"
+infile = "./data/L1/EGP/EGP_2016_raw.nc"
 <<L1_to_L1A>>
 #+END_SRC
 
@@ -732,10 +780,9 @@ Run all:
 def L1_to_L1A(infile=None):
     <<L1_to_L1A>>
 
-
 if __name__ == "__main__":
     import sys
-    # print(sys.argv[1:])
+    # for arg in sys.argv[1:]: L1_to_L1A(arg)
     L1_to_L1A(sys.argv[1:])
 #+END_SRC
 
@@ -752,6 +799,7 @@ import os
 
 ** Merge files
 #+BEGIN_SRC jupyter-python :exports both
+# from IPython import embed; embed()
 ds = xr.open_mfdataset(infile, combine='by_coords', mask_and_scale=False).load()
 #+END_SRC
 
@@ -770,14 +818,14 @@ df = df.dropna(how='all')
 
 for var in df.index:
     if var not in list(ds.variables): continue
-    ds[var] = ds[var].where(ds[var] > df.loc[var, 'lo'])
-    ds[var] = ds[var].where(ds[var] < df.loc[var, 'hi'])
+    ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'])
+    ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'])
     other_vars = df.loc[var]['OOL'] # either NaN or "foo" or "foo bar baz ..."
     if isinstance(other_vars, str):
         for o in other_vars.split():
             if o not in list(ds.variables): continue
-            ds[o] = ds[o].where(ds[var] > df.loc[var, 'lo'])
-            ds[o] = ds[o].where(ds[var] < df.loc[var, 'hi'])
+            ds[o] = ds[o].where(ds[var] >= df.loc[var, 'lo'])
+            ds[o] = ds[o].where(ds[var] <= df.loc[var, 'hi'])
 #+END_SRC
 
 #+RESULTS:
@@ -789,8 +837,9 @@ for var in df.index:
 
 #+BEGIN_SRC jupyter-python
 if isinstance(infile, list): infile = infile[0]
-infile_parts = os.path.splitext(os.path.basename(infile))[0].split('-')
-outfile = infile_parts[0] + '-' + infile_parts[-1] + '.nc' # drop year
+# infile_parts = os.path.splitext(os.path.basename(infile))[0].split('_')
+# outfile = infile_parts[0] + '-' + infile_parts[-1] + '.nc' # drop year
+outfile = ds.attrs['station_id'] + '-' + ds.attrs['format'] + '.nc'
 
 outpath = os.path.split(infile)[0].split("/")
 outpath[-2] = 'L1A'
@@ -819,6 +868,11 @@ ds.to_netcdf(outpathfile, mode='w', format='NETCDF4', compute=True)
 Run one:
 #+BEGIN_SRC jupyter-python :noweb-ref
 infile = "./data/L1A/EGP/EGP-raw.nc"
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC jupyter-python :noweb-ref
 <<L1A_to_L2>>
 #+END_SRC
 
@@ -846,7 +900,7 @@ def L1A_to_L2(infile=None):
 
 if __name__ == "__main__":
     import sys
-    L1A_to_L2(sys.argv[1])
+    for arg in sys.argv[1:]: L1A_to_L2(arg)
 #+END_SRC
 
 ** Imports
@@ -866,6 +920,8 @@ import os
 #+BEGIN_SRC jupyter-python
 <<constants>>
 #+END_SRC
+
+#+RESULTS:
 
 
 ** Load
@@ -894,7 +950,7 @@ T_100 = T_0+100            # steam point temperature in K
 ews = 1013.246             # saturation pressure at steam point temperature, normal atmosphere
 ei0 = 6.1071
 
-T = ds['t_1']
+T = ds['t_1'].copy(deep=True)
 
 # in hPa (Goff & Gratch)
 e_s_wtr = 10**(-7.90298 * (T_100 / (T + T_0) - 1)
@@ -909,20 +965,29 @@ e_s_ice = 10**(-9.09718 * (T_0 / (T + T_0) - 1)
                + 0.876793 * (1 - (T + T_0) / T_0)
                + np.log10(ei0))
 
-ds['rh_cor'] = (e_s_wtr / e_s_ice) * ds['rh'].where((ds['t_1'] < 0) & (ds['t_1'] > -100))
+# ds['rh_cor'] = (e_s_wtr / e_s_ice) * ds['rh'].where((ds['t_1'] < 0) & (ds['t_1'] > -100))
+freezing = (ds['t_1'] < 0) & (ds['t_1'] > -100).values # why > -100?
+# set to Geoff & Gratch values when freezing, otherwise just rh.
+ds['rh_cor'] = ds['rh'].where(~freezing, other = ds['rh']*(e_s_wtr / e_s_ice))
 
 
-
+# https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/23
+# Just adding special treatment here in service of replication. rh_cor is clipped not NaN'd
+# https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
 df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
 var = 'rh_cor'
 if var in list(ds.variables):
-    ds[var] = ds[var].where(ds[var] > df.loc[var, 'lo'])
-    ds[var] = ds[var].where(ds[var] < df.loc[var, 'hi'])
+    if var != 'rh_cor':
+        ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'])
+        ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'])
+    else:
+         ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'], other = 100)
+         ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'], other = 100)
     other_vars = df.loc[var]['OOL'] # either NaN or "foo" or "foo bar baz ..."
     if isinstance(other_vars, str): 
         for o in other_vars.split():
-            ds[o] = ds[var].where(ds[var] > df.loc[var, 'lo'])
-            ds[o] = ds[var].where(ds[var] < df.loc[var, 'hi'])
+            ds[o] = ds[o].where(ds[var] >= df.loc[var, 'lo'])
+            ds[o] = ds[o].where(ds[var] <= df.loc[var, 'hi'])
 #+END_SRC
 
 #+RESULTS:
@@ -962,12 +1027,8 @@ DifFrac = 0.2 + 0.8 * cc
 ds['cc'] = (('time'), cc)
 
 emissivity = 0.97
-Tsurf = ((ds['ulr'] - (1 - emissivity) * ds['dsr']) / emissivity / 5.67e-8)**0.25 - T_0
-Tsurf[Tsurf > 0] = 0
-# too_warm = Tsurf > 0
-# if total(too_warm) ne -1 then Tsurf[too_warm] = 0
-
-ds['t_surf'] = (('time'), Tsurf)
+ds['t_surf'] = ((ds['ulr'] - (1 - emissivity) * ds['dsr']) / emissivity / 5.67e-8)**0.25 - T_0
+ds['t_surf'] = ds['t_surf'].where(ds['t_surf'] <= 0, other = 0) # if > 0, set to 0
 #+END_SRC
 
 #+RESULTS:
@@ -1116,8 +1177,8 @@ ds['uswr_cor'][TOA_crit_nopass] = np.nan
     
 #+BEGIN_SRC jupyter-python
 
-ds['wspd_x'] = ds['wspd'] * np.sin(ds['wdir'] * deg2rad)
-ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
+# ds['wspd_x'] = ds['wspd'] * np.sin(ds['wdir'] * deg2rad)
+# ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
 
 # adjust properties
 #+END_SRC
@@ -1192,7 +1253,7 @@ def L2_to_L3(infile=None):
 
 if __name__ == "__main__":
     import sys
-    L2_to_L3(sys.argv[1])
+    for arg in sys.argv[1:]: L2_to_L3(arg)
 #+END_SRC
 
 ** Imports
@@ -1221,6 +1282,7 @@ Downsampling should be 1 line
 ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minutes
 ds_d = ds.resample({'time':"1D"}).mean()
 #+END_SRC
+
 But due to xarray implementation, this takes several minutes, while it takes << 1 second in Pandas.
 See https://github.com/pydata/xarray/issues/4498
 
@@ -1239,8 +1301,16 @@ vals = [xr.DataArray(data=df_d[c], dims=['time'], coords={'time':df_d.index}, at
 ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds.attrs)
 #+END_SRC
 
-#+RESULTS:
+*** Circular averaging
 
+Calculating average wind direction takes a bit more work...
+
+#+BEGIN_SRC jupyter-python
+ds_h['wdir'] = np.arctan2(ds_h['wspd_x'], ds_h['wspd_y']) * rad2deg
+ds_d['wdir'] = np.arctan2(ds_d['wspd_x'], ds_d['wspd_y']) * rad2deg
+ds_h['wdir'] = (ds_h['wdir'] + 360) % 360
+ds_d['wdir'] = (ds_d['wdir'] + 360) % 360
+#+END_SRC
 
 ** Derived properties
 
@@ -1283,14 +1353,14 @@ T_100 = T_0+100            # steam point temperature in K
 #+BEGIN_SRC jupyter-python
 # ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minuteso
 
-T_h = ds_h['t_1']
-p_h = ds_h['p']
-WS_h = ds_h['wspd']
-Tsurf_h = ds_h['t_surf']
-RH_cor_h = ds_h['rh_cor']
+T_h = ds_h['t_1'].copy()
+p_h = ds_h['p'].copy()
+WS_h = ds_h['wspd'].copy()
+Tsurf_h = ds_h['t_surf'].copy()
+RH_cor_h = ds_h['rh_cor'].copy()
 
-z_WS = ds_h['z_boom'] + 0.4  # height of W
-z_T = ds_h['z_boom'] - 0.1   # height of thermometer
+z_WS = ds_h['z_boom'].copy() + 0.4  # height of W
+z_T = ds_h['z_boom'].copy() - 0.1   # height of thermometer
 
 rho_atm = 100 * p_h / R_d / (T_h + T_0)   # atmospheric density
 
@@ -1384,6 +1454,10 @@ q_h[qh_nan] = np.nan
 
 #+END_SRC
 
+#+RESULTS:
+: LDIF BREAK:  0
+: LDIF BREAK:  0
+
 
 ** Export file as L3
 
@@ -1398,7 +1472,7 @@ outpathfile = outpath + '/' + outfile_base
 
 if os.path.exists(outpathfile+"_hour.nc"): os.remove(outpathfile+"_hour.nc")
 ds_h.to_netcdf(outpathfile+"_hour.nc", mode='w', format='NETCDF4', compute=True)
-ds_h.to_dataframe().dropna(how='all').to_csv(outpathfile+"_hour.csv")
+ds_h.to_dataframe().dropna(how='all').to_csv(outpathfile+"_hour.csv", float_format="%.2f")
 
 if os.path.exists(outpathfile+"_day.nc"): os.remove(outpathfile+"_day.nc")
 ds_d.to_netcdf(outpathfile+"_day.nc", mode='w', format='NETCDF4', compute=True)
@@ -1418,27 +1492,33 @@ ds_d.to_dataframe().dropna(how='all').to_csv(outpathfile+"_day.csv")
 
 # conda activate PROMICE_dev
 
+rm ./data/L{1,1A,2,3}/EGP/*
+
 # L0 -> L1
 # for f in $(ls ./data/L0/${s}/*); do ./L0_to_L1.py ${f}; done
-parallel --bar "./L0_to_L1.py {}" ::: $(ls ./data/L0/${s}/*)
+# parallel --bar "./L0_to_L1.py {}" ::: $(ls ./data/L0/${s}/*)
+./L0_to_L1.py ./data/L0/EGP/EGP_2016_raw.txt.hdr
 
 # L1 -> L1A
 # ./L1_to_L1A.py data/L1/${s}/*raw.nc
 # ./L1_to_L1A.py data/L1/${s}/*STM.nc
 # ./L1_to_L1A.py data/L1/${s}/*TX.nc
-parallel --bar "./L1_to_L1A.py {}" ::: $(ls data/L1/${s}/*)
+# parallel --bar "./L1_to_L1A.py {}" ::: $(ls data/L1/${s}/*)
+./L1_to_L1A.py ./data/L1/EGP/*
 
 # L1A to L2
 # ./L1A_to_L2.py data/L1A/${s}/${s}-raw.nc
 # ./L1A_to_L2.py data/L1A/${s}/${s}-STM.nc
 # ./L1A_to_L2.py data/L1A/${s}/${s}-TX.nc
-parallel --bar "./L1A_to_L2.py {}" ::: $(ls data/L1A/${s}/*)
+# parallel --bar "./L1A_to_L2.py {}" ::: $(ls data/L1A/${s}/*)
+./L1A_to_L2.py ./data/L1A/EGP/*
 
 # L2 to L3
 # ./L2_to_L3.py data/L2/${s}/*raw.nc
 # ./L2_to_L3.py data/L2/${s}/*STM.nc
 # ./L2_to_L3.py data/L2/${s}/*TX.nc
-parallel --bar "./L2_to_L3.py {}" ::: $(ls data/L2/${s}/*)
+# parallel --bar "./L2_to_L3.py {}" ::: $(ls data/L2/${s}/*)
+./L2_to_L3.py ./data/L2/EGP/*
 
 #+END_SRC
 
@@ -1461,8 +1541,10 @@ rad2deg = 1 / deg2rad
 import os
 import numpy as np
 import pandas as pd
+pd.set_option('display.precision', 2)
 import xarray as xr
 xr.set_options(keep_attrs=True)
+
 
 def read_L0(filename):
     
@@ -1518,6 +1600,8 @@ def read_L0(filename):
 # ds = read_L0("./data/L0/EGP/EGP_2016_raw.txt.hdr")
 # print(ds)
 #+END_SRC
+
+#+RESULTS: read_L0
 
 #+RESULTS:
 #+begin_example
@@ -1584,10 +1668,10 @@ Attributes:
 #+BEGIN_SRC jupyter-python
 def flag_NAN(ds):
     """Uses the flag DB (flags.csv) to set stations, sensors, and times to NaN."""
-    flag_LUT = pd.read_csv("./flags.csv", index_col=2, usecols=(0,3,4,5))
+    flag_LUT = pd.read_csv("./data/flags/PROMICE.csv", index_col=2, usecols=(0,3,4,5))
     flag_LUT = flag_LUT[flag_LUT['#'] == '#'].drop(columns="#").dropna(how='all', axis='rows')
     
-    df = pd.read_csv("./flags.csv", parse_dates=[0,1], comment="#", header=1)\
+    df = pd.read_csv("./data/flags/PROMICE.csv", parse_dates=[0,1], comment="#", header=1)\
            .dropna(how='all', axis='rows')\
            .drop(columns="comment")
 
@@ -1780,7 +1864,6 @@ head -n1 ./data/L3/EGP/EGP-raw_hour.csv | tr ',' '\n'
 | fan_dc     |
 | batt_v_ss  |
 | batt_v     |
-| z_pt_corr  |
 | rh_cor     |
 | cc         |
 | wdir_std   |
@@ -1791,3 +1874,138 @@ head -n1 ./data/L3/EGP/EGP-raw_hour.csv | tr ',' '\n'
 | uswr_cor   |
 | wspd_x     |
 | wspd_y     |
+
+** Load both to dfs
+
+#+BEGIN_SRC jupyter-python :tangle compare.py
+import numpy as np
+import pandas as pd
+import xarray as xr
+
+def mydf(y,m,d,h):
+    return pd.datetime(int(y),int(m),int(d),int(h))
+
+idl = pd.read_csv("./IDL/out/EGP_hour_v03.txt",
+                  delimiter="\s+",
+                  parse_dates={'time':[0,1,2,3]},
+                  infer_datetime_format=True,
+                  date_parser=mydf,
+                  index_col=0)\
+        .drop(columns=['DayOfYear', 'DayOfCentury'])\
+        .replace(-999, np.nan)\
+        .dropna(how='all')\
+        .rename(columns={'AirPressure(hPa)' : 'p',
+                         'AirTemperature(C)' : 't_1',
+                         'AirTemperatureHygroClip(C)' : 't_2',
+                         'RelativeHumidity(%)' : 'rh',
+                         'SpecificHumidity(g/kg)' : 'rh_cor',
+                         'WindSpeed(m/s)' : 'wspd',
+                         'WindDirection(d)' : 'wdir',
+                         'SensibleHeatFlux(W/m2)' : 'shf',
+                         'LatentHeatFlux(W/m2)' : 'lhf',
+                         'ShortwaveRadiationDown(W/m2)': 'dsr',
+                         'ShortwaveRadiationDown_Cor(W/m2)' : 'dsr_cor',
+                         'ShortwaveRadiationUp(W/m2)' : 'usr',
+                         'ShortwaveRadiationUp_Cor(W/m2)' : 'usr_cor',
+                         'Albedo_theta<70d' : 'albedo',
+                         'LongwaveRadiationDown(W/m2)' : 'dlr',
+                         'LongwaveRadiationUp(W/m2)' : 'ulr',
+                         'CloudCover' : 'cc',
+                         'SurfaceTemperature(C)' : 't_surf',
+                         'HeightSensorBoom(m)' : 'z_boom',
+                         'HeightStakes(m)': 'z_stake',
+                         'DepthPressureTransducer(m)' : 'z_pt',
+                         'DepthPressureTransducer_Cor(m)' : 'z_pt_cor',
+                         'IceTemperature1(C)' : 't_i_1',
+                         'IceTemperature2(C)' : 't_i_2',
+                         'IceTemperature3(C)' : 't_i_3',
+                         'IceTemperature4(C)' : 't_i_4',
+                         'IceTemperature5(C)' : 't_i_5',
+                         'IceTemperature6(C)' : 't_i_6',
+                         'IceTemperature7(C)' : 't_i_7',
+                         'IceTemperature8(C)' : 't_i_8',
+                         'TiltToEast(d)' : 'tilt_x',
+                         'TiltToNorth(d)' : 'tilt_y',
+                         'TimeGPS(hhmmssUTC)' : 'gps_t',
+                         'LatitudeGPS(degN)' : 'gps_lat',
+                         'LongitudeGPS(degW)' : 'gps_lon',
+                         'ElevationGPS(m)' : 'gps_alt',
+                         'HorDilOfPrecGPS' : 'gps_hdop',
+                         'LoggerTemperature(C)' : 't_logger',
+                         'FanCurrent(mA)' : 'fan_dc',
+                         'BatteryVoltage(V)' : 'batt_v'})
+
+# df = xr.load_dataset("./data/L3/EGP/EGP-raw_hour.nc", mask_and_scale=False)\
+#        .to_dataframe()\
+#        .drop(columns='rh')\
+#        .rename(columns={'rh_cor':'rh'})
+
+df = pd.read_csv("./data/L3/EGP/EGP-raw_hour.csv", index_col=0, parse_dates=True)\
+       .drop(columns='rh')\
+       .rename(columns={'rh_cor':'rh'})
+
+
+# subset to same columns
+subset = np.intersect1d(df.columns, idl.columns)
+df = df[subset]
+idl = idl[subset]
+
+# idl = idl.dropna(how='all', axis='columns')
+
+# print(df.columns)
+
+diff = df - idl
+diff_pct = diff / df*100
+
+diff_pct[abs(diff) < 1E-1] = 0
+
+pd.options.display.float_format = "{:,.5f}".format
+
+# limit to where
+dd = diff_pct.describe().T.drop(columns="count").replace(0,np.nan).dropna(how='all', axis='rows').replace(np.nan,0)
+
+if __name__ == "__main__": 
+    print(dd)
+
+dd
+# print(diff_pct.describe().T)
+# diff_with_errors_gt_1pct = diff_pct.describe().where(abs(diff_pct.describe()) > 1).T.drop(columns="count").dropna(how='all', axis='rows')
+# print(diff_with_errors_gt_1pct)
+# for c in diff.columns:
+#     diff[c] = diff[c].round(3).astype(np.str) + " (" + diff_pct[c].round(3).astype(np.str) + ")"
+
+# diff.head(20)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+#+begin_example
+           mean      std      min      25%      50%      75%      max
+cc     56.76984 13.22601 42.00000 46.50000 54.50000 68.50000 72.61905
+dlr     0.13073  0.32023  0.00000  0.00000  0.00000  0.00000  0.78441
+dsr     0.59263  1.45164  0.00000  0.00000  0.00000  0.00000  3.55577
+fan_dc  0.10814  0.26490  0.00000  0.00000  0.00000  0.00000  0.64886
+rh      0.13182  0.32288  0.00000  0.00000  0.00000  0.00000  0.79090
+t_1    -0.43403  1.06315 -2.60417  0.00000  0.00000  0.00000  0.00000
+t_2    -0.41871  1.02564 -2.51229  0.00000  0.00000  0.00000  0.00000
+t_surf  9.20204  5.09490  0.84535  6.85481 10.50571 12.13417 15.04065
+ulr     0.09113  0.22322  0.00000  0.00000  0.00000  0.00000  0.54678
+usr     0.18735  0.45892  0.00000  0.00000  0.00000  0.00000  1.12413
+wdir   -2.08797  4.17593 -8.35187 -2.08797  0.00000  0.00000  0.00000
+<ipython-input-339-012012ac3340>:6: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
+  return pd.datetime(int(y),int(m),int(d),int(h))
+#+end_example
+|        |       mean |       std |       min |      25% |     50% |     75% |       max |
+|--------+------------+-----------+-----------+----------+---------+---------+-----------|
+| cc     | 56.7698    | 13.226    | 42        | 46.5     | 54.5    | 68.5    | 72.619    |
+| dlr    |  0.130735  |  0.320234 |  0        |  0       |  0      |  0      |  0.78441  |
+| dsr    |  0.592629  |  1.45164  |  0        |  0       |  0      |  0      |  3.55577  |
+| fan_dc |  0.108143  |  0.264895 |  0        |  0       |  0      |  0      |  0.648858 |
+| rh     |  0.131816  |  0.322883 |  0        |  0       |  0      |  0      |  0.790898 |
+| t_1    | -0.434028  |  1.06315  | -2.60417  |  0       |  0      |  0      |  0        |
+| t_2    | -0.418715  |  1.02564  | -2.51229  |  0       |  0      |  0      |  0        |
+| t_surf |  9.20204   |  5.0949   |  0.845351 |  6.85481 | 10.5057 | 12.1342 | 15.0407   |
+| ulr    |  0.0911296 |  0.223221 |  0        |  0       |  0      |  0      |  0.546777 |
+| usr    |  0.187355  |  0.458924 |  0        |  0       |  0      |  0      |  1.12413  |
+| wdir   | -2.08797   |  4.17593  | -8.35187  | -2.08797 |  0      |  0      |  0        |
+:END:
