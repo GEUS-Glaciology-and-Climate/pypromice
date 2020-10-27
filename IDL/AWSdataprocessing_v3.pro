@@ -1559,5 +1559,5 @@ pro AWSdataprocessing_v3
      print,'Done with this station. Run time (minutes) = ', (SYSTIME(1) - starttime)/60.
      print,'-----------------------------------------------------------'
   endfor
-  stop
+  ;;stop
 END
