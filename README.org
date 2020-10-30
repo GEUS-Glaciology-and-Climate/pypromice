@@ -638,8 +638,10 @@ ds['tilt_y'] = dsty
 
 # if n_elements(OKtiltX) gt 1 then tiltX[notOKtiltX] = interpol(tiltX[OKtiltX],OKtiltX,notOKtiltX) ; Interpolate over gaps for radiation correction; set to -999 again below.
 # if n_elements(OKtiltY) gt 1 then tiltY[notOKtiltY] = interpol(tiltY[OKtiltY],OKtiltY,notOKtiltY) ; Interpolate over gaps for radiation correction; set to -999 again below.
-ds['tilt_x'] = ds['tilt_x'].interpolate_na(dim='time')
-ds['tilt_y'] = ds['tilt_y'].interpolate_na(dim='time')
+# ds['tilt_x'] = ds['tilt_x'].interpolate_na(dim='time')
+# ds['tilt_y'] = ds['tilt_y'].interpolate_na(dim='time')
+ds['tilt_x'] = ds['tilt_x'].ffill(dim='time')
+ds['tilt_y'] = ds['tilt_y'].ffill(dim='time')
 
 ds['tilt_x'] = ds['tilt_x'].where(~notOKtiltX)
 ds['tilt_y'] = ds['tilt_y'].where(~notOKtiltY)
@@ -1058,7 +1060,7 @@ phi_sensor_rad[(X == 0) & (Y < 0)] = np.pi
 phi_sensor_rad[(X == 0) & (Y == 0)] = 0
 phi_sensor_rad[phi_sensor_rad < 0] += 2*np.pi
 
-phi_sensor_deg = phi_sensor_rad * deg2rad
+phi_sensor_deg = phi_sensor_rad * rad2deg
 
 # spherical coordinate (or actually total tilt of the sensor, i.e. 0 when horizontal)
 theta_sensor_rad = np.arccos(Z / (X**2 + Y**2 + Z**2)**0.5) 
@@ -1122,9 +1124,10 @@ AngleDif_deg = 180 / np.pi * np.arccos(np.sin(ZenithAngle_rad) * np.cos(HourAngl
 ds['albedo'] = ds['usr'] / ds['dsr_cor']
 albedo_nan = np.isnan(ds['albedo']) # store existing NaN
 OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (ds['albedo'] < 1) & (ds['albedo'] > 0)
-# albedo[~OKalbedos] = np.nan
-# albedo.interpolate_na(dim='time') # Interpolate all NaN (old and new NotOK)
-# albedo[albedo_nan] = np.nan # restore old NaN
+ds['albedo'][~OKalbedos] = np.nan
+# ds['albedo'] = ds['albedo'].interpolate_na(dim='time') # Interpolate all NaN (old and new NotOK)
+ds['albedo'] = ds['albedo'].ffill(dim='time') # Interpolate all NaN (old and new NotOK)
+ds['albedo'][albedo_nan] = np.nan # restore old NaN
 
 # ;OKalbedos = where(angleDif_deg lt 82.5 and ZenithAngle_deg lt 70 and albedo lt 1 and albedo gt 0, complement=notOKalbedos)
 # ;The running mean calculation doesn't work for non-continuous data sets or variable temporal resolution (e.g. with multiple files)
@@ -1139,7 +1142,7 @@ OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (ds['albedo'] < 1) & 
 # Correcting SR using DWR when sun is in field of view of lower sensor assuming sensor measures only diffuse radiation
 sunonlowerdome =(AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)
 # ds['dsr_cor'][sunonlowerdome] = ds['dsr'][sunonlowerdome] / DifFrac[sunonlowerdome]
-# ds['dsr_cor'] = ds['dsr_cor'].where(~sunonlowerdome, other=ds['dsr'] / DifFrac)
+ds['dsr_cor'] = ds['dsr_cor'].where(~sunonlowerdome, other=ds['dsr'] / DifFrac)
 ds['usr_cor'] = ds['usr'].copy(deep=True)
 # ds['usr_cor'][sunonlowerdome] = albedo * ds['dsr'][sunonlowerdome] / DifFrac[sunonlowerdome]
 ds['usr_cor'] = ds['usr_cor'].where(~sunonlowerdome, other=ds['albedo'] * ds['dsr'] / DifFrac)
@@ -1147,7 +1150,7 @@ ds['usr_cor'] = ds['usr_cor'].where(~sunonlowerdome, other=ds['albedo'] * ds['ds
 
 # Setting DWR and USWR to zero for solar zenith angles larger than 95 deg or either DWR or USWR are (less than) zero
 bad = (ZenithAngle_deg > 95) | (ds['dsr_cor'] <= 0) | (ds['usr_cor'] <= 0)
-# ds['dsr_cor'][bad] = np.nan
+ds['dsr_cor'][bad] = np.nan
 ds['usr_cor'][bad] = np.nan
 
 # Correcting DWR using more reliable USWR when sun not in sight of upper sensor
@@ -1170,8 +1173,10 @@ TOA_crit_nopass = (ds['dsr_cor'] > (0.9 * isr_toa + 10))
 # from IPython import embed; embed()
 ds['dsr_cor'][TOA_crit_nopass] = np.nan
 ds['usr_cor'][TOA_crit_nopass] = np.nan
-ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time')
-ds['usr_cor'] = ds['usr_cor'].interpolate_na(dim='time')
+# ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time')
+# ds['usr_cor'] = ds['usr_cor'].interpolate_na(dim='time')
+ds['dsr_cor'] = ds['dsr_cor'].ffill(dim='time')
+ds['usr_cor'] = ds['usr_cor'].ffill(dim='time')
 # ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time', method='linear', limit=12, max_gap='2H')
 # ds['usr_cor'] = ds['usr_cor'].interpolate_na(dim='time', method='linear', limit=12, max_gap='2H')
 
@@ -2020,9 +2025,9 @@ def plot_diff(df,idl,var):
     ax=idl[var].plot(label='IDL '+var, linewidth=3)
     df[var].plot(label='Py', ax=ax)
     legend()
-    ((df-idl)/idl)[var].plot(label='diff', ax=ax.twinx(), color='black')
+    ((df-idl)/idl*100)[var].plot(label='diff', ax=ax.twinx(), color='black')
     
-# var = 'dsr_cor';plot_diff(df,idl,var)
+var = 'dsr_cor';plot_diff(df,idl,var)
 
 dd
 #+END_SRC
@@ -2030,78 +2035,78 @@ dd
 #+RESULTS:
 :RESULTS:
 #+begin_example
-<ipython-input-144-7b001361d60a>:9: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
+<ipython-input-190-06de5da93cd6>:9: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
   return pd.datetime(int(y),int(mo),int(d),int(h),int(mi))
-             mean      std        min      25%      50%      75%      max
-albedo    0.01045  0.36230   -0.78125 -0.25641  0.00000  0.35294  0.71429
-batt_v   -0.00002  0.00179   -0.07163  0.00000  0.00000  0.00000  0.06840
-cc        0.00000  0.00000    0.00000  0.00000  0.00000  0.00000  0.00000
-dlr       0.00006  0.01567   -0.03654 -0.01262  0.00000  0.01295  0.03596
-dsr       0.00016  0.02741   -0.45662 -0.00736  0.00000  0.00758  0.30675
-dsr_cor  -3.48456 19.85288 -330.84943 -1.92366 -0.00338  0.00600 43.91826
-fan_dc    0.00000  0.00000    0.00000  0.00000  0.00000  0.00000  0.00000
-gps_alt   0.00000  0.00000    0.00000  0.00000  0.00000  0.00000  0.00000
-gps_hdop  0.00000  0.00000    0.00000  0.00000  0.00000  0.00000  0.00000
-gps_lat  -0.00605  0.00002   -0.00612 -0.00607 -0.00605 -0.00604 -0.00598
-gps_lon   0.00630  0.01224   -0.01390 -0.01370  0.01370  0.01379  0.01390
-p        -0.00000  0.00009   -0.00141  0.00000  0.00000  0.00000  0.00138
-rh_cor    0.00018  0.03147   -0.07943 -0.02348  0.00000  0.02375  0.07502
-t_1       0.00000  0.00043   -0.00000 -0.00000 -0.00000 -0.00000  0.04437
-t_2       0.00001  0.00207   -0.15480 -0.00000 -0.00000 -0.00000  0.08306
-t_i_1     0.00001  0.00080   -0.03949 -0.00000 -0.00000 -0.00000  0.05258
-t_i_2     0.00001  0.00049   -0.00000 -0.00000 -0.00000 -0.00000  0.04757
-t_i_3    -0.00000  0.00039   -0.03779 -0.00000 -0.00000 -0.00000 -0.00000
-t_i_4     0.00000  0.00098   -0.04675 -0.00000 -0.00000 -0.00000  0.08306
-t_i_5    -0.00001  0.00078   -0.07570 -0.00000 -0.00000 -0.00000 -0.00000
-t_i_6    -0.00001  0.00068   -0.06575 -0.00000 -0.00000 -0.00000 -0.00000
-t_i_7    -0.00001  0.00064   -0.04675 -0.00000 -0.00000 -0.00000 -0.00000
-t_i_8    -0.00001  0.00130   -0.04730 -0.00000 -0.00000 -0.00000  0.03601
-t_surf   -0.00000  0.00390   -0.15221 -0.00000 -0.00000 -0.00000  0.12953
-tilt_x    0.00000  0.00000    0.00000  0.00000  0.00000  0.00000  0.00000
-tilt_y    0.00000  0.00000   -0.00000 -0.00000 -0.00000 -0.00000 -0.00000
-ulr       0.00010  0.01194   -0.02763 -0.01027  0.00000  0.01041  0.02740
-usr      -0.00001  0.02683   -0.29499 -0.00926  0.00000  0.00918  0.27894
-usr_cor   0.08126  2.08364  -51.11047 -0.00931  0.00000  0.00939 63.19018
-wdir      0.00041  0.07486   -3.44828  0.00000  0.00000  0.00000  3.84615
-wspd      0.00019  0.06353   -0.75758  0.00000  0.00000  0.00000  1.92308
-z_boom   -0.03410  0.12652   -0.34783 -0.15504 -0.07752  0.07843  0.37037
-z_pt          nan      nan        nan      nan      nan      nan      nan
-z_stake       nan      nan        nan      nan      nan      nan      nan
+             mean     std      min      25%      50%      75%      max
+albedo    0.01177 0.36231 -0.77519 -0.25575  0.00000  0.35419  0.71942
+batt_v   -0.00002 0.00149 -0.07158  0.00000  0.00000  0.00000  0.06845
+cc        0.00000 0.00000  0.00000  0.00000  0.00000  0.00000  0.00000
+dlr       0.00007 0.01567 -0.03652 -0.01262  0.00000  0.01295  0.03597
+dsr       0.00017 0.02741 -0.45455 -0.00736  0.00000  0.00758  0.30769
+dsr_cor   0.00011 0.02209 -0.31447 -0.00740  0.00000  0.00727  0.26490
+fan_dc    0.00000 0.00000  0.00000  0.00000  0.00000  0.00000  0.00000
+gps_alt   0.00000 0.00000  0.00000  0.00000  0.00000  0.00000  0.00000
+gps_hdop  0.00000 0.00000  0.00000  0.00000  0.00000  0.00000  0.00000
+gps_lat  -0.00605 0.00002 -0.00612 -0.00607 -0.00605 -0.00604 -0.00598
+gps_lon   0.00630 0.01224 -0.01390 -0.01370  0.01370  0.01380  0.01390
+p        -0.00000 0.00009 -0.00141  0.00000  0.00000  0.00000  0.00138
+rh_cor    0.00019 0.03147 -0.07937 -0.02347  0.00000  0.02375  0.07508
+t_1       0.00000 0.00043 -0.00000 -0.00000 -0.00000 -0.00000  0.04439
+t_2       0.00001 0.00207 -0.15456 -0.00000 -0.00000 -0.00000  0.08313
+t_i_1     0.00001 0.00080 -0.03948 -0.00000 -0.00000 -0.00000  0.05260
+t_i_2     0.00001 0.00049 -0.00000 -0.00000 -0.00000 -0.00000  0.04760
+t_i_3    -0.00000 0.00039 -0.03778 -0.00000 -0.00000 -0.00000 -0.00000
+t_i_4     0.00000 0.00099 -0.04673 -0.00000 -0.00000 -0.00000  0.08313
+t_i_5    -0.00001 0.00078 -0.07564 -0.00000 -0.00000 -0.00000 -0.00000
+t_i_6    -0.00001 0.00068 -0.06570 -0.00000 -0.00000 -0.00000 -0.00000
+t_i_7    -0.00001 0.00064 -0.04673 -0.00000 -0.00000 -0.00000 -0.00000
+t_i_8    -0.00001 0.00130 -0.04728 -0.00000 -0.00000 -0.00000  0.03602
+t_surf   -0.00000 0.00390 -0.15198 -0.00000 -0.00000 -0.00000  0.12970
+tilt_x    0.00000 0.00000  0.00000  0.00000  0.00000  0.00000  0.00000
+tilt_y    0.00000 0.00000 -0.00000 -0.00000 -0.00000 -0.00000 -0.00000
+ulr       0.00011 0.01194 -0.02762 -0.01026  0.00000  0.01041  0.02741
+usr      -0.00000 0.02683 -0.29412 -0.00926  0.00000  0.00918  0.27972
+usr_cor   0.00000 0.02615 -0.29412 -0.00928  0.00000  0.00918  0.27972
+wdir      0.00047 0.07572 -3.33333  0.00000  0.00000  0.00000  4.00000
+wspd      0.00023 0.06383 -0.75188  0.00000  0.00000  0.00000  1.96078
+z_boom   -0.03392 0.12652 -0.34662 -0.15480 -0.07746  0.07849  0.37175
+z_pt          nan     nan      nan      nan      nan      nan      nan
+z_stake       nan     nan      nan      nan      nan      nan      nan
 #+end_example
-|          |          mean |           std |           min |          25% |          50% |          75% |          max |
-|----------+---------------+---------------+---------------+--------------+--------------+--------------+--------------|
-| albedo   |   0.0104536   |   0.362298    |   -0.78125    |  -0.25641    |   0          |   0.352941   |   0.714286   |
-| batt_v   |  -1.59735e-05 |   0.00178854  |   -0.0716332  |   0          |   0          |   0          |   0.0683995  |
-| cc       |   0           |   0           |    0          |   0          |   0          |   0          |   0          |
-| dlr      |   6.29149e-05 |   0.015672    |   -0.0365364  |  -0.0126192  |   0          |   0.0129517  |   0.0359583  |
-| dsr      |   0.000162143 |   0.0274088   |   -0.456621   |  -0.00735923 |   0          |   0.00757518 |   0.306748   |
-| dsr_cor  |  -3.48456     |  19.8529      | -330.849      |  -1.92366    |  -0.00337564 |   0.00600272 |  43.9183     |
-| fan_dc   |   0           |   0           |    0          |   0          |   0          |   0          |   0          |
-| gps_alt  |   0           |   0           |    0          |   0          |   0          |   0          |   0          |
-| gps_hdop |   0           |   0           |    0          |   0          |   0          |   0          |   0          |
-| gps_lat  |  -0.00605336  |   2.35511e-05 |   -0.00612179 |  -0.00607009 |  -0.00605435 |  -0.00603742 |  -0.0059803  |
-| gps_lon  |   0.0062993   |   0.0122361   |   -0.0138991  |  -0.013697   |   0.0136987  |   0.0137932  |   0.0138952  |
-| p        |  -1.65222e-06 |   8.63841e-05 |   -0.0014077  |   0          |   0          |   0          |   0.00138125 |
-| rh_cor   |   0.000180818 |   0.0314737   |   -0.0794281  |  -0.0234797  |   0          |   0.0237473  |   0.0750188  |
-| t_1      |   4.0905e-06  |   0.000426002 |   -0          |  -0          |  -0          |  -0          |   0.0443656  |
-| t_2      |   8.32947e-06 |   0.00207266  |   -0.154799   |  -0          |  -0          |  -0          |   0.0830565  |
-| t_i_1    |   5.8239e-06  |   0.000803275 |   -0.0394945  |  -0          |  -0          |  -0          |   0.0525762  |
-| t_i_2    |   5.07832e-06 |   0.000491523 |   -0          |  -0          |  -0          |  -0          |   0.0475737  |
-| t_i_3    |  -4.03425e-06 |   0.000390469 |   -0.0377929  |  -0          |  -0          |  -0          |  -0          |
-| t_i_4    |   3.8755e-06  |   0.000984771 |   -0.0467508  |  -0          |  -0          |  -0          |   0.0830565  |
-| t_i_5    |  -8.08072e-06 |   0.000782121 |   -0.0757002  |  -0          |  -0          |  -0          |  -0          |
-| t_i_6    |  -7.01817e-06 |   0.000679278 |   -0.0657462  |  -0          |  -0          |  -0          |  -0          |
-| t_i_7    |  -9.26375e-06 |   0.000635873 |   -0.0467508  |  -0          |  -0          |  -0          |  -0          |
-| t_i_8    |  -5.83791e-06 |   0.00130011  |   -0.0473037  |  -0          |  -0          |  -0          |   0.0360101  |
-| t_surf   |  -2.51637e-06 |   0.00390435  |   -0.152207   |  -0          |  -0          |  -0          |   0.129534   |
-| tilt_x   |   0           |   0           |    0          |   0          |   0          |   0          |   0          |
-| tilt_y   |   0           |   0           |   -0          |  -0          |  -0          |  -0          |  -0          |
-| ulr      |   0.00010495  |   0.0119403   |   -0.0276319  |  -0.0102654  |   0          |   0.0104056  |   0.0274048  |
-| usr      |  -7.35597e-06 |   0.0268346   |   -0.294985   |  -0.00925797 |   0          |   0.00918189 |   0.27894    |
-| usr_cor  |   0.0812642   |   2.08364     |  -51.1105     |  -0.00930752 |   0          |   0.00938824 |  63.1902     |
-| wdir     |   0.000409028 |   0.0748615   |   -3.44828    |   0          |   0          |   0          |   3.84615    |
-| wspd     |   0.000193182 |   0.063534    |   -0.757576   |   0          |   0          |   0          |   1.92308    |
-| z_boom   |  -0.0340957   |   0.126521    |   -0.347826   |  -0.155039   |  -0.0775194  |   0.0784314  |   0.37037    |
-| z_pt     | nan           | nan           |  nan          | nan          | nan          | nan          | nan          |
-| z_stake  | nan           | nan           |  nan          | nan          | nan          | nan          | nan          |
+|          |          mean |           std |          min |          25% |          50% |          75% |          max |
+|----------+---------------+---------------+--------------+--------------+--------------+--------------+--------------|
+| albedo   |   0.0117673   |   0.362313    |  -0.775194   |  -0.255754   |   0          |   0.354191   |   0.719424   |
+| batt_v   |  -1.93054e-05 |   0.00148737  |  -0.071582   |   0          |   0          |   0          |   0.0684463  |
+| cc       |   0           |   0           |   0          |   0          |   0          |   0          |   0          |
+| dlr      |   6.53708e-05 |   0.015672    |  -0.036523   |  -0.0126176  |   0          |   0.0129534  |   0.0359712  |
+| dsr      |   0.000169655 |   0.0274063   |  -0.454545   |  -0.00735869 |   0          |   0.00757576 |   0.307692   |
+| dsr_cor  |   0.000110582 |   0.0220876   |  -0.314465   |  -0.00739953 |   0          |   0.00727273 |   0.264901   |
+| fan_dc   |   0           |   0           |   0          |   0          |   0          |   0          |   0          |
+| gps_alt  |   0           |   0           |   0          |   0          |   0          |   0          |   0          |
+| gps_hdop |   0           |   0           |   0          |   0          |   0          |   0          |   0          |
+| gps_lat  |  -0.006053    |   2.35483e-05 |  -0.00612142 |  -0.00606972 |  -0.00605398 |  -0.00603706 |  -0.00597994 |
+| gps_lon  |   0.00630119  |   0.0122361   |  -0.0138972  |  -0.0136951  |   0.0137006  |   0.0137951  |   0.0138972  |
+| p        |  -1.65214e-06 |   8.63837e-05 |  -0.00140768 |   0          |   0          |   0          |   0.00138127 |
+| rh_cor   |   0.000190723 |   0.0314736   |  -0.0793651  |  -0.0234742  |   0          |   0.023753   |   0.0750751  |
+| t_1      |   4.09232e-06 |   0.000426191 |  -0          |  -0          |  -0          |  -0          |   0.0443853  |
+| t_2      |   8.37241e-06 |   0.00207168  |  -0.15456    |  -0          |  -0          |  -0          |   0.0831255  |
+| t_i_1    |   5.83036e-06 |   0.000803481 |  -0.0394789  |  -0          |  -0          |  -0          |   0.0526039  |
+| t_i_2    |   5.08074e-06 |   0.000491757 |  -0          |  -0          |  -0          |  -0          |   0.0475964  |
+| t_i_3    |  -4.03273e-06 |   0.000390322 |  -0.0377786  |  -0          |  -0          |  -0          |  -0          |
+| t_i_4    |   3.8852e-06  |   0.000985282 |  -0.046729   |  -0          |  -0          |  -0          |   0.0831255  |
+| t_i_5    |  -8.07461e-06 |   0.000781529 |  -0.075643   |  -0          |  -0          |  -0          |  -0          |
+| t_i_6    |  -7.01356e-06 |   0.000678831 |  -0.065703   |  -0          |  -0          |  -0          |  -0          |
+| t_i_7    |  -9.25971e-06 |   0.000635594 |  -0.046729   |  -0          |  -0          |  -0          |  -0          |
+| t_i_8    |  -5.82101e-06 |   0.00129989  |  -0.0472813  |  -0          |  -0          |  -0          |   0.0360231  |
+| t_surf   |  -2.36396e-06 |   0.0039039   |  -0.151976   |  -0          |  -0          |  -0          |   0.129702   |
+| tilt_x   |   0           |   0           |   0          |   0          |   0          |   0          |   0          |
+| tilt_y   |   0           |   0           |  -0          |  -0          |  -0          |  -0          |  -0          |
+| ulr      |   0.000106376 |   0.0119403   |  -0.0276243  |  -0.0102643  |   0          |   0.0104067  |   0.0274123  |
+| usr      |  -1.56102e-07 |   0.026833    |  -0.294118   |  -0.00925712 |   0          |   0.00918274 |   0.27972    |
+| usr_cor  |   2.97889e-06 |   0.0261547   |  -0.294118   |  -0.00927698 |   0          |   0.00918133 |   0.27972    |
+| wdir     |   0.00046569  |   0.0757244   |  -3.33333    |   0          |   0          |   0          |   4          |
+| wspd     |   0.00023373  |   0.0638281   |  -0.75188    |   0          |   0          |   0          |   1.96078    |
+| z_boom   |  -0.033924    |   0.126517    |  -0.34662    |  -0.154799   |  -0.0774593  |   0.0784929  |   0.371747   |
+| z_pt     | nan           | nan           | nan          | nan          | nan          | nan          | nan          |
+| z_stake  | nan           | nan           | nan          | nan          | nan          | nan          | nan          |
 :END:
