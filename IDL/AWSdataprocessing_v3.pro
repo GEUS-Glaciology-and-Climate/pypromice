@@ -536,7 +536,7 @@ pro AWSdataprocessing_v3
      sunonlowerdome = where(AngleDif_deg ge 90 and ZenithAngle_deg le 90)
      if total(sunonlowerdome) ne -1 then SRin_cor[sunonlowerdome] = SRin[sunonlowerdome]/DifFrac[sunonlowerdome]
      SRout_cor = SRout
-     if total(sunonlowerdome) ne -1 then SRout_cor[sunonlowerdome] = albedo*SRin[sunonlowerdome]/DifFrac[sunonlowerdome]
+     if total(sunonlowerdome) ne -1 then SRout_cor[sunonlowerdome] = albedo[sunonlowerdome]*SRin[sunonlowerdome]/DifFrac[sunonlowerdome]
 
 ; Setting SRin and SRout to zero for solar zenith angles larger than 95 deg or either SRin or SRout are (less than) zero
      no_SR = where(ZenithAngle_deg gt 95 or SRin_cor le 0 or SRout_cor le 0)
