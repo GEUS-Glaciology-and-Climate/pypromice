@@ -393,8 +393,8 @@ pro AWSdataprocessing_v3
      tiltnonzero = where(tiltY ne 0 and tiltY gt -40 and tiltY lt 40)
      if n_elements(tiltnonzero) ne 1 then tiltY[tiltnonzero] = tiltY[tiltnonzero]/abs(tiltY[tiltnonzero])*(-0.49*(abs(tiltY[tiltnonzero]))^4 + 3.6*(abs(tiltY[tiltnonzero]))^3 - 10.4*(abs(tiltY[tiltnonzero]))^2 +21.1*(abs(tiltY[tiltnonzero])))
 
-     if n_elements(OKtiltX) gt 1 then tiltX[notOKtiltX] = interpol(tiltX[OKtiltX],FLOAT(OKtiltX),notOKtiltX) ; Interpolate over gaps for radiation correction; set to -999 again below.
-     if n_elements(OKtiltY) gt 1 then tiltY[notOKtiltY] = interpol(tiltY[OKtiltY],FLOAT(OKtiltY),notOKtiltY) ; Interpolate over gaps for radiation correction; set to -999 again below.
+     if n_elements(OKtiltX) gt 1 then tiltX[notOKtiltX] = interpol(tiltX[OKtiltX],FLOAT(OKtiltX),FLOAT(notOKtiltX)) ; Interpolate over gaps for radiation correction; set to -999 again below.
+     if n_elements(OKtiltY) gt 1 then tiltY[notOKtiltY] = interpol(tiltY[OKtiltY],FLOAT(OKtiltY),FLOAT(notOKtiltY)) ; Interpolate over gaps for radiation correction; set to -999 again below.
 
      if set_tilt eq 'yes' then begin
         tiltX[*] = set_tiltX
@@ -530,7 +530,7 @@ pro AWSdataprocessing_v3
 ;albedo[notOKalbedos] = interpol(albedo_rm[OKalbedos],OKalbedos,notOKalbedos) ; interpolate over gaps
 ;albedo_rm[notOKalbedos] = albedo[notOKalbedos]
 ;So instead:
-     albedo[notOKalbedos] = interpol(albedo[OKalbedos],FLOAT(OKalbedos),notOKalbedos) ; interpolate over gaps - gives problems for discontinuous data sets, but is not the end of the world
+     albedo[notOKalbedos] = interpol(albedo[OKalbedos],FLOAT(OKalbedos),FLOAT(notOKalbedos)) ; interpolate over gaps - gives problems for discontinuous data sets, but is not the end of the world
 
 ; Correcting SR using SRin when sun is in field of view of lower sensor assuming sensor measures only diffuse radiation
      sunonlowerdome = where(AngleDif_deg ge 90 and ZenithAngle_deg le 90)
@@ -556,8 +556,8 @@ pro AWSdataprocessing_v3
      TOA_crit_nopass = where(SRin_cor gt 0.9*SRtoa+10)
      TOA_crit_pass = where(SRin_cor le 0.9*SRtoa+10)
      if total(TOA_crit_nopass) ne -1 then begin
-        SRin_cor[TOA_crit_nopass] = interpol(SRin_cor[TOA_crit_pass],FLOAT(TOA_crit_pass),TOA_crit_nopass)
-        SRout_cor[TOA_crit_nopass] = interpol(SRout_cor[TOA_crit_pass],FLOAT(TOA_crit_pass),TOA_crit_nopass)
+        SRin_cor[TOA_crit_nopass] = interpol(SRin_cor[TOA_crit_pass],FLOAT(TOA_crit_pass),FLOAT(TOA_crit_nopass))
+        SRout_cor[TOA_crit_nopass] = interpol(SRout_cor[TOA_crit_pass],FLOAT(TOA_crit_pass),FLOAT(TOA_crit_nopass))
      endif
 
      print,'- Sun in view of upper sensor / workable albedos:',n_elements(OKalbedos),100*n_elements(OKalbedos)/n_elements(SRin),'%'
@@ -848,7 +848,7 @@ pro AWSdataprocessing_v3
      endfor
      if AWS[i_AWS] eq 'CEN' then begin  
         bad = Where(Haws_h eq -999, nbad, COMPLEMENT=good, NCOMPLEMENT=ngood)
-        IF nbad GT 0 && ngood GT 1 THEN Haws_h[bad] = INTERPOL(Haws_h[good], FLOAT(good), bad)
+        IF nbad GT 0 && ngood GT 1 THEN Haws_h[bad] = INTERPOL(Haws_h[good], FLOAT(good), FLOAT(bad))
         PRINT, 'interpolate ', n_elements(Haws_h)
      endif
      day_cent_h = hour_cent_h/24+1
