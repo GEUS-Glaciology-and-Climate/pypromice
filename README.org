@@ -49,8 +49,6 @@
   - [[#flag-invalid-data][Flag invalid data]]
   - [[#add-variable-metadata][Add variable metadata]]
 - [[#compare-python--idl][Compare Python & IDL]]
-  - [[#graphic][Graphic]]
-  - [[#columns][Columns]]
   - [[#load-both-to-dfs-10-min][Load both to dfs (10 min)]]
 
 * Introduction
@@ -283,8 +281,8 @@ cat hdr.template
 columns     = time, rec, min_y, p, t_1, t_2, rh, wspd, wdir, wd_std, dsr, usr, dlr, ulr, t_rad, z_boom, z_boom_q, z_stake, z_stake_q, z_pt, t_i_1, t_i_2, t_i_3, t_i_4, t_i_5, t_i_6, t_i_7, t_i_8, tilt_x, tilt_y, gps_time, gps_lat, gps_lon, gps_alt, gps_geoid, gps_geounit, gps_q, gps_numsat, gps_hdop, t_log, fan_dc, batt_v_ss, batt_v
 station_id  = EGP
 format      = raw     # or TX or STM
-nodata      = -999
 skiprows    = 0       # number of header rows in L0 file
+geometry    = POINT(lon, lat)  # deg.frac E (W is negative), deg.frac N
 
 ############################################
 ###
@@ -320,8 +318,7 @@ skiprows    = 0       # number of header rows in L0 file
 ###
 ############################################
 
-# srid           = EPSG:4326
-# geometry       = POINT(lon, lat)  # deg.frac W, deg.frac N
+#
 #+end_example
 
 *** Additional files
@@ -395,6 +392,8 @@ Attributes:
     station_id:          EGP
     format:              raw
     hygroclip_t_offset:  0
+    latitude:            75.62
+    longitude:           35.98
     dsr_eng_coef:        12.71
     usr_eng_coef:        12.71
     dlr_eng_coef:        12.71
@@ -414,7 +413,7 @@ Attributes:
 
 Run one:
 #+BEGIN_SRC jupyter-python :noweb-ref
-infile = "./data/L0/EGP/EGP_2016_raw.txt.hdr"
+infile = "./data/L0/EGP/EGP_2019_raw.txt.hdr"
 #+END_SRC
 
 #+RESULTS:
@@ -457,7 +456,6 @@ if __name__ == "__main__":
 import re
 import shapely
 from shapely import geometry
-import nead
 import os
 import sys
 import numpy as np
@@ -471,11 +469,12 @@ import pandas as pd
 + GitHub link: [[./IDL/AWSdataprocessing_v3.pro#L51]] through [[./IDL/AWSdataprocessing_v3.pro#L123]]
 + Org link: [[./IDL/AWSdataprocessing_v3.pro::51]] through [[./IDL/AWSdataprocessing_v3.pro::123]]
 + [X] Reads in the file
-+ [X] Check that required metadata was included in the NEAD header
 
 #+BEGIN_SRC jupyter-python
 <<read_L0>>
 ds = read_L0(infile)
+
+ds['n'] = (('time'), np.arange(ds.time.size)+1)
 
 <<flag_NAN>>
 ds = flag_NAN(ds)
@@ -489,7 +488,6 @@ if 'z_pt' in list(ds.variables):
 if 't_2' in list(ds.variables): assert("hygroclip_t_offset" in ds.attrs.keys())
 #+END_SRC
 
-#+RESULTS:
 
 ** Eng to phys
 
@@ -527,7 +525,7 @@ if ~ds['z_pt'].isnull().any():
         rho_af = 1145
     else:
         rho_af = np.nan
-        print("ERROR: Incorrect NEAD metadata: 'pt_antifreeze =' ", ds.attrs['pt_antifreeze'])
+        print("ERROR: Incorrect metadata: 'pt_antifreeze =' ", ds.attrs['pt_antifreeze'])
         print("Antifreeze mix only supported at 50 % or 100%")
         # assert(False)
     
@@ -539,13 +537,47 @@ for v in ['gps_geounit','min_y']:
 # raw: No adjust (timestamp is at start of period)
 # STM: Adjust timestamp from end of period to start of period
 # TX: Adjust timestamp start of period (hour/day) also depending on season
-# if ds.attrs['PROMICE_format'] == 'STM': ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=1))
-# if ds.attrs['PROMICE_format'] == 'TX': ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=1))
+
+def time_shift(da):
+    """ Adjust times
+    raw: (10 min) values are sampled instantaneously. Don't call this function
+    STM: (1 hour) values are averaged and timestamp is end. Shift 1 h earlier to beginning
+    TX: Some 10 min, some 1 hour, some 1 day? Shift appropriately.
+    """
+    assert(ds.attrs['format'] != 'raw')
+    if ds.attrs['format'] == 'STM':
+        return da['time'] + pd.to_timedelta("-1 hour")
+    if ds.attrs['format'] == 'TX':
+        diff = da['time'].diff(dim='time')
+        diffarr = diff.values.astype('timedelta64[h]').astype(np.int)
+        # assume the 1st time step (dropped via diff) is equal to the 2nd timestep
+        diffarr = np.append(diffarr[0], diffarr)
+        da['time'] = (da['time'] + pd.to_timedelta("-1 hour"))\
+            .where((diffarr == 1) & (da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100), other=da['time'])
+        # da['time'] = (da['time'] + pd.to_timedelta("-24 hours"))\
+        #     .where((diffarr == 24) & ((da['time'].dt.dayofyear > 300) | (da['time'].dt.dayofyear < 100)), other=da['time'])
+        # da['time'] = da['time'].where((diffarr == 1) | (diffarr == 24)) # nan if shift not 1 or 24 hours
+        return da['time']
+    
+if ds.attrs['format'] != 'raw':
+    ds['time_orig'] = ds['time']
+    ds['time'] = time_shift(ds['time'].copy(deep=True)).values
+    _, index = np.unique(ds['time'], return_index=True)
+    ds = ds.isel(time=index)
+
+# from IPython import embed; embed()
+# import matplotlib.pyplot as plt
+# # # %matplotlib qt
+# ds[['time','time_orig']].to_dataframe().iloc[2130:].head(30)
+
+# ds = ds.isel({'time':~ds.time.isnull()}) # drop invalid times that got shifted
+
 # if ds.attrs['clock_shift'] != 0:
 #     a = ds['time'].attrs
 #     ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=ds.attrs['clock_shift'], freq='H').index)
 #     ds['time'].attrs = a
 
+# from IPython import embed; embed()
 # Remove HygroClip temperature offset
 ds['t_2'] = ds['t_2'] - ds.attrs['hygroclip_t_offset']
 
@@ -584,7 +616,9 @@ if np.any((ds['gps_lat'] <= 90) & (ds['gps_lat'] > 0)):  # Some stations only re
     xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", ds.attrs['geometry'])).astype(np.float)
     x=xyz[0]; y=xyz[1]; z=xyz[2] if len(xyz) == 3 else 0
     p = shapely.geometry.Point(x,y,z)
-    assert(False) # should p be ints rather than floats here?
+    # from IPython import embed; embed()
+    # assert(False) # should p be ints rather than floats here?
+    # ds['gps_lat'] = ds['gps_lat'].where(
     ds['gps_lat'] = ds['gps_lat'] + 100*p.y
 if np.any((ds['gps_lon'] <= 90) & (ds['gps_lon'] > 0)):
     ds['gps_lon'] = ds['gps_lon'] + 100*p.x
@@ -638,13 +672,13 @@ ds['tilt_y'] = dsty
 
 # if n_elements(OKtiltX) gt 1 then tiltX[notOKtiltX] = interpol(tiltX[OKtiltX],OKtiltX,notOKtiltX) ; Interpolate over gaps for radiation correction; set to -999 again below.
 # if n_elements(OKtiltY) gt 1 then tiltY[notOKtiltY] = interpol(tiltY[OKtiltY],OKtiltY,notOKtiltY) ; Interpolate over gaps for radiation correction; set to -999 again below.
-# ds['tilt_x'] = ds['tilt_x'].interpolate_na(dim='time')
-# ds['tilt_y'] = ds['tilt_y'].interpolate_na(dim='time')
-ds['tilt_x'] = ds['tilt_x'].ffill(dim='time')
-ds['tilt_y'] = ds['tilt_y'].ffill(dim='time')
-
 ds['tilt_x'] = ds['tilt_x'].where(~notOKtiltX)
 ds['tilt_y'] = ds['tilt_y'].where(~notOKtiltY)
+ds['tilt_x'] = ds['tilt_x'].interpolate_na(dim='time')
+ds['tilt_y'] = ds['tilt_y'].interpolate_na(dim='time')
+# ds['tilt_x'] = ds['tilt_x'].ffill(dim='time')
+# ds['tilt_y'] = ds['tilt_y'].ffill(dim='time')
+
 
 deg2rad = np.pi / 180
 ds['wdir'] = ds['wdir'].where(ds['wspd'] != 0)
@@ -1085,7 +1119,7 @@ d0_rad = 2 * np.pi * (doy + (hour + minute / 60) / 24 -1) / 365
 
 Declination_rad = np.arcsin(0.006918 - 0.399912 * np.cos(d0_rad) + 0.070257 * np.sin(d0_rad) - 0.006758 * np.cos(2 * d0_rad) + 0.000907 * np.sin(2 * d0_rad) - 0.002697 * np.cos(3 * d0_rad) + 0.00148 * np.sin(3 * d0_rad))
 
-HourAngle_rad = 2 * np.pi * (((hour + minute / 60) / 24 - 0.5) - lon/360)
+HourAngle_rad = 2 * np.pi * (((hour + minute / 60) / 24 - 0.5) - (-lon)/360)
 # ; - 15.*timezone/360.) ; NB: Make sure time is in UTC and longitude is positive when west! Hour angle should be 0 at noon.
 
 # This is 180 deg at noon (NH), as opposed to HourAngle.
@@ -1094,7 +1128,7 @@ DirectionSun_deg = HourAngle_rad * 180/np.pi - 180
 DirectionSun_deg[DirectionSun_deg < 0] += 360
 DirectionSun_deg[DirectionSun_deg < 0] += 360
 
-ZenithAngle_rad = np.arccos(np.cos(lat * np.pi/180) * np.cos(Declination_rad) * np.cos(HourAngle_rad) + np.sin(lat * np.pi/180) * np.sin(Declination_rad))
+ZenithAngle_rad = np.arccos(np.cos(lat * deg2rad) * np.cos(Declination_rad) * np.cos(HourAngle_rad) + np.sin(lat * deg2rad) * np.sin(Declination_rad))
 
 ZenithAngle_deg = ZenithAngle_rad * rad2deg
 
@@ -1125,8 +1159,8 @@ ds['albedo'] = ds['usr'] / ds['dsr_cor']
 albedo_nan = np.isnan(ds['albedo']) # store existing NaN
 OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (ds['albedo'] < 1) & (ds['albedo'] > 0)
 ds['albedo'][~OKalbedos] = np.nan
-# ds['albedo'] = ds['albedo'].interpolate_na(dim='time') # Interpolate all NaN (old and new NotOK)
-ds['albedo'] = ds['albedo'].ffill(dim='time') # Interpolate all NaN (old and new NotOK)
+ds['albedo'] = ds['albedo'].interpolate_na(dim='time') # Interpolate all NaN (old and new NotOK)
+# ds['albedo'] = ds['albedo'].ffill(dim='time') # Interpolate all NaN (old and new NotOK)
 ds['albedo'][albedo_nan] = np.nan # restore old NaN
 
 # ;OKalbedos = where(angleDif_deg lt 82.5 and ZenithAngle_deg lt 70 and albedo lt 1 and albedo gt 0, complement=notOKalbedos)
@@ -1150,8 +1184,8 @@ ds['usr_cor'] = ds['usr_cor'].where(~sunonlowerdome, other=ds['albedo'] * ds['ds
 
 # Setting DWR and USWR to zero for solar zenith angles larger than 95 deg or either DWR or USWR are (less than) zero
 bad = (ZenithAngle_deg > 95) | (ds['dsr_cor'] <= 0) | (ds['usr_cor'] <= 0)
-ds['dsr_cor'][bad] = np.nan
-ds['usr_cor'][bad] = np.nan
+ds['dsr_cor'][bad] = 0
+ds['usr_cor'][bad] = 0
 
 # Correcting DWR using more reliable USWR when sun not in sight of upper sensor
 ds['dsr_cor'] = ds['usr_cor'].copy(deep=True) / ds['albedo']
@@ -1170,13 +1204,12 @@ ds['albedo'] = ds['albedo'].where(OKalbedos)
 #      endif
 TOA_crit_nopass = (ds['dsr_cor'] > (0.9 * isr_toa + 10))
 
-# from IPython import embed; embed()
 ds['dsr_cor'][TOA_crit_nopass] = np.nan
 ds['usr_cor'][TOA_crit_nopass] = np.nan
-# ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time')
-# ds['usr_cor'] = ds['usr_cor'].interpolate_na(dim='time')
-ds['dsr_cor'] = ds['dsr_cor'].ffill(dim='time')
-ds['usr_cor'] = ds['usr_cor'].ffill(dim='time')
+ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time')
+ds['usr_cor'] = ds['usr_cor'].interpolate_na(dim='time')
+#ds['dsr_cor'] = ds['dsr_cor'].ffill(dim='time')
+#ds['usr_cor'] = ds['usr_cor'].ffill(dim='time')
 # ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time', method='linear', limit=12, max_gap='2H')
 # ds['usr_cor'] = ds['usr_cor'].interpolate_na(dim='time', method='linear', limit=12, max_gap='2H')
 
@@ -1513,7 +1546,7 @@ outpath = '/'.join(outpath)
 outfile_base = os.path.splitext(os.path.basename(infile))[0]
 outpathfile = outpath + '/' + outfile_base
 
-ds.to_dataframe().dropna(how='all').to_csv(outpathfile+".csv", float_format="%.2f")
+ds.to_dataframe().dropna(how='all').to_csv(outpathfile+".csv", float_format="%.4f")
 
 if os.path.exists(outpathfile+"_hour.nc"): os.remove(outpathfile+"_hour.nc")
 ds_h.to_netcdf(outpathfile+"_hour.nc", mode='w', format='NETCDF4', compute=True)
@@ -1538,15 +1571,31 @@ ds_d.to_dataframe().dropna(how='all').to_csv(outpathfile+"_day.csv")
 
 rm ./data/L{1,1A,2,3}/EGP/*
 
-# L0 -> L1
-# for f in $(ls ./data/L0/${s}/*); do ./L0_to_L1.py ${f}; done
-# parallel --bar "./L0_to_L1.py {}" ::: $(ls ./data/L0/${s}/*)
-./L0_to_L1.py ./data/L0/EGP/EGP_2016_raw.txt.hdr
+# # L0 -> L1
+# for f in $(ls ./data/L0/${s}/*raw*.hdr | grep -v Slim | grep -v transm); do
+#   echo $f
+#   ./L0_to_L1.py ${f}
+# done
+# parallel --bar "./L0_to_L1.py {}" ::: $(ls ./data/L0/${s}/*.hdr)
+# ./L0_to_L1.py ./data/L0/EGP/EGP_2016_raw.txt.hdr
+# ./L0_to_L1.py ./data/L0/EGP/EGP_2017_raw_2.txt.hdr
+# ./L0_to_L1.py ./data/L0/EGP/EGP_2018_raw.txt.hdr
+# ./L0_to_L1.py ./data/L0/EGP/EGP_2018_raw_2.txt.hdr
+# ./L0_to_L1.py ./data/L0/EGP/EGP_2019_raw.txt.hdr
+# ./L0_to_L1.py ./data/L0/EGP/EGP_2019_raw1.txt.hdr
+##
+./L0_to_L1.py ./data/L0/EGP/EGP_2017_raw_SlimTableMem.txt.hdr
+##
+# ./L0_to_L1.py ./data/L0/EGP/EGP_2019_raw_transmitted.txt.hdr
 
 # L1 -> L1A
-# ./L1_to_L1A.py data/L1/${s}/*raw.nc
-# ./L1_to_L1A.py data/L1/${s}/*STM.nc
-# ./L1_to_L1A.py data/L1/${s}/*TX.nc
+# for f in $(ls ./data/L1/${s}/); do
+#   echo $f
+#   ./L1_to_L1A.py ./data/L1/${s}/${f}
+# done
+# # ./L1_to_L1A.py data/L1/${s}/*raw.nc
+# # ./L1_to_L1A.py data/L1/${s}/*STM.nc
+# # ./L1_to_L1A.py data/L1/${s}/*TX.nc
 # parallel --bar "./L1_to_L1A.py {}" ::: $(ls data/L1/${s}/*)
 ./L1_to_L1A.py ./data/L1/EGP/*
 
@@ -1613,7 +1662,12 @@ def read_L0(filename):
     # done reading header
 
     # check required fields were present
-    for req in ["columns", "station_id", "format", "nodata", "skiprows"]: assert(req in hdr.keys())
+    for req in ["columns", "station_id", "format", "geometry"]: assert(req in hdr.keys())
+
+    xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", hdr['geometry'])).astype(np.float)
+    hdr['longitude'] = xyz[0]
+    hdr['latitude'] = xyz[1]
+    hdr['altitude'] = xyz[2] if len(xyz) == 3 else np.nan
 
     sep = ","
     names = [_.strip() for _ in hdr.pop('columns').split(sep)]
@@ -1622,6 +1676,7 @@ def read_L0(filename):
     df = pd.read_csv(datafile,
                      comment = "#",
                      index_col = 0,
+                     na_values = [-999, 'NAN'],
                      names = names,
                      parse_dates = True,
                      sep = sep,
@@ -1630,11 +1685,10 @@ def read_L0(filename):
                      usecols=np.arange(len(names)))
 
     ds = df.to_xarray()
-    ds = ds.where(ds != hdr['nodata'])     # Set nodata to NAN
 
     # carry relevant metadata with ds
     meta = {}
-    skip = ["columns", "nodata", "skiprows"]
+    skip = ["columns", "skiprows"]
     for k in hdr.keys():
         if k not in skip: meta[k] = hdr[k]
     ds.attrs = meta
@@ -1754,7 +1808,7 @@ def add_variable_metadata(ds):
     for v in df.index:
         if v == 'time': continue # coordinate variable, not normal var
         if v not in list(ds.variables): continue
-        for c in ['standard_name', 'long_name', 'units', 'scale_factor', 'add_offset']:
+        for c in ['standard_name', 'long_name', 'units']:
             if isinstance(df[c][v], np.float) and np.isnan(df[c][v]): continue
             ds[v].attrs[c] = df[c][v]
             
@@ -1765,160 +1819,6 @@ def add_variable_metadata(ds):
 :PROPERTIES:
 :header-args:jupyter-python+: :session compare
 :END:
-** Graphic
-#+BEGIN_SRC jupyter-python
-import pandas as pd
-
-py = pd.read_csv("./data/L3/EGP/EGP-raw_hour.csv", index_col=0, parse_dates=True)
-
-
-def mydf(y,m,d,h):
-    return pd.datetime(int(y),int(m),int(d),int(h))
-
-idl = pd.read_csv("./IDL/data/out/EGP_hour_v03.txt",
-                  delimiter="\s+",
-                  parse_dates={'time':[0,1,2,3]},
-                  infer_datetime_format=True,
-                  date_parser=mydf,
-                  index_col=0)
-
-
-# t
-clf()
-ax = py['t_1'].plot(linewidth=3, label='v4')
-idl['AirTemperature(C)'].plot(ax=ax, label='v3')
-legend()
-
-# dwr
-clf()
-ax = py['dsr'].plot(linewidth=3, label='v4')
-idl['ShortwaveRadiationDown(W/m2)'].plot(ax=ax, label='v3')
-legend()
-#+END_SRC
-
-#+RESULTS:
-:RESULTS:
-: <ipython-input-37-4f0e9ef3a40c>:7: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
-:   return pd.datetime(int(y),int(m),int(d),int(h))
-: <matplotlib.legend.Legend at 0x7f9512cac040>
-:END:
-
-
-** Columns
-
-IDL output
-#+BEGIN_SRC bash
-# head -n1 ./IDL/data/out/EGP_month_v03.txt | tr ' ' '\n'
-head -n1 ./IDL/data/out/EGP_hour_v03.txt | tr ' ' '\n'
-#+END_SRC
-
-#+RESULTS:
-|                                  |
-| Year                             |
-| MonthOfYear                      |
-| DayOfMonth                       |
-| HourOfDay(UTC)                   |
-| DayOfYear                        |
-| DayOfCentury                     |
-| AirPressure(hPa)                 |
-| AirTemperature(C)                |
-| AirTemperatureHygroClip(C)       |
-| RelativeHumidity(%)              |
-| SpecificHumidity(g/kg)           |
-| WindSpeed(m/s)                   |
-| WindDirection(d)                 |
-| SensibleHeatFlux(W/m2)           |
-| LatentHeatFlux(W/m2)             |
-| ShortwaveRadiationDown(W/m2)     |
-| ShortwaveRadiationDown_Cor(W/m2) |
-| ShortwaveRadiationUp(W/m2)       |
-| ShortwaveRadiationUp_Cor(W/m2)   |
-| Albedo_theta<70d                 |
-| LongwaveRadiationDown(W/m2)      |
-| LongwaveRadiationUp(W/m2)        |
-| CloudCover                       |
-| SurfaceTemperature(C)            |
-| HeightSensorBoom(m)              |
-| HeightStakes(m)                  |
-| DepthPressureTransducer(m)       |
-| DepthPressureTransducer_Cor(m)   |
-| IceTemperature1(C)               |
-| IceTemperature2(C)               |
-| IceTemperature3(C)               |
-| IceTemperature4(C)               |
-| IceTemperature5(C)               |
-| IceTemperature6(C)               |
-| IceTemperature7(C)               |
-| IceTemperature8(C)               |
-| TiltToEast(d)                    |
-| TiltToNorth(d)                   |
-| TimeGPS(hhmmssUTC)               |
-| LatitudeGPS(degN)                |
-| LongitudeGPS(degW)               |
-| ElevationGPS(m)                  |
-| HorDilOfPrecGPS                  |
-| LoggerTemperature(C)             |
-| FanCurrent(mA)                   |
-| BatteryVoltage(V)                |
-
-Python outputs:
-#+BEGIN_SRC bash
-head -n1 ./data/L3/EGP/EGP-raw_hour.csv | tr ',' '\n'
-#+END_SRC
-
-#+RESULTS:
-| time       |
-| rec        |
-| p          |
-| t_1        |
-| t_2        |
-| rh         |
-| wspd       |
-| wdir       |
-| wd_std     |
-| dsr        |
-| usr        |
-| dlr        |
-| ulr        |
-| t_rad      |
-| z_boom     |
-| z_boom_q   |
-| z_stake    |
-| z_stake_q  |
-| z_pt       |
-| t_i_1      |
-| t_i_2      |
-| t_i_3      |
-| t_i_4      |
-| t_i_5      |
-| t_i_6      |
-| t_i_7      |
-| t_i_8      |
-| tilt_x     |
-| tilt_y     |
-| gps_time   |
-| gps_lat    |
-| gps_lon    |
-| gps_alt    |
-| gps_geoid  |
-| gps_q      |
-| gps_numsat |
-| gps_hdop   |
-| t_log      |
-| fan_dc     |
-| batt_v_ss  |
-| batt_v     |
-| rh_cor     |
-| cc         |
-| wdir_std   |
-| albedo     |
-| t          |
-| t_surf     |
-| isr_cor    |
-| usr_cor   |
-| wspd_x     |
-| wspd_y     |
-
 ** Load both to dfs (10 min)
 
 #+BEGIN_SRC jupyter-python :tangle compare.py
@@ -1932,102 +1832,109 @@ def mydf(y,m,d,h):
 def mydf2(y,mo,d,h,mi):
     return pd.datetime(int(y),int(mo),int(d),int(h),int(mi))
 
+## INST
 idl = pd.read_csv("./IDL/out/EGP_inst_v03.txt",
                   delimiter="\s+",
                   parse_dates={'time':[0,1,2,3,4]},
                   infer_datetime_format=True,
                   date_parser=mydf2,
-                  index_col=0)\
-        .drop(columns=['DayOfYear'])\
-        .replace(-999, np.nan)\
-        .dropna(how='all')\
-        .rename(columns={'AirPressure(hPa)' : 'p',
-                         'AirTemperature(C)' : 't_1',
-                         'AirTemperatureHygroClip(C)' : 't_2',
-                         'RelativeHumidity(%)' : 'rh_cor',
-                         'SpecificHumidity(g/kg)' : 'rh_cor2',
-                         'WindSpeed(m/s)' : 'wspd',
-                         'WindDirection(d)' : 'wdir',
-                         'SensibleHeatFlux(W/m2)' : 'shf',
-                         'LatentHeatFlux(W/m2)' : 'lhf',
-                         'ShortwaveRadiationDown(W/m2)': 'dsr',
-                         'ShortwaveRadiationDown_Cor(W/m2)' : 'dsr_cor',
-                         'ShortwaveRadiationUp(W/m2)' : 'usr',
-                         'ShortwaveRadiationUp_Cor(W/m2)' : 'usr_cor',
-                         'Albedo_theta<70d' : 'albedo',
-                         'Albedo' : 'albedo',
-                         'LongwaveRadiationDown(W/m2)' : 'dlr',
-                         'LongwaveRadiationUp(W/m2)' : 'ulr',
-                         'CloudCover' : 'cc',
-                         'SurfaceTemperature(C)' : 't_surf',
-                         'HeightSensorBoom(m)' : 'z_boom',
-                         'HeightStakes(m)': 'z_stake',
-                         'DepthPressureTransducer(m)' : 'z_pt',
-                         'DepthPressureTransducer_Cor(m)' : 'z_pt_cor',
-                         'IceTemperature1(C)' : 't_i_1',
-                         'IceTemperature2(C)' : 't_i_2',
-                         'IceTemperature3(C)' : 't_i_3',
-                         'IceTemperature4(C)' : 't_i_4',
-                         'IceTemperature5(C)' : 't_i_5',
-                         'IceTemperature6(C)' : 't_i_6',
-                         'IceTemperature7(C)' : 't_i_7',
-                         'IceTemperature8(C)' : 't_i_8',
-                         'TiltToEast(d)' : 'tilt_x',
-                         'TiltToNorth(d)' : 'tilt_y',
-                         'TimeGPS(hhmmssUTC)' : 'gps_t',
-                         'LatitudeGPS(degN)' : 'gps_lat',
-                         'LongitudeGPS(degW)' : 'gps_lon',
-                         'ElevationGPS(m)' : 'gps_alt',
-                         'HorDilOfPrecGPS' : 'gps_hdop',
-                         'LoggerTemperature(C)' : 't_logger',
-                         'FanCurrent(mA)' : 'fan_dc',
-                         'BatteryVoltage(V)' : 'batt_v'})
+                  index_col=0)
 
-# df = xr.load_dataset("./data/L3/EGP/EGP-raw_hour.nc", mask_and_scale=False)\
-#        .to_dataframe()\
-#        .drop(columns='rh')\
-#        .rename(columns={'rh_cor':'rh'})
+## HOUR
+# idl = pd.read_csv("./IDL/out/EGP_hour_v03.txt",
+#                   delimiter="\s+",
+#                   parse_dates={'time':[0,1,2,3]},
+#                   infer_datetime_format=True,
+#                   date_parser=mydf,
+#                   index_col=0)
 
-df = pd.read_csv("./data/L3/EGP/EGP-raw.csv", index_col=0, parse_dates=True)#\
-       # .drop(columns=['rh','usr','dsr'])\
-       # .rename(columns={'rh_cor':'rh',
-       #                  'dsr_cor': 'dsr',
-       #                  'usr_cor':'usr'})
+idl = idl.drop(columns=['DayOfYear'])\
+         .replace(-999, np.nan)\
+         .apply(pd.to_numeric, errors='coerce')\
+         .dropna(how='all')\
+         .rename(columns={'AirPressure(hPa)' : 'p',
+                          'AirTemperature(C)' : 't_1',
+                          'AirTemperatureHygroClip(C)' : 't_2',
+                          'RelativeHumidity(%)' : 'rh_cor',
+                          'SpecificHumidity(g/kg)' : 'rh_cor2',
+                          'WindSpeed(m/s)' : 'wspd',
+                          'WindDirection(d)' : 'wdir',
+                          'SensibleHeatFlux(W/m2)' : 'shf',
+                          'LatentHeatFlux(W/m2)' : 'lhf',
+                          'ShortwaveRadiationDown(W/m2)': 'dsr',
+                          'ShortwaveRadiationDown_Cor(W/m2)' : 'dsr_cor',
+                          'ShortwaveRadiationUp(W/m2)' : 'usr',
+                          'ShortwaveRadiationUp_Cor(W/m2)' : 'usr_cor',
+                          'Albedo_theta<70d' : 'albedo',
+                          'Albedo' : 'albedo',
+                          'LongwaveRadiationDown(W/m2)' : 'dlr',
+                          'LongwaveRadiationUp(W/m2)' : 'ulr',
+                          'CloudCover' : 'cc',
+                          'SurfaceTemperature(C)' : 't_surf',
+                          'HeightSensorBoom(m)' : 'z_boom',
+                          'HeightStakes(m)': 'z_stake',
+                          'DepthPressureTransducer(m)' : 'z_pt',
+                          'DepthPressureTransducer_Cor(m)' : 'z_pt_cor',
+                          'IceTemperature1(C)' : 't_i_1',
+                          'IceTemperature2(C)' : 't_i_2',
+                          'IceTemperature3(C)' : 't_i_3',
+                          'IceTemperature4(C)' : 't_i_4',
+                          'IceTemperature5(C)' : 't_i_5',
+                          'IceTemperature6(C)' : 't_i_6',
+                          'IceTemperature7(C)' : 't_i_7',
+                          'IceTemperature8(C)' : 't_i_8',
+                          'TiltToEast(d)' : 'tilt_x',
+                          'TiltToNorth(d)' : 'tilt_y',
+                          'TimeGPS(hhmmssUTC)' : 'gps_t',
+                          'LatitudeGPS(degN)' : 'gps_lat',
+                          'LongitudeGPS(degW)' : 'gps_lon',
+                          'ElevationGPS(m)' : 'gps_alt',
+                          'HorDilOfPrecGPS' : 'gps_hdop',
+                          'LoggerTemperature(C)' : 't_logger',
+                          'FanCurrent(mA)' : 'fan_dc',
+                          'BatteryVoltage(V)' : 'batt_v'})
 
+# df = xr.open_mfdataset("./data/L3/EGP/EGP-*_hour.nc", mask_and_scale=False)\
+#        .to_dataframe()
+
+# df = pd.read_csv("./data/L3/EGP/EGP-raw.csv", index_col=0, parse_dates=True)
+df = pd.read_csv("./data/L3/EGP/EGP-STM.csv", index_col=0, parse_dates=True)
+# df = pd.read_csv("./data/L3/EGP/EGP-TX.csv", index_col=0, parse_dates=True)
 
 # subset to same columns
 subset = np.intersect1d(df.columns, idl.columns)
 df = df[subset]
 idl = idl[subset]
 
-# idl = idl.dropna(how='all', axis='columns')
-
-# print(df.columns)
-
-diff = df - idl
-diff_pct = diff / idl*100
-
-# diff_pct[abs(diff) < 1E-1] = 0
+err = df - idl # need to understand data to understand error
+# err = (df - idl) / idl*100 # % err: large errors when values near 0
+# err = (df - idl) / idl.mean(axis='rows')*100 # % err but should work as long as mean ~= 0
 
 pd.options.display.float_format = "{:,.5f}".format
 
-# limit to where
-dd = diff_pct.describe().T.drop(columns="count")
-# dd = diff_pct.describe().T.drop(columns="count").replace(0,np.nan).dropna(how='all', axis='rows').replace(np.nan,0)
+dd = err.describe().T.drop(columns="count")
+# dd = err.describe().T.drop(columns="count").replace(0,np.nan).dropna(how='all', axis='rows').replace(np.nan,0)
 
 if __name__ == "__main__": 
     print(dd)
+    dd.to_csv("tmp.csv", float_format='%.5f')
 
 # diff_pct.plot()
 # diff_pct.replace(0,np.nan).dropna(how='all', axis='columns').plot()
-def plot_diff(df,idl,var):
-    clf()
-    ax=idl[var].plot(label='IDL '+var, linewidth=3)
-    df[var].plot(label='Py', ax=ax)
+def plot_diff(df,idl,err,var):
+    import matplotlib.pyplot as plt
+    fig = plt.figure(1)
+    fig.clf()
+    ax1 = fig.add_subplot(211)
+    err[var].plot(label='err', color='black', marker='.', ax=ax1)
+    ax1.set_ylabel("Err")
+    ax2 = fig.add_subplot(212, sharex=ax1)
+    idl[var].plot(label='IDL '+var, linewidth=3, ax=ax2, marker='.', markersize=4)
+    df[var].plot(label='Py', ax=ax2, marker='.', markersize=2)
+    (df[var]*0).plot(color='k', linestyle='--', ax=ax2, alpha=0.25, label='', marker='.')
     legend()
-    ((df-idl)/idl*100)[var].plot(label='diff', ax=ax.twinx(), color='black')
     
-var = 'dsr_cor';plot_diff(df,idl,var)
+var = 't_1'; plot_diff(df,idl,err,var)
 
 dd
 #+END_SRC
@@ -2035,78 +1942,79 @@ dd
 #+RESULTS:
 :RESULTS:
 #+begin_example
-<ipython-input-190-06de5da93cd6>:9: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
+<ipython-input-26-bb2e0b59ad9d>:9: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
   return pd.datetime(int(y),int(mo),int(d),int(h),int(mi))
-             mean     std      min      25%      50%      75%      max
-albedo    0.01177 0.36231 -0.77519 -0.25575  0.00000  0.35419  0.71942
-batt_v   -0.00002 0.00149 -0.07158  0.00000  0.00000  0.00000  0.06845
-cc        0.00000 0.00000  0.00000  0.00000  0.00000  0.00000  0.00000
-dlr       0.00007 0.01567 -0.03652 -0.01262  0.00000  0.01295  0.03597
-dsr       0.00017 0.02741 -0.45455 -0.00736  0.00000  0.00758  0.30769
-dsr_cor   0.00011 0.02209 -0.31447 -0.00740  0.00000  0.00727  0.26490
-fan_dc    0.00000 0.00000  0.00000  0.00000  0.00000  0.00000  0.00000
-gps_alt   0.00000 0.00000  0.00000  0.00000  0.00000  0.00000  0.00000
-gps_hdop  0.00000 0.00000  0.00000  0.00000  0.00000  0.00000  0.00000
-gps_lat  -0.00605 0.00002 -0.00612 -0.00607 -0.00605 -0.00604 -0.00598
-gps_lon   0.00630 0.01224 -0.01390 -0.01370  0.01370  0.01380  0.01390
-p        -0.00000 0.00009 -0.00141  0.00000  0.00000  0.00000  0.00138
-rh_cor    0.00019 0.03147 -0.07937 -0.02347  0.00000  0.02375  0.07508
-t_1       0.00000 0.00043 -0.00000 -0.00000 -0.00000 -0.00000  0.04439
-t_2       0.00001 0.00207 -0.15456 -0.00000 -0.00000 -0.00000  0.08313
-t_i_1     0.00001 0.00080 -0.03948 -0.00000 -0.00000 -0.00000  0.05260
-t_i_2     0.00001 0.00049 -0.00000 -0.00000 -0.00000 -0.00000  0.04760
-t_i_3    -0.00000 0.00039 -0.03778 -0.00000 -0.00000 -0.00000 -0.00000
-t_i_4     0.00000 0.00099 -0.04673 -0.00000 -0.00000 -0.00000  0.08313
-t_i_5    -0.00001 0.00078 -0.07564 -0.00000 -0.00000 -0.00000 -0.00000
-t_i_6    -0.00001 0.00068 -0.06570 -0.00000 -0.00000 -0.00000 -0.00000
-t_i_7    -0.00001 0.00064 -0.04673 -0.00000 -0.00000 -0.00000 -0.00000
-t_i_8    -0.00001 0.00130 -0.04728 -0.00000 -0.00000 -0.00000  0.03602
-t_surf   -0.00000 0.00390 -0.15198 -0.00000 -0.00000 -0.00000  0.12970
-tilt_x    0.00000 0.00000  0.00000  0.00000  0.00000  0.00000  0.00000
-tilt_y    0.00000 0.00000 -0.00000 -0.00000 -0.00000 -0.00000 -0.00000
-ulr       0.00011 0.01194 -0.02762 -0.01026  0.00000  0.01041  0.02741
-usr      -0.00000 0.02683 -0.29412 -0.00926  0.00000  0.00918  0.27972
-usr_cor   0.00000 0.02615 -0.29412 -0.00928  0.00000  0.00918  0.27972
-wdir      0.00047 0.07572 -3.33333  0.00000  0.00000  0.00000  4.00000
-wspd      0.00023 0.06383 -0.75188  0.00000  0.00000  0.00000  1.96078
-z_boom   -0.03392 0.12652 -0.34662 -0.15480 -0.07746  0.07849  0.37175
-z_pt          nan     nan      nan      nan      nan      nan      nan
-z_stake       nan     nan      nan      nan      nan      nan      nan
+             mean     std      min      25%      50%     75%     max
+albedo    0.00000 0.00029 -0.00050 -0.00020  0.00000 0.00020 0.00110
+batt_v    0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
+cc        0.00001 0.00278 -0.00500 -0.00230  0.00000 0.00230 0.00500
+dlr      -0.00011 0.02866 -0.04990 -0.02460 -0.00080 0.02470 0.05000
+dsr      -0.00058 0.02859 -0.05000 -0.02530  0.00000 0.02420 0.05000
+dsr_cor  -0.00018 0.02433 -0.52200  0.00000  0.00000 0.00000 0.37740
+fan_dc    0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
+gps_alt   0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
+gps_hdop  0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
+gps_lat  -0.00000 0.00003 -0.00005 -0.00002 -0.00000 0.00002 0.00005
+gps_lon   0.00000 0.00003 -0.00005 -0.00002  0.00000 0.00003 0.00005
+p         0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
+rh_cor   -0.00015 0.01376 -0.04990  0.00000  0.00000 0.00000 0.05000
+t_1      -0.00000 0.00048 -0.00500  0.00000  0.00000 0.00000 0.00500
+t_2      -0.00000 0.00043 -0.00500  0.00000  0.00000 0.00000 0.00500
+t_i_1    -0.00000 0.00031 -0.00500  0.00000  0.00000 0.00000 0.00500
+t_i_2     0.00000 0.00019 -0.00500  0.00000  0.00000 0.00000 0.00500
+t_i_3     0.00000 0.00028 -0.00500  0.00000  0.00000 0.00000 0.00500
+t_i_4     0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
+t_i_5     0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
+t_i_6     0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
+t_i_7     0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
+t_i_8     0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
+t_surf    0.00004 0.00288 -0.00500 -0.00240  0.00010 0.00250 0.00500
+tilt_x   -0.00001 0.00288 -0.00500 -0.00250  0.00000 0.00250 0.00500
+tilt_y    0.00002 0.00289 -0.00500 -0.00250  0.00000 0.00250 0.00500
+ulr       0.00035 0.02878 -0.05000 -0.02430  0.00080 0.02570 0.05000
+usr       0.00041 0.02903 -0.04990 -0.02610  0.00000 0.02610 0.04990
+usr_cor   0.00010 0.02089 -0.10720  0.00000  0.00000 0.00000 0.10450
+wdir     -0.00005 0.00433 -0.05000  0.00000  0.00000 0.00000 0.05000
+wspd     -0.00001 0.00264 -0.00500 -0.00200  0.00000 0.00200 0.00500
+z_boom   -0.00000 0.00029 -0.00050 -0.00030  0.00000 0.00030 0.00050
+z_pt          nan     nan      nan      nan      nan     nan     nan
+z_stake       nan     nan      nan      nan      nan     nan     nan
 #+end_example
-|          |          mean |           std |          min |          25% |          50% |          75% |          max |
-|----------+---------------+---------------+--------------+--------------+--------------+--------------+--------------|
-| albedo   |   0.0117673   |   0.362313    |  -0.775194   |  -0.255754   |   0          |   0.354191   |   0.719424   |
-| batt_v   |  -1.93054e-05 |   0.00148737  |  -0.071582   |   0          |   0          |   0          |   0.0684463  |
-| cc       |   0           |   0           |   0          |   0          |   0          |   0          |   0          |
-| dlr      |   6.53708e-05 |   0.015672    |  -0.036523   |  -0.0126176  |   0          |   0.0129534  |   0.0359712  |
-| dsr      |   0.000169655 |   0.0274063   |  -0.454545   |  -0.00735869 |   0          |   0.00757576 |   0.307692   |
-| dsr_cor  |   0.000110582 |   0.0220876   |  -0.314465   |  -0.00739953 |   0          |   0.00727273 |   0.264901   |
-| fan_dc   |   0           |   0           |   0          |   0          |   0          |   0          |   0          |
-| gps_alt  |   0           |   0           |   0          |   0          |   0          |   0          |   0          |
-| gps_hdop |   0           |   0           |   0          |   0          |   0          |   0          |   0          |
-| gps_lat  |  -0.006053    |   2.35483e-05 |  -0.00612142 |  -0.00606972 |  -0.00605398 |  -0.00603706 |  -0.00597994 |
-| gps_lon  |   0.00630119  |   0.0122361   |  -0.0138972  |  -0.0136951  |   0.0137006  |   0.0137951  |   0.0138972  |
-| p        |  -1.65214e-06 |   8.63837e-05 |  -0.00140768 |   0          |   0          |   0          |   0.00138127 |
-| rh_cor   |   0.000190723 |   0.0314736   |  -0.0793651  |  -0.0234742  |   0          |   0.023753   |   0.0750751  |
-| t_1      |   4.09232e-06 |   0.000426191 |  -0          |  -0          |  -0          |  -0          |   0.0443853  |
-| t_2      |   8.37241e-06 |   0.00207168  |  -0.15456    |  -0          |  -0          |  -0          |   0.0831255  |
-| t_i_1    |   5.83036e-06 |   0.000803481 |  -0.0394789  |  -0          |  -0          |  -0          |   0.0526039  |
-| t_i_2    |   5.08074e-06 |   0.000491757 |  -0          |  -0          |  -0          |  -0          |   0.0475964  |
-| t_i_3    |  -4.03273e-06 |   0.000390322 |  -0.0377786  |  -0          |  -0          |  -0          |  -0          |
-| t_i_4    |   3.8852e-06  |   0.000985282 |  -0.046729   |  -0          |  -0          |  -0          |   0.0831255  |
-| t_i_5    |  -8.07461e-06 |   0.000781529 |  -0.075643   |  -0          |  -0          |  -0          |  -0          |
-| t_i_6    |  -7.01356e-06 |   0.000678831 |  -0.065703   |  -0          |  -0          |  -0          |  -0          |
-| t_i_7    |  -9.25971e-06 |   0.000635594 |  -0.046729   |  -0          |  -0          |  -0          |  -0          |
-| t_i_8    |  -5.82101e-06 |   0.00129989  |  -0.0472813  |  -0          |  -0          |  -0          |   0.0360231  |
-| t_surf   |  -2.36396e-06 |   0.0039039   |  -0.151976   |  -0          |  -0          |  -0          |   0.129702   |
-| tilt_x   |   0           |   0           |   0          |   0          |   0          |   0          |   0          |
-| tilt_y   |   0           |   0           |  -0          |  -0          |  -0          |  -0          |  -0          |
-| ulr      |   0.000106376 |   0.0119403   |  -0.0276243  |  -0.0102643  |   0          |   0.0104067  |   0.0274123  |
-| usr      |  -1.56102e-07 |   0.026833    |  -0.294118   |  -0.00925712 |   0          |   0.00918274 |   0.27972    |
-| usr_cor  |   2.97889e-06 |   0.0261547   |  -0.294118   |  -0.00927698 |   0          |   0.00918133 |   0.27972    |
-| wdir     |   0.00046569  |   0.0757244   |  -3.33333    |   0          |   0          |   0          |   4          |
-| wspd     |   0.00023373  |   0.0638281   |  -0.75188    |   0          |   0          |   0          |   1.96078    |
-| z_boom   |  -0.033924    |   0.126517    |  -0.34662    |  -0.154799   |  -0.0774593  |   0.0784929  |   0.371747   |
-| z_pt     | nan           | nan           | nan          | nan          | nan          | nan          | nan          |
-| z_stake  | nan           | nan           | nan          | nan          | nan          | nan          | nan          |
+|          |          mean |           std |        min |        25% |       50% |        75% |      max |
+|----------+---------------+---------------+------------+------------+-----------+------------+----------|
+| albedo   |   1.74326e-06 |   0.00028985  |  -0.0005   |  -0.0002   |   0       |   0.0002   |   0.0011 |
+| batt_v   |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
+| cc       |   1.17763e-05 |   0.00278238  |  -0.005    |  -0.0023   |   0       |   0.0023   |   0.005  |
+| dlr      |  -0.000111832 |   0.0286637   |  -0.0499   |  -0.0246   |  -0.0008  |   0.0247   |   0.05   |
+| dsr      |  -0.000582256 |   0.0285922   |  -0.05     |  -0.0253   |   0       |   0.0242   |   0.05   |
+| dsr_cor  |  -0.000179862 |   0.024329    |  -0.522    |   0        |   0       |   0        |   0.3774 |
+| fan_dc   |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
+| gps_alt  |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
+| gps_hdop |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
+| gps_lat  |  -1.54557e-06 |   2.81153e-05 |  -4.98e-05 |  -2.48e-05 |  -3.7e-06 |   2.22e-05 |   5e-05  |
+| gps_lon  |   8.46655e-07 |   2.85794e-05 |  -4.98e-05 |  -2.5e-05  |   2.3e-06 |   2.63e-05 |   5e-05  |
+| p        |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
+| rh_cor   |  -0.000154917 |   0.0137561   |  -0.0499   |   0        |   0       |   0        |   0.05   |
+| t_1      |  -1.40272e-06 |   0.000477023 |  -0.005    |   0        |   0       |   0        |   0.005  |
+| t_2      |  -2.66517e-06 |   0.000429834 |  -0.005    |   0        |   0       |   0        |   0.005  |
+| t_i_1    |  -1.82354e-06 |   0.000305894 |  -0.005    |   0        |   0       |   0        |   0.005  |
+| t_i_2    |   1.40272e-06 |   0.000185011 |  -0.005    |   0        |   0       |   0        |   0.005  |
+| t_i_3    |   7.01361e-07 |   0.000279539 |  -0.005    |   0        |   0       |   0        |   0.005  |
+| t_i_4    |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
+| t_i_5    |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
+| t_i_6    |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
+| t_i_7    |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
+| t_i_8    |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
+| t_surf   |   3.81964e-05 |   0.00287877  |  -0.005    |  -0.0024   |   0.0001  |   0.0025   |   0.005  |
+| tilt_x   |  -1.19562e-05 |   0.00287647  |  -0.005    |  -0.0025   |   0       |   0.0025   |   0.005  |
+| tilt_y   |   1.82992e-05 |   0.00288553  |  -0.005    |  -0.0025   |   0       |   0.0025   |   0.005  |
+| ulr      |   0.000345413 |   0.0287787   |  -0.05     |  -0.0243   |   0.0008  |   0.0257   |   0.05   |
+| usr      |   0.000412737 |   0.0290316   |  -0.0499   |  -0.0261   |   0       |   0.0261   |   0.0499 |
+| usr_cor  |   0.000100183 |   0.0208896   |  -0.1072   |   0        |   0       |   0        |   0.1045 |
+| wdir     |  -5.4779e-05  |   0.00433478  |  -0.05     |   0        |   0       |   0        |   0.05   |
+| wspd     |  -5.89143e-06 |   0.00263773  |  -0.005    |  -0.002    |   0       |   0.002    |   0.005  |
+| z_boom   |  -3.66779e-06 |   0.000293067 |  -0.0005   |  -0.0003   |   0       |   0.0003   |   0.0005 |
+| z_pt     | nan           | nan           | nan        | nan        | nan       | nan        | nan      |
+| z_stake  | nan           | nan           | nan        | nan        | nan       | nan        | nan      |
 :END:
+

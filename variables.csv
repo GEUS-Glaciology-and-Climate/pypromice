@@ -1,7 +1,7 @@
 # required,CF standard,human,final physical (not eng),out of limits,,,
 fields,standard_name,long_name,units,lo,hi,OOL,comment
 time,time,Time,yyyy-mm-dd HH:MM:SS,,,,
-rec,record,Record,,0,,,L0 only
+rec,record,Record,,,,,L0 only
 min_y,minutes,Minutes in year,min,0,527040,,L0 only
 p,air_pressure,Air pressure,hPa,650,1100,z_pt,
 t_1,air_temperature,Air temperature 1,C,-80,40,rh_cor cc dsr usr z_boom z_stake,PT100 temperature at boom
