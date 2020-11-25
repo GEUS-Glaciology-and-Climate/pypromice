@@ -270,60 +270,65 @@ Where
   + Optionally, =.<n>= is a version number if multiple files from the same year are present
 + =<F>= is the format, one of =raw=, =TX=, or =STM=
 
-Each L0 file that will be processed must have an associated header file, with the same filename plus =.hdr= extension. An [[./template.hdr][example (template) L0 header file]] is:
+Each L0 file that will be processed must have an entry in the TOML-formatted configuration file. The config file can be located anywhere, and the processing script receives the config file and the location of the L0 data. An [[./example.toml][example (template) L0 config file]] is:
 
 #+BEGIN_SRC bash :results verbatim :exports results
-cat hdr.template
+cat example.toml
 #+END_SRC
 
 #+RESULTS:
 #+begin_example
-columns     = time, rec, min_y, p, t_1, t_2, rh, wspd, wdir, wd_std, dsr, usr, dlr, ulr, t_rad, z_boom, z_boom_q, z_stake, z_stake_q, z_pt, t_i_1, t_i_2, t_i_3, t_i_4, t_i_5, t_i_6, t_i_7, t_i_8, tilt_x, tilt_y, gps_time, gps_lat, gps_lon, gps_alt, gps_geoid, gps_geounit, gps_q, gps_numsat, gps_hdop, t_log, fan_dc, batt_v_ss, batt_v
-station_id  = EGP
-format      = raw     # or TX or STM
-skiprows    = 0       # number of header rows in L0 file
-geometry    = POINT(lon, lat)  # deg.frac E (W is negative), deg.frac N
+# EGP L0 config
 
-############################################
-###
-### Optional, depending on file contents
-###
-############################################
+station_id         = "EGP"
+latitude           = 75.62
+longitude          = -35.98
+nodata             = ['-999', 'NAN'] # if one is a string, all must be strings
+dsr_eng_coef       = 12.71  # from manufacturer to convert from eng units (1E-5 V) to  physical units (W m-2)
+usr_eng_coef       = 12.71
+dlr_eng_coef       = 12.71
+ulr_eng_coef       = 12.71
+hygroclip_t_offset = 0      # degrees C
 
-### Required if hygroclip ('t_2')
-# hygroclip_t_offset =    # degrees C
+columns = ["time", "rec", "min_y",
+	"p", "t_1", "t_2", "rh", "wspd", "wdir", "wd_std",
+	"dsr", "usr", "dlr", "ulr", "t_rad",
+	"z_boom", "z_boom_q", "z_stake", "z_stake_q", "z_pt",
+	"t_i_1", "t_i_2", "t_i_3", "t_i_4", "t_i_5", "t_i_6", "t_i_7", "t_i_8",
+	"tilt_x", "tilt_y",
+	"gps_time", "gps_lat", "gps_lon", "gps_alt", "gps_geoid", "gps_geounit", "gps_q", "gps_numsat", "gps_hdop",
+	"t_log", "fan_dc", "batt_v_ss", "batt_v"]
 
-### Required if radiation sensor present
-### from manufacturer to convert from eng units (1E-5 V) to  physical units (W m-2)
-# dsr_eng_coef       =
-# usr_eng_coef       =
-# dlr_eng_coef       =
-# ulr_eng_coef       =
+["EGP_2016_raw.txt"]
+format    = "raw"
+skiprows  = 3
 
-### Required if pressure transducer (z_pt)
-# pt_z_coef          =    # Pressure transducer calibibration coefficiont [m water @ 20 C] (TBD: T @ calib?)
-# pt_z_p_coef        =    # Air pressure at which the pt was calibrated [hPa]
-# pt_z_factor        =    # Unitless. Scale for logger voltage measurement range (2.5 for CR1000, 1 for CR10X)
-# pt_antifreeze      =    # Percent antifreeze in the pressure transducer
-
-### Used to rotate boom by a fixed amount
-# boom_azimuth       =    # degrees
-
-### Used to adjust clock by HH:MM:SS
-# clock_shift        =
-
-############################################
-###
-### Suggested
-###
-############################################
-
-#
+["EGP_2019_raw_transmitted.txt"]
+skiprows = 0
+format   = "TX"
+columns = ["time", "rec",
+	"p", "t_1", "t_2", "rh", "wspd", "wdir",
+	"dsr", "usr", "dlr", "ulr", "t_rad",
+	"z_boom", "z_stake", "z_pt",
+	"t_i_1", "t_i_2", "t_i_3", "t_i_4", "t_i_5", "t_i_6", "t_i_7", "t_i_8",
+	"tilt_x", "tilt_y",
+	"gps_time", "gps_lat", "gps_lon", "gps_alt", "gps_hdop",
+	"fan_dc", "batt_v"]
 #+end_example
+
+The TOML config file has the following expectations and behaviors:
++ Properties can be defined at the top level or under a section
++ Each file that will be processed gets its own section
++ Properties at the top level are copied to each section (assumed to apply to all files), but do not overwrite properties if they are already defined for a section.
+
+In the example above,
++ The =station_id=, =latitude=, etc. properties are the same in both files (=EGP_2016_raw.txt= and =EGP_2019_raw_transmitted.txt=) and so they are defined once at the top of the file. They could have been defined in each of the sections similar to =hygroclip_t_offset=.
++ The =format= and =skiprows= properties are different in each section and defined in each section
++ The top-level defined =columns= is applied only to =EGP_2016_raw.txt= because it is defined differently in the =EGP_2019_raw_transmitted.txt= section.
 
 *** Additional files
 
-Any files that do not have an associated =.hdr= will be ignored. However, for cleanliness, L0 files that will not be processed should be placed in an =archive= subfolder.
+Any files that do not have an associated section in the config file will be ignored. However, for cleanliness, L0 files that will not be processed should be placed in an =archive= subfolder.
 
 Any changes made to L0 files should be documented in the [[./L0/README.org]]. *Manual changes to these files should only be done when necessary*. An example of a manual change might be:
 
@@ -332,10 +337,11 @@ Any changes made to L0 files should be documented in the [[./L0/README.org]]. *M
 *** L0 Reader
 
 #+BEGIN_SRC jupyter-python :exports both
-
+<<load_conf>>
 <<read_L0>>
 
-ds = read_L0("./data/L0/EGP/EGP_2016_raw.txt.hdr")
+conf = load_conf("./data/L0/config/EGP_2016_raw.toml", "./data/L0")
+ds = read_L0(conf[list(conf.keys())[0]])
 print(ds)
 #+END_SRC
 
@@ -346,8 +352,8 @@ Dimensions:      (time: 10847)
 Coordinates:
   ,* time         (time) datetime64[ns] 2016-05-01T14:30:00 ... 2016-07-19T17:...
 Data variables:
-    rec          (time) float64 51.0 52.0 53.0 ... 1.09e+04 1.09e+04 1.09e+04
-    min_y        (time) float64 1.765e+05 1.766e+05 ... 2.905e+05 2.905e+05
+    rec          (time) int64 51 52 53 54 55 ... 10893 10894 10895 10896 10897
+    min_y        (time) int64 176540 176550 176560 ... 290460 290470 290480
     p            (time) float64 724.4 724.1 724.4 724.4 ... 730.8 731.2 730.7
     t_1          (time) float64 -20.1 -19.79 -19.31 ... -6.904 -6.904 -6.861
     t_2          (time) float64 -19.56 -19.11 -18.92 ... -6.866 -6.86 -6.799
@@ -361,9 +367,9 @@ Data variables:
     ulr          (time) float64 -23.97 -28.65 -33.92 ... -32.33 -32.52 -28.84
     t_rad        (time) float64 -12.78 -11.42 -9.929 ... -1.114 -1.03 -1.135
     z_boom       (time) float64 2.685 2.683 2.683 2.68 ... 2.583 2.584 2.58
-    z_boom_q     (time) float64 190.0 192.0 189.0 187.0 ... 192.0 182.0 168.0
+    z_boom_q     (time) int64 190 192 189 187 191 191 ... 180 177 192 182 168
     z_stake      (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
-    z_stake_q    (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
+    z_stake_q    (time) int64 0 0 0 0 0 0 0 0 0 0 0 0 ... 0 0 0 0 0 0 0 0 0 0 0
     z_pt         (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
     t_i_1        (time) float64 nan -109.0 -109.0 ... -8.478 -8.458 -8.448
     t_i_2        (time) float64 nan nan -109.0 -109.0 ... -9.67 -9.67 -9.67
@@ -389,17 +395,19 @@ Data variables:
     batt_v_ss    (time) float64 15.52 15.81 15.79 15.81 ... 14.47 14.47 14.47
     batt_v       (time) float64 15.23 15.56 15.53 15.63 ... 14.4 14.41 14.41
 Attributes:
-    station_id:          EGP
     format:              raw
-    hygroclip_t_offset:  0
+    station_id:          EGP
     latitude:            75.62
-    longitude:           35.98
+    longitude:           -35.98
+    nodata:              -999
     dsr_eng_coef:        12.71
     usr_eng_coef:        12.71
     dlr_eng_coef:        12.71
     ulr_eng_coef:        12.71
+    hygroclip_t_offset:  0
+    conf:                ./data/L0/config/EGP_2016_raw.toml
+    file:                ./data/L0/EGP/EGP_2016_raw.txt
 #+end_example
-
 
 
 * L0 -> L1
@@ -411,42 +419,29 @@ Attributes:
 
 ** Wrapper
 
-Run one:
 #+BEGIN_SRC jupyter-python :noweb-ref
-infile = "./data/L0/EGP/EGP_2019_raw.txt.hdr"
+<<load_conf>>
+<<read_L0>>
 #+END_SRC
 
 #+RESULTS:
 
-#+BEGIN_SRC jupyter-python :noweb-ref
-<<L0_to_L1>>
-#+END_SRC
 
-#+RESULTS:
-
-Run all:
-#+BEGIN_SRC bash
-# conda activate PROMICE_dev
-for f in $(ls ./data/L0/EGP/*raw*.hdr); do
-  echo ${f}
-  ./L0_to_L1.py ${f}
-done
-
-./L0_to_L1.py data/L0/EGP/EGP_2017_raw_SlimTableMem.txt.hdr
-./L0_to_L1.py data/L0/EGP/EGP_2019_raw_transmitted.txt.hdr
-#+END_SRC
-
-
-#+BEGIN_SRC jupyter-python :tangle L0_to_L1.py :noweb-ref :tangle-mode (identity #o744)
+#+BEGIN_SRC jupyter-python :tangle L0_to_L1.py :noweb-ref :tangle-mode (identity #o544)
 #!/usr/bin/env python
 
-def L0_to_L1(infile=None):
+def L0_to_L1(conf=None):
     <<L0_to_L1>>
 
+<<load_conf>>
 
 if __name__ == "__main__":
     import sys
-    for arg in sys.argv[1:]: L0_to_L1(arg)
+    assert(len(sys.argv) == 3)
+    L0_path = sys.argv[1]
+    conf = load_conf(sys.argv[2], L0_path)
+    for k in conf.keys():
+        L0_to_L1(conf[k])
     
 #+END_SRC
 
@@ -472,7 +467,7 @@ import pandas as pd
 
 #+BEGIN_SRC jupyter-python
 <<read_L0>>
-ds = read_L0(infile)
+ds = read_L0(conf)
 
 ds['n'] = (('time'), np.arange(ds.time.size)+1)
 
@@ -691,6 +686,7 @@ ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
 + Check with ~cfchecks ./data/L1/EGP/EGP-2016-raw.nc~
 
 #+BEGIN_SRC jupyter-python
+infile = ds.attrs['file']
 outpath = os.path.split(infile)[0].split("/")
 outpath[-2] = 'L1'
 outpath = '/'.join(outpath)
@@ -807,7 +803,7 @@ Run all:
 
 #+RESULTS:
 
-#+header:  :tangle L1_to_L1A.py :noweb-ref :tangle-mode (identity #o744)
+#+header:  :tangle L1_to_L1A.py :noweb-ref :tangle-mode (identity #o544)
 #+BEGIN_SRC jupyter-python
 #!/usr/bin/env python
 
@@ -818,8 +814,7 @@ def L1_to_L1A(infile=None):
 
 if __name__ == "__main__":
     import sys
-    # for arg in sys.argv[1:]: L1_to_L1A(arg)
-    L1_to_L1A(sys.argv[1:])
+    for arg in sys.argv[1:]: L1_to_L1A(arg)
 #+END_SRC
 
 ** Imports
@@ -852,6 +847,7 @@ Out of limit (OOL) data comes from the [[./variables.csv]] file.
 df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
 df = df.dropna(how='all')
 
+# from IPython import embed; embed()
 for var in df.index:
     if var not in list(ds.variables): continue
     ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'])
@@ -925,7 +921,7 @@ Run all:
 #+END_SRC
 
 
-#+BEGIN_SRC jupyter-python :tangle L1A_to_L2.py :noweb-ref :tangle-mode (identity #o744)
+#+BEGIN_SRC jupyter-python :tangle L1A_to_L2.py :noweb-ref :tangle-mode (identity #o544)
 #!/usr/bin/env python
 
 <<L1A_to_L2_imports>>
@@ -1320,7 +1316,7 @@ Run all:
 #+END_SRC
 
 
-#+BEGIN_SRC jupyter-python :tangle L2_to_L3.py :noweb-ref :tangle-mode (identity #o744)
+#+BEGIN_SRC jupyter-python :tangle L2_to_L3.py :noweb-ref :tangle-mode (identity #o544)
 #!/usr/bin/env python
 
 def L2_to_L3(infile=None):
@@ -1565,28 +1561,17 @@ ds_d.to_dataframe().dropna(how='all').to_csv(outpathfile+"_day.csv")
 
 * L0 to L3
 
-#+BEGIN_SRC bash :tangle ppp.sh :tangle-mode (identity #o744) :var s="EGP"
+#+BEGIN_SRC bash :tangle ppp.sh :tangle-mode (identity #o544) :var s="EGP"
 
 # conda activate PROMICE_dev
 
 rm ./data/L{1,1A,2,3}/EGP/*
 
-# # L0 -> L1
-# for f in $(ls ./data/L0/${s}/*raw*.hdr | grep -v Slim | grep -v transm); do
-#   echo $f
-#   ./L0_to_L1.py ${f}
-# done
-# parallel --bar "./L0_to_L1.py {}" ::: $(ls ./data/L0/${s}/*.hdr)
-# ./L0_to_L1.py ./data/L0/EGP/EGP_2016_raw.txt.hdr
-# ./L0_to_L1.py ./data/L0/EGP/EGP_2017_raw_2.txt.hdr
-# ./L0_to_L1.py ./data/L0/EGP/EGP_2018_raw.txt.hdr
-# ./L0_to_L1.py ./data/L0/EGP/EGP_2018_raw_2.txt.hdr
-# ./L0_to_L1.py ./data/L0/EGP/EGP_2019_raw.txt.hdr
-# ./L0_to_L1.py ./data/L0/EGP/EGP_2019_raw1.txt.hdr
-##
-./L0_to_L1.py ./data/L0/EGP/EGP_2017_raw_SlimTableMem.txt.hdr
-##
-# ./L0_to_L1.py ./data/L0/EGP/EGP_2019_raw_transmitted.txt.hdr
+## L0 -> L1
+# ./L0_to_L1.py ./data/L0/config/EGP_2016_raw.toml # 1 raw
+# ./L0_to_L1.py ./data/L0/config/STM.toml # 1 STM
+# ./L0_to_L1.py ./data/L0/config/TX.toml  # 1 TX
+./L0_to_L1.py ./data/L0 ./data/L0/config/EGP.toml          # all EGP stations
 
 # L1 -> L1A
 # for f in $(ls ./data/L1/${s}/); do
@@ -1626,11 +1611,48 @@ deg2rad = np.pi / 180
 rad2deg = 1 / deg2rad
 #+END_SRC
 
+
 ** Load L0 hdr + data
+
+#+NAME: load_conf
+#+BEGIN_SRC jupyter-python
+import toml
+import os
+
+def load_conf(filename, L0_path):
+    """Load a TOML file
+    PROMICE TOML supports defining features at the top level which apply to all nested properties,
+    but do not overwrite nested properties if they are defined.
+    """
+    conf = toml.load(filename)
+    # Move all top level keys to nested properties,
+    # if they are not already defined in the nested properties
+    # Also, insert the section name (filename) as a file property, and configuration file.
+    top = [_ for _ in conf.keys() if not type(conf[_]) is dict]
+    subs = [_ for _ in conf.keys() if type(conf[_]) is dict]
+    for s in subs:
+        for t in top:
+            if t not in conf[s].keys():
+                conf[s][t] = conf[t]
+
+        conf[s]['conf'] = filename
+        conf[s]['file'] = os.path.join(L0_path, conf[s]['station_id'], s)
+
+    # Delete all top level keys, because each file (sub-level) should carry all
+    # properties with it.
+    for t in top: conf.pop(t)
+
+    # check required fields are present
+    for k in conf.keys():
+        for field in ["columns", "station_id", "format", "latitude", "longitude", "skiprows"]:
+            assert(field in conf[k].keys())
+
+    return conf
+#+END_SRC
+
 
 #+NAME: read_L0
 #+BEGIN_SRC jupyter-python
-
 import os
 import numpy as np
 import pandas as pd
@@ -1638,127 +1660,32 @@ pd.set_option('display.precision', 2)
 import xarray as xr
 xr.set_options(keep_attrs=True)
 
+def read_L0(conf):
 
-def read_L0(filename):
-    
-    hdr = {}
-    with open(filename) as f:
-        for line in f:
-            if line[0] == "\n": continue   # blank line
-            if line[0] == "#": continue    # comment
-
-            assert("=" in line)
-            key = line.split("=")[0].strip()
-            val = line.split("=")[1].strip()
-            val = val.split("#")[0].strip() # remove trailing comments
-
-            # Convert from string to number if it is a number
-            if val.strip('-').strip('+').replace('.','').isdigit():
-                val = np.float(val)
-                if val == np.int(val):
-                    val = np.int(val)
-
-            hdr[key] = val
-    # done reading header
-
-    # check required fields were present
-    for req in ["columns", "station_id", "format", "geometry"]: assert(req in hdr.keys())
-
-    xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", hdr['geometry'])).astype(np.float)
-    hdr['longitude'] = xyz[0]
-    hdr['latitude'] = xyz[1]
-    hdr['altitude'] = xyz[2] if len(xyz) == 3 else np.nan
-
-    sep = ","
-    names = [_.strip() for _ in hdr.pop('columns').split(sep)]
-    datafile = os.path.splitext(filename)[0]
-
-    df = pd.read_csv(datafile,
+    df = pd.read_csv(conf['file'],
                      comment = "#",
                      index_col = 0,
-                     na_values = [-999, 'NAN'],
-                     names = names,
+                     na_values = conf['nodata'],
+                     names = conf['columns'],
                      parse_dates = True,
-                     sep = sep,
-                     skiprows = hdr["skiprows"],
+                     sep = ",",
+                     skiprows = conf["skiprows"],
                      skip_blank_lines = True,
-                     usecols=np.arange(len(names)))
+                     usecols=np.arange(len(conf['columns'])))
 
     ds = df.to_xarray()
 
     # carry relevant metadata with ds
     meta = {}
     skip = ["columns", "skiprows"]
-    for k in hdr.keys():
-        if k not in skip: meta[k] = hdr[k]
+    for k in conf.keys():
+        if k not in skip: meta[k] = conf[k]
     ds.attrs = meta
 
     return ds
-
-# ds = read_L0("./data/L0/EGP/EGP_2016_raw.txt.hdr")
-# print(ds)
 #+END_SRC
 
 #+RESULTS: read_L0
-
-#+RESULTS:
-#+begin_example
-<xarray.Dataset>
-Dimensions:      (time: 10847)
-Coordinates:
-  ,* time         (time) datetime64[ns] 2016-05-01T14:30:00 ... 2016-07-19T17:...
-Data variables:
-    rec          (time) float64 51.0 52.0 53.0 ... 1.09e+04 1.09e+04 1.09e+04
-    min_y        (time) float64 1.765e+05 1.766e+05 ... 2.905e+05 2.905e+05
-    p            (time) float64 724.4 724.1 724.4 724.4 ... 730.8 731.2 730.7
-    t_1          (time) float64 -20.1 -19.79 -19.31 ... -6.904 -6.904 -6.861
-    t_2          (time) float64 -19.56 -19.11 -18.92 ... -6.866 -6.86 -6.799
-    rh           (time) float64 54.1 51.7 50.23 49.51 ... 80.28 80.93 81.81
-    wspd         (time) float64 1.062 0.918 0.636 0.486 ... 2.793 2.951 3.069
-    wdir         (time) float64 265.1 259.2 216.8 208.4 ... 217.7 216.6 225.4
-    wd_std       (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
-    dsr          (time) float64 681.7 732.4 688.3 689.6 ... 724.7 711.4 698.8
-    usr          (time) float64 518.6 559.3 531.8 534.4 ... 559.2 549.6 524.1
-    dlr          (time) float64 -81.57 -102.0 -101.3 ... -135.8 -135.6 -132.4
-    ulr          (time) float64 -23.97 -28.65 -33.92 ... -32.33 -32.52 -28.84
-    t_rad        (time) float64 -12.78 -11.42 -9.929 ... -1.114 -1.03 -1.135
-    z_boom       (time) float64 2.685 2.683 2.683 2.68 ... 2.583 2.584 2.58
-    z_boom_q     (time) float64 190.0 192.0 189.0 187.0 ... 192.0 182.0 168.0
-    z_stake      (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
-    z_stake_q    (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
-    z_pt         (time) float64 nan nan nan nan nan nan ... nan nan nan nan nan
-    t_i_1        (time) float64 nan -109.0 -109.0 ... -8.478 -8.458 -8.448
-    t_i_2        (time) float64 nan nan -109.0 -109.0 ... -9.67 -9.67 -9.67
-    t_i_3        (time) float64 nan -109.0 -109.0 ... -8.879 -8.859 -8.849
-    t_i_4        (time) float64 nan -109.0 -109.0 ... -10.74 -10.73 -10.74
-    t_i_5        (time) float64 nan -109.0 -109.0 ... -12.67 -12.67 -12.67
-    t_i_6        (time) float64 nan -109.0 nan -109.0 ... -14.9 -14.9 -14.9
-    t_i_7        (time) float64 nan -109.0 -109.0 nan ... -17.16 -17.16 -17.16
-    t_i_8        (time) float64 nan nan -109.0 nan ... -20.75 -20.76 -20.76
-    tilt_x       (time) float64 3.527 3.492 3.516 3.489 ... 0.109 0.095 0.174
-    tilt_y       (time) float64 -0.945 -0.938 -0.924 ... -0.828 -0.849 -0.859
-    gps_time     (time) object nan nan nan ... 'GT170007.00' 'GT170007.00'
-    gps_lat      (time) object nan nan nan ... 'NH7537.47563' 'NH7537.47563'
-    gps_lon      (time) object nan nan nan ... 'WH03558.49655' 'WH03558.49655'
-    gps_alt      (time) float64 nan nan nan ... 2.663e+03 2.663e+03 2.663e+03
-    gps_geoid    (time) float64 nan nan nan nan nan ... 41.6 41.6 41.6 41.6 41.6
-    gps_geounit  (time) object nan nan nan nan nan nan ... 'M' 'M' 'M' 'M' 'M'
-    gps_q        (time) float64 nan nan nan nan nan nan ... 1.0 1.0 1.0 1.0 1.0
-    gps_numsat   (time) float64 nan nan nan nan nan ... 11.0 12.0 12.0 12.0 12.0
-    gps_hdop     (time) float64 nan nan nan nan nan ... 0.71 0.73 0.73 0.73 0.73
-    t_log        (time) float64 -12.6 -12.08 -11.65 ... -1.801 -1.735 -1.5
-    fan_dc       (time) float64 137.5 141.3 142.3 141.8 ... 123.5 123.9 124.1
-    batt_v_ss    (time) float64 15.52 15.81 15.79 15.81 ... 14.47 14.47 14.47
-    batt_v       (time) float64 15.23 15.56 15.53 15.63 ... 14.4 14.41 14.41
-Attributes:
-    station_id:          EGP
-    format:              raw
-    hygroclip_t_offset:  0
-    dsr_eng_coef:        12.71
-    usr_eng_coef:        12.71
-    dlr_eng_coef:        12.71
-    ulr_eng_coef:        12.71
-#+end_example
 
 ** Flag invalid data
 
