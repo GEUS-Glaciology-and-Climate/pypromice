@@ -549,9 +549,11 @@ def time_shift(da):
         diffarr = np.append(diffarr[0], diffarr)
         da['time'] = (da['time'] + pd.to_timedelta("-1 hour"))\
             .where((diffarr == 1) & (da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100), other=da['time'])
-        # da['time'] = (da['time'] + pd.to_timedelta("-24 hours"))\
-        #     .where((diffarr == 24) & ((da['time'].dt.dayofyear > 300) | (da['time'].dt.dayofyear < 100)), other=da['time'])
-        # da['time'] = da['time'].where((diffarr == 1) | (diffarr == 24)) # nan if shift not 1 or 24 hours
+
+        ### NOTE: The following line re-implements bug: https://github.com/GEUS-PROMICE/AWS_v3/issues/2
+        ### See also https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
+        da['time'] = (da['time'] + pd.to_timedelta("+24 hours"))\
+            .where((da['time'].dt.hour == 23) & ((da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100)), other=da['time'])
         return da['time']
     
 if ds.attrs['format'] != 'raw':
@@ -628,15 +630,19 @@ for v in ['gps_lat','gps_lon']:
 #    tiltX = smooth(tiltX,7,/EDGE_MIRROR,MISSING=-999) & tiltY = smooth(tiltY,7,/EDGE_MIRROR, MISSING=-999)
 # endif
 
+# import matplotlib.pyplot as plt
+# from IPython import embed; embed()
+
 # Should just be
-# if ds.attrs['PROMICE_format'] != 'TX': dstxy = dstxy.rolling(time=7, win_type='boxcar', center=True).mean()
+# if ds.attrs['format'] != 'TX': dstxy = dstxy.rolling(time=7, win_type='boxcar', center=True).mean()
 # but the /EDGE_MIRROR makes it a bit more complicated...
-win_size=7
-s = np.int(win_size/2)
-tdf = ds['tilt_x'].to_dataframe()
-ds['tilt_x'] = (('time'), tdf.iloc[:s][::-1].append(tdf).append(tdf.iloc[-s:][::-1]).rolling(win_size, win_type='boxcar', center=True).mean()[s:-s].values.flatten())
-tdf = ds['tilt_y'].to_dataframe()
-ds['tilt_y'] = (('time'), tdf.iloc[:s][::-1].append(tdf).append(tdf.iloc[-s:][::-1]).rolling(win_size, win_type='boxcar', center=True).mean()[s:-s].values.flatten())
+if ds.attrs['format'] != 'TX':
+    win_size=7
+    s = np.int(win_size/2)
+    tdf = ds['tilt_x'].to_dataframe()
+    ds['tilt_x'] = (('time'), tdf.iloc[:s][::-1].append(tdf).append(tdf.iloc[-s:][::-1]).rolling(win_size, win_type='boxcar', center=True).mean()[s:-s].values.flatten())
+    tdf = ds['tilt_y'].to_dataframe()
+    ds['tilt_y'] = (('time'), tdf.iloc[:s][::-1].append(tdf).append(tdf.iloc[-s:][::-1]).rolling(win_size, win_type='boxcar', center=True).mean()[s:-s].values.flatten())
 
 # # notOKtiltX = where(tiltX lt -100, complement=OKtiltX) & notOKtiltY = where(tiltY lt -100, complement=OKtiltY)
 notOKtiltX = (ds['tilt_x'] < -100)
@@ -667,6 +673,7 @@ ds['tilt_y'] = dsty
 
 # if n_elements(OKtiltX) gt 1 then tiltX[notOKtiltX] = interpol(tiltX[OKtiltX],OKtiltX,notOKtiltX) ; Interpolate over gaps for radiation correction; set to -999 again below.
 # if n_elements(OKtiltY) gt 1 then tiltY[notOKtiltY] = interpol(tiltY[OKtiltY],OKtiltY,notOKtiltY) ; Interpolate over gaps for radiation correction; set to -999 again below.
+
 ds['tilt_x'] = ds['tilt_x'].where(~notOKtiltX)
 ds['tilt_y'] = ds['tilt_y'].where(~notOKtiltY)
 ds['tilt_x'] = ds['tilt_x'].interpolate_na(dim='time')
@@ -680,6 +687,7 @@ ds['wdir'] = ds['wdir'].where(ds['wspd'] != 0)
 ds['wspd_x'] = ds['wspd'] * np.sin(ds['wdir'] * deg2rad)
 ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
 #+END_SRC
+
 
 ** Export file as L1
 
@@ -814,7 +822,8 @@ def L1_to_L1A(infile=None):
 
 if __name__ == "__main__":
     import sys
-    for arg in sys.argv[1:]: L1_to_L1A(arg)
+    # for arg in sys.argv[1:]: L1_to_L1A(arg)
+    L1_to_L1A(sys.argv[1:])
 #+END_SRC
 
 ** Imports
@@ -1155,7 +1164,10 @@ ds['albedo'] = ds['usr'] / ds['dsr_cor']
 albedo_nan = np.isnan(ds['albedo']) # store existing NaN
 OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (ds['albedo'] < 1) & (ds['albedo'] > 0)
 ds['albedo'][~OKalbedos] = np.nan
-ds['albedo'] = ds['albedo'].interpolate_na(dim='time') # Interpolate all NaN (old and new NotOK)
+
+# NOTE: "use_coordinate=False" is used here to force comparison against the GDL code when that is run with *only* a TX file.
+# Should eventually set to default (True) and interpolate based on time, not index.
+ds['albedo'] = ds['albedo'].interpolate_na(dim='time', use_coordinate=False) # Interpolate all NaN (old and new NotOK)
 # ds['albedo'] = ds['albedo'].ffill(dim='time') # Interpolate all NaN (old and new NotOK)
 ds['albedo'][albedo_nan] = np.nan # restore old NaN
 
@@ -1542,7 +1554,7 @@ outpath = '/'.join(outpath)
 outfile_base = os.path.splitext(os.path.basename(infile))[0]
 outpathfile = outpath + '/' + outfile_base
 
-ds.to_dataframe().dropna(how='all').to_csv(outpathfile+".csv", float_format="%.4f")
+ds.to_dataframe().dropna(how='all').to_csv(outpathfile+".csv", float_format="%.7f")
 
 if os.path.exists(outpathfile+"_hour.nc"): os.remove(outpathfile+"_hour.nc")
 ds_h.to_netcdf(outpathfile+"_hour.nc", mode='w', format='NETCDF4', compute=True)
@@ -1565,13 +1577,13 @@ ds_d.to_dataframe().dropna(how='all').to_csv(outpathfile+"_day.csv")
 
 # conda activate PROMICE_dev
 
-rm ./data/L{1,1A,2,3}/EGP/*
+rm ./data/L{1,1A,2,3}/${s}/*
 
 ## L0 -> L1
 # ./L0_to_L1.py ./data/L0/config/EGP_2016_raw.toml # 1 raw
 # ./L0_to_L1.py ./data/L0/config/STM.toml # 1 STM
 # ./L0_to_L1.py ./data/L0/config/TX.toml  # 1 TX
-./L0_to_L1.py ./data/L0 ./data/L0/config/EGP.toml          # all EGP stations
+./L0_to_L1.py ./data/L0 ./data/L0/config/${s}.toml          # all EGP stations
 
 # L1 -> L1A
 # for f in $(ls ./data/L1/${s}/); do
@@ -1582,21 +1594,21 @@ rm ./data/L{1,1A,2,3}/EGP/*
 # # ./L1_to_L1A.py data/L1/${s}/*STM.nc
 # # ./L1_to_L1A.py data/L1/${s}/*TX.nc
 # parallel --bar "./L1_to_L1A.py {}" ::: $(ls data/L1/${s}/*)
-./L1_to_L1A.py ./data/L1/EGP/*
+./L1_to_L1A.py ./data/L1/${s}/*
 
 # L1A to L2
 # ./L1A_to_L2.py data/L1A/${s}/${s}-raw.nc
 # ./L1A_to_L2.py data/L1A/${s}/${s}-STM.nc
 # ./L1A_to_L2.py data/L1A/${s}/${s}-TX.nc
 # parallel --bar "./L1A_to_L2.py {}" ::: $(ls data/L1A/${s}/*)
-./L1A_to_L2.py ./data/L1A/EGP/*
+./L1A_to_L2.py ./data/L1A/${s}/*
 
 # L2 to L3
 # ./L2_to_L3.py data/L2/${s}/*raw.nc
 # ./L2_to_L3.py data/L2/${s}/*STM.nc
 # ./L2_to_L3.py data/L2/${s}/*TX.nc
 # parallel --bar "./L2_to_L3.py {}" ::: $(ls data/L2/${s}/*)
-./L2_to_L3.py ./data/L2/EGP/*
+./L2_to_L3.py ./data/L2/${s}/*
 
 #+END_SRC
 
@@ -1824,9 +1836,9 @@ idl = idl.drop(columns=['DayOfYear'])\
 # df = xr.open_mfdataset("./data/L3/EGP/EGP-*_hour.nc", mask_and_scale=False)\
 #        .to_dataframe()
 
-# df = pd.read_csv("./data/L3/EGP/EGP-raw.csv", index_col=0, parse_dates=True)
-df = pd.read_csv("./data/L3/EGP/EGP-STM.csv", index_col=0, parse_dates=True)
-# df = pd.read_csv("./data/L3/EGP/EGP-TX.csv", index_col=0, parse_dates=True)
+# df = pd.read_csv("./data/L3/CEN/CEN-raw.csv", index_col=0, parse_dates=True)
+# df = pd.read_csv("./data/L3/EGP/EGP-STM.csv", index_col=0, parse_dates=True)
+df = pd.read_csv("./data/L3/EGP/EGP-TX.csv", index_col=0, parse_dates=True)
 
 # subset to same columns
 subset = np.intersect1d(df.columns, idl.columns)
@@ -1834,114 +1846,87 @@ df = df[subset]
 idl = idl[subset]
 
 err = df - idl # need to understand data to understand error
+err_pct = err / idl.mean(axis='rows')*100 # % err but should work as long as mean != 0
 # err = (df - idl) / idl*100 # % err: large errors when values near 0
-# err = (df - idl) / idl.mean(axis='rows')*100 # % err but should work as long as mean ~= 0
+# err = (df - idl) / idl.mean(axis='rows')*100 # % err but should work as long as mean != 0
 
 pd.options.display.float_format = "{:,.5f}".format
 
-dd = err.describe().T.drop(columns="count")
-# dd = err.describe().T.drop(columns="count").replace(0,np.nan).dropna(how='all', axis='rows').replace(np.nan,0)
-
-if __name__ == "__main__": 
-    print(dd)
-    dd.to_csv("tmp.csv", float_format='%.5f')
+err_desc = err.describe().T.drop(columns="count")
+err_pct_desc = err_pct.describe().T.drop(columns="count")
 
 # diff_pct.plot()
 # diff_pct.replace(0,np.nan).dropna(how='all', axis='columns').plot()
-def plot_diff(df,idl,err,var):
+def plot_diff(df,idl,err,err_pct,var):
     import matplotlib.pyplot as plt
     fig = plt.figure(1)
     fig.clf()
     ax1 = fig.add_subplot(211)
-    err[var].plot(label='err', color='black', marker='.', ax=ax1)
-    ax1.set_ylabel("Err")
+    err[var].plot(label='err', color='red', marker='.', ax=ax1)
+    ax1.set_ylabel("Err [units]")
+    ax1_pct = ax1.twinx()
+    err_pct[var].plot(label='err', color='black', marker='.', ax=ax1_pct)
+    ax1_pct.set_ylabel("Err [%]")
+    
     ax2 = fig.add_subplot(212, sharex=ax1)
     idl[var].plot(label='IDL '+var, linewidth=3, ax=ax2, marker='.', markersize=4)
     df[var].plot(label='Py', ax=ax2, marker='.', markersize=2)
-    (df[var]*0).plot(color='k', linestyle='--', ax=ax2, alpha=0.25, label='', marker='.')
+    ax2.set_ylabel(var + " [units]")
+    # (df[var]*0).plot(color='k', linestyle='--', ax=ax2, alpha=0.25, label='', marker='.')
     legend()
     
-var = 't_1'; plot_diff(df,idl,err,var)
+var = 't_1'; plot_diff(df,idl,err,err_pct,var)
 
-dd
+# err_desc
+# err_pct_desc
+desc = err_desc.round(3).astype("string")
+desc = desc + " (" + err_pct_desc.replace(np.nan,0).round().astype(np.int).astype("string") + ")"
+desc
+
+if __name__ == "__main__":
+    print(desc)
+
+
 #+END_SRC
 
 #+RESULTS:
-:RESULTS:
 #+begin_example
-<ipython-input-26-bb2e0b59ad9d>:9: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
+<ipython-input-55-d9cf317c4368>:9: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
   return pd.datetime(int(y),int(mo),int(d),int(h),int(mi))
-             mean     std      min      25%      50%     75%     max
-albedo    0.00000 0.00029 -0.00050 -0.00020  0.00000 0.00020 0.00110
-batt_v    0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
-cc        0.00001 0.00278 -0.00500 -0.00230  0.00000 0.00230 0.00500
-dlr      -0.00011 0.02866 -0.04990 -0.02460 -0.00080 0.02470 0.05000
-dsr      -0.00058 0.02859 -0.05000 -0.02530  0.00000 0.02420 0.05000
-dsr_cor  -0.00018 0.02433 -0.52200  0.00000  0.00000 0.00000 0.37740
-fan_dc    0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
-gps_alt   0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
-gps_hdop  0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
-gps_lat  -0.00000 0.00003 -0.00005 -0.00002 -0.00000 0.00002 0.00005
-gps_lon   0.00000 0.00003 -0.00005 -0.00002  0.00000 0.00003 0.00005
-p         0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
-rh_cor   -0.00015 0.01376 -0.04990  0.00000  0.00000 0.00000 0.05000
-t_1      -0.00000 0.00048 -0.00500  0.00000  0.00000 0.00000 0.00500
-t_2      -0.00000 0.00043 -0.00500  0.00000  0.00000 0.00000 0.00500
-t_i_1    -0.00000 0.00031 -0.00500  0.00000  0.00000 0.00000 0.00500
-t_i_2     0.00000 0.00019 -0.00500  0.00000  0.00000 0.00000 0.00500
-t_i_3     0.00000 0.00028 -0.00500  0.00000  0.00000 0.00000 0.00500
-t_i_4     0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
-t_i_5     0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
-t_i_6     0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
-t_i_7     0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
-t_i_8     0.00000 0.00000  0.00000  0.00000  0.00000 0.00000 0.00000
-t_surf    0.00004 0.00288 -0.00500 -0.00240  0.00010 0.00250 0.00500
-tilt_x   -0.00001 0.00288 -0.00500 -0.00250  0.00000 0.00250 0.00500
-tilt_y    0.00002 0.00289 -0.00500 -0.00250  0.00000 0.00250 0.00500
-ulr       0.00035 0.02878 -0.05000 -0.02430  0.00080 0.02570 0.05000
-usr       0.00041 0.02903 -0.04990 -0.02610  0.00000 0.02610 0.04990
-usr_cor   0.00010 0.02089 -0.10720  0.00000  0.00000 0.00000 0.10450
-wdir     -0.00005 0.00433 -0.05000  0.00000  0.00000 0.00000 0.05000
-wspd     -0.00001 0.00264 -0.00500 -0.00200  0.00000 0.00200 0.00500
-z_boom   -0.00000 0.00029 -0.00050 -0.00030  0.00000 0.00030 0.00050
-z_pt          nan     nan      nan      nan      nan     nan     nan
-z_stake       nan     nan      nan      nan      nan     nan     nan
+                mean        std            min         25%         50%        75%          max
+albedo       0.0 (0)  0.004 (1)    -0.041 (-5)    -0.0 (0)    -0.0 (0)    0.0 (0)     0.07 (9)
+batt_v       0.0 (0)    0.0 (0)        0.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
+cc           0.0 (0)  0.003 (1)   -0.076 (-15)  -0.002 (0)     0.0 (0)  0.002 (0)    0.005 (1)
+dlr         -0.0 (0)  0.062 (0)    -4.928 (-2)  -0.025 (0)   0.001 (0)  0.025 (0)     0.05 (0)
+dsr         -0.0 (0)  0.091 (0)    -6.881 (-3)  -0.025 (0)   0.001 (0)  0.026 (0)    3.559 (2)
+dsr_cor   -0.025 (0)  2.327 (1)  -50.791 (-20)  -0.098 (0)     0.0 (0)  0.054 (0)  28.672 (11)
+fan_dc       0.0 (0)  0.016 (0)      -0.05 (0)     0.0 (0)     0.0 (0)    0.0 (0)     0.05 (0)
+gps_alt      0.0 (0)    0.0 (0)        0.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
+gps_hdop     0.0 (0)    0.0 (0)        0.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
+gps_lat      0.0 (0)    0.0 (0)        0.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
+gps_lon      0.0 (0)    0.0 (0)        0.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
+p           -0.0 (0)  0.011 (0)       -1.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
+rh_cor      -0.0 (0)  0.028 (0)     -0.394 (0)  -0.024 (0)     0.0 (0)  0.023 (0)     0.05 (0)
+t_1          0.0 (0)  0.006 (0)    -0.066 (-4)     0.0 (0)     0.0 (0)    0.0 (0)     0.49 (1)
+t_2          0.0 (0)  0.007 (0)    -0.028 (-5)     0.0 (0)     0.0 (0)    0.0 (0)     0.64 (0)
+t_i_1           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
+t_i_2           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
+t_i_3           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
+t_i_4           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
+t_i_5           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
+t_i_6           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
+t_i_7           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
+t_i_8           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
+t_surf      -0.0 (0)  0.003 (0)     -0.044 (0)  -0.002 (0)     0.0 (0)  0.002 (0)    0.059 (0)
+tilt_x      -0.0 (0)  0.003 (0)     -0.005 (0)  -0.003 (0)    -0.0 (0)  0.002 (0)    0.005 (0)
+tilt_y      -0.0 (0)  0.003 (0)     -0.005 (0)  -0.003 (0)    -0.0 (0)  0.002 (0)    0.005 (0)
+ulr         -0.0 (0)  0.029 (0)     -0.189 (0)  -0.025 (0)  -0.001 (0)  0.025 (0)    0.068 (0)
+usr        0.001 (0)  0.096 (0)    -6.861 (-4)  -0.022 (0)    -0.0 (0)  0.027 (0)    4.631 (2)
+usr_cor    0.015 (0)  0.724 (0)  -40.546 (-20)  -0.021 (0)     0.0 (0)  0.023 (0)  21.967 (11)
+wdir         0.0 (0)  0.098 (0)      -4.9 (-3)     0.0 (0)     0.0 (0)    0.0 (0)      7.3 (5)
+wspd         0.0 (0)  0.004 (0)    -0.257 (-4)  -0.002 (0)     0.0 (0)  0.002 (0)    0.125 (2)
+z_boom      -0.0 (0)    0.0 (0)       -0.0 (0)    -0.0 (0)    -0.0 (0)    0.0 (0)      0.0 (0)
+z_pt            <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
+z_stake     -0.0 (0)    0.0 (0)       -0.0 (0)    -0.0 (0)    -0.0 (0)    0.0 (0)      0.0 (0)
 #+end_example
-|          |          mean |           std |        min |        25% |       50% |        75% |      max |
-|----------+---------------+---------------+------------+------------+-----------+------------+----------|
-| albedo   |   1.74326e-06 |   0.00028985  |  -0.0005   |  -0.0002   |   0       |   0.0002   |   0.0011 |
-| batt_v   |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
-| cc       |   1.17763e-05 |   0.00278238  |  -0.005    |  -0.0023   |   0       |   0.0023   |   0.005  |
-| dlr      |  -0.000111832 |   0.0286637   |  -0.0499   |  -0.0246   |  -0.0008  |   0.0247   |   0.05   |
-| dsr      |  -0.000582256 |   0.0285922   |  -0.05     |  -0.0253   |   0       |   0.0242   |   0.05   |
-| dsr_cor  |  -0.000179862 |   0.024329    |  -0.522    |   0        |   0       |   0        |   0.3774 |
-| fan_dc   |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
-| gps_alt  |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
-| gps_hdop |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
-| gps_lat  |  -1.54557e-06 |   2.81153e-05 |  -4.98e-05 |  -2.48e-05 |  -3.7e-06 |   2.22e-05 |   5e-05  |
-| gps_lon  |   8.46655e-07 |   2.85794e-05 |  -4.98e-05 |  -2.5e-05  |   2.3e-06 |   2.63e-05 |   5e-05  |
-| p        |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
-| rh_cor   |  -0.000154917 |   0.0137561   |  -0.0499   |   0        |   0       |   0        |   0.05   |
-| t_1      |  -1.40272e-06 |   0.000477023 |  -0.005    |   0        |   0       |   0        |   0.005  |
-| t_2      |  -2.66517e-06 |   0.000429834 |  -0.005    |   0        |   0       |   0        |   0.005  |
-| t_i_1    |  -1.82354e-06 |   0.000305894 |  -0.005    |   0        |   0       |   0        |   0.005  |
-| t_i_2    |   1.40272e-06 |   0.000185011 |  -0.005    |   0        |   0       |   0        |   0.005  |
-| t_i_3    |   7.01361e-07 |   0.000279539 |  -0.005    |   0        |   0       |   0        |   0.005  |
-| t_i_4    |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
-| t_i_5    |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
-| t_i_6    |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
-| t_i_7    |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
-| t_i_8    |   0           |   0           |   0        |   0        |   0       |   0        |   0      |
-| t_surf   |   3.81964e-05 |   0.00287877  |  -0.005    |  -0.0024   |   0.0001  |   0.0025   |   0.005  |
-| tilt_x   |  -1.19562e-05 |   0.00287647  |  -0.005    |  -0.0025   |   0       |   0.0025   |   0.005  |
-| tilt_y   |   1.82992e-05 |   0.00288553  |  -0.005    |  -0.0025   |   0       |   0.0025   |   0.005  |
-| ulr      |   0.000345413 |   0.0287787   |  -0.05     |  -0.0243   |   0.0008  |   0.0257   |   0.05   |
-| usr      |   0.000412737 |   0.0290316   |  -0.0499   |  -0.0261   |   0       |   0.0261   |   0.0499 |
-| usr_cor  |   0.000100183 |   0.0208896   |  -0.1072   |   0        |   0       |   0        |   0.1045 |
-| wdir     |  -5.4779e-05  |   0.00433478  |  -0.05     |   0        |   0       |   0        |   0.05   |
-| wspd     |  -5.89143e-06 |   0.00263773  |  -0.005    |  -0.002    |   0       |   0.002    |   0.005  |
-| z_boom   |  -3.66779e-06 |   0.000293067 |  -0.0005   |  -0.0003   |   0       |   0.0003   |   0.0005 |
-| z_pt     | nan           | nan           | nan        | nan        | nan       | nan        | nan      |
-| z_stake  | nan           | nan           | nan        | nan        | nan       | nan        | nan      |
-:END:
 
