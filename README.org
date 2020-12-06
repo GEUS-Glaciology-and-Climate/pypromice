@@ -33,6 +33,7 @@
     - [[#cloud-cover][Cloud cover]]
     - [[#correct-shortwave-radiation][Correct shortwave radiation]]
     - [[#wind-direction][Wind direction]]
+    - [[#cleaning][Cleaning]]
   - [[#export-file-as-l2][Export file as L2]]
 - [[#l2---l3][L2 -> L3]]
   - [[#wrapper-3][Wrapper]]
@@ -477,9 +478,13 @@ ds = flag_NAN(ds)
 <<add_variable_metadata>>
 ds = add_variable_metadata(ds)
 
-if 'z_pt' in list(ds.variables):
-    if ~ds['z_pt'].isnull().any():
-        assert("pt_antifreeze" in ds.attrs.keys())
+# create variables that are missing
+df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
+for v in df.index:
+    if v not in list(ds.variables):
+        ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)
+
+if ~ds['z_pt'].isnull().any(): assert("pt_antifreeze" in ds.attrs.keys())
 if 't_2' in list(ds.variables): assert("hygroclip_t_offset" in ds.attrs.keys())
 #+END_SRC
 
@@ -562,19 +567,15 @@ if ds.attrs['format'] != 'raw':
     _, index = np.unique(ds['time'], return_index=True)
     ds = ds.isel(time=index)
 
-# from IPython import embed; embed()
-# import matplotlib.pyplot as plt
-# # # %matplotlib qt
-# ds[['time','time_orig']].to_dataframe().iloc[2130:].head(30)
+###
+### DEBUGGING
+### 
+import matplotlib.pyplot as plt
+ds['n'] = (('time'), np.arange(ds['time'].size)+1)
 
-# ds = ds.isel({'time':~ds.time.isnull()}) # drop invalid times that got shifted
 
-# if ds.attrs['clock_shift'] != 0:
-#     a = ds['time'].attrs
-#     ds['time'] = (('time'), ds['time'].to_dataframe().shift(periods=ds.attrs['clock_shift'], freq='H').index)
-#     ds['time'].attrs = a
 
-# from IPython import embed; embed()
+
 # Remove HygroClip temperature offset
 ds['t_2'] = ds['t_2'] - ds.attrs['hygroclip_t_offset']
 
@@ -585,7 +586,7 @@ ds['dlr'] = ((ds['dlr'] * 10) / ds.attrs['dlr_eng_coef']) + 5.67E-8*(ds['t_rad']
 ds['ulr'] = ((ds['ulr'] * 10) / ds.attrs['ulr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
 
 # Adjust sonic ranger readings for sensitivity to air temperature
-ds['z_boom'] = ds['z_boom'] * ((ds['t_1'] + T_0)/T_0)**0.5 
+ds['z_boom'] = ds['z_boom'] * ((ds['t_1'] + T_0)/T_0)**0.5
 ds['z_stake'] = ds['z_stake'] * ((ds['t_1'] + T_0)/T_0)**0.5
 
 # Adjust pressure transducer due to fluid properties
@@ -608,18 +609,15 @@ if ds['gps_lat'].dtype.kind == 'O': # not a float. Probably has "NH"
         ds[v][:] = pd.DataFrame(str2nums).astype(np.float).T.values[0]
         ds[v] = ds[v].astype(np.float)
         ds[v].attrs = a # restore
-
+        
 if np.any((ds['gps_lat'] <= 90) & (ds['gps_lat'] > 0)):  # Some stations only recorded minutes, not degrees
     xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", ds.attrs['geometry'])).astype(np.float)
     x=xyz[0]; y=xyz[1]; z=xyz[2] if len(xyz) == 3 else 0
     p = shapely.geometry.Point(x,y,z)
-    # from IPython import embed; embed()
-    # assert(False) # should p be ints rather than floats here?
-    # ds['gps_lat'] = ds['gps_lat'].where(
     ds['gps_lat'] = ds['gps_lat'] + 100*p.y
 if np.any((ds['gps_lon'] <= 90) & (ds['gps_lon'] > 0)):
     ds['gps_lon'] = ds['gps_lon'] + 100*p.x
-
+        
 for v in ['gps_lat','gps_lon']:
     a = ds[v].attrs # store
     ds[v] = np.floor(ds[v] / 100) + (ds[v] / 100 - np.floor(ds[v] / 100)) * 100 / 60
@@ -629,9 +627,6 @@ for v in ['gps_lat','gps_lon']:
 # if transmitted ne 'yes' then begin
 #    tiltX = smooth(tiltX,7,/EDGE_MIRROR,MISSING=-999) & tiltY = smooth(tiltY,7,/EDGE_MIRROR, MISSING=-999)
 # endif
-
-# import matplotlib.pyplot as plt
-# from IPython import embed; embed()
 
 # Should just be
 # if ds.attrs['format'] != 'TX': dstxy = dstxy.rolling(time=7, win_type='boxcar', center=True).mean()
@@ -839,8 +834,28 @@ import os
 
 ** Merge files
 #+BEGIN_SRC jupyter-python :exports both
-# from IPython import embed; embed()
-ds = xr.open_mfdataset(infile, combine='by_coords', mask_and_scale=False).load()
+
+# This could be as simple as:
+# ds = xr.open_mfdataset(infile, combine='by_coords', mask_and_scale=False).load()
+# Except that some files have overlapping times.
+
+# try:
+#     ds = xr.open_mfdataset(infile, combine='by_coords', mask_and_scale=False).load()
+# except ValueError:
+#     print("Error: files with overlapping times")
+#     print("Flag out times using flagging feature")
+#     for f in infile:
+#         print(f, xr.open_dataset(f)['time'].isel({'time':[0,-1]}).values)
+#     assert(False)
+    
+if not isinstance(infile, list):
+    ds = xr.open_mfdataset(infile)
+else:
+    ds = xr.open_mfdataset(infile[0]).load().dropna(dim='time', how='all')
+    for f in infile[1:]:
+        tmp = xr.open_mfdataset(f).load().dropna(dim='time', how='all')
+        ds = ds.combine_first(tmp)
+        
 #+END_SRC
 
 #+RESULTS:
@@ -852,17 +867,20 @@ Out of limit (OOL) data comes from the [[./variables.csv]] file.
 + Set each variable to NaN where it is OOL
 + Also set paired or associated variables to NaN
 
+#+NAME: flag_data
 #+BEGIN_SRC jupyter-python
 df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
 df = df.dropna(how='all')
-
-# from IPython import embed; embed()
 for var in df.index:
     if var not in list(ds.variables): continue
-    ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'])
-    ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'])
+    if var == 'rh_cor':
+         ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'], other = 0)
+         ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'], other = 100)
+    else:
+        ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'])
+        ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'])
     other_vars = df.loc[var]['OOL'] # either NaN or "foo" or "foo bar baz ..."
-    if isinstance(other_vars, str):
+    if isinstance(other_vars, str): 
         for o in other_vars.split():
             if o not in list(ds.variables): continue
             ds[o] = ds[o].where(ds[var] >= df.loc[var, 'lo'])
@@ -1015,20 +1033,7 @@ ds['rh_cor'] = ds['rh'].where(~freezing, other = ds['rh']*(e_s_wtr / e_s_ice))
 # https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/23
 # Just adding special treatment here in service of replication. rh_cor is clipped not NaN'd
 # https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
-df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
-var = 'rh_cor'
-if var in list(ds.variables):
-    if var != 'rh_cor':
-        ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'])
-        ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'])
-    else:
-         ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'], other = 100)
-         ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'], other = 100)
-    other_vars = df.loc[var]['OOL'] # either NaN or "foo" or "foo bar baz ..."
-    if isinstance(other_vars, str): 
-        for o in other_vars.split():
-            ds[o] = ds[o].where(ds[var] >= df.loc[var, 'lo'])
-            ds[o] = ds[o].where(ds[var] <= df.loc[var, 'hi'])
+<<flag_data>>
 #+END_SRC
 
 #+RESULTS:
@@ -1269,6 +1274,14 @@ print('- Mean net SR change by corrections:',
 
 #+RESULTS:
 
+*** Cleaning
+
+#+BEGIN_SRC jupyter-python
+# https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/23
+# Just adding special treatment here in service of replication. rh_cor is clipped not NaN'd
+# https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
+<<flag_data>>
+#+END_SRC
 
 ** Export file as L2
 
@@ -1307,15 +1320,6 @@ Run one:
 infile = "./data/L2/EGP/EGP-raw.nc"
 <<L2_to_L3>>
 #+END_SRC
-
-#+RESULTS:
-:RESULTS:
-# [goto error]
-:   File "<tokenize>", line 78
-:     endfor
-:     ^
-: IndentationError: unindent does not match any outer indentation level
-:END:
 
 Run all:
 
@@ -1668,6 +1672,7 @@ def load_conf(filename, L0_path):
 import os
 import numpy as np
 import pandas as pd
+import pathlib
 pd.set_option('display.precision', 2)
 import xarray as xr
 xr.set_options(keep_attrs=True)
@@ -1704,35 +1709,35 @@ def read_L0(conf):
 #+NAME: flag_NAN
 #+BEGIN_SRC jupyter-python
 def flag_NAN(ds):
-    """Uses the flag DB (flags.csv) to set stations, sensors, and times to NaN."""
-    flag_LUT = pd.read_csv("./data/flags/PROMICE.csv", index_col=2, usecols=(0,3,4,5))
-    flag_LUT = flag_LUT[flag_LUT['#'] == '#'].drop(columns="#").dropna(how='all', axis='rows')
+    flag_file = "./data/flags/" + ds.attrs["station_id"] + ".csv"
+
+    if not pathlib.Path(flag_file).is_file(): return ds # no flag file
     
-    df = pd.read_csv("./data/flags/PROMICE.csv", parse_dates=[0,1], comment="#", header=1)\
-           .dropna(how='all', axis='rows')\
-           .drop(columns="comment")
+    df = pd.read_csv(flag_file, parse_dates=[0,1], comment="#")\
+           .dropna(how='all', axis='rows')
 
     # check format of flags.csv. Either both or neither of t0 and t1 must be defined.
     assert(((np.isnan(df['t0']).astype(np.int) + np.isnan(df['t1']).astype(np.int)) % 2).sum() == 0)
     # for now we only process the NAN flag
     df = df[df['flag'] == "NAN"]
     if df.shape[0] == 0: return ds
-    # subset to this station
-    df = df[[((ds.attrs['station_id'] in _) | ('*' in _)) for _ in df['station']]]
-    if df.shape[0] == 0: return ds
 
     for i in df.index:
         t0, t1, avar = df.loc[i,['t0','t1','variable']]
+        # set to all vars if var is "*"
         varlist = avar.split() if avar != '*' else list(ds.variables)
         if 'time' in varlist: varlist.remove("time")
+        # set to all times if times are "n/a"
         if pd.isnull(t0): t0, t1 = ds['time'].values[[0,-1]]
         for v in varlist:
             ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
 
-        # TODO: Mark these values in the ds_flags dataset using perhaps flag_LUT.loc[NAN]['value']
+        # TODO: Mark these values in the ds_flags dataset using perhaps flag_LUT.loc["NAN"]['value']
 
     return ds
 #+END_SRC
+
+#+RESULTS: flag_NAN
 
 ** Add variable metadata
 

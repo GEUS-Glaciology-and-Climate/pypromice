@@ -4,15 +4,15 @@ time,time,Time,yyyy-mm-dd HH:MM:SS,,,,
 rec,record,Record,,,,,L0 only
 min_y,minutes,Minutes in year,min,0,527040,,L0 only
 p,air_pressure,Air pressure,hPa,650,1100,z_pt,
-t_1,air_temperature,Air temperature 1,C,-80,40,rh_cor cc dsr usr z_boom z_stake,PT100 temperature at boom
+t_1,air_temperature,Air temperature 1,C,-80,40,rh_cor cc dsr_cor usr_cor z_boom z_stake,PT100 temperature at boom
 t_2,air_temperature,Air temperature 2,C,-80,40,,Hygroclip temperature at boom
 rh,relative_humidity,Relative humidity,%,0,150,rh_cor,
 wspd,wind_speed,Wind speed,m s-1,0,100,wdir wdir_std wspd_x wspd_y,
 wdir,wind_from_direction,Wind from direction,degrees,1,360,wspd_x wspd_y,
 wd_std,wind_from_direction_standard_deviation,Wind from direction (standard deviation),degrees,,,,L0 only ??
-dsr,surface_downwelling_shortwave_flux,Downwelling shortwave radiation,W m-2,-10,1500,usr albedo,"Actually radiation_at_sensor, not flux. Units 1E-5 V. Engineering units."
-usr,surface_upwelling_shortwave_flux,Upwelling shortwave radiation,W m-2,-10,1000,dsr albedo,
-dlr,surface_downwelling_longwave_flux,Downwelling longwave radiation,W m-2,50,500,t_surf cc dsr usr albedo,
+dsr,surface_downwelling_shortwave_flux,Downwelling shortwave radiation,W m-2,-10,1500,albedo dsr_cor usr_cor,"Actually radiation_at_sensor, not flux. Units 1E-5 V. Engineering units."
+usr,surface_upwelling_shortwave_flux,Upwelling shortwave radiation,W m-2,-10,1000,albedo dsr_cor usr_cor,
+dlr,surface_downwelling_longwave_flux,Downwelling longwave radiation,W m-2,50,500,albedo dsr_cor usr_cor cc t_surf,
 ulr,surface_upwelling_longwave_flux,Upwelling longwave radiation,W m-2,50,500,t_surf,
 t_rad,temperature_of_radiation_sensor,Radiation sensor temperature,C,-80,40,t_surf dlr ulr,
 z_boom,distance_to_surface_from_boom,Boom height,m,0.3,3,,
@@ -28,8 +28,8 @@ t_i_5,ice_temperature_at_t5,Ice temperature at sensor 5,C,-80,40,,
 t_i_6,ice_temperature_at_t6,Ice temperature at sensor 6,C,-80,40,,
 t_i_7,ice_temperature_at_t7,Ice temperature at sensor 7,C,-80,40,,
 t_i_8,ice_temperature_at_t8,Ice temperature at sensor 8,C,-80,40,,t8 is installed @ 10 m depth
-tilt_x,platform_view_angle_x,Tilt to east,degrees,-30,30,dsr usr albedo,
-tilt_y,platform_view_angle_y,Tilt to north,degrees,-30,30,dsr usr albedo,
+tilt_x,platform_view_angle_x,Tilt to east,degrees,-30,30,dsr_cor usr_cor albedo,
+tilt_y,platform_view_angle_y,Tilt to north,degrees,-30,30,dsr_cor usr_cor albedo,
 gps_time,gps_time,GPS time,s,0,240000,,
 gps_lat,gps_latitude,Latitude,degrees,60,83,,
 gps_lon,gps_longitude,Longitude,degrees,20,70,,
