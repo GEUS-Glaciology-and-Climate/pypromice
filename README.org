@@ -49,6 +49,7 @@
   - [[#load-l0-hdr--data][Load L0 hdr + data]]
   - [[#flag-invalid-data][Flag invalid data]]
   - [[#add-variable-metadata][Add variable metadata]]
+  - [[#metadatacsv-to-toml][metadata.csv to TOML]]
 - [[#compare-python--idl][Compare Python & IDL]]
   - [[#load-both-to-dfs-10-min][Load both to dfs (10 min)]]
 
@@ -1758,6 +1759,194 @@ def add_variable_metadata(ds):
             
     return ds
 #+END_SRC
+
+** metadata.csv to TOML
+
+Automatically generate v4 TOML files from the v3 metadata.csv files
+
+#+BEGIN_SRC jupyter-python
+import glob
+import pandas as pd
+
+mlist = glob.glob('./data/L0/metadata/*_metadata.csv')
+
+rename = {'latitude_N(dd.ddddd)' : 'latitude',
+          'longitude_W(dd.ddddd)' : 'longitude',
+          'T_hygroclip_offset(C)' : 'hygroclip_t_offset',
+          'SRin_calcoef' : 'dsr_eng_coef',
+          'SRout_calcoef' : 'usr_eng_coef',
+          'LRin_calcoef' : 'dlr_eng_coef',
+          'LRout_calcoef' : 'ulr_eng_coef',
+          'H_PT_calcoef' : 'pt_z_coef',
+          'H_PT_p_cal' : 'pt_z_p_coef',
+          'H_PT_factor' : 'pt_z_factor',
+          'header_lines' : 'skiprows',
+          'antifreeze_PT_(%)' : 'pt_antifreeze',
+          'rotation_ini(deg)' : 'boom_azimuth',
+          'col_minute_of_year' : 'min_y',
+          'col_p' : 'p',
+          'col_T' : 't_1',
+          'col_T_hygroclip' : 't_2',
+          'col_RH' : 'rh',
+          'col_WS' : 'wspd',
+          'col_WD' : 'wdir',
+          'col_WD_sd' : 'wd_std',
+          'col_SRin' : 'dsr',
+          'col_SRout' : 'usr',
+          'col_LRin' : 'dlr',
+          'col_LRout' : 'ulr',
+          'col_T_rad' : 't_rad',
+          'col_H_aws' : 'z_boom',
+          'col_qual_H_aws' : 'z_boom_q',
+          'col_H_stk' : 'z_stake',
+          'col_qual_H_stk' : 'z_stake_q',
+          'col_H_pt' : 'z_pt',
+          'col_Tice1' : 't_i_1',
+          'col_Tice2' : 't_i_2',
+          'col_Tice3' : 't_i_3',
+          'col_Tice4' : 't_i_4',
+          'col_Tice5' : 't_i_5',
+          'col_Tice6' : 't_i_6',
+          'col_Tice7' : 't_i_7',
+          'col_Tice8' : 't_i_8',
+          'col_ornt' : 'ORIENTATION',
+          'col_tiltX' : 'tilt_x',
+          'col_tiltY' : 'tilt_y',
+          'col_GPStime' : 'gps_time',
+          'col_GPSlat' : 'gps_lat',
+          'col_GPSlon' : 'gps_lon',
+          'col_GPSelev' : 'gps_alt',
+          'col_GPSgeoid' : 'gps_geoid',
+          'col_GPSqual' : 'gps_q',
+          'col_GPSnumsats' : 'gps_numsats',
+          'col_GPShdop' : 'gps_hdop',
+          'col_Tlog' : 't_log',
+          'col_Ifan' : 'fan_dc',
+          'col_Vbat_ini' : 'batt_v_ss',
+          'col_Vbat' : 'batt_v',
+          'col_season' : 'SEASON'}
+
+
+for md in mlist:
+    df = pd.read_csv(md, index_col=0).rename(columns=rename)
+
+    station = '_'.join(md.split("/")[-1].split("_")[:-1])
+    out_file = open('./data/L0/config/' + station + '.toml', 'w')
+    print(f"station_id = '{station}'", file=out_file)
+    print("nodata     = ['-999', 'NAN'] # if one is a string, all must be strings\n", file=out_file)
+          
+    for f in df['filename']:
+        ddf = df[df['filename'] == f].T
+        if len(ddf.loc['filename']) == 0: continue
+        if ddf.loc['filename'].values[0][-4:] != ".txt": continue
+
+        print("['{}']".format(ddf.loc['filename'].values[0]), file=out_file)
+        if 'transmitted' in str(ddf.loc['filename']):
+            print("format     = 'TX'", file=out_file)
+        elif 'SlimTable' in str(ddf.loc['filename']):
+            print("format     = 'STM'", file=out_file)
+        else:
+            print("format     = 'raw'", file=out_file)
+
+        for n in ['skiprows', 'latitude', 'longitude', 'hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef', 'dlr_eng_coef', 'ulr_eng_coef', 'pt_z_coef', 'pt_z_p_coef', 'pt_z_factor', 'pt_antifreeze', 'boom_azimuth']:
+            print(n +  ' = {}'.format(np.round(ddf.loc[n].values[0],4)), file=out_file)
+
+        cols = ddf.loc[['min_y','p', 't_1', 't_2', 'rh', 'wspd', 'wdir', 'wd_std', 'dsr', 'usr', 'dlr', 'ulr', 't_rad',
+                        'z_boom', 'z_boom_q', 'z_stake', 'z_stake_q', 'z_pt', 't_i_1', 't_i_2', 't_i_3', 't_i_4',
+                        't_i_5', 't_i_6', 't_i_7', 't_i_8', 'ORIENTATION', 'tilt_x', 'tilt_y', 'gps_time',
+                        'gps_lat', 'gps_lon', 'gps_alt', 'gps_geoid', 'gps_q', 'gps_numsats', 'gps_hdop', 't_log',
+                        'fan_dc', 'batt_v_ss', 'batt_v', 'SEASON']]
+        cols.loc['rec'] = 2
+        cols.loc['time'] = 1
+        cols.columns = ['col']
+        for i in np.arange(int(cols.max())):
+            if i not in cols['col'].values:
+                cols.loc['SKIP_' + str(i)] = i
+        cols = cols.sort_values(by='col').replace(0,np.nan).dropna()
+        print('columns = {}'.format(np.array2string(cols.index.values, separator=',', max_line_width=60)), file=out_file)
+            
+        # print('latitude   = {}'.format(str(ddf.loc['latitude'].values[0])), file=out_file)
+        # print('longitude  = {}'.format(-ddf.loc['longitude'].values[0]), file=out_file)
+        print('\n', file=out_file)
+    out_file.close()
+
+ddf    
+#+END_SRC
+
+#+RESULTS:
+|                    |                              9 |
+|--------------------+--------------------------------|
+| filename           | TAS_A_2020_raw_transmitted.txt |
+| slimtablemem?      |                             no |
+| transmitted?       |                            yes |
+| skiprows           |                              0 |
+| data_lines         |                            884 |
+| columns            |                             38 |
+| year start         |                           2019 |
+| latitude           |                          65.78 |
+| longitude          |                           38.9 |
+| UTC_offset(h)      |                              0 |
+| hygroclip_t_offset |                              0 |
+| dsr_eng_coef       |                          14.15 |
+| usr_eng_coef       |                          12.97 |
+| dlr_eng_coef       |                          10.23 |
+| ulr_eng_coef       |                          13.47 |
+| pt_z_coef          |                          0.407 |
+| pt_z_p_coef        |                          982.1 |
+| pt_z_factor        |                            2.5 |
+| pt_antifreeze      |                             50 |
+| boom_azimuth       |                              0 |
+| col_datetime       |                              1 |
+| col_date           |                              0 |
+| col_year           |                              0 |
+| col_month          |                              0 |
+| col_day            |                              0 |
+| col_day_of_year    |                              0 |
+| col_time           |                              0 |
+| col_hour           |                              0 |
+| col_minute         |                              0 |
+| min_y              |                              0 |
+| p                  |                              3 |
+| t_1                |                              4 |
+| t_2                |                              5 |
+| rh                 |                              6 |
+| wspd               |                              7 |
+| wdir               |                              8 |
+| wd_std             |                              0 |
+| dsr                |                              9 |
+| usr                |                             10 |
+| dlr                |                             11 |
+| ulr                |                             12 |
+| t_rad              |                             13 |
+| z_boom             |                             14 |
+| z_boom_q           |                              0 |
+| z_stake            |                             15 |
+| z_stake_q          |                              0 |
+| z_pt               |                             16 |
+| t_i_1              |                             17 |
+| t_i_2              |                             18 |
+| t_i_3              |                             19 |
+| t_i_4              |                             20 |
+| t_i_5              |                             21 |
+| t_i_6              |                             22 |
+| t_i_7              |                             23 |
+| t_i_8              |                             24 |
+| ORIENTATION        |                              0 |
+| tilt_x             |                             25 |
+| tilt_y             |                             26 |
+| gps_time           |                             27 |
+| gps_lat            |                             28 |
+| gps_lon            |                             29 |
+| gps_alt            |                             30 |
+| gps_geoid          |                              0 |
+| gps_q              |                              0 |
+| gps_numsats        |                              0 |
+| gps_hdop           |                             31 |
+| t_log              |                              0 |
+| fan_dc             |                             32 |
+| batt_v_ss          |                              0 |
+| batt_v             |                             33 |
+| SEASON             |                              0 |
 
 * Compare Python & IDL
 :PROPERTIES:
