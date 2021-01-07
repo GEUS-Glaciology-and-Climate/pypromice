@@ -1159,11 +1159,22 @@ CorFac[(CorFac < 0) | (ZenithAngle_deg > 90)] = 1
 CorFac_all = CorFac / (1 - DifFrac + CorFac * DifFrac)
 ds['dsr_cor'] = ds['dsr'].copy(deep=True) * CorFac_all
 
-
 # Calculating albedo based on albedo values when sun is in sight of the upper sensor
 AngleDif_deg = 180 / np.pi * np.arccos(np.sin(ZenithAngle_rad) * np.cos(HourAngle_rad + np.pi) * np.sin(theta_sensor_rad) * np.cos(phi_sensor_rad) + np.sin(ZenithAngle_rad) * np.sin(HourAngle_rad + np.pi) * np.sin(theta_sensor_rad) * np.sin(phi_sensor_rad) + np.cos(ZenithAngle_rad) * np.cos(theta_sensor_rad)) # angle between sun and sensor
 
+# ds['add'] = (('time'),AngleDif_deg)
+# ds['zar'] = (('time'),ZenithAngle_rad)
+# ds['har'] = (('time'),HourAngle_rad)
+# ds['tsr'] = (('time'),theta_sensor_rad)
+# ds['X'] = (('time'),X)
+# ds['Y'] = (('time'),Y)
+# ds['Z'] = (('time'),Z)
+# from IPython import embed; embed()
+# ds[['dsr','dsr_cor','usr','add','X','Y','Z','tilt_x','tilt_y']].to_dataframe().head(40)
+
+
 # ;AngleDif_deg = 180./!pi*acos(cos(!pi/2.-ZenithAngle_rad)*cos(!pi/2.-theta_sensor_rad)*cos(HourAngle_rad-phi_sensor_rad)+sin(!pi/2.-ZenithAngle_rad)*sin(!pi/2.-theta_sensor_rad)) ; angle between sun and sensor
+
 # from IPython import embed; embed()
 
 ds['albedo'] = ds['usr'] / ds['dsr_cor']
@@ -1962,33 +1973,38 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+station='EGP'
+if 'idl' in locals(): del(idl)
+if 'df' in locals(): del(df)
+
 def mydf(y,m,d,h):
     return pd.datetime(int(y),int(m),int(d),int(h))
 
 def mydf2(y,mo,d,h,mi):
     return pd.datetime(int(y),int(mo),int(d),int(h),int(mi))
 
-## INST
-idl = pd.read_csv("./IDL/out/EGP_inst_v03.txt",
-                  delimiter="\s+",
-                  parse_dates={'time':[0,1,2,3,4]},
-                  infer_datetime_format=True,
-                  date_parser=mydf2,
-                  index_col=0)
+if 'idl' not in locals():
+    ## INST
+    idl = pd.read_csv("./IDL/out/"+station+"_inst_v03.txt",
+                      delimiter="\s+",
+                      parse_dates={'time':[0,1,2,3,4]},
+                      infer_datetime_format=True,
+                      date_parser=mydf2,
+                      index_col=0)
+    
+    ## HOUR
+    # idl = pd.read_csv("./IDL/out/EGP_hour_v03.txt",
+    #                   delimiter="\s+",
+    #                   parse_dates={'time':[0,1,2,3]},
+    #                   infer_datetime_format=True,
+    #                   date_parser=mydf,
+    #                   index_col=0)
 
-## HOUR
-# idl = pd.read_csv("./IDL/out/EGP_hour_v03.txt",
-#                   delimiter="\s+",
-#                   parse_dates={'time':[0,1,2,3]},
-#                   infer_datetime_format=True,
-#                   date_parser=mydf,
-#                   index_col=0)
-
-idl = idl.drop(columns=['DayOfYear'])\
-         .replace(-999, np.nan)\
-         .apply(pd.to_numeric, errors='coerce')\
-         .dropna(how='all')\
-         .rename(columns={'AirPressure(hPa)' : 'p',
+    idl = idl.drop(columns=['DayOfYear'])\
+             .replace(-999, np.nan)\
+             .apply(pd.to_numeric, errors='coerce')\
+             .dropna(how='all')\
+             .rename(columns={'AirPressure(hPa)' : 'p',
                           'AirTemperature(C)' : 't_1',
                           'AirTemperatureHygroClip(C)' : 't_2',
                           'RelativeHumidity(%)' : 'rh_cor',
@@ -2030,27 +2046,28 @@ idl = idl.drop(columns=['DayOfYear'])\
                           'FanCurrent(mA)' : 'fan_dc',
                           'BatteryVoltage(V)' : 'batt_v'})
 
-# df = xr.open_mfdataset("./data/L3/EGP/EGP-*_hour.nc", mask_and_scale=False)\
-#        .to_dataframe()
+if 'df' not in locals():
+    # df = xr.open_mfdataset("./data/L3/EGP/EGP-*_hour.nc", mask_and_scale=False)\
+        #        .to_dataframe()
 
-# df = pd.read_csv("./data/L3/CEN/CEN-raw.csv", index_col=0, parse_dates=True)
-# df = pd.read_csv("./data/L3/EGP/EGP-STM.csv", index_col=0, parse_dates=True)
-df = pd.read_csv("./data/L3/EGP/EGP-TX.csv", index_col=0, parse_dates=True)
+    df = pd.read_csv("./data/L3/"+station+"/"+station+"-raw.csv", index_col=0, parse_dates=True)
+    # df = pd.read_csv("./data/L3/"+station+"/"+station+"-STM.csv", index_col=0, parse_dates=True)
+    # df = pd.read_csv("./data/L3/"+station+"/"+station+"-TX.csv", index_col=0, parse_dates=True)
 
-# subset to same columns
-subset = np.intersect1d(df.columns, idl.columns)
-df = df[subset]
-idl = idl[subset]
+    # subset to same columns
+    subset = np.intersect1d(df.columns, idl.columns)
+    df = df[subset]
+    idl = idl[subset]
 
-err = df - idl # need to understand data to understand error
-err_pct = err / idl.mean(axis='rows')*100 # % err but should work as long as mean != 0
-# err = (df - idl) / idl*100 # % err: large errors when values near 0
-# err = (df - idl) / idl.mean(axis='rows')*100 # % err but should work as long as mean != 0
+    err = df - idl # need to understand data to understand error
+    err_pct = err / idl.mean(axis='rows')*100 # % err but should work as long as mean != 0
+    # err = (df - idl) / idl*100 # % err: large errors when values near 0
+    # err = (df - idl) / idl.mean(axis='rows')*100 # % err but should work as long as mean != 0
 
-pd.options.display.float_format = "{:,.5f}".format
+    pd.options.display.float_format = "{:,.5f}".format
 
-err_desc = err.describe().T.drop(columns="count")
-err_pct_desc = err_pct.describe().T.drop(columns="count")
+    err_desc = err.describe().T.drop(columns="count")
+    err_pct_desc = err_pct.describe().T.drop(columns="count")
 
 # diff_pct.plot()
 # diff_pct.replace(0,np.nan).dropna(how='all', axis='columns').plot()
