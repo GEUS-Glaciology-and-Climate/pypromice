@@ -519,7 +519,7 @@ if 't_2' in list(ds.variables): assert("hygroclip_t_offset" in ds.attrs.keys())
 T_0 = 273.15
 
 # Calculate pressure transducer fluid density
-if ~ds['z_pt'].isnull().any():
+if ~ds['z_pt'].isnull().all():
     if ds.attrs['pt_antifreeze'] == 50:
         rho_af = 1092
     elif ds.attrs['pt_antifreeze'] == 100:
@@ -591,7 +591,7 @@ ds['z_boom'] = ds['z_boom'] * ((ds['t_1'] + T_0)/T_0)**0.5
 ds['z_stake'] = ds['z_stake'] * ((ds['t_1'] + T_0)/T_0)**0.5
 
 # Adjust pressure transducer due to fluid properties
-if ~ds['z_pt'].isnull().any():
+if ~ds['z_pt'].isnull().all():
     ds['z_pt'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af
 
     # Calculate pressure transducer depth
@@ -1130,7 +1130,7 @@ d0_rad = 2 * np.pi * (doy + (hour + minute / 60) / 24 -1) / 365
 
 Declination_rad = np.arcsin(0.006918 - 0.399912 * np.cos(d0_rad) + 0.070257 * np.sin(d0_rad) - 0.006758 * np.cos(2 * d0_rad) + 0.000907 * np.sin(2 * d0_rad) - 0.002697 * np.cos(3 * d0_rad) + 0.00148 * np.sin(3 * d0_rad))
 
-HourAngle_rad = 2 * np.pi * (((hour + minute / 60) / 24 - 0.5) - (-lon)/360)
+HourAngle_rad = 2 * np.pi * (((hour + minute / 60) / 24 - 0.5) - lon/360)
 # ; - 15.*timezone/360.) ; NB: Make sure time is in UTC and longitude is positive when west! Hour angle should be 0 at noon.
 
 # This is 180 deg at noon (NH), as opposed to HourAngle.
@@ -1174,8 +1174,11 @@ ds['albedo'][~OKalbedos] = np.nan
 # NOTE: "use_coordinate=False" is used here to force comparison against the GDL code when that is run with *only* a TX file.
 # Should eventually set to default (True) and interpolate based on time, not index.
 ds['albedo'] = ds['albedo'].interpolate_na(dim='time', use_coordinate=False) # Interpolate all NaN (old and new NotOK)
+ds['albedo'] = ds['albedo'].ffill(dim='time').bfill(dim='time')
+# TODO: Remove above?
+
 # ds['albedo'] = ds['albedo'].ffill(dim='time') # Interpolate all NaN (old and new NotOK)
-ds['albedo'][albedo_nan] = np.nan # restore old NaN
+# ds['albedo'][albedo_nan] = np.nan # restore old NaN
 
 # ;OKalbedos = where(angleDif_deg lt 82.5 and ZenithAngle_deg lt 70 and albedo lt 1 and albedo gt 0, complement=notOKalbedos)
 # ;The running mean calculation doesn't work for non-continuous data sets or variable temporal resolution (e.g. with multiple files)
@@ -1718,7 +1721,7 @@ def flag_NAN(ds):
            .dropna(how='all', axis='rows')
 
     # check format of flags.csv. Either both or neither of t0 and t1 must be defined.
-    assert(((np.isnan(df['t0']).astype(np.int) + np.isnan(df['t1']).astype(np.int)) % 2).sum() == 0)
+    assert(((np.isnan(df['t0'].values).astype(np.int) + np.isnan(df['t1'].values).astype(np.int)) % 2).sum() == 0)
     # for now we only process the NAN flag
     df = df[df['flag'] == "NAN"]
     if df.shape[0] == 0: return ds
