@@ -443,6 +443,8 @@ if __name__ == "__main__":
     L0_path = sys.argv[1]
     conf = load_conf(sys.argv[2], L0_path)
     for k in conf.keys():
+        if 'Slim' in k: continue
+        if 'transmitted' in k: continue
         L0_to_L1(conf[k])
     
 #+END_SRC
@@ -480,12 +482,12 @@ ds = flag_NAN(ds)
 ds = add_variable_metadata(ds)
 
 # create variables that are missing
-df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
+df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('field','lo','hi','OOL'))
 for v in df.index:
     if v not in list(ds.variables):
         ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)
 
-if ~ds['z_pt'].isnull().any(): assert("pt_antifreeze" in ds.attrs.keys())
+if ~ds['z_pt'].isnull().all(): assert("pt_antifreeze" in ds.attrs.keys())
 if 't_2' in list(ds.variables): assert("hygroclip_t_offset" in ds.attrs.keys())
 #+END_SRC
 
@@ -550,7 +552,7 @@ def time_shift(da):
         return da['time'] + pd.to_timedelta("-1 hour")
     if ds.attrs['format'] == 'TX':
         diff = da['time'].diff(dim='time')
-        diffarr = diff.values.astype('timedelta64[h]').astype(np.int)
+        diffarr = diff.values.astype('timedelta64[h]').astype(int)
         # assume the 1st time step (dropped via diff) is equal to the 2nd timestep
         diffarr = np.append(diffarr[0], diffarr)
         da['time'] = (da['time'] + pd.to_timedelta("-1 hour"))\
@@ -607,12 +609,12 @@ if ds['gps_lat'].dtype.kind == 'O': # not a float. Probably has "NH"
     for v in ['gps_lat','gps_lon','gps_time']:
         a = ds[v].attrs # store
         str2nums = [re.findall(r"[-+]?\d*\.\d+|\d+", _) if isinstance(_, str) else [np.nan] for _ in ds[v].values]
-        ds[v][:] = pd.DataFrame(str2nums).astype(np.float).T.values[0]
-        ds[v] = ds[v].astype(np.float)
+        ds[v][:] = pd.DataFrame(str2nums).astype(float).T.values[0]
+        ds[v] = ds[v].astype(float)
         ds[v].attrs = a # restore
         
 if np.any((ds['gps_lat'] <= 90) & (ds['gps_lat'] > 0)):  # Some stations only recorded minutes, not degrees
-    xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", ds.attrs['geometry'])).astype(np.float)
+    xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", ds.attrs['geometry'])).astype(float)
     x=xyz[0]; y=xyz[1]; z=xyz[2] if len(xyz) == 3 else 0
     p = shapely.geometry.Point(x,y,z)
     ds['gps_lat'] = ds['gps_lat'] + 100*p.y
@@ -634,7 +636,7 @@ for v in ['gps_lat','gps_lon']:
 # but the /EDGE_MIRROR makes it a bit more complicated...
 if ds.attrs['format'] != 'TX':
     win_size=7
-    s = np.int(win_size/2)
+    s = int(win_size/2)
     tdf = ds['tilt_x'].to_dataframe()
     ds['tilt_x'] = (('time'), tdf.iloc[:s][::-1].append(tdf).append(tdf.iloc[-s:][::-1]).rolling(win_size, win_type='boxcar', center=True).mean()[s:-s].values.flatten())
     tdf = ds['tilt_y'].to_dataframe()
@@ -870,7 +872,7 @@ Out of limit (OOL) data comes from the [[./variables.csv]] file.
 
 #+NAME: flag_data
 #+BEGIN_SRC jupyter-python
-df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('fields','lo','hi','OOL'))
+df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('field','lo','hi','OOL'))
 df = df.dropna(how='all')
 for var in df.index:
     if var not in list(ds.variables): continue
@@ -1592,8 +1594,12 @@ ds_d.to_dataframe().dropna(how='all').to_csv(outpathfile+"_day.csv")
 
 * L0 to L3
 
+for s in CEN; do ./ppp.sh $s; done
+for s in $(ls ./data/L0); do ./ppp.sh $s; done
+
 #+BEGIN_SRC bash :tangle ppp.sh :tangle-mode (identity #o544) :var s="EGP"
 
+s=$1
 # conda activate PROMICE_dev
 
 rm ./data/L{1,1A,2,3}/${s}/*
@@ -1681,6 +1687,8 @@ def load_conf(filename, L0_path):
     return conf
 #+END_SRC
 
+#+RESULTS: load_conf
+
 
 #+NAME: read_L0
 #+BEGIN_SRC jupyter-python
@@ -1732,7 +1740,7 @@ def flag_NAN(ds):
            .dropna(how='all', axis='rows')
 
     # check format of flags.csv. Either both or neither of t0 and t1 must be defined.
-    assert(((np.isnan(df['t0'].values).astype(np.int) + np.isnan(df['t1'].values).astype(np.int)) % 2).sum() == 0)
+    assert(((np.isnan(df['t0'].values).astype(int) + np.isnan(df['t1'].values).astype(int)) % 2).sum() == 0)
     # for now we only process the NAN flag
     df = df[df['flag'] == "NAN"]
     if df.shape[0] == 0: return ds
@@ -1768,7 +1776,7 @@ def add_variable_metadata(ds):
         if v == 'time': continue # coordinate variable, not normal var
         if v not in list(ds.variables): continue
         for c in ['standard_name', 'long_name', 'units']:
-            if isinstance(df[c][v], np.float) and np.isnan(df[c][v]): continue
+            if isinstance(df[c][v], float) and np.isnan(df[c][v]): continue
             ds[v].attrs[c] = df[c][v]
             
     return ds
@@ -1973,19 +1981,20 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-station='EGP'
+station='CEN'
 if 'idl' in locals(): del(idl)
 if 'df' in locals(): del(df)
 
 def mydf(y,m,d,h):
-    return pd.datetime(int(y),int(m),int(d),int(h))
+    return pd.to_datetime(f'{int(y)}-{int(m)}-{int(d)}:{int(h)}', format='%Y-%m-%d:%H')
 
 def mydf2(y,mo,d,h,mi):
-    return pd.datetime(int(y),int(mo),int(d),int(h),int(mi))
+    return pd.to_datetime(f'{int(y)}-{int(mo)}-{int(d)}:{int(h)}:{int(mi)}', format='%Y-%m-%d:%H:%M')
 
 if 'idl' not in locals():
     ## INST
-    idl = pd.read_csv("./IDL/out/"+station+"_inst_v03.txt",
+    #idl = pd.read_csv("./IDL/out/"+station+"_inst_v03.txt",
+    idl = pd.read_csv("/home/kdm/data.me/PROMICE/inst/"+station+"_inst_v03.txt",
                       delimiter="\s+",
                       parse_dates={'time':[0,1,2,3,4]},
                       infer_datetime_format=True,
@@ -2050,10 +2059,66 @@ if 'df' not in locals():
     # df = xr.open_mfdataset("./data/L3/EGP/EGP-*_hour.nc", mask_and_scale=False)\
         #        .to_dataframe()
 
-    df = pd.read_csv("./data/L3/"+station+"/"+station+"-raw.csv", index_col=0, parse_dates=True)
+    # df = pd.read_csv("./data/L3/"+station+"/"+station+"-raw.csv", index_col=0, parse_dates=True)
     # df = pd.read_csv("./data/L3/"+station+"/"+station+"-STM.csv", index_col=0, parse_dates=True)
     # df = pd.read_csv("./data/L3/"+station+"/"+station+"-TX.csv", index_col=0, parse_dates=True)
 
+
+    df = pd.read_csv("./IDL/out/"+station+"_inst_v03.txt",
+                      delimiter="\s+",
+                      parse_dates={'time':[0,1,2,3,4]},
+                      infer_datetime_format=True,
+                      date_parser=mydf2,
+                      index_col=0)
+    
+    df = df.drop(columns=['DayOfYear'])\
+             .replace(-999, np.nan)\
+             .apply(pd.to_numeric, errors='coerce')\
+             .dropna(how='all')\
+             .rename(columns={'AirPressure(hPa)' : 'p',
+                          'AirTemperature(C)' : 't_1',
+                          'AirTemperatureHygroClip(C)' : 't_2',
+                          'RelativeHumidity(%)' : 'rh_cor',
+                          'SpecificHumidity(g/kg)' : 'rh_cor2',
+                          'WindSpeed(m/s)' : 'wspd',
+                          'WindDirection(d)' : 'wdir',
+                          'SensibleHeatFlux(W/m2)' : 'shf',
+                          'LatentHeatFlux(W/m2)' : 'lhf',
+                          'ShortwaveRadiationDown(W/m2)': 'dsr',
+                          'ShortwaveRadiationDown_Cor(W/m2)' : 'dsr_cor',
+                          'ShortwaveRadiationUp(W/m2)' : 'usr',
+                          'ShortwaveRadiationUp_Cor(W/m2)' : 'usr_cor',
+                          'Albedo_theta<70d' : 'albedo',
+                          'Albedo' : 'albedo',
+                          'LongwaveRadiationDown(W/m2)' : 'dlr',
+                          'LongwaveRadiationUp(W/m2)' : 'ulr',
+                          'CloudCover' : 'cc',
+                          'SurfaceTemperature(C)' : 't_surf',
+                          'HeightSensorBoom(m)' : 'z_boom',
+                          'HeightStakes(m)': 'z_stake',
+                          'DepthPressureTransducer(m)' : 'z_pt',
+                          'DepthPressureTransducer_Cor(m)' : 'z_pt_cor',
+                          'IceTemperature1(C)' : 't_i_1',
+                          'IceTemperature2(C)' : 't_i_2',
+                          'IceTemperature3(C)' : 't_i_3',
+                          'IceTemperature4(C)' : 't_i_4',
+                          'IceTemperature5(C)' : 't_i_5',
+                          'IceTemperature6(C)' : 't_i_6',
+                          'IceTemperature7(C)' : 't_i_7',
+                          'IceTemperature8(C)' : 't_i_8',
+                          'TiltToEast(d)' : 'tilt_x',
+                          'TiltToNorth(d)' : 'tilt_y',
+                          'TimeGPS(hhmmssUTC)' : 'gps_t',
+                          'LatitudeGPS(degN)' : 'gps_lat',
+                          'LongitudeGPS(degW)' : 'gps_lon',
+                          'ElevationGPS(m)' : 'gps_alt',
+                          'HorDilOfPrecGPS' : 'gps_hdop',
+                          'LoggerTemperature(C)' : 't_logger',
+                          'FanCurrent(mA)' : 'fan_dc',
+                          'BatteryVoltage(V)' : 'batt_v'})
+
+
+    
     # subset to same columns
     subset = np.intersect1d(df.columns, idl.columns)
     df = df[subset]
@@ -2094,53 +2159,77 @@ var = 't_1'; plot_diff(df,idl,err,err_pct,var)
 # err_desc
 # err_pct_desc
 desc = err_desc.round(3).astype("string")
-desc = desc + " (" + err_pct_desc.replace(np.nan,0).round().astype(np.int).astype("string") + ")"
+desc = desc + " (" + err_pct_desc.replace(np.nan,0).round().astype(int).astype("string") + ")"
 desc
 
-if __name__ == "__main__":
-    print(desc)
-
-
+# if __name__ == "__main__":
+#     print(desc)
 #+END_SRC
 
 #+RESULTS:
+:RESULTS:
 #+begin_example
-<ipython-input-55-d9cf317c4368>:9: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
+<ipython-input-1-aca406c579fa>:13: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
   return pd.datetime(int(y),int(mo),int(d),int(h),int(mi))
-                mean        std            min         25%         50%        75%          max
-albedo       0.0 (0)  0.004 (1)    -0.041 (-5)    -0.0 (0)    -0.0 (0)    0.0 (0)     0.07 (9)
-batt_v       0.0 (0)    0.0 (0)        0.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
-cc           0.0 (0)  0.003 (1)   -0.076 (-15)  -0.002 (0)     0.0 (0)  0.002 (0)    0.005 (1)
-dlr         -0.0 (0)  0.062 (0)    -4.928 (-2)  -0.025 (0)   0.001 (0)  0.025 (0)     0.05 (0)
-dsr         -0.0 (0)  0.091 (0)    -6.881 (-3)  -0.025 (0)   0.001 (0)  0.026 (0)    3.559 (2)
-dsr_cor   -0.025 (0)  2.327 (1)  -50.791 (-20)  -0.098 (0)     0.0 (0)  0.054 (0)  28.672 (11)
-fan_dc       0.0 (0)  0.016 (0)      -0.05 (0)     0.0 (0)     0.0 (0)    0.0 (0)     0.05 (0)
-gps_alt      0.0 (0)    0.0 (0)        0.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
-gps_hdop     0.0 (0)    0.0 (0)        0.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
-gps_lat      0.0 (0)    0.0 (0)        0.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
-gps_lon      0.0 (0)    0.0 (0)        0.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
-p           -0.0 (0)  0.011 (0)       -1.0 (0)     0.0 (0)     0.0 (0)    0.0 (0)      0.0 (0)
-rh_cor      -0.0 (0)  0.028 (0)     -0.394 (0)  -0.024 (0)     0.0 (0)  0.023 (0)     0.05 (0)
-t_1          0.0 (0)  0.006 (0)    -0.066 (-4)     0.0 (0)     0.0 (0)    0.0 (0)     0.49 (1)
-t_2          0.0 (0)  0.007 (0)    -0.028 (-5)     0.0 (0)     0.0 (0)    0.0 (0)     0.64 (0)
-t_i_1           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
-t_i_2           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
-t_i_3           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
-t_i_4           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
-t_i_5           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
-t_i_6           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
-t_i_7           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
-t_i_8           <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
-t_surf      -0.0 (0)  0.003 (0)     -0.044 (0)  -0.002 (0)     0.0 (0)  0.002 (0)    0.059 (0)
-tilt_x      -0.0 (0)  0.003 (0)     -0.005 (0)  -0.003 (0)    -0.0 (0)  0.002 (0)    0.005 (0)
-tilt_y      -0.0 (0)  0.003 (0)     -0.005 (0)  -0.003 (0)    -0.0 (0)  0.002 (0)    0.005 (0)
-ulr         -0.0 (0)  0.029 (0)     -0.189 (0)  -0.025 (0)  -0.001 (0)  0.025 (0)    0.068 (0)
-usr        0.001 (0)  0.096 (0)    -6.861 (-4)  -0.022 (0)    -0.0 (0)  0.027 (0)    4.631 (2)
-usr_cor    0.015 (0)  0.724 (0)  -40.546 (-20)  -0.021 (0)     0.0 (0)  0.023 (0)  21.967 (11)
-wdir         0.0 (0)  0.098 (0)      -4.9 (-3)     0.0 (0)     0.0 (0)    0.0 (0)      7.3 (5)
-wspd         0.0 (0)  0.004 (0)    -0.257 (-4)  -0.002 (0)     0.0 (0)  0.002 (0)    0.125 (2)
-z_boom      -0.0 (0)    0.0 (0)       -0.0 (0)    -0.0 (0)    -0.0 (0)    0.0 (0)      0.0 (0)
-z_pt            <NA>       <NA>           <NA>        <NA>        <NA>       <NA>         <NA>
-z_stake     -0.0 (0)    0.0 (0)       -0.0 (0)    -0.0 (0)    -0.0 (0)    0.0 (0)      0.0 (0)
+/home/kdm/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/pandas/io/parsers.py:3339: FutureWarning: 
+        Use pd.to_datetime instead.
+
+  return generic_parser(date_parser, *date_cols)
+<ipython-input-1-aca406c579fa>:13: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
+  return pd.datetime(int(y),int(mo),int(d),int(h),int(mi))
+/home/kdm/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/pandas/io/parsers.py:3339: FutureWarning: 
+        Use pd.to_datetime instead.
+
+  return generic_parser(date_parser, *date_cols)
 #+end_example
+|                                        | mean       | std          | min              | 25%      | 50%     | 75%     | max            |
+|----------------------------------------+------------+--------------+------------------+----------+---------+---------+----------------|
+| AngleBetweenSunAndAWS(d)               | -0.0 (0)   | 0.188 (0)    | -9.4 (-10)       | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 8.8 (10)       |
+| DirectionSun(d)                        | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.0 (0)        |
+| HeightSensorBoomQuality                | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.0 (0)        |
+| HeightStakesQuality                    | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.0 (0)        |
+| RelativeHumidity_wrtWater(%)           | -0.0 (0)   | 0.413 (1)    | -26.6 (-34)      | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 18.4 (24)      |
+| ShortwaveRadiationDownCorrectionFactor | -0.0 (0)   | 0.011 (1)    | -1.4 (-141)      | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.63 (63)      |
+| TemperatureRadiometer(C)               | 0.0 (0)    | 0.281 (1)    | -13.58 (-62)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 14.18 (59)     |
+| TiltAWS(d)                             | 0.001 (0)  | 0.184 (3)    | -5.0 (-88)       | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 4.7 (82)       |
+| TiltDirectionAWS(d)                    | -0.036 (0) | 4.387 (1)    | -350.0 (-115)    | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 289.0 (95)     |
+| ZenithAngleSun(d)                      | -0.0 (0)   | 0.0 (0)      | -0.1 (0)         | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.0 (0)        |
+| albedo                                 | 0.0 (0)    | 0.004 (0)    | -0.103 (-13)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.105 (13)     |
+| batt_v                                 | 0.0 (0)    | 0.013 (0)    | -1.31 (-10)      | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 1.53 (12)      |
+| cc                                     | -0.0 (0)   | 0.021 (3)    | -0.92 (-116)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.77 (97)      |
+| dlr                                    | 0.001 (0)  | 2.542 (1)    | -107.5 (-52)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 98.5 (48)      |
+| dsr                                    | 0.0 (0)    | 3.603 (3)    | -205.0 (-197)    | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 198.6 (191)    |
+| dsr_cor                                | 0.416 (0)  | 26.756 (24)  | -394.4 (-360)    | -0.1 (0) | 0.0 (0) | 0.0 (0) | 416.6 (380)    |
+| fan_dc                                 | 0.0 (0)    | 1.437 (2)    | -167.9 (-249)    | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 178.9 (265)    |
+| gps_alt                                | 0.008 (0)  | 3.357 (0)    | -19.0 (-1)       | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 27.0 (1)       |
+| gps_hdop                               | -0.0 (0)   | 0.045 (6)    | -0.52 (-67)      | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.37 (48)      |
+| gps_lat                                | 0.0 (0)    | 0.0 (0)      | -0.008 (0)       | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.008 (0)      |
+| gps_lon                                | 0.0 (0)    | 0.0 (0)      | -0.003 (0)       | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.003 (0)      |
+| gps_t                                  | 0.441 (0)  | 8634.354 (8) | -235042.0 (-222) | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 235042.0 (222) |
+| p                                      | 0.0 (0)    | 0.342 (0)    | -22.1 (-3)       | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 17.4 (2)       |
+| rh_cor                                 | -0.0 (0)   | 0.362 (0)    | -26.5 (-27)      | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 18.1 (19)      |
+| t_1                                    | 0.0 (0)    | 0.283 (1)    | -13.72 (-60)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 14.07 (59)     |
+| t_2                                    | 0.0 (0)    | 0.266 (1)    | -13.67 (-61)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 14.01 (59)     |
+| t_i_1                                  | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.01 (0)       |
+| t_i_2                                  | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.01 (0)       |
+| t_i_3                                  | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.01 (0)       |
+| t_i_4                                  | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.01 (0)       |
+| t_i_5                                  | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.01 (0)       |
+| t_i_6                                  | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.01 (0)       |
+| t_i_7                                  | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.01 (0)       |
+| t_i_8                                  | 0.0 (0)    | 0.0 (0)      | 0.0 (0)          | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 0.01 (0)       |
+| t_logger                               | 0.0 (0)    | 0.326 (1)    | -15.43 (-71)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 16.71 (66)     |
+| t_surf                                 | 0.0 (0)    | 0.317 (1)    | -14.04 (-59)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 13.34 (62)     |
+| tilt_x                                 | -0.0 (0)   | 0.094 (2)    | -8.71 (-208)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 7.93 (228)     |
+| tilt_y                                 | -0.0 (0)   | 0.086 (2)    | -5.21 (-131)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 5.65 (142)     |
+| ulr                                    | 0.001 (0)  | 1.171 (1)    | -48.2 (-21)      | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 50.8 (22)      |
+| usr                                    | 0.001 (0)  | 2.065 (2)    | -131.8 (-145)    | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 118.6 (130)    |
+| usr_cor                                | 1.3 (1)    | 23.247 (26)  | -394.4 (-440)    | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 317.4 (354)    |
+| wdir                                   | 0.001 (0)  | 2.581 (2)    | -165.7 (-107)    | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 178.0 (115)    |
+| wspd                                   | 0.0 (0)    | 0.181 (3)    | -17.36 (-299)    | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 11.21 (193)    |
+| z_boom                                 | 0.0 (0)    | 0.037 (2)    | -1.592 (-88)     | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 1.646 (91)     |
+| z_pt                                   | <NA>       | <NA>         | <NA>             | <NA>     | <NA>    | <NA>    | <NA>           |
+| z_pt_cor                               | <NA>       | <NA>         | <NA>             | <NA>     | <NA>    | <NA>    | <NA>           |
+| z_stake                                | 0.0 (0)    | 0.04 (2)     | -1.66 (-92)      | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 1.695 (94)     |
+:END:
 
