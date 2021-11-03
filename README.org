@@ -547,37 +547,56 @@ def time_shift(da):
     STM: (1 hour) values are averaged and timestamp is end. Shift 1 h earlier to beginning
     TX: Some 10 min, some 1 hour, some 1 day? Shift appropriately.
     """
-    assert(ds.attrs['format'] != 'raw')
+    # assert(ds.attrs['format'] != 'raw')
+    if ds.attrs['format'] == 'raw':
+        # diff = da['time'].diff(dim='time')
+        # diffarr = diff.values.astype('timedelta64[h]').astype(int)
+        # # assume the 1st time step (dropped via diff) is equal to the 2nd timestep
+        # diffarr = np.append(diffarr[0], diffarr)
+        # da['time'] = (da['time'] + pd.to_timedelta("-1 hour"))\
+        #     .where((diffarr == 1) & (da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100), other=da['time'])
+
+        ### NOTE: The following line re-implements bug: https://github.com/GEUS-PROMICE/AWS_v3/issues/2
+        ### See also https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
+        t = (da['time'] + pd.to_timedelta("-24 hours"))\
+            .where((da['time'].dt.hour == 23) & ((da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100)), other=da['time'])
+        for t in zip(t,da['time'].values):
+            print(t)
     if ds.attrs['format'] == 'STM':
-        return da['time'] + pd.to_timedelta("-1 hour")
+        t = da['time'] + pd.to_timedelta("-1 hour")
     if ds.attrs['format'] == 'TX':
         diff = da['time'].diff(dim='time')
         diffarr = diff.values.astype('timedelta64[h]').astype(int)
         # assume the 1st time step (dropped via diff) is equal to the 2nd timestep
         diffarr = np.append(diffarr[0], diffarr)
-        da['time'] = (da['time'] + pd.to_timedelta("-1 hour"))\
+        t = (da['time'] + pd.to_timedelta("-1 hour"))\
             .where((diffarr == 1) & (da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100), other=da['time'])
 
         ### NOTE: The following line re-implements bug: https://github.com/GEUS-PROMICE/AWS_v3/issues/2
         ### See also https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
-        da['time'] = (da['time'] + pd.to_timedelta("+24 hours"))\
+        # print(da['time'])
+        t = (da['time'] + pd.to_timedelta("+24 hours"))\
             .where((da['time'].dt.hour == 23) & ((da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100)), other=da['time'])
-        return da['time']
-    
-if ds.attrs['format'] != 'raw':
-    ds['time_orig'] = ds['time']
-    ds['time'] = time_shift(ds['time'].copy(deep=True)).values
-    _, index = np.unique(ds['time'], return_index=True)
-    ds = ds.isel(time=index)
+        # print(da['time'])
+    return t
+
+
+import pdb; pdb.set_trace()
+
+
+# print(ds.attrs['format'])
+# if ds.attrs['format'] != 'raw':
+ds['time_orig'] = ds['time']
+ds['time'] = time_shift(ds['time'].copy(deep=True))
+_, index = np.unique(ds['time'], return_index=True)
+ds = ds.isel(time=index)
+
 
 ###
 ### DEBUGGING
 ### 
 import matplotlib.pyplot as plt
 ds['n'] = (('time'), np.arange(ds['time'].size)+1)
-
-
-
 
 # Remove HygroClip temperature offset
 ds['t_2'] = ds['t_2'] - ds.attrs['hygroclip_t_offset']
@@ -1982,7 +2001,7 @@ import pandas as pd
 import xarray as xr
 
 station='CEN'
-if 'idl' in locals(): del(idl)
+# if 'idl' in locals(): del(idl)
 if 'df' in locals(): del(df)
 
 def mydf(y,m,d,h):
@@ -2168,20 +2187,10 @@ desc
 
 #+RESULTS:
 :RESULTS:
-#+begin_example
-<ipython-input-1-aca406c579fa>:13: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
-  return pd.datetime(int(y),int(mo),int(d),int(h),int(mi))
-/home/kdm/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/pandas/io/parsers.py:3339: FutureWarning: 
-        Use pd.to_datetime instead.
-
-  return generic_parser(date_parser, *date_cols)
-<ipython-input-1-aca406c579fa>:13: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
-  return pd.datetime(int(y),int(mo),int(d),int(h),int(mi))
-/home/kdm/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/pandas/io/parsers.py:3339: FutureWarning: 
-        Use pd.to_datetime instead.
-
-  return generic_parser(date_parser, *date_cols)
-#+end_example
+: /home/kdm/local/miniconda3/envs/PROMICE_dev/lib/python3.8/site-packages/pandas/io/parsers.py:3339: FutureWarning: 
+:         Use pd.to_datetime instead.
+: 
+:   return generic_parser(date_parser, *date_cols)
 |                                        | mean       | std          | min              | 25%      | 50%     | 75%     | max            |
 |----------------------------------------+------------+--------------+------------------+----------+---------+---------+----------------|
 | AngleBetweenSunAndAWS(d)               | -0.0 (0)   | 0.188 (0)    | -9.4 (-10)       | 0.0 (0)  | 0.0 (0) | 0.0 (0) | 8.8 (10)       |
