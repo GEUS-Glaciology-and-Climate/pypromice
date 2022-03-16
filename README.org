@@ -52,6 +52,7 @@
   - [[#metadatacsv-to-toml][metadata.csv to TOML]]
 - [[#compare-python--idl][Compare Python & IDL]]
   - [[#load-both-to-dfs-10-min][Load both to dfs (10 min)]]
+  - [[#compare-2][Compare 2]]
 
 * Introduction
 
@@ -571,7 +572,10 @@ def time_shift(da):
         # diffarr = np.append(diffarr[0], diffarr)
         diffarr = np.append(0, diffarr) # no, don't.
         t = (da['time'] + pd.to_timedelta("-1 hour"))\
-            .where((diffarr == 1) & (da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100), other=da['time'])
+            .where(# (diffarr == 1) &
+                   (da['time'].dt.dayofyear <= 300) &
+                   (da['time'].dt.dayofyear >= 100),
+                   other=da['time'])
 
         ### NOTE: The following line re-implements bug: https://github.com/GEUS-PROMICE/AWS_v3/issues/2
         ### See also https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
