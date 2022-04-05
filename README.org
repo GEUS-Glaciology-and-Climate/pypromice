@@ -2306,7 +2306,7 @@ def plot_diff(df,idl,err,err_pct,var):
     
     ax2 = fig.add_subplot(212, sharex=ax1)
     idl[var].plot(label='IDL '+var, linewidth=3, ax=ax2, marker='.', markersize=4)
-    df[var].plot(label='Py', ax=ax2, marker='.', markersize=2)
+    df[var].plot(label='Py '+var, ax=ax2, marker='.', markersize=3)
     ax2.set_ylabel(var + " [units]")
     # (df[var]*0).plot(color='k', linestyle='--', ax=ax2, alpha=0.25, label='', marker='.')
     legend()
