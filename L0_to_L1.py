@@ -29,7 +29,7 @@ def L0_to_L1(conf=None):
                          skip_blank_lines = True,
                          usecols=np.arange(len(conf['columns'])))
     
-        ds = df.to_xarray()
+        ds = xr.Dataset.from_dataframe(df)
     
         # carry relevant metadata with ds
         meta = {}
@@ -145,20 +145,24 @@ def L0_to_L1(conf=None):
             diff = da['time'].diff(dim='time')
             diffarr = diff.values.astype('timedelta64[h]').astype(int)
             # assume the 1st time step (dropped via diff) is equal to the 2nd timestep
-            diffarr = np.append(diffarr[0], diffarr)
+            # diffarr = np.append(diffarr[0], diffarr)
+            diffarr = np.append(0, diffarr) # no, don't.
             t = (da['time'] + pd.to_timedelta("-1 hour"))\
-                .where((diffarr == 1) & (da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100), other=da['time'])
+                .where(# (diffarr == 1) &
+                       (da['time'].dt.dayofyear <= 300) &
+                       (da['time'].dt.dayofyear >= 100),
+                       other=da['time'])
     
             ### NOTE: The following line re-implements bug: https://github.com/GEUS-PROMICE/AWS_v3/issues/2
             ### See also https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
             # print(da['time'])
-            t = (da['time'] + pd.to_timedelta("+24 hours"))\
-                .where((da['time'].dt.hour == 23) & ((da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100)), other=da['time'])
+            # t = (da['time'] + pd.to_timedelta("+24 hours"))\
+            #     .where((da['time'].dt.hour == 23) & ((da['time'].dt.dayofyear <= 300) & (da['time'].dt.dayofyear >= 100)), other=da['time'])
             # print(da['time'])
         return t
     
     
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     
     
     # print(ds.attrs['format'])
@@ -330,5 +334,5 @@ if __name__ == "__main__":
     conf = load_conf(sys.argv[2], L0_path)
     for k in conf.keys():
         if 'Slim' in k: continue
-        if 'transmitted' in k: continue
+        # if 'transmitted' in k: continue
         L0_to_L1(conf[k])

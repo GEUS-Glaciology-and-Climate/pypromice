@@ -5,6 +5,8 @@
 * Table of contents                               :toc_3:noexport:
 - [[#introduction][Introduction]]
   - [[#overview][Overview]]
+- [[#example-code][Example code]]
+  - [[#process-one-file][Process one file]]
 - [[#level-0][Level 0]]
   - [[#l0-files][L0 files]]
     - [[#additional-files][Additional files]]
@@ -58,23 +60,27 @@
 
 Code used to process the PROMICE AWS data from Level 0 through Level 3 (end-user product).
 
+Currently, this code focuses on the *transmitted* data.
+
 We use the following processing levels, described textually and graphically.
 
 ** Overview
 + L0: Raw data in CSV file format in one of three formats:
-  + =raw=, =STM= (Slim Table Memory), and =TX= (transmitted)
-  + Manually split so no file includes changed sensors
-  + Manually created paired header files based on [[./hdr.template]]
+  + [ ] =raw= (see below)
+  + [ ] =STM= (Slim Table Memory; see below)
+  + [X] =TX= (transmitted; see below)
+  + Manually split so no file includes changed sensors, changed calibration parameters, etc.
+  + [X] Manually created paired header files based on [[./example.toml]] or in the =data/L0/config= folder.
 + L1:
-  + Engineering units (e.g. current or volts) converted to physical units (e.g. temperature or wind speed)
+  + [X] Engineering units (e.g. current or volts) converted to physical units (e.g. temperature or wind speed)
 + L1A:
-  + Invalid / bad / suspicious data flagged
-  + Files merged to one time series per station
+  + [ ] Invalid / bad / suspicious data flagged
+  + [X] Files merged to one time series per station
 + L2:
-  + Calibration using secondary sources (e.g. radiometric correction requires input of tilt sensor)
+  + [X] Calibration using secondary sources (e.g. radiometric correction requires input of tilt sensor)
 + L3:
-  + Derived products (e.g. SHF and LHF)
-  + Merge formats to one product here?
+  + [X] Derived products (e.g. SHF and LHF)
+  + [ ] Merged, patched, and filled (raw > STM > TX) to one product
 
 #+begin_src ditaa :file ./fig/levels.png :exports results
 
@@ -98,9 +104,9 @@ We use the following processing levels, described textually and graphically.
 	                    v         			  +-+Column names      |
                     +----------------+   +------------+   | +------------------+
 	            |{d}             |   |{d}         |<--+
-                    |  raw, STM, TX  |   |            |	    +------------------+
-     Level 0 (L0)   |                |   |  L0 header |<----+Metadata          |
-		    | GEUS text files|	 |            |	    +------------------+
+                    |  raw, STM, TX  |   |   TOML     |	    +------------------+
+     Level 0 (L0)   |                |   |  config    |<----+ ?                |
+		    | GEUS text files|	 |   file     |	    +------------------+
 	            |                |	 |            |<--+
 	            +-------+--------+   +--+---------+   | +-----------------------------------+
 	                    |               |	          +-+ Instrument calibration parameters |
@@ -126,7 +132,7 @@ We use the following processing levels, described textually and graphically.
                             v		  
                     +-----------------+
                     |{io}             |
-                    |   Flag bad data |
+                    | -Flag bad data- |
                     |   Merge files   |
                     |                 |
                     +-------+---------+
@@ -178,12 +184,45 @@ We use the following processing levels, described textually and graphically.
 #+RESULTS:
 [[file:./fig/levels.png]]
 
+* Example code
+
+** Process one file
+
+#+BEGIN_SRC python :results output :python /home/kdm/local/miniconda3/envs/PROMICE_dev/bin/python :session pap :tangle test.py
+import src
+from src import PROMICE_AWS_processing as pap
+
+raw = pap.L0.load(conf='./test_data/L0/config/QAS_L.toml', L0_path='./test_data/L0')
+raw = raw[0] # only process the first file in the TOML config
+
+eng = pap.L0.to_L1(L0=raw) # OR: eng = pap.L1.from_L0(L0=raw)
+
+## Optional
+# L1_merged = pap.L1.merge([eng0, eng1, eng2])
+
+L2 = pap.L1.to_L2(L1=eng) # OR: eng = pap.L2.from_L1(L1=eng)
+
+result = pap.L2.to_L3(L2=L2)
+
+# results.to_dataframe().dropna(how='all').to_csv('AWS.csv', float_format='%.7f')
+#+END_SRC
+#+RESULTS:
+: No flag file
+: - Sun in view of upper sensor / workable albedos: 190 15.0 %
+: - Sun below horizon: 709 55.0 %
+: - Sun in view of lower sensor: 32 2.0 %
+: - Spikes removed using TOA criteria: 173 13.0 %
+: - Mean net SR change by corrections: 11.026212746564424 W/m2
+: LDIF BREAK:  5
+: LDIF BREAK:  1
+
+
 * Level 0
 
 Level 0 is generated from one of three methods:
-+ Copied from CF card in the field
-+ Downloaded from logger box in the field
-+ Transmitted via satellite and processed by https://github.com/GEUS-PROMICE/awsrx.
++ [ ] Copied from CF card in the field
++ [ ] Downloaded from logger box in the field
++ [X] Transmitted via satellite and decoded by https://github.com/GEUS-Glaciology-and-Climate/awsrx
 
 #+begin_src plantuml :file ./fig/L00_to_L0.png :exports results
 @startuml
@@ -228,10 +267,10 @@ node GEUS_(Level_0) {
 }
 
 ' DB -> hand carry -> raw
-actor Scientist
-DB_logger --> Scientist : Field\ndownload
-Scientist --> Raw : Hand\ncarry
-Scientist --> SlimTableMem : Hand\ncarry
+actor :Site visit: as visitor
+DB_logger --> visitor : Field\ndownload
+visitor --> Raw : Hand\ncarry
+visitor --> SlimTableMem : Hand\ncarry
 
 ' DB -> satellite -> Transmitted
 cloud Satellite
@@ -258,9 +297,10 @@ awsrx --> TX
 + =SlimTableMem= : Hourly averaged 10-min data stored in the internal logger memory
 + =transmitted= : Transmitted via satellite. Only a subset of data is transmitted, and only hourly or daily average depending on station and day of year.
 
-Level 0 files are stored in the =data/L0/<S>/= folder, where =<S>= is the station name. File names should encode the station, end-of-year of download, a version number if there are multiple files for a given year, and the format. Best practices would use the following conventions:  
+Level 0 files are stored in the =data/L0/<S>/= folder, where =<S>= is the station name. File names can be anything are are processed as per the =TOML= config files, but ideally they should encode the station, end-of-year of download, a version number if there are multiple files for a given year, and the format. Best practices would use the following conventions:  
 
-=data/<L>/<S>/<S>_<Y>[.<n>]_<F>.txt=
++ Generic :: =data/<L>/<S>/<S>_<Y>[.<n>]_<F>.txt=
++ Example :: =data/L0/QAS_L/QAS_L_2021_raw_transmitted.txt=
 
 Where 
 
@@ -281,8 +321,6 @@ cat example.toml
 
 #+RESULTS:
 #+begin_example
-# EGP L0 config
-
 station_id         = "EGP"
 latitude           = 75.62
 longitude          = -35.98
@@ -291,7 +329,6 @@ dsr_eng_coef       = 12.71  # from manufacturer to convert from eng units (1E-5 
 usr_eng_coef       = 12.71
 dlr_eng_coef       = 12.71
 ulr_eng_coef       = 12.71
-hygroclip_t_offset = 0      # degrees C
 
 columns = ["time", "rec", "min_y",
 	"p", "t_1", "t_2", "rh", "wspd", "wdir", "wd_std",
@@ -299,14 +336,20 @@ columns = ["time", "rec", "min_y",
 	"z_boom", "z_boom_q", "z_stake", "z_stake_q", "z_pt",
 	"t_i_1", "t_i_2", "t_i_3", "t_i_4", "t_i_5", "t_i_6", "t_i_7", "t_i_8",
 	"tilt_x", "tilt_y",
-	"gps_time", "gps_lat", "gps_lon", "gps_alt", "gps_geoid", "gps_geounit", "gps_q", "gps_numsat", "gps_hdop",
-	"t_log", "fan_dc", "batt_v_ss", "batt_v"]
+	"gps_time", "gps_lat", "gps_lon", "gps_alt", "gps_geoid", "SKIP_34", "SKIP_35", "gps_numsat", "gps_hdop",
+	"t_log", "fan_dc", "SKIP_40", "batt_v_ss", "batt_v"]
+
+# Parameters applied to all files are above.
+# Define files for processing and
+# override file-specific parameters below.
 
 ["EGP_2016_raw.txt"]
 format    = "raw"
 skiprows  = 3
+hygroclip_t_offset = 0      # degrees C
 
 ["EGP_2019_raw_transmitted.txt"]
+hygroclip_t_offset = 0
 skiprows = 0
 format   = "TX"
 columns = ["time", "rec",
@@ -322,7 +365,8 @@ columns = ["time", "rec",
 The TOML config file has the following expectations and behaviors:
 + Properties can be defined at the top level or under a section
 + Each file that will be processed gets its own section
-+ Properties at the top level are copied to each section (assumed to apply to all files), but do not overwrite properties if they are already defined for a section.
++ Properties at the top level are copied to each section (assumed to apply to all files)
++ Top-level properties are overridden by file-level properties if they exist in both locations
 
 In the example above,
 + The =station_id=, =latitude=, etc. properties are the same in both files (=EGP_2016_raw.txt= and =EGP_2019_raw_transmitted.txt=) and so they are defined once at the top of the file. They could have been defined in each of the sections similar to =hygroclip_t_offset=.
@@ -331,7 +375,7 @@ In the example above,
 
 *** Additional files
 
-Any files that do not have an associated section in the config file will be ignored. However, for cleanliness, L0 files that will not be processed should be placed in an =archive= subfolder.
+Any files that do not have an associated section in the config file will be ignored. However, for cleanliness, L0 files that will not be processed should be placed in an =L0/<S>/archive= subfolder.
 
 Any changes made to L0 files should be documented in the [[./L0/README.org]]. *Manual changes to these files should only be done when necessary*. An example of a manual change might be:
 

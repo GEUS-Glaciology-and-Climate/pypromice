@@ -1,18 +1,14 @@
 #!/usr/bin/env python
 
-import xarray as xr
+import numpy as np
 import pandas as pd
-import os
 
+def to_L2(L1=None):
 
-def L1A_to_L2(infile=None):
-    import numpy as np
+    ds = L1
     
     deg2rad = np.pi / 180
     rad2deg = 1 / deg2rad
-    # infile = "./data/L1A/EGP/EGP-raw.nc"
-    ds = xr.open_dataset(infile, mask_and_scale=False).load()
-    # print(ds)
     T_0 = 273.15
     
     T_100 = T_0+100            # steam point temperature in K
@@ -123,7 +119,13 @@ def L1A_to_L2(infile=None):
     
     d0_rad = 2 * np.pi * (doy + (hour + minute / 60) / 24 -1) / 365
     
-    Declination_rad = np.arcsin(0.006918 - 0.399912 * np.cos(d0_rad) + 0.070257 * np.sin(d0_rad) - 0.006758 * np.cos(2 * d0_rad) + 0.000907 * np.sin(2 * d0_rad) - 0.002697 * np.cos(3 * d0_rad) + 0.00148 * np.sin(3 * d0_rad))
+    Declination_rad = np.arcsin(0.006918 - 0.399912
+                                * np.cos(d0_rad) + 0.070257
+                                * np.sin(d0_rad) - 0.006758
+                                * np.cos(2 * d0_rad) + 0.000907
+                                * np.sin(2 * d0_rad) - 0.002697
+                                * np.cos(3 * d0_rad) + 0.00148
+                                * np.sin(3 * d0_rad))
     
     HourAngle_rad = 2 * np.pi * (((hour + minute / 60) / 24 - 0.5) - lon/360)
     # ; - 15.*timezone/360.) ; NB: Make sure time is in UTC and longitude is positive when west! Hour angle should be 0 at noon.
@@ -134,7 +136,11 @@ def L1A_to_L2(infile=None):
     DirectionSun_deg[DirectionSun_deg < 0] += 360
     DirectionSun_deg[DirectionSun_deg < 0] += 360
     
-    ZenithAngle_rad = np.arccos(np.cos(lat * deg2rad) * np.cos(Declination_rad) * np.cos(HourAngle_rad) + np.sin(lat * deg2rad) * np.sin(Declination_rad))
+    ZenithAngle_rad = np.arccos(np.cos(lat * deg2rad)
+                                * np.cos(Declination_rad)
+                                * np.cos(HourAngle_rad)
+                                + np.sin(lat * deg2rad)
+                                * np.sin(Declination_rad))
     
     ZenithAngle_deg = ZenithAngle_rad * rad2deg
     
@@ -144,7 +150,25 @@ def L1A_to_L2(infile=None):
     
     # Calculating the correction factor for direct beam radiation
     # http://solardat.uoregon.edu/SolarRadiationBasics.html
-    CorFac = np.sin(Declination_rad) * np.sin(lat * deg2rad) * np.cos(theta_sensor_rad) - np.sin(Declination_rad) * np.cos(lat * deg2rad) * np.sin(theta_sensor_rad) * np.cos(phi_sensor_rad + np.pi) + np.cos(Declination_rad) * np.cos(lat * deg2rad) * np.cos(theta_sensor_rad) * np.cos(HourAngle_rad) + np.cos(Declination_rad) * np.sin(lat * deg2rad) * np.sin(theta_sensor_rad) * np.cos(phi_sensor_rad + np.pi) * np.cos(HourAngle_rad) + np.cos(Declination_rad) * np.sin(theta_sensor_rad) * np.sin(phi_sensor_rad + np.pi) * np.sin(HourAngle_rad)
+    CorFac = np.sin(Declination_rad) * np.sin(lat * deg2rad) \
+        * np.cos(theta_sensor_rad) \
+        - np.sin(Declination_rad) \
+        * np.cos(lat * deg2rad) \
+        * np.sin(theta_sensor_rad) \
+        * np.cos(phi_sensor_rad + np.pi) \
+        + np.cos(Declination_rad) \
+        * np.cos(lat * deg2rad) \
+        * np.cos(theta_sensor_rad) \
+        * np.cos(HourAngle_rad) \
+        + np.cos(Declination_rad) \
+        * np.sin(lat * deg2rad) \
+        * np.sin(theta_sensor_rad) \
+        * np.cos(phi_sensor_rad + np.pi) \
+        * np.cos(HourAngle_rad) \
+        + np.cos(Declination_rad) \
+        * np.sin(theta_sensor_rad) \
+        * np.sin(phi_sensor_rad + np.pi) \
+        * np.sin(HourAngle_rad) \
     
     CorFac = np.cos(ZenithAngle_rad) / CorFac
     # sun out of field of view upper sensor
@@ -155,7 +179,16 @@ def L1A_to_L2(infile=None):
     ds['dsr_cor'] = ds['dsr'].copy(deep=True) * CorFac_all
     
     # Calculating albedo based on albedo values when sun is in sight of the upper sensor
-    AngleDif_deg = 180 / np.pi * np.arccos(np.sin(ZenithAngle_rad) * np.cos(HourAngle_rad + np.pi) * np.sin(theta_sensor_rad) * np.cos(phi_sensor_rad) + np.sin(ZenithAngle_rad) * np.sin(HourAngle_rad + np.pi) * np.sin(theta_sensor_rad) * np.sin(phi_sensor_rad) + np.cos(ZenithAngle_rad) * np.cos(theta_sensor_rad)) # angle between sun and sensor
+    AngleDif_deg = 180 / np.pi * np.arccos(np.sin(ZenithAngle_rad)
+                                           * np.cos(HourAngle_rad + np.pi)
+                                           * np.sin(theta_sensor_rad)
+                                           * np.cos(phi_sensor_rad)
+                                           + np.sin(ZenithAngle_rad)
+                                           * np.sin(HourAngle_rad + np.pi)
+                                           * np.sin(theta_sensor_rad)
+                                           * np.sin(phi_sensor_rad)
+                                           + np.cos(ZenithAngle_rad)
+                                           * np.cos(theta_sensor_rad)) # angle between sun and sensor
     
     # ds['add'] = (('time'),AngleDif_deg)
     # ds['zar'] = (('time'),ZenithAngle_rad)
@@ -291,15 +324,5 @@ def L1A_to_L2(infile=None):
                 if o not in list(ds.variables): continue
                 ds[o] = ds[o].where(ds[var] >= df.loc[var, 'lo'])
                 ds[o] = ds[o].where(ds[var] <= df.loc[var, 'hi'])
-    outpath = os.path.split(infile)[0].split("/")
-    outpath[-2] = 'L2'
-    outpath = '/'.join(outpath)
-    outfile = os.path.basename(infile)
-    outpathfile = outpath + '/' + outfile
-    if os.path.exists(outpathfile): os.remove(outpathfile)
-    ds.to_netcdf(outpathfile, mode='w', format='NETCDF4', compute=True)
 
-
-if __name__ == "__main__":
-    import sys
-    for arg in sys.argv[1:]: L1A_to_L2(arg)
+    return ds
