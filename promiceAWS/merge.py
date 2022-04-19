@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import pandas as pd
+
 def merge(ds_list):
     
     # This could be as simple as:
@@ -16,7 +18,7 @@ def merge(ds_list):
     #     assert(False)
 
     ds = ds_list[0]
-    if len(x) > 1:
+    if len(ds_list) > 1:
         for d in ds_list[1:]:
             ds = ds.combine_first(d)
         
@@ -36,4 +38,14 @@ def merge(ds_list):
                 if o not in list(ds.variables): continue
                 ds[o] = ds[o].where(ds[var] >= df.loc[var, 'lo'])
                 ds[o] = ds[o].where(ds[var] <= df.loc[var, 'hi'])
+
+
+    # clean up metadata
+    for k in ['format', 'hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
+              'dlr_eng_coef', 'ulr_eng_coef', 'pt_z_coef', 'pt_z_p_coef',
+              'pt_z_factor', 'pt_antifreeze', 'boom_azimuth', 'nodata',
+              'conf', 'file']:
+        if k in ds.attrs.keys():
+            ds.attrs.pop(k)
+    
     return ds

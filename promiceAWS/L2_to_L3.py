@@ -14,12 +14,15 @@ def to_L3(L2=None):
     ## https://github.com/pydata/xarray/issues/4498 & https://stackoverflow.com/questions/64282393/
     df_h = ds.to_dataframe().resample("1H").mean()  # what we want (quickly), but in Pandas form
     ## now, rebuild xarray dataset (https://www.theurbanist.com.au/2020/03/how-to-create-an-xarray-dataset-from-scratch/)
-    vals = [xr.DataArray(data=df_h[c], dims=['time'], coords={'time':df_h.index}, attrs=ds[c].attrs) for c in df_h.columns]
+    vals = [xr.DataArray(
+        data=df_h[c], dims=['time'], coords={'time':df_h.index}, attrs=ds[c].attrs)
+            for c in df_h.columns]
     ds_h = xr.Dataset(dict(zip(df_h.columns,vals)), attrs=ds.attrs)
     
     ds_h['wdir'] = np.arctan2(ds_h['wspd_x'], ds_h['wspd_y']) * rad2deg
     ds_h['wdir'] = (ds_h['wdir'] + 360) % 360
-    z_0    =    0.001    # aerodynamic surface roughness length for momention (assumed constant for all ice/snow surfaces)
+    z_0    =    0.001    # aerodynamic surface roughness length for momention...
+    # ...(assumed constant for all ice/snow surfaces)
     eps    =    0.622
     es_0   =    6.1071   # saturation vapour pressure at the melting point (hPa)
     es_100 = 1013.246    # saturation vapour pressure at steam point temperature (hPa)
@@ -54,10 +57,11 @@ def to_L3(L2=None):
     # dynamic viscosity of air (Pa s) (Sutherlands' equation using C = 120 K)
     mu = 18.27e-6 * (291.15 + 120) / ((T_h + T_0) + 120) * ((T_h + T_0) / 291.15)**1.5
     
-    nu = mu / rho_atm                                                   # kinematic viscosity of air (m^2/s)
+    nu = mu / rho_atm                            # kinematic viscosity of air (m^2/s)
     u_star = kappa * WS_h / np.log(z_WS / z_0)
     Re = u_star * z_0 / nu
-    z_0h = z_0 * np.exp(1.5 - 0.2 * np.log(Re) - 0.11 * np.log(Re)**2) # rough surfaces: Smeets & Van den Broeke 2008
+    # rough surfaces: Smeets & Van den Broeke 2008
+    z_0h = z_0 * np.exp(1.5 - 0.2 * np.log(Re) - 0.11 * np.log(Re)**2)
     z_0h[WS_h <= 0] = 1e-10
     es_ice_surf = 10**(-9.09718
                        * (T_0 / (Tsurf_h + T_0) -1) - 3.56654
@@ -75,8 +79,9 @@ def to_L3(L2=None):
                   * np.log10(T_0 / (T_h + T_0)) + 0.876793
                   * (1 - (T_h + T_0) / T_0)
                   + np.log10(es_0)) # saturation vapour pressure below 0 C (hPa)
-    
-    q_sat = eps * es_wtr / (p_h - (1 - eps) * es_wtr) # specific humidity at saturation (incorrect below melting point)
+
+    # specific humidity at saturation (incorrect below melting point)
+    q_sat = eps * es_wtr / (p_h - (1 - eps) * es_wtr) 
     freezing = T_h < 0  # replacing saturation specific humidity values below melting point
     q_sat[freezing] = eps * es_ice[freezing] / (p_h[freezing] - (1 - eps) * es_ice[freezing])
     q_h = RH_cor_h * q_sat / 100   # specific humidity in kg/kg
@@ -100,17 +105,23 @@ def to_L3(L2=None):
         z_0h[stable] = z_0*np.exp(1.5-0.2*np.log(Re[stable])-0.11*(np.log(Re[stable]))**2)
         # if n_elements(where(z_0h[stable] lt 1e-6)) gt 1 then z_0h[stable[where(z_0h[stable] lt 1e-6)]] = 1e-6
         z_0h[stable][z_0h[stable] < 1E-6] == 1E-6
-        th_star = kappa*(theta[stable]-Tsurf_h[stable])/(np.log(z_T[stable]/z_0h[stable])-psi_h2+psi_h1)
-        q_star  = kappa*(  q_h[stable]- q_surf[stable])/(np.log(z_T[stable]/z_0h[stable])-psi_h2+psi_h1)
-        SHF_h[stable] = rho_atm[stable]*c_pd *u_star[stable]*th_star
-        LHF_h[stable] = rho_atm[stable]*L_sub*u_star[stable]* q_star
+        th_star = kappa \
+            * (theta[stable] - Tsurf_h[stable] ) \
+            / (np.log(z_T[stable] / z_0h[stable]) - psi_h2 + psi_h1)
+        q_star  = kappa *(q_h[stable] - q_surf[stable]) \
+            / (np.log(z_T[stable] / z_0h[stable]) - psi_h2 + psi_h1)
+        SHF_h[stable] = rho_atm[stable] * c_pd * u_star[stable] * th_star
+        LHF_h[stable] = rho_atm[stable] * L_sub * u_star[stable] * q_star
         L_prev = L[stable]
-        L[stable] = u_star[stable]**2*(theta[stable]+T_0)*(1+((1-eps)/eps)*q_h[stable])/(g*kappa*th_star*(1+((1-eps)/eps)*q_star))
+        L[stable] = u_star[stable]**2 \
+            * (theta[stable] + T_0)\
+            * (1 + ((1-eps) / eps) * q_h[stable]) \
+            / (g * kappa * th_star * (1 + ((1-eps)/eps) * q_star))
         L_dif = np.abs((L_prev-L[stable])/L_prev)
         # print,"HF iterations stable stratification: ",i+1,n_elements(where(L_dif gt L_dif_max)),100.*n_elements(where(L_dif gt L_dif_max))/n_elements(where(L_dif))
         # if n_elements(where(L_dif gt L_dif_max)) eq 1 then break
         if np.all(L_dif <= L_dif_max):
-            print("LDIF BREAK: ", i)
+            # print("LDIF BREAK: ", i)
             break
     
     if len(unstable) > 0:
@@ -125,41 +136,53 @@ def to_L3(L2=None):
             psi_h2 = np.log(((1+y2)/2)**2)
             u_star[unstable] = kappa*WS_h[unstable]/(np.log(z_WS[unstable]/z_0)-psi_m2+psi_m1)
             Re[unstable] = u_star[unstable]*z_0/nu[unstable]
-            z_0h[unstable] = z_0*np.exp(1.5-0.2*np.log(Re[unstable])-0.11*(np.log(Re[unstable]))**2)
+            z_0h[unstable] = z_0 * np.exp(1.5 - 0.2 * np.log(Re[unstable]) - 0.11 \
+                                          * (np.log(Re[unstable]))**2)
             # if n_elements(where(z_0h[unstable] lt 1e-6)) gt 1 then z_0h[unstable[where(z_0h[unstable] lt 1e-6)]] = 1e-6
             z_0h[stable][z_0h[stable] < 1E-6] == 1E-6
-            th_star = kappa*(theta[unstable]-Tsurf_h[unstable])/(np.log(z_T[unstable]/z_0h[unstable])-psi_h2+psi_h1)
-            q_star  = kappa*(  q_h[unstable]- q_surf[unstable])/(np.log(z_T[unstable]/z_0h[unstable])-psi_h2+psi_h1)
-            SHF_h[unstable] = rho_atm[unstable]*c_pd *u_star[unstable]*th_star
-            LHF_h[unstable] = rho_atm[unstable]*L_sub*u_star[unstable]* q_star
+            th_star = kappa * (theta[unstable] - Tsurf_h[unstable]) \
+                / (np.log(z_T[unstable] / z_0h[unstable]) - psi_h2 + psi_h1)
+            q_star  = kappa * (q_h[unstable] - q_surf[unstable]) \
+                / (np.log(z_T[unstable] / z_0h[unstable]) - psi_h2 + psi_h1)
+            SHF_h[unstable] = rho_atm[unstable] * c_pd * u_star[unstable] * th_star
+            LHF_h[unstable] = rho_atm[unstable] * L_sub * u_star[unstable] * q_star
             L_prev = L[unstable]
-            L[unstable] = u_star[unstable]**2*(theta[unstable]+T_0)*(1+((1-eps)/eps)*q_h[unstable])/(g*kappa*th_star*(1+((1-eps)/eps)*q_star))
+            L[unstable] = u_star[unstable]**2 * (theta[unstable]+T_0) \
+                * ( 1 + ((1-eps) / eps) * q_h[unstable]) \
+                / (g * kappa * th_star * ( 1 + ((1-eps) / eps) * q_star))
             L_dif = abs((L_prev-L[unstable])/L_prev)
             # print,"HF iterations unstable stratification: ",i+1,n_elements(where(L_dif gt L_dif_max)),100.*n_elements(where(L_dif gt L_dif_max))/n_elements(where(L_dif))
             # if n_elements(where(L_dif gt L_dif_max)) eq 1 then break
             if np.all(L_dif <= L_dif_max):
-                print("LDIF BREAK: ", i)
+                # print("LDIF BREAK: ", i)
                 break
     
                
     q_h = 1000 * q_h            # from kg/kg to g/kg
-    HF_nan = np.isnan(p_h) | np.isnan(T_h) | np.isnan(Tsurf_h) | np.isnan(RH_cor_h) | np.isnan(WS_h) | np.isnan(ds_h['z_boom'])
+    HF_nan = np.isnan(p_h) \
+        | np.isnan(T_h) \
+        | np.isnan(Tsurf_h) \
+        | np.isnan(RH_cor_h) \
+        | np.isnan(WS_h) \
+        | np.isnan(ds_h['z_boom'])
     qh_nan = np.isnan(T_h) | np.isnan(RH_cor_h) | np.isnan(p_h) | np.isnan(Tsurf_h)
     SHF_h[HF_nan] = np.nan
     LHF_h[HF_nan] = np.nan
     q_h[qh_nan] = np.nan
 
     
-    ds_h['SHF'] = (('time'), SHF_h)
-    ds_h['LHF'] = (('time'), LHF_h)
-    ds_h['qh'] = (('time'), q_h)
+    ds_h['SHF'] = (('time'), SHF_h.data)
+    ds_h['LHF'] = (('time'), LHF_h.data)
+    ds_h['qh'] = (('time'), q_h.data)
 
     
     ## Compute daily average
     # ds_d = ds_h.resample({'time':"1D"}).mean() # this takes ~2-3 minutes
     ## https://github.com/pydata/xarray/issues/4498 & https://stackoverflow.com/questions/64282393/
     df_d = ds_h.to_dataframe().resample("1D").mean()
-    vals = [xr.DataArray(data=df_d[c], dims=['time'], coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
+    vals = [xr.DataArray(
+        data=df_d[c], dims=['time'], coords={'time':df_d.index}, attrs=ds_h[c].attrs)
+            for c in df_d.columns]
     ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)
 
     return [ds_h, ds_d]

@@ -272,33 +272,29 @@ def to_L2(L1=None):
     # from IPython import embed; embed()
     # print,'- Sun in view of upper sensor / workable albedos:',n_elements(OKalbedos),100*n_elements(OKalbedos)/n_elements(ds['dsr']),'%'
     valid = (~(ds['dsr_cor'].isnull())).sum()
-    print('- Sun in view of upper sensor / workable albedos:',
-          OKalbedos.sum().values,
-          (100*OKalbedos.sum()/valid).round().values,
-          "%")
+    # print('- Sun in view of upper sensor / workable albedos:',
+    #       OKalbedos.sum().values,
+    #       (100*OKalbedos.sum()/valid).round().values,
+    #       "%")
     
-    # print,'- Sun below horizon:',n_elements(sundown),100*n_elements(sundown)/n_elements(ds['dsr']),'%'
-    print('- Sun below horizon:',
-          sundown.sum(),
-          (100*sundown.sum()/valid).round().values,
-          "%")
+    # print('- Sun below horizon:',
+    #       sundown.sum(),
+    #       (100*sundown.sum()/valid).round().values,
+    #       "%")
     
-    # print,'- Sun in view of lower sensor:',n_elements(sunonlowerdome),100*n_elements(sunonlowerdome)/n_elements(ds['dsr']),'%'
-    print('- Sun in view of lower sensor:',
-          sunonlowerdome.sum().values,
-          (100*sunonlowerdome.sum()/valid).round().values,
-          "%")
+    # print('- Sun in view of lower sensor:',
+    #       sunonlowerdome.sum().values,
+    #       (100*sunonlowerdome.sum()/valid).round().values,
+    #       "%")
     
-    # print,'- Spikes removed using TOA criteria:',n_elements(TOA_crit_nopass),100*n_elements(TOA_crit_nopass)/n_elements(ds['dsr']),'%'
-    print('- Spikes removed using TOA criteria:',
-          TOA_crit_nopass.sum().values,
-          (100*TOA_crit_nopass.sum()/valid).round().values,
-          "%")
+    # print('- Spikes removed using TOA criteria:',
+    #       TOA_crit_nopass.sum().values,
+    #       (100*TOA_crit_nopass.sum()/valid).round().values,
+    #       "%")
     
-    # print,'- Mean net SR change by corrections:',total(ds['dsr']_cor-ds['uswr_cor']-ds['dsr']+SRout)/n_elements(ds['dsr']),' W/m2'
-    print('- Mean net SR change by corrections:',
-          (ds['dsr_cor']-ds['usr_cor']-ds['dsr']+ds['usr']).sum().values/valid.values,
-          "W/m2")
+    # print('- Mean net SR change by corrections:',
+    #       (ds['dsr_cor']-ds['usr_cor']-ds['dsr']+ds['usr']).sum().values/valid.values,
+    #       "W/m2")
     
     
     # ds['wspd_x'] = ds['wspd'] * np.sin(ds['wdir'] * deg2rad)

@@ -1,30 +1,22 @@
 #!/usr/bin/env python
 
-import re
-import shapely
-from shapely import geometry
-import os
-import sys
-import numpy as np
-import pandas as pd
 import os
 import numpy as np
 import pandas as pd
-import pathlib
-pd.set_option('display.precision', 2)
 import xarray as xr
-xr.set_options(keep_attrs=True)
+import logging
 
+# logging.basicConfig(format="{asctime} : ({filename}:{lineno}) : {message} ", style="{")
 
 def _flag_NAN(ds):
-
     # Read in the flag CSV
-    # For each variable, and downstream dependents, flag as invalid (or other) if set in the flag CSV
+    # For each variable, and downstream dependents, flag as invalid
+    # (or other) if set in the flag CSV
     
     flag_file = "./data/flags/" + ds.attrs["station_id"] + ".csv"
     
-    if not pathlib.Path(flag_file).is_file():
-        print("No flag file")
+    if not os.path.isfile(flag_file):
+        logging.warning(f'Flag file not found - no data flagged')
         return ds # no flag file
     
     df = pd.read_csv(flag_file, parse_dates=[0,1], comment="#") \

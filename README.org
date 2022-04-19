@@ -186,6 +186,80 @@ We use the following processing levels, described textually and graphically.
 
 * Example code
 
+#+BEGIN_SRC python :results output
+from promiceAWS import promiceAWS
+pAWS = promiceAWS(config_file='./test_data/L0/config/QAS_L.toml', data_dir='./test_data')
+# pAWS = promiceAWS(config_file='./test_data/L0/config/QAS_L_2file.toml', data_dir='./test_data')
+
+pAWS.process()
+print(pAWS.L3_d)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+<xarray.Dataset>
+Dimensions:     (time: 134)
+Coordinates:
+  ,* time        (time) datetime64[ns] 2021-09-01 2021-09-02 ... 2022-01-12
+Data variables: (12/65)
+    rec         (time) float64 9.994e+08 9.994e+08 9.995e+08 ... nan 1.011e+09
+    p           (time) float64 978.9 981.1 985.3 976.1 ... 967.0 943.0 nan 945.0
+    t_1         (time) float64 6.365 4.902 3.22 4.751 ... -11.91 -8.65 nan -9.24
+    t_2         (time) float64 6.368 4.918 3.169 4.712 ... -11.9 -8.64 nan -9.21
+    rh          (time) float64 73.91 88.07 99.71 72.17 ... 61.05 81.0 nan 85.6
+    wspd        (time) float64 4.913 4.782 2.848 3.138 ... 6.375 10.22 nan 6.054
+    ...          ...
+    SHF         (time) float64 13.98 31.59 11.73 -20.69 ... -7.804 nan 1.848
+    LHF         (time) float64 13.98 31.59 11.73 -20.69 ... -7.804 nan 1.848
+    qh          (time) float64 4.518 4.836 4.855 3.828 ... 1.702 nan 1.714
+    lon         float64 -46.85
+    lat         float64 61.03
+    alt         float64 247.0
+Attributes: (12/55)
+    latitude:                        61.03
+    longitude:                       46.85
+    station_id:                      QAS_L
+    featureType:                     timeSeries
+    title:                           PROMICE AWS data (QAS_L)
+    summary:                         The Programme for Monitoring of the Gree...
+    ...                              ...
+    keywords_vocabulary:             GCMDSK:GCMD Science Keywords:https://gcm...
+    instrument:                      See https://doi.org/10.5194/essd-13-3819...
+    references:                      Fausto, R. S., van As, D., Mankoff, K. D...
+    references_bib:                  @article{Fausto2021,\n    doi = {10.5194...
+    comment:                         Data source: https://doi.org/10.22008/pr...
+    project:                         PROMICE
+#+end_example
+
+
+#+BEGIN_SRC python :results output :python /home/kdm/local/miniconda3/envs/PROMICE_dev/bin/python
+from promiceAWS import promiceAWS
+pap = promiceAWS(config_file='./test_data/L0/config/QAS_L.toml', data_dir='./test_data')
+
+from promiceAWS import L0_to_L1 as L0
+pap.L1 = [L0.to_L1(item) for item in pap.L0]
+
+from promiceAWS import merge
+pap.L1A = merge.merge(pap.L1)
+
+from promiceAWS import L1_to_L2 as L1
+pap.L2 = L1.to_L2(pap.L1A)
+
+from promiceAWS import L2_to_L3 as L2
+pap.L3_h, pap.L3_d = L2.to_L3(pap.L2)
+
+from promiceAWS import cf_acdd as cf_acdd
+pap.L3_h = cf_acdd.cf_and_acdd(pap.L3_h)
+pap.L3_d = cf_acdd.cf_and_acdd(pap.L3_d)
+
+print(pap)
+#+END_SRC
+
+#+RESULTS:
+: LDIF BREAK:  5
+: LDIF BREAK:  1
+: <promiceAWS.promiceAWS.promiceAWS object at 0x7fea68acf4c0>
+
 ** Process one file
 
 #+BEGIN_SRC python :results output :python /home/kdm/local/miniconda3/envs/PROMICE_dev/bin/python :session pap :tangle test.py

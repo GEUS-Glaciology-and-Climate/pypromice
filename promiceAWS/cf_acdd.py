@@ -5,21 +5,24 @@ import xarray as xr
 import pandas as pd
 import datetime
 
-def cf_and_acdd(L3 = None):
+xr.set_options(keep_attrs=True)
 
-    ds = L3
-    
+def cf_and_acdd(ds):
+    # ds.attrs = attrs
     # load CSV to NetCDF lookup variable lookup table
-    v = pd.read_csv('./variables.csv', index_col=0)
-    vf = v.set_index('field')
+    vf = pd.read_csv('variables.csv', index_col=0)
+    # print(v.columns)
+    # # return ds
+    # vf = v.set_index('field')
 
     ds.attrs["featureType"] = "timeSeries"
     
     # ds['time'].encoding['units'] = 'hours since 2016-05-01 00:00:00'
     # ds['time'] = ds['time'].astype('datetime64[D]')
-    
+
     # Add CF metdata
     for k in ds.keys():
+        if k not in vf.index: continue
         ds[k].attrs['standard_name'] = vf.loc[k]['standard_name']
         ds[k].attrs['long_name'] = vf.loc[k]['long_name']
         ds[k].attrs['units'] = vf.loc[k]['units']
@@ -51,7 +54,7 @@ def cf_and_acdd(L3 = None):
     # # ds['station_name'].attrs['long_name'] = 'station name'
     # ds['station_name'].attrs['cf_role'] = 'timeseries_id'
     
-    ds['albedo_70'].attrs['units'] = '-'
+    ds['albedo'].attrs['units'] = '-'
     # for k in ds.keys(): # for each var
     #     if 'units' in ds[k].attrs:        
     #         if ds[k].attrs['units'] == 'C':
@@ -210,13 +213,14 @@ def cf_and_acdd(L3 = None):
     
     ds.attrs['project'] = 'PROMICE'
     
-    for vv in ['p', 't_1', 't_2', 'rh', 'sh', 'wspd', 'wdir', 'z_boom', 'z_stake', 'z_pt',
+    for vv in ['p', 't_1', 't_2', 'rh', 'rh_cor', 'wspd', 'wdir', 'z_boom', 'z_stake', 'z_pt',
                't_i_1', 't_i_2', 't_i_3', 't_i_4', 't_i_5', 't_i_6', 't_i_7', 't_i_8',
                'tilt_x', 'tilt_y', 't_log']:
         ds[vv].attrs['coverage_content_type'] = 'physicalMeasurement'
         ds[vv].attrs['coordinates'] = "time lat lon alt"
     
-    for vv in ['dshf', 'dlhf', 'dsr', 'dsr_cor', 'usr', 'usr_cor', 'albedo_70', 'dlr', 'ulr', 'cc', 't_surf', 'z_pt_cor']:
+    for vv in ['dshf', 'dlhf', 'dsr', 'dsr_cor', 'usr', 'usr_cor',
+               'albedo', 'dlr', 'ulr', 'cc', 't_surf']:
         ds[vv].attrs['coverage_content_type'] = 'modelResult'
         ds[vv].attrs['coordinates'] = "time lat lon alt"
     
@@ -247,27 +251,3 @@ def cf_and_acdd(L3 = None):
     
     ds.time.encoding["dtype"] = "int32" # CF standard requires time as int not int64
     return ds
-
-
-
-def to_csv(L3 = None, filename: str = None):
-    print('Not implemented')
-
-def to_netcdf(L3 = None, filename: str = None):
-    print('Not implemented')
-
-    # outpath = os.path.split(infile)[0].split("/")
-    # outpath[-2] = 'L3'
-    # outpath = '/'.join(outpath)
-    # outfile_base = os.path.splitext(os.path.basename(infile))[0]
-    # outpathfile = outpath + '/' + outfile_base
-    
-    # ds.to_dataframe().dropna(how='all').to_csv(outpathfile+".csv", float_format="%.7f")
-    
-    # if os.path.exists(outpathfile+"_hour.nc"): os.remove(outpathfile+"_hour.nc")
-    # ds_h.to_netcdf(outpathfile+"_hour.nc", mode='w', format='NETCDF4', compute=True)
-    # ds_h.to_dataframe().dropna(how='all').to_csv(outpathfile+"_hour.csv", float_format="%.2f")
-    
-    # if os.path.exists(outpathfile+"_day.nc"): os.remove(outpathfile+"_day.nc")
-    # ds_d.to_netcdf(outpathfile+"_day.nc", mode='w', format='NETCDF4', compute=True)
-    # ds_d.to_dataframe().dropna(how='all').to_csv(outpathfile+"_day.csv")
