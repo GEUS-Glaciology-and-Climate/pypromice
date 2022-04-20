@@ -134,3 +134,23 @@ class promiceAWS:
         self.L3_h, self.L3_d = L2.to_L3(self.L2)
         self.L3_h = cf_acdd.cf_and_acdd(self.L3_h)
         self.L3_d = cf_acdd.cf_and_acdd(self.L3_d)
+
+        # # NOTE: process() can be implemented outside of this class with:
+        # from promiceAWS import promiceAWS
+        # pap = promiceAWS(config_file='./test_data/L0/config/QAS_L.toml', data_dir='./test_data')
+
+        # from promiceAWS import L0_to_L1 as L0
+        # pap.L1 = [L0.to_L1(item) for item in pap.L0]
+
+        # from promiceAWS import merge
+        # pap.L1A = merge.merge(pap.L1)
+
+        # from promiceAWS import L1_to_L2 as L1
+        # pap.L2 = L1.to_L2(pap.L1A)
+
+        # from promiceAWS import L2_to_L3 as L2
+        # pap.L3_h, pap.L3_d = L2.to_L3(pap.L2)
+
+        # from promiceAWS import cf_acdd as cf_acdd
+        # pap.L3_h = cf_acdd.cf_and_acdd(pap.L3_h)
+        # pap.L3_d = cf_acdd.cf_and_acdd(pap.L3_d)
