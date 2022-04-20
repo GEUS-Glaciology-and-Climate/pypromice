@@ -106,7 +106,7 @@ def to_L3(L2=None):
         # if n_elements(where(z_0h[stable] lt 1e-6)) gt 1 then z_0h[stable[where(z_0h[stable] lt 1e-6)]] = 1e-6
         z_0h[stable][z_0h[stable] < 1E-6] == 1E-6
         th_star = kappa \
-            * (theta[stable] - Tsurf_h[stable] ) \
+            * (theta[stable] - Tsurf_h[stable]) \
             / (np.log(z_T[stable] / z_0h[stable]) - psi_h2 + psi_h1)
         q_star  = kappa *(q_h[stable] - q_surf[stable]) \
             / (np.log(z_T[stable] / z_0h[stable]) - psi_h2 + psi_h1)
@@ -171,8 +171,8 @@ def to_L3(L2=None):
     q_h[qh_nan] = np.nan
 
     
-    ds_h['SHF'] = (('time'), SHF_h.data)
-    ds_h['LHF'] = (('time'), LHF_h.data)
+    ds_h['dshf'] = (('time'), SHF_h.data)
+    ds_h['dlhf'] = (('time'), LHF_h.data)
     ds_h['qh'] = (('time'), q_h.data)
 
     
