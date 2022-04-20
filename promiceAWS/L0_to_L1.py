@@ -164,11 +164,10 @@ def to_L1(L0=None):
         ds['z_pt'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af
     
         # Calculate pressure transducer depth
-        ds['z_pt_corr'] = ds['z_pt'] * np.nan # new 'z_pt_corr' copied from 'z_pt'
-        ds['z_pt_corr'].attrs['long_name'] = ds['z_pt'].long_name + " corrected"
-        ds['z_pt_corr'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af \
-            + 100 * (ds.attrs['pt_z_p_coef'] - ds['p']) / (rho_af * 9.81)
-    
+        ds['z_pt_cor'] = ds['z_pt'] * np.nan # new 'z_pt_cor' copied from 'z_pt'
+        ds['z_pt_cor'].attrs['long_name'] = ds['z_pt'].long_name + " corrected"
+        ds['z_pt_cor'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] \
+            * 998.0 / rho_af + 100 * (ds.attrs['pt_z_p_coef'] - ds['p']) / (rho_af * 9.81)
     
     # Decode GPS
     if ds['gps_lat'].dtype.kind == 'O': # not a float. Probably has "NH"

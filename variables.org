@@ -80,6 +80,6 @@ cat ./variables.csv
 | z_boom_ice  | distance_to_ice_surface_from_boom               | Ice height                                         | m                   |   0 |      3 |                                          | derived (L2 or later)                                                    |                              |
 | z_surf      | surface_height                                  | Surface height                                     | m                   |   0 |        |                                          | derived (L2 or later)                                                    |                              |
 | z_ice       | ice_surface_height                              | Ice surface height                                 | m                   |   0 |        |                                          | derived (L2 or later)                                                    |                              |
-| rh_cor      | relative_humidity                               | Relative humidity (corrected)                      | %                   |   0 |    100 |                                          | derived (L2 or later)                                                    | SpecificHumidity(g/kg)       |
+| qh          | specific_humidity                               | Specific humidity                                  | %                   |   0 |    100 |                                          | derived (L2 or later)                                                    | SpecificHumidity(g/kg)       |
 
 
