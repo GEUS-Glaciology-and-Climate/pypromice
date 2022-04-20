@@ -20,47 +20,43 @@
 
 ** Command line
 
-#+BEGIN_SRC bash :results output
+#+BEGIN_SRC bash :results output :exports both
 python promiceAWS.py --config_file=./test_data/L0/config/QAS_L.toml --data_dir=./test_data
-ls -l ./test_data/L3/QAS_L
+ls ./test_data/L3/QAS_L
 #+END_SRC
 
 #+RESULTS:
-: total 2760
-: -rw-rw-r-- 1 kdm kdm   82838 Apr 20 06:45 QAS_L_day.csv
-: -rw-rw-r-- 1 kdm kdm  201663 Apr 20 06:45 QAS_L_day.nc
-: -rw-rw-r-- 1 kdm kdm  860268 Apr 20 06:45 QAS_L_hour.csv
-: -rw-rw-r-- 1 kdm kdm 1668640 Apr 20 06:45 QAS_L_hour.nc
+: QAS_L_day.csv
+: QAS_L_day.nc
+: QAS_L_hour.csv
+: QAS_L_hour.nc
 
 ** Command line: parallelized
 
-#+BEGIN_SRC bash :results output
+#+BEGIN_SRC bash :results output :exports both
 parallel --bar "python promiceAWS.py --config_file={1} --data_dir=./test_data" ::: $(ls ./test_data/L0/config/*)
-ls -l ./test_data/L3/*/
+ls ./test_data/L3/*/
 #+END_SRC
 
 #+RESULTS:
 #+begin_example
 ./test_data/L3/QAS_L/:
-total 2760
--rw-rw-r-- 1 kdm kdm   82838 Apr 20 06:49 QAS_L_day.csv
--rw-rw-r-- 1 kdm kdm  201663 Apr 20 06:49 QAS_L_day.nc
--rw-rw-r-- 1 kdm kdm  860268 Apr 20 06:49 QAS_L_hour.csv
--rw-rw-r-- 1 kdm kdm 1668640 Apr 20 06:49 QAS_L_hour.nc
+QAS_L_day.csv
+QAS_L_day.nc
+QAS_L_hour.csv
+QAS_L_hour.nc
 
 ./test_data/L3/QAS_M/:
-total 2792
--rw-rw-r-- 1 kdm kdm   91846 Apr 20 06:49 QAS_M_day.csv
--rw-rw-r-- 1 kdm kdm  201711 Apr 20 06:49 QAS_M_day.nc
--rw-rw-r-- 1 kdm kdm  868088 Apr 20 06:49 QAS_M_hour.csv
--rw-rw-r-- 1 kdm kdm 1691640 Apr 20 06:49 QAS_M_hour.nc
+QAS_M_day.csv
+QAS_M_day.nc
+QAS_M_hour.csv
+QAS_M_hour.nc
 
 ./test_data/L3/QAS_U/:
-total 2784
--rw-rw-r-- 1 kdm kdm   91221 Apr 20 06:49 QAS_U_day.csv
--rw-rw-r-- 1 kdm kdm  201653 Apr 20 06:49 QAS_U_day.nc
--rw-rw-r-- 1 kdm kdm  877620 Apr 20 06:49 QAS_U_hour.csv
--rw-rw-r-- 1 kdm kdm 1668140 Apr 20 06:49 QAS_U_hour.nc
+QAS_U_day.csv
+QAS_U_day.nc
+QAS_U_hour.csv
+QAS_U_hour.nc
 #+end_example
 
 ** Python
