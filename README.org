@@ -22,24 +22,47 @@
 ** Command line
 
 #+BEGIN_SRC bash :results output
-promiceAWS --config_file=./test_data/L0/config/QAS_L.toml --data_dir=./test_data
+python promiceAWS.py --config_file=./test_data/L0/config/QAS_L.toml --data_dir=./test_data
 ls -l ./test_data/L3/QAS_L
 #+END_SRC
 
 #+RESULTS:
-: total 2492
-: -rw-rw-r-- 1 kdm kdm  442621 Apr  7 07:31 QAS_L-TX.csv
-: -rw-rw-r-- 1 kdm kdm   67413 Apr  7 07:31 QAS_L-TX_day.csv
-: -rw-rw-r-- 1 kdm kdm  173907 Apr  7 07:31 QAS_L-TX_day.nc
-: -rw-rw-r-- 1 kdm kdm  272342 Apr  7 07:31 QAS_L-TX_hour.csv
-: -rw-rw-r-- 1 kdm kdm 1582292 Apr  7 07:31 QAS_L-TX_hour.nc
+: total 2760
+: -rw-rw-r-- 1 kdm kdm   82838 Apr 20 06:45 QAS_L_day.csv
+: -rw-rw-r-- 1 kdm kdm  201663 Apr 20 06:45 QAS_L_day.nc
+: -rw-rw-r-- 1 kdm kdm  860268 Apr 20 06:45 QAS_L_hour.csv
+: -rw-rw-r-- 1 kdm kdm 1668640 Apr 20 06:45 QAS_L_hour.nc
 
 ** Command line: parallelized
 
 #+BEGIN_SRC bash :results output
-parallel "promiceAWS --config_file={1} --data_dir=./test_data" ::: $(ls ./test_data/L0/config/)
+parallel --bar "python promiceAWS.py --config_file={1} --data_dir=./test_data" ::: $(ls ./test_data/L0/config/*)
 ls -l ./test_data/L3/*/
 #+END_SRC
+
+#+RESULTS:
+#+begin_example
+./test_data/L3/QAS_L/:
+total 2760
+-rw-rw-r-- 1 kdm kdm   82838 Apr 20 06:49 QAS_L_day.csv
+-rw-rw-r-- 1 kdm kdm  201663 Apr 20 06:49 QAS_L_day.nc
+-rw-rw-r-- 1 kdm kdm  860268 Apr 20 06:49 QAS_L_hour.csv
+-rw-rw-r-- 1 kdm kdm 1668640 Apr 20 06:49 QAS_L_hour.nc
+
+./test_data/L3/QAS_M/:
+total 2792
+-rw-rw-r-- 1 kdm kdm   91846 Apr 20 06:49 QAS_M_day.csv
+-rw-rw-r-- 1 kdm kdm  201711 Apr 20 06:49 QAS_M_day.nc
+-rw-rw-r-- 1 kdm kdm  868088 Apr 20 06:49 QAS_M_hour.csv
+-rw-rw-r-- 1 kdm kdm 1691640 Apr 20 06:49 QAS_M_hour.nc
+
+./test_data/L3/QAS_U/:
+total 2784
+-rw-rw-r-- 1 kdm kdm   91221 Apr 20 06:49 QAS_U_day.csv
+-rw-rw-r-- 1 kdm kdm  201653 Apr 20 06:49 QAS_U_day.nc
+-rw-rw-r-- 1 kdm kdm  877620 Apr 20 06:49 QAS_U_hour.csv
+-rw-rw-r-- 1 kdm kdm 1668140 Apr 20 06:49 QAS_U_hour.nc
+#+end_example
 
 ** Python
 
@@ -49,6 +72,8 @@ pAWS = promiceAWS(config_file='./test_data/L0/config/QAS_L.toml', data_dir='./te
 pAWS.process()
 pAWS.write(data_dir='./test_data') # Saves L3 data 4x: Daily and hourly in both CSV and NetCDF format
 #+END_SRC
+
+#+RESULTS:
 
 * Introduction
 

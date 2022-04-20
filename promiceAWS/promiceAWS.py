@@ -154,3 +154,20 @@ class promiceAWS:
         # from promiceAWS import cf_acdd as cf_acdd
         # pap.L3_h = cf_acdd.cf_and_acdd(pap.L3_h)
         # pap.L3_d = cf_acdd.cf_and_acdd(pap.L3_d)
+
+    def write(self, data_dir=None):
+        if data_dir is None: data_dir = self.data_dir
+        
+        outpath = os.path.join(data_dir, 'L3', self.L3_h.attrs['station_id'])
+        if not os.path.exists(outpath): os.mkdir(outpath)
+        outfile = os.path.join(outpath, self.L3_h.attrs['station_id'])
+
+        # CSV
+        self.L3_h.to_dataframe().dropna(how='all').to_csv(outfile+'_hour.csv')#,float_format='%.3f')
+        self.L3_d.to_dataframe().dropna(how='all').to_csv(outfile+'_day.csv')#,float_format='%.3f')
+
+        # NetCDF
+        if os.path.exists(outfile+'_hour.nc'): os.remove(outfile+'_hour.nc')
+        if os.path.exists(outfile+'_day.nc'): os.remove(outfile+'_day.nc')
+        self.L3_h.to_netcdf(outfile+'_hour.nc', mode='w', format='NETCDF4', compute=True)
+        self.L3_d.to_netcdf(outfile+'_day.nc', mode='w', format='NETCDF4', compute=True)
