@@ -260,17 +260,20 @@ def to_L1(L0=None):
     
     # if n_elements(OKtiltX) gt 1 then tiltX[notOKtiltX] = interpol(tiltX[OKtiltX],OKtiltX,notOKtiltX) ; Interpolate over gaps for radiation correction; set to -999 again below.
     # if n_elements(OKtiltY) gt 1 then tiltY[notOKtiltY] = interpol(tiltY[OKtiltY],OKtiltY,notOKtiltY) ; Interpolate over gaps for radiation correction; set to -999 again below.
-    
     ds['tilt_x'] = ds['tilt_x'].where(~notOKtiltX)
     ds['tilt_y'] = ds['tilt_y'].where(~notOKtiltY)
-    ds['tilt_x'] = ds['tilt_x'].interpolate_na(dim='time')
-    ds['tilt_y'] = ds['tilt_y'].interpolate_na(dim='time')
-    # ds['tilt_x'] = ds['tilt_x'].ffill(dim='time')
-    # ds['tilt_y'] = ds['tilt_y'].ffill(dim='time')
-    
+
+    ### NOTE / WARNING / TODO / BUG
+    ## Filling w/o considering time gaps to re-create IDL/GDL outputs
+    ## Should fill with coordinate not False. Also consider 'max_gap' option?
+    ds['tilt_x'] = ds['tilt_x'].interpolate_na(dim='time', use_coordinate=False)
+    ds['tilt_y'] = ds['tilt_y'].interpolate_na(dim='time', use_coordinate=False)
+    # ds['tilt_x'] = ds['tilt_x'].interpolate_na(dim='time')
+    # ds['tilt_y'] = ds['tilt_y'].interpolate_na(dim='time', )
     
     deg2rad = np.pi / 180
     ds['wdir'] = ds['wdir'].where(ds['wspd'] != 0)
     ds['wspd_x'] = ds['wspd'] * np.sin(ds['wdir'] * deg2rad)
     ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
+
     return ds

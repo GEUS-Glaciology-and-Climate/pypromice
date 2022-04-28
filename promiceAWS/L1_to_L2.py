@@ -35,7 +35,6 @@ def to_L2(L1=None):
     # set to Geoff & Gratch values when freezing, otherwise just rh.
     ds['rh_cor'] = ds['rh'].where(~freezing, other = ds['rh']*(e_s_wtr / e_s_ice))
     
-    
     # https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/23
     # Just adding special treatment here in service of replication. rh_cor is clipped not NaN'd
     # https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
@@ -206,7 +205,7 @@ def to_L2(L1=None):
     # from IPython import embed; embed()
     
     ds['albedo'] = ds['usr'] / ds['dsr_cor']
-    albedo_nan = np.isnan(ds['albedo']) # store existing NaN
+    # albedo_nan = np.isnan(ds['albedo']) # store existing NaN
     OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (ds['albedo'] < 1) & (ds['albedo'] > 0)
     ds['albedo'][~OKalbedos] = np.nan
     
@@ -262,8 +261,8 @@ def to_L2(L1=None):
     
     ds['dsr_cor'][TOA_crit_nopass] = np.nan
     ds['usr_cor'][TOA_crit_nopass] = np.nan
-    ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time')
-    ds['usr_cor'] = ds['usr_cor'].interpolate_na(dim='time')
+    ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time', use_coordinate=False)
+    ds['usr_cor'] = ds['usr_cor'].interpolate_na(dim='time', use_coordinate=False)
     #ds['dsr_cor'] = ds['dsr_cor'].ffill(dim='time')
     #ds['usr_cor'] = ds['usr_cor'].ffill(dim='time')
     # ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time', method='linear', limit=12, max_gap='2H')
