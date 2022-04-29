@@ -1,0 +1,16 @@
+LICENSE.txt
+README.md
+setup.py
+bin/promiceAWS-cmd
+src/promiceAWS/L0_to_L1.py
+src/promiceAWS/L1_to_L2.py
+src/promiceAWS/L2_to_L3.py
+src/promiceAWS/__init__.py
+src/promiceAWS/cf_acdd.py
+src/promiceAWS/merge.py
+src/promiceAWS/promiceAWS.py
+src/promice_aws_processing.egg-info/PKG-INFO
+src/promice_aws_processing.egg-info/SOURCES.txt
+src/promice_aws_processing.egg-info/dependency_links.txt
+src/promice_aws_processing.egg-info/requires.txt
+src/promice_aws_processing.egg-info/top_level.txt
