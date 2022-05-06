@@ -160,15 +160,16 @@ def to_L1(L0=None):
     ds['z_stake'] = ds['z_stake'] * ((ds['t_1'] + T_0)/T_0)**0.5
     
     # Adjust pressure transducer due to fluid properties
-    if ~ds['z_pt'].isnull().all():
-        ds['z_pt'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af
-    
-        # Calculate pressure transducer depth
-        ds['z_pt_cor'] = ds['z_pt'] * np.nan # new 'z_pt_cor' copied from 'z_pt'
-        ds['z_pt_cor'].attrs['long_name'] = ds['z_pt'].long_name + " corrected"
+    if ~ds['z_pt'].isnull().all(): # TODO is this if statement needed?
+        # Corrected pressure depth
         ds['z_pt_cor'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] \
             * 998.0 / rho_af + 100 * (ds.attrs['pt_z_p_coef'] - ds['p']) / (rho_af * 9.81)
+        ds['z_pt_cor'].attrs['long_name'] = ds['z_pt'].long_name + " corrected"
+
+        # Calculate pressure transducer depth
+        ds['z_pt'] = ds['z_pt'] * ds.attrs['pt_z_coef'] * ds.attrs['pt_z_factor'] * 998.0 / rho_af
     
+        
     # Decode GPS
     if ds['gps_lat'].dtype.kind == 'O': # not a float. Probably has "NH"
         assert('NH' in ds['gps_lat'].dropna(dim='time').values[0])
