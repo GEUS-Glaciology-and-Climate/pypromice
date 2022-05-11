@@ -42,6 +42,7 @@ Install the dev version locally:
 #+BEGIN_SRC bash
 make build # or: python3 -m build
 make install # or: python3 -m pip install --upgrade .
+# now, run 'promiceAWS' more simply: promiceAWS -c /path/to/conf.toml -i /path/to/input -o /path/to/output
 #+END_SRC
 
 ** GDL
