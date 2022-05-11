@@ -1,4 +1,4 @@
-field,standard_name,long_name,units,lo,hi,OOL,comment,L3
+field,standard_name,long_name,units,lo,hi,OOL,comment,IDL
 time,time,Time,yyyy-mm-dd HH:MM:SS,,,,,
 rec,record,Record,,,,,L0 only,
 min_y,minutes,Minutes in year,min,0,527040,,L0 only,
@@ -55,4 +55,7 @@ z_boom_ice,distance_to_ice_surface_from_boom,Ice height,m,0,3,,derived (L2 or la
 z_surf,surface_height,Surface height,m,0,,,derived (L2 or later),
 z_ice,ice_surface_height,Ice surface height,m,0,,,derived (L2 or later),
 qh,specific_humidity,Specific humidity,%,0,100,,derived (L2 or later),SpecificHumidity(g/kg)
-rh_cor,relative_humidity – corrected,Relative humidity,%,0,100,,,RelativeHumidity(%)
+rh_cor,relative_humidity_corrected,Relative humidity – corrected,%,0,100,,,RelativeHumidity(%)
+usr_cor,surface_upwelling_shortwave_flux_corrected,Upwelling shortwave radiation – corrected,W m-2,0,1000,,derived (L2 or later),ShortwaveRadiationUp_Cor(W/m2)
+dsr_cor,surface_downwelling_shortwave_flux_corrected,Downwelling shortwave radiation – corrected,W m-2,50,500,,derived (L2 or later),ShortwaveRadiationDown_Cor(W/m2)
+z_pt_cor,depth_of_pressure_transducer_in_ice_corrected,Depth of pressure transducer in ice – corrected,m,0,30,,derived (L2 or later),DepthPressureTransducer_Cor(m)

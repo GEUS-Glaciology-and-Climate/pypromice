@@ -17,7 +17,12 @@
 
 ;------------------------------------------------------------------------------------------------------------------------------
 
-pro AWSdataprocessing_gdl_v3
+;; gdl -e awsdataprocessing_gdl_v3 -args infolder=./input/
+;; outfolder=./output_GDL/ metadata=./metadata/KPC_L_metadata_TX.csv
+;; station=KPC_L
+
+pro AWSdataprocessing_gdl_v3, INFOLDER=infolder, OUTFOLDER=outfolder, METADATA=metadata, STATION=aws
+;COMPILE_OPT IDL2
 !EXCEPT = 0
 ; Automatic weather station name; also name of subdirectory (without 'raw')
 ;AWS = ['QAS_U','NUK_L','NUK_U','NUK_K','KAN_L','KAN_U','UPE_L','UPE_U','THU_L','THU_U','THU_U2','KAN_M'] ; run for current PROMICE stations
@@ -28,10 +33,39 @@ pro AWSdataprocessing_gdl_v3
 ;AWS = ['KPC_L','KPC_U','SCO_L','SCO_U'] ; run for the old PROMICE stations
 ;AWS = ['THU_L','THU_U','THU_U2','TAS_L'];,'TAS_A']
 ;AWS = ['UPE_L','UPE_U','THU_L','THU_U','THU_U2','CEN'] ; run for a single PROMICE station
-AWS = ['KPC_L'] ; run for a single PROMICE station
+;AWS = ['KPC_L'] ; run for a single PROMICE station
 
-dir = './'
-datadir = './'
+
+  ;; https://www.l3harrisgeospatial.com/Support/Maintenance-Detail/ArtMID/13350/ArticleID/15670/Example-IDL-program-illustrating-an-approach-to-providing-command-line-arguments-to-a-IDL-Runtime-or-IDL-Virtual-Machine-application
+  args = COMMAND_LINE_ARGS(COUNT=argc)
+  IF argc GT 0 THEN BEGIN
+     FOREACH arg, args DO BEGIN
+        CASE STREGEX( arg, '=', /BOOLEAN ) OF
+           1 : BEGIN
+              kw_parts = STRSPLIT( arg, '=', /EXTRACT)
+              CASE STRUPCASE( STRCOMPRESS( kw_parts[0], /REMOVE_ALL ) ) OF
+                 'INFOLDER' : $
+                    infolder = STRTRIM( kw_parts[1], 2 )
+                 'OUTFOLDER' : $
+                    outfolder = STRTRIM( kw_parts[1], 2 )
+                 'METADATA' : $
+                    metadatafile = STRTRIM( kw_parts[1], 2 )
+                 'STATION' : $
+                    aws = STRTRIM( kw_parts[1], 2 )
+                 ELSE :
+              ENDCASE
+           END
+        ENDCASE
+        ENDFOREACH
+     ENDIF
+     
+     ;; Verify inputs values were handled properly
+     HELP, aws, infolder, outfolder, metadatafile, OUTPUT=output
+     PRINT, output, FORMAT='(a)'
+     FILE_MKDIR, outfolder
+
+;; dir = './'
+;; datadir = './out_test/'
 
 version_no = '_v03' ; Version of processing routine. Change when implementing a significant improvement / addition.
 columns_inst=53 ; Columns in inst. data file v03
@@ -49,10 +83,10 @@ upd=2; number of files to update from the bottom of the metadata file
 inst_output = 'no' ; If 'yes', (large) data files with the same time stamps as the input data will be generated (“instantaneous” if 10-min logger data).
 
 for i_AWS=0,n_elements(AWS)-1 do begin
-metadatafile = 'metadata/'+AWS[i_AWS]+'_metadata.csv' ; Comma-separated file with AWS information (file names, calibration coefficients, lat/lon, etc.)
+; metadatafile = 'metadata/'+AWS[i_AWS]+'_metadata.csv' ; Comma-separated file with AWS information (file names, calibration coefficients, lat/lon, etc.)
 ;metadatafile = 'metadata/'+AWS[i_AWS]+'_metadata1.csv' ; Comma-separated file with AWS information (file names, calibration coefficients, lat/lon, etc.)
 startmetadatafile=0
-nlines_meta=FILE_LINES(dir+metadatafile)
+nlines_meta=FILE_LINES(metadatafile)
 if (nlines_meta lt upd) then updaterun='no'
 ;----------------------------------------------------------------------------------------------------
 ; Reading metadata and data -------------------------------------------------------------------------
@@ -114,7 +148,7 @@ T_0 = 273.15
 
 if testrun eq 'yes' then numberofdatafiles = 2 else numberofdatafiles = nlines_meta-1
 if updaterun eq 'yes' then startmetadatafile = nlines_meta-1-upd else numberofdatafiles = nlines_meta-1 ; testing january 2019 RSF
-openr,unit,dir+metadatafile,/get_lun
+openr,unit,metadatafile,/get_lun
 header = STRARR(startmetadatafile+1)
 readf,unit,header
 for j=startmetadatafile,numberofdatafiles-1 do begin ; will stop when metadata lines are all read
@@ -198,7 +232,7 @@ for j=startmetadatafile,numberofdatafiles-1 do begin ; will stop when metadata l
     endelse
   endif
 ;  print,filename
-  openr,unit2,dir+'input/'+filename,/get_lun
+  openr,unit2,infolder+filename,/get_lun
   print,'File: ',filename
 ;  if lines_hdr gt 0 then for i=1,lines_hdr do readf,unit2,header
   if lines_hdr gt 0 then header = STRARR(lines_hdr) 
@@ -996,7 +1030,7 @@ month_cent_m = min(month_cent[where(month_cent gt 0)]) + indgen(max(month_cent[w
 if updaterun eq 'yes' then begin
   a_t=0
   columns1 = columns_hour;46 ;hour
-  filename_old = dir+datadir+AWS[i_AWS]+'_hour'+version_no+'.txt'
+  filename_old = outfolder+AWS[i_AWS]+'_hour'+version_no+'.txt'
   nlines_old=FILE_LINES(filename_old)
   line_old = fltarr(columns1,nlines_old-1)
   OPENR, lun, filename_old, /GET_LUN
@@ -1230,7 +1264,7 @@ if total(where(WSy_d eq 0 and WSx_d lt 0)) ne -1 then WD_d[where(WSy_d eq 0 and 
 if updaterun eq 'yes' then begin
   b_t=0
   columns1 = columns_day;45 ;day
-  filename_old = dir+datadir+AWS[i_AWS]+'_day'+version_no+'.txt'
+  filename_old = outfolder+AWS[i_AWS]+'_day'+version_no+'.txt'
   nlines_old=FILE_LINES(filename_old)
   line_old = fltarr(columns1,nlines_old-1)
   OPENR, lun, filename_old, /GET_LUN
@@ -1373,7 +1407,7 @@ if total(where(WSy_m eq 0 and WSx_m lt 0)) ne -1 then WD_m[where(WSy_m eq 0 and 
 if updaterun eq 'yes' then begin
   c_t=0
   columns1 = columns_mon;24 ;day
-  filename_old = dir+datadir+AWS[i_AWS]+'_month'+version_no+'.txt'
+  filename_old = outfolder+AWS[i_AWS]+'_month'+version_no+'.txt'
   nlines_old=FILE_LINES(filename_old)
   line_old = fltarr(columns1,nlines_old-1)
   OPENR, lun, filename_old, /GET_LUN
@@ -1429,9 +1463,9 @@ endif
 if inst_output eq 'yes' then begin
 format_i = '(6i5,3f8.2,2f7.1,f8.2,5f7.1,f9.3,2f7.1,3f8.2,f9.3,i5,f9.3,i5,2f9.3,10f8.2,i7,2f13.7,f7.1,2f8.2,f7.1,f8.2,f7.1,i5,f7.1,i5,f7.1,f8.2)'
 if updaterun eq 'yes' then begin
-openw,lun,dir+datadir+AWS[i_AWS]+'_inst'+version_no+'_upd.txt',/get_lun
+openw,lun,outfolder+AWS[i_AWS]+'_inst'+version_no+'_upd.txt',/get_lun
 endif else begin
-openw,lun,dir+datadir+AWS[i_AWS]+'_inst'+version_no+'.txt',/get_lun
+openw,lun,outfolder+AWS[i_AWS]+'_inst'+version_no+'.txt',/get_lun
 endelse
 printf,lun,' Year MonthOfYear DayOfMonth HourOfDay(UTC) MinuteOfHour DayOfYear'+ $
   ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity_wrtWater(%) RelativeHumidity(%)'+ $
@@ -1457,7 +1491,7 @@ print,'total_lines: ', lines_data_total
 format_h = '(6i5,3f8.2,f7.1,2f8.2,7f8.1,f9.3,2f7.1,2f8.2,4f9.3,10f8.2,i7,2f13.7,f7.1,2f8.2,f7.1,f8.2)'
 if updaterun eq 'yes' then begin
 ;----------Updating hourly data files-----------------------------------------------------------------------
-openw,lun1,dir+datadir+AWS[i_AWS]+'_hour'+version_no+'_upd.txt',/get_lun
+openw,lun1,outfolder+AWS[i_AWS]+'_hour'+version_no+'_upd.txt',/get_lun
 printf,lun1,' Year MonthOfYear DayOfMonth HourOfDay(UTC) DayOfYear DayOfCentury'+ $
   ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity(%) SpecificHumidity(g/kg)'+ $
   ' WindSpeed(m/s) WindDirection(d) SensibleHeatFlux(W/m2) LatentHeatFlux(W/m2) ShortwaveRadiationDown(W/m2) ShortwaveRadiationDown_Cor(W/m2)'+ $
@@ -1474,7 +1508,7 @@ for i=0l,a_t-index_h+n_elements(hour_cent_h)-1 do printf,lun1,format=format_h,ye
   GPStime_h[i],GPSlat_h[i],GPSlon_h[i],GPSelev_h[i],GPShdop_h[i],Tlog_h[i],Ifan_h[i],Vbat_h[i]
 free_lun,lun1
 endif else begin
-openw,lun1,dir+datadir+AWS[i_AWS]+'_hour'+version_no+'.txt',/get_lun
+openw,lun1,outfolder+AWS[i_AWS]+'_hour'+version_no+'.txt',/get_lun
 printf,lun1,' Year MonthOfYear DayOfMonth HourOfDay(UTC) DayOfYear DayOfCentury'+ $
   ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity(%) SpecificHumidity(g/kg)'+ $
   ' WindSpeed(m/s) WindDirection(d) SensibleHeatFlux(W/m2) LatentHeatFlux(W/m2) ShortwaveRadiationDown(W/m2) ShortwaveRadiationDown_Cor(W/m2)'+ $
@@ -1495,7 +1529,7 @@ endelse
 format_d = '(5i5,3f8.2,f7.1,2f8.2,7f8.1,f9.3,2f7.1,2f8.2,4f9.3,i5,10f8.2,2f13.7,f7.1,2f8.2,f7.1,f8.2)'
 if updaterun eq 'yes' then begin
 ;----------Updating daily data files-----------------------------------------------------------------------
-openw,lun2,dir+datadir+AWS[i_AWS]+'_day'+version_no+'_upd.txt',/get_lun
+openw,lun2,outfolder+AWS[i_AWS]+'_day'+version_no+'_upd.txt',/get_lun
 printf,lun2,' Year MonthOfYear DayOfMonth DayOfYear DayOfCentury'+ $
   ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity(%) SpecificHumidity(g/kg)'+ $
   ' WindSpeed(m/s) WindDirection(d) SensibleHeatFlux(W/m2) LatentHeatFlux(W/m2) ShortwaveRadiationDown(W/m2) ShortwaveRadiationDown_Cor(W/m2)'+ $
@@ -1512,7 +1546,7 @@ for i=0l,n_elements(day_cent_d)-1 do printf,lun2,format=format_d,year_d[i],month
   GPSlat_d[i],GPSlon_d[i],GPSelev_d[i],GPShdop_d[i],Tlog_d[i],Ifan_d[i],Vbat_d[i]
 free_lun,lun2
 endif else begin
-openw,lun2,dir+datadir+AWS[i_AWS]+'_day'+version_no+'.txt',/get_lun
+openw,lun2,outfolder+AWS[i_AWS]+'_day'+version_no+'.txt',/get_lun
 printf,lun2,' Year MonthOfYear DayOfMonth DayOfYear DayOfCentury'+ $
   ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity(%) SpecificHumidity(g/kg)'+ $
   ' WindSpeed(m/s) WindDirection(d) SensibleHeatFlux(W/m2) LatentHeatFlux(W/m2) ShortwaveRadiationDown(W/m2) ShortwaveRadiationDown_Cor(W/m2)'+ $
@@ -1532,7 +1566,7 @@ endelse
 format_m = '(3i5,3f8.2,f7.1,2f8.2,7f8.1,f9.3,2f7.1,f9.3,2f13.7,f7.1,i5)'
 if updaterun eq 'yes' then begin
 ;----------Updating monthly data files-----------------------------------------------------------------------
-openw,lun3,dir+datadir+AWS[i_AWS]+'_month'+version_no+'_upd.txt',/get_lun
+openw,lun3,outfolder+AWS[i_AWS]+'_month'+version_no+'_upd.txt',/get_lun
 printf,lun3,' Year MonthOfYear MonthOfCentury'+ $
   ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity(%) SpecificHumidity(g/kg)'+ $
   ' WindSpeed(m/s) WindDirection(d) SensibleHeatFlux(W/m2) LatentHeatFlux(W/m2) ShortwaveRadiationDown(W/m2) ShortwaveRadiationDown_Cor(W/m2)' + $
@@ -1543,7 +1577,7 @@ for i=0,n_elements(month_cent_m)-1 do printf,lun3,format=format_m,year_m[i],mont
   LRin_m[i],LRout_m[i],Haws_m[i],GPSlat_m[i],GPSlon_m[i],GPSelev_m[i],fanOK_m[i]
 free_lun,lun3
 endif else begin
-openw,lun3,dir+datadir+AWS[i_AWS]+'_month'+version_no+'.txt',/get_lun
+openw,lun3,outfolder+AWS[i_AWS]+'_month'+version_no+'.txt',/get_lun
 printf,lun3,' Year MonthOfYear MonthOfCentury'+ $
   ' AirPressure(hPa) AirTemperature(C) AirTemperatureHygroClip(C) RelativeHumidity(%) SpecificHumidity(g/kg)'+ $
   ' WindSpeed(m/s) WindDirection(d) SensibleHeatFlux(W/m2) LatentHeatFlux(W/m2) ShortwaveRadiationDown(W/m2) ShortwaveRadiationDown_Cor(W/m2)' + $

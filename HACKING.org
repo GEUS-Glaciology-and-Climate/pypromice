@@ -1,0 +1,405 @@
+
+#+PROPERTY: header-args:jupyter-python :kernel PROMICE_dev :session hacking :exports both
+#+PROPERTY: header-args:bash :exports both
+
+* Table of contents                               :toc_3:noexport:
+- [[#development-environments][Development Environment(s)]]
+  - [[#python][Python]]
+  - [[#gdl][GDL]]
+  - [[#idl][IDL]]
+- [[#examples-of-processed-data][Examples of processed data]]
+  - [[#python-1][Python]]
+  - [[#idlgdl][IDL/GDL]]
+- [[#debugging][Debugging]]
+  - [[#examining-and-comparing-idl-and-python-variables-internally][Examining and comparing IDL and Python variables internally]]
+  - [[#comparing-python-vs-idl-or-gdl][Comparing Python vs (IDL or GDL)]]
+  - [[#comparing-gdl-vs-idl-or-gdl][Comparing GDL vs. (IDL or GDL)]]
+
+* Development Environment(s)
+** TODO Python
+
+Set up development environment
+
+#+BEGIN_SRC bash :results verbatim :exports both
+conda create -n PROMICE_dev python=3.8 pandas xarray numpy toml
+conda activate PROMICE_dev
+
+OR
+
+pip install -r requirements.txt
+
+OR
+
+conda env creat -f environment.yml
+#+END_SRC
+
+
+
+** GDL
+
+#+BEGIN_SRC bash :results verbatim :exports both
+gdl --version
+#+END_SRC
+
+#+RESULTS:
+: GDL - GNU Data Language, Version 0.9.9
+
+
+** IDL
+
+???
+
+* Examples of processed data
+** Python
+
+#+BEGIN_SRC bash :results verbatim :exports both
+PYTHONPATH=./src python ./bin/promiceAWS --config_file=./test_data/conf/KPC_L.toml -i ./test_data/input -o ./test_data/output_py
+find ./test_data/output_py
+#+END_SRC
+
+#+RESULTS:
+: ./test_data/output_py
+: ./test_data/output_py/KPC_L
+: ./test_data/output_py/KPC_L/KPC_L_day.nc
+: ./test_data/output_py/KPC_L/KPC_L_hour.nc
+: ./test_data/output_py/KPC_L/KPC_L_hour.csv
+: ./test_data/output_py/KPC_L/KPC_L_day.csv
+
+** IDL/GDL
+
++ Note :: To compare IDL and GDL, change the =./output_GDL/= to =./output_IDL=
+
+#+BEGIN_SRC bash :results verbatim :exports both
+cd test_data
+gdl -e awsdataprocessing_gdl_v3 -args infolder=./input/ outfolder=./output_GDL/ metadata=./metadata/KPC_L_metadata_TX.csv station=KPC_L
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+% Compiled module: AWSDATAPROCESSING_GDL_V3.
+AWS             STRING    = 'KPC_L'
+INFOLDER        STRING    = './input/'
+OUTFOLDER       STRING    = './output_GDL/'
+METADATAFILE    STRING    = './metadata/KPC_L_metadata_TX.csv'
+File: KPC_L_2019_raw_transmitted.txt
+Date and time: 2019/ 7/ 12 16: 0
+% Compiled module: INTERPOL.
+% Compiled module: FINDEX.
+- Sun in view of upper sensor / workable albedos:        3297          26%
+- Sun below horizon:        2861          22%
+- Sun in view of lower sensor:         120           0%
+- Spikes removed using TOA criteria:        3043          24%
+- Mean net SR change by corrections:     -34.1017 W/m2
+total_lines:        12557
+Done with this station. Run time (minutes) =       0.23001783
+-----------------------------------------------------------
+#+end_example
+
+
+
+* Debugging
+
+** Examining and comparing IDL and Python variables internally
+
+Somewhere in the IDL or GDL code:
+#+BEGIN_SRC IDL :exports both
+save, var1, var2, varN, filename='debug.sav'
+stop # optional
+#+END_SRC
+
+Somewhere in a Python file:
+#+BEGIN_SRC python :exports both
+
+# read in the IDL variables
+from scipy.io import readsav
+idl = readsav('debug.sav')
+
+# Drop to an interactive IPython debugger
+from IPython import embed; embed()
+#+END_SRC
+#+RESULTS:
+
+
+** Comparing Python vs (IDL or GDL)
+
+The following code,
++ loads two output files (one IDL-generated, on Python-generated)
++ Renames columns so they match between the two products
++ Computes the absolute and % error for each variable
++ Prints a table of mean, standard deviation, and maximum errors for each variable
++ Plots one of the variables from each file for visual examination
+
+#+BEGIN_SRC jupyter-python :exports: both :kernel ds
+import numpy as np
+import pandas as pd
+
+station='KPC_L'
+
+pd.options.display.float_format = "{:,.5f}".format
+
+# Parse IDL/GDL date time columns
+def mydf(y,m,d,h): return pd.to_datetime(y+'-'+m+'-'+d+':'+h, format='%Y-%m-%d:%H')
+
+gdl2py_col = pd.read_csv('variables.csv')[['field','IDL']].set_index('IDL').dropna().to_dict()['field']
+
+gdl = pd.read_csv("./test_data/output_GDL/"+station+"_hour_v03.txt",
+                  delimiter="\s+", parse_dates={'time':[0,1,2,3]},
+                  infer_datetime_format=True, date_parser=mydf, index_col=0)\
+        .apply(pd.to_numeric, errors='coerce')\
+        .rename(columns=gdl2py_col)
+
+df = pd.read_csv("./test_data/output_py/"+station+"/"+station+"_hour.csv", index_col=0, parse_dates=True)
+
+subset = np.intersect1d(df.columns, gdl.columns)
+print('Common columns: ', sorted(subset), '\n')
+print('GDL columns dropped:', sorted([_ for _ in gdl.columns if _ not in subset]), '\n')
+print('Python columns dropped:', sorted([_ for _ in df.columns if _ not in subset]), '\n')
+
+df = df[subset]
+gdl = gdl[subset]
+
+# drop -999s from stats and err graphic
+err = df - gdl.replace(-999,np.nan) # need to understand data to understand error
+err_pct = (err / gdl.replace(-999,np.nan).mean(axis='rows'))*100 # % err but should work as long as mean != 0
+
+err_desc = err.abs().describe().T.drop(columns=['count','min','25%','50%','75%'])
+err_pct_desc = err_pct.abs().describe().T.drop(columns=['count','min','25%','50%','75%'])
+
+# diff_pct.plot()
+# diff_pct.replace(0,np.nan).dropna(how='all', axis='columns').plot()
+def plot_diff(df,gdl,err,err_pct,var):
+    import matplotlib.pyplot as plt
+    fig = plt.figure(1)
+    fig.clf()
+    ax1 = fig.add_subplot(211)
+    err[var].plot(label='err', color='red', marker='.', ax=ax1, linewidth=2)
+    ax1.set_ylim(ax1.get_ylim()[0]*1.3, ax1.get_ylim()[1])
+    ax1.set_ylabel("Err [units]")
+    ax1_pct = ax1.twinx()
+    err_pct[var].plot(label='err', color='black', marker='.', ax=ax1_pct, linewidth=0.5)
+    ax1_pct.set_ylabel("Err [%]")
+    ax1.tick_params(axis='y', colors='red')
+    ax1.yaxis.label.set_color('red')
+    ax1.title.set_color('red')
+    
+    ax2 = fig.add_subplot(212, sharex=ax1)
+    gdl[var].plot(label='GDL '+var, linewidth=3, ax=ax2, marker='.', markersize=4)
+    df[var].plot(label='Py '+var, ax=ax2, marker='.', markersize=3)
+    ax2.set_ylabel(var + " [units]")
+    legend()
+
+
+# ISSUES: dshf, dsr_cor, usr_cor, z_pt_cor
+var = 'albedo'
+var = 'batt_v'
+var = 'cc'
+var = 'dlhf' # issue
+var = 'dlr' # issue
+var = 'dshf' # issue
+var = 'dsr' # <0 instead of NaN for tx?
+var = 'dsr_cor' # <0 instead of NaN for tx?
+var = 'fan_dc'
+var = 'gps_alt'
+var = 'p'
+var = 'qh'
+var = 'rh_cor'
+var = 't_1'
+var = 't_2'
+var = 't_i_1'
+var = 't_i_8'
+var = 't_log'
+var = 't_surf' # error
+var = 'tilt_x'
+var = 'tilt_y'
+var = 'ulr'
+# var = 'usr'
+# var = 'usr_cor' # error 1 pt
+# var = 'wdir' # gap filled when not in GDL? OOL?
+# var = 'wspd' # gap filled when not in GDL? OOL?
+# var = 'z_boom' # gap filled
+# var = 'z_pt' # gap filled
+# var = 'z_pt_cor' # gap filled
+# var = 'z_stake' # gap filled?
+
+plot_diff(df,gdl,err,err_pct,var)
+
+desc = err_desc.round(3).astype("string")
+desc = desc + " (" + err_pct_desc.replace(np.nan,0).round().astype(int).astype("string") + ")"
+desc
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: Common columns:  ['albedo', 'batt_v', 'cc', 'dlhf', 'dlr', 'dshf', 'dsr', 'dsr_cor', 'fan_dc', 'gps_alt', 'gps_hdop', 'gps_lat', 'gps_lon', 'gps_time', 'p', 'qh', 'rh_cor', 't_1', 't_2', 't_i_1', 't_i_2', 't_i_3', 't_i_4', 't_i_5', 't_i_6', 't_i_7', 't_i_8', 't_log', 't_surf', 'tilt_x', 'tilt_y', 'ulr', 'usr', 'usr_cor', 'wdir', 'wspd', 'z_boom', 'z_pt', 'z_pt_cor', 'z_stake'] 
+: 
+: GDL columns dropped: ['DayOfCentury', 'DayOfYear'] 
+: 
+: Python columns dropped: ['SKIP_1', 'alt', 'batt_v_ini', 'batt_v_ss', 'freq_vw', 'gps_geoid', 'gps_numsat', 'gps_q', 'lat', 'lon', 'n', 'precip', 'rh', 'rot', 't_rad', 'wd_std', 'wdir_std', 'wspd_x', 'wspd_y', 'z_boom_ice', 'z_boom_q', 'z_ice', 'z_snow', 'z_stake_q', 'z_surf'] 
+: 
+|          | mean         | std         | max            |
+|----------+--------------+-------------+----------------|
+| albedo   | 0.0 (0)      | 0.0 (0)     | 0.001 (0)      |
+| batt_v   | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+| cc       | 0.002 (0)    | 0.002 (0)   | 0.005 (1)      |
+| dlhf     | 0.024 (0)    | 0.015 (0)   | 0.05 (0)       |
+| dlr      | 0.025 (0)    | 0.014 (0)   | 0.05 (0)       |
+| dshf     | 0.025 (0)    | 0.015 (0)   | 0.167 (0)      |
+| dsr      | 0.025 (0)    | 0.014 (0)   | 0.05 (0)       |
+| dsr_cor  | 0.277 (0)    | 13.498 (7)  | 1011.14 (497)  |
+| fan_dc   | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+| gps_alt  | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+| gps_hdop | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+| gps_lat  | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+| gps_lon  | 48.159 (200) | 0.005 (0)   | 48.163 (200)   |
+| gps_time | 0.171 (0)    | 0.273 (0)   | 0.71 (0)       |
+| p        | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+| qh       | 0.003 (0)    | 0.001 (0)   | 0.005 (0)      |
+| rh_cor   | 0.023 (0)    | 0.016 (0)   | 0.05 (0)       |
+| t_1      | 0.002 (0)    | 0.002 (0)   | 0.005 (0)      |
+| t_2      | 0.002 (0)    | 0.002 (0)   | 0.005 (0)      |
+| t_i_1    | 0.002 (0)    | 0.002 (0)   | 0.005 (0)      |
+| t_i_2    | 0.002 (0)    | 0.002 (0)   | 0.005 (0)      |
+| t_i_3    | 0.001 (0)    | 0.002 (0)   | 0.005 (0)      |
+| t_i_4    | 0.001 (0)    | 0.002 (0)   | 0.005 (0)      |
+| t_i_5    | 0.001 (0)    | 0.001 (0)   | 0.005 (0)      |
+| t_i_6    | 0.001 (0)    | 0.001 (0)   | 0.005 (0)      |
+| t_i_7    | 0.0 (0)      | 0.001 (0)   | 0.005 (0)      |
+| t_i_8    | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+| t_log    | <NA>         | <NA>        | <NA>           |
+| t_surf   | 0.002 (0)    | 0.001 (0)   | 0.005 (0)      |
+| tilt_x   | 0.002 (0)    | 0.002 (0)   | 0.005 (1)      |
+| tilt_y   | 0.002 (0)    | 0.001 (0)   | 0.005 (0)      |
+| ulr      | 0.025 (0)    | 0.014 (0)   | 0.05 (0)       |
+| usr      | 0.024 (0)    | 0.015 (0)   | 0.05 (0)       |
+| usr_cor  | 0.229 (0)    | 11.385 (14) | 858.598 (1063) |
+| wdir     | 0.011 (0)    | 0.016 (0)   | 0.05 (0)       |
+| wspd     | 0.002 (0)    | 0.002 (0)   | 0.005 (0)      |
+| z_boom   | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+| z_pt     | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+| z_pt_cor | 0.0 (0)      | 0.0 (0)     | 0.001 (0)      |
+| z_stake  | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+:END:
+
+
+
+** Comparing GDL vs. (IDL or GDL)
+
+The following code,
++ loads two output files
++ Computes the absolute and % error for each variable
++ Prints a table of mean and maximum errors for each variable
++ Plots one of the variables from each file for visual examination
+
+#+BEGIN_SRC jupyter-python :exports: both :kernel ds
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+station='KPC_L'
+
+pd.options.display.float_format = "{:,.5f}".format
+
+# Parse IDL date and time columns
+def mydf(y,m,d,h): return pd.to_datetime(y+'-'+m+'-'+d+':'+h, format='%Y-%m-%d:%H')
+
+idl = pd.read_csv("./test_data/output_IDL/"+station+"_hour_v03.txt",
+                  delimiter="\s+", parse_dates={'time':[0,1,2,3]},
+                  infer_datetime_format=True, date_parser=mydf, index_col=0)
+gdl = pd.read_csv("./test_data/output_GDL/"+station+"_hour_v03.txt",
+                  delimiter="\s+", parse_dates={'time':[0,1,2,3]},
+                  infer_datetime_format=True, date_parser=mydf, index_col=0)
+
+# idx = idl.index.intersection(gdl.index)
+# idl = idl.loc[idx]
+# gdl = gdl.loc[idx]
+
+
+# first point often disagrees?
+# idl = idl.iloc[1:]
+
+err = idl - gdl
+err_pct = (err / gdl.mean(axis='rows'))*100
+
+err_desc = err.abs().describe().T.drop(columns=['count','min','25%','50%','75%'])
+err_pct_desc = err_pct.abs().describe().T.drop(columns=['count','min','25%','50%','75%'])
+
+def plot_diff(idl,gdl,err,err_pct,var):
+    fig = plt.figure(1)
+    fig.clf()
+    ax1 = fig.add_subplot(211)
+    err[var].plot(label='err', color='red', marker='.', ax=ax1, linewidth=2)
+    ax1.set_ylim(ax1.get_ylim()[0]*1.3, ax1.get_ylim()[1])
+    ax1.set_ylabel("Err [units]")
+    ax1_pct = ax1.twinx()
+    err_pct[var].plot(label='err', color='black', marker='.', ax=ax1_pct, linewidth=0.5)
+    ax1_pct.set_ylabel("Err [%]")
+    ax1.tick_params(axis='y', colors='red')
+    ax1.yaxis.label.set_color('red')
+    ax1.title.set_color('red')
+    
+    ax2 = fig.add_subplot(212, sharex=ax1)
+    gdl[var].plot(label='GDL '+var, linewidth=3, ax=ax2, marker='.', markersize=4)
+    idl[var].plot(label='IDL '+var, ax=ax2, marker='.', markersize=3)
+    ax2.set_ylabel(var + " [units]")
+    legend()
+
+
+var = 'IceTemperature1(C)'
+var = 'HeightStakes(m)'
+var = 'ShortwaveRadiationDown(W/m2)'
+# etc.
+
+plot_diff(idl,gdl,err,err_pct,var)
+
+desc = err_desc.round(3).astype("string")
+desc = desc + " (" + err_pct_desc.replace(np.nan,0).round().astype(int).astype("string") + ")"
+desc
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+                                        mean              max
+DayOfYear                            0.0 (0)          0.0 (0)
+DayOfCentury                         0.0 (0)          0.0 (0)
+AirPressure(hPa)                   1.164 (1)   1968.41 (2216)
+AirTemperature(C)                  0.593 (0)    1003.34 (223)
+AirTemperatureHygroClip(C)         0.593 (0)    1003.35 (221)
+RelativeHumidity(%)                0.633 (0)     1072.7 (264)
+SpecificHumidity(g/kg)             0.593 (0)    1002.71 (225)
+WindSpeed(m/s)                     0.594 (0)    1005.52 (227)
+WindDirection(d)                   0.603 (0)     1029.0 (291)
+SensibleHeatFlux(W/m2)             0.618 (0)     1063.4 (118)
+LatentHeatFlux(W/m2)               0.584 (0)      989.7 (109)
+ShortwaveRadiationDown(W/m2)       0.791 (0)     1578.0 (500)
+ShortwaveRadiationDown_Cor(W/m2)   0.908 (0)     1568.6 (379)
+ShortwaveRadiationUp(W/m2)         0.675 (0)     1241.2 (314)
+ShortwaveRadiationUp_Cor(W/m2)     0.723 (0)     1241.2 (262)
+Albedo_theta<70d                   0.318 (0)    999.442 (118)
+LongwaveRadiationDown(W/m2)        0.751 (0)     1294.9 (407)
+LongwaveRadiationUp(W/m2)           0.78 (0)     1320.0 (456)
+CloudCover                         0.591 (0)      999.6 (224)
+SurfaceTemperature(C)              0.591 (0)      999.0 (222)
+HeightSensorBoom(m)                0.592 (0)   1001.634 (110)
+HeightStakes(m)                      0.0 (0)          0.0 (0)
+DepthPressureTransducer(m)         0.597 (0)   1010.179 (112)
+DepthPressureTransducer_Cor(m)     0.598 (0)   1010.682 (112)
+IceTemperature1(C)                   0.0 (0)          0.0 (0)
+IceTemperature2(C)                 0.591 (0)    1000.47 (110)
+IceTemperature3(C)                 0.592 (0)    1001.33 (110)
+IceTemperature4(C)                 0.592 (0)    1002.95 (110)
+IceTemperature5(C)                  0.59 (0)     998.03 (110)
+IceTemperature6(C)                 0.586 (0)     991.77 (109)
+IceTemperature7(C)                 0.584 (0)     987.53 (109)
+IceTemperature8(C)                 0.582 (0)     983.72 (108)
+TiltToEast(d)                       0.59 (0)     998.37 (110)
+TiltToNorth(d)                      0.59 (0)     997.96 (110)
+TimeGPS(hhmmssUTC)                42.107 (1)  131203.0 (2349)
+LatitudeGPS(degN)                  0.638 (0)   1078.911 (120)
+LongitudeGPS(degW)                 0.605 (0)   1023.082 (113)
+ElevationGPS(m)                    0.807 (0)     1371.6 (157)
+HorDilOfPrecGPS                    0.591 (0)     999.89 (110)
+LoggerTemperature(C)               0.593 (0)    1004.05 (101)
+FanCurrent(mA)                     0.671 (0)     1141.5 (128)
+BatteryVoltage(V)                  0.599 (0)    1013.58 (112)
+#+end_example
+

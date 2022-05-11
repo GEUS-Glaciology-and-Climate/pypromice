@@ -35,11 +35,11 @@ class promiceAWS:
         assert(os.path.isfile(config_file))
         assert(inpath is not None)
         assert(os.path.isdir(inpath))
-        assert(outpath is not None)
+        # assert(outpath is not None)
         
         self.config_file = config_file
         self.inpath = inpath
-        self.outpath = outpath
+        # self.outpath = outpath
         self.config = self._load_config(config_file=self.config_file, inpath=self.inpath)
         self.L0 = self.load(conf=self.config_file, L0_path=self.inpath)
 
@@ -160,8 +160,9 @@ class promiceAWS:
         # pap.L3_h = cf_acdd.cf_and_acdd(pap.L3_h)
         # pap.L3_d = cf_acdd.cf_and_acdd(pap.L3_d)
 
-    def write(self, inpath=None, outpath=None):
-        if inpath is None: inpath = self.inpath
+    def write(self, outpath=None):
+        if outpath is None: outpath = self.outpath
+        assert outpath is not None
         outpath = os.path.join(outpath, self.L3_h.attrs['station_id'])
         Path(outpath).mkdir(parents=True, exist_ok=True)
         outfile = os.path.join(outpath, self.L3_h.attrs['station_id'])
