@@ -12,15 +12,15 @@ env: ## Instructions for setting up python environment
 
 test: ## Run python testing framework
 
-build: ## Build Python for pip installation
+build: FORCE ## Build Python for pip installation
 	python3 -m build
-
 
 install: ## Install locally
 	python3 -m pip install --upgrade .
 
-
 dist: ## Distribute (to GitHub) for remote pip installation
+	@echo "	git push, then..."
+	@echo " python -m pip install --upgrade git+https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing.git"
 
 test_py: ## Run Python code on test data
 	PYTHONPATH=./src python ./bin/promiceAWS --config_file=./test_data/metadata/KPC_L.toml -i ./test_data/input -o ./test_data/output_py
