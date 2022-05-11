@@ -21,19 +21,28 @@
 Set up development environment
 
 #+BEGIN_SRC bash :results verbatim :exports both
-conda create -n PROMICE_dev python=3.8 numpy pandas scipy bottleneck xarray netcdf4 toml
+conda create -n PROMICE_dev python=3.6 numpy pandas scipy bottleneck xarray netcdf4 toml
 conda activate PROMICE_dev
 
-OR
+# OR
 
-pip install -r requirements.txt
-
-OR
-
-conda env creat -f environment.yml
+conda create -n PROMICE_dev python=3.6
+conda activate PROMICE_dev
+python -m pip install --upgrade http://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing.git
 #+END_SRC
 
+Run the dev version without installing:
 
+#+BEGIN_SRC bash
+PYTHONPATH=./src python ./bin/promiceAWS --config_file=./test_data/conf/KPC_L.toml -i ./test_data/input -o ./test_data/output_py
+#+END_SRC
+
+Install the dev version locally:
+
+#+BEGIN_SRC bash
+make build # or: python3 -m build
+make install # or: python3 -m pip install --upgrade .
+#+END_SRC
 
 ** GDL
 
@@ -50,6 +59,7 @@ gdl --version
 ???
 
 * Examples of processed data
+
 ** Python
 
 #+BEGIN_SRC bash :results verbatim :exports both
