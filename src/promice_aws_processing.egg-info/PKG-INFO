@@ -17,7 +17,7 @@ Classifier: Natural Language :: English
 Classifier: Topic :: Scientific/Engineering
 Classifier: Operating System :: OS Independent
 Requires-Python: >=3.6
-Description-Content-Type: text/markdown
+Description-Content-Type: text/plain
 License-File: LICENSE.txt
 
 
@@ -40,7 +40,7 @@ License-File: LICENSE.txt
 ** Command line
 
 #+BEGIN_SRC bash :results output :exports both
-promiceAWS --config_file=./test_data/metadata/KPC_L.toml --inpath=./test_data/input -outpath ./test_data/output_py
+promiceAWS --config_file=./test_data/conf/KPC_L.toml --inpath=./test_data/input --outpath=./test_data/output_py
 ls ./test_data/output_py/
 #+END_SRC
 

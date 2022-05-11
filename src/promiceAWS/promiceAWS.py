@@ -39,7 +39,7 @@ class promiceAWS:
         
         self.config_file = config_file
         self.inpath = inpath
-        # self.outpath = outpath
+        self.outpath = outpath
         self.config = self._load_config(config_file=self.config_file, inpath=self.inpath)
         self.L0 = self.load(conf=self.config_file, L0_path=self.inpath)
 

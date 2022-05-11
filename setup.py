@@ -10,7 +10,7 @@ setuptools.setup(
     author_email="kdm@geus.dk",
     description="PROMICE AWS processing toolbox",
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type="text/plain",
     url="https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing",
     project_urls={
         "Bug Tracker": "https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing/issues",
