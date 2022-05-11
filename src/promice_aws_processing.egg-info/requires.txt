@@ -1,4 +1,7 @@
 numpy
 pandas
+scipy
+bottleneck
 xarray
+netcdf4
 toml

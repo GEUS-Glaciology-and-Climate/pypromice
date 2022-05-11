@@ -21,7 +21,7 @@
 Set up development environment
 
 #+BEGIN_SRC bash :results verbatim :exports both
-conda create -n PROMICE_dev python=3.8 pandas xarray numpy toml
+conda create -n PROMICE_dev python=3.8 numpy pandas scipy bottleneck xarray netcdf4 toml
 conda activate PROMICE_dev
 
 OR
