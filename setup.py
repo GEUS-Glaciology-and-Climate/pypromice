@@ -31,5 +31,5 @@ setuptools.setup(
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
     install_requires=['numpy', 'pandas', 'xarray'],
-    scripts=['bin/promiceAWS-cmd'],
+    scripts=['bin/promiceAWS'],
 )

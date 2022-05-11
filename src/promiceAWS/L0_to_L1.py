@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import logging
+import re
 
 # logging.basicConfig(format="{asctime} : ({filename}:{lineno}) : {message} ", style="{")
 
@@ -108,6 +109,7 @@ def to_L1(L0=None):
     ds = L0
     # from IPython import embed; embed()
     ds['n'] = (('time'), np.arange(ds['time'].size)+1)
+
     ds = _flag_NAN(ds)
     ds = _add_variable_metadata(ds)
     
@@ -123,6 +125,8 @@ def to_L1(L0=None):
     T_0 = 273.15
     
     # Calculate pressure transducer fluid density
+    # TODO: Implement function w/ reference (analytical or from LUT)
+    # TODO: Track uncertainty
     if ~ds['z_pt'].isnull().all():
         if ds.attrs['pt_antifreeze'] == 50:
             rho_af = 1092
@@ -179,12 +183,18 @@ def to_L1(L0=None):
             ds[v][:] = pd.DataFrame(str2nums).astype(float).T.values[0]
             ds[v] = ds[v].astype(float)
             ds[v].attrs = a # restore
+
+    for v in ['gps_lat','gps_lon','gps_time']:
+        a = ds[v].attrs # store
+        ds[v].values = pd.to_numeric(ds[v], errors='coerce')
+        ds[v].attrs = a # restore
             
     if np.any((ds['gps_lat'] <= 90) & (ds['gps_lat'] > 0)):  # Some stations only recorded minutes, not degrees
         xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", ds.attrs['geometry'])).astype(float)
         x=xyz[0]; y=xyz[1]; z=xyz[2] if len(xyz) == 3 else 0
         p = shapely.geometry.Point(x,y,z)
         ds['gps_lat'] = ds['gps_lat'] + 100*p.y
+
     if np.any((ds['gps_lon'] <= 90) & (ds['gps_lon'] > 0)):
         ds['gps_lon'] = ds['gps_lon'] + 100*p.x
             

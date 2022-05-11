@@ -86,13 +86,19 @@ def to_L3(L2=None):
     q_sat[freezing] = eps * es_ice[freezing] / (p_h[freezing] - (1 - eps) * es_ice[freezing])
     q_h = RH_cor_h * q_sat / 100   # specific humidity in kg/kg
     theta = T_h + z_T *g / c_pd
-    SHF_h = T_h
-    SHF_h[:] = 0
-    LHF_h = SHF_h
-    L = SHF_h + 1E5
     
+    # SHF_h = T_h.copy(deep=True)
+    # SHF_h[:] = 0
+    # LHF_h = SHF_h.copy(deep=True)
+    # L = SHF_h + 1E5
+    SHF_h = xr.zeros_like(T_h)
+    LHF_h = xr.zeros_like(T_h)
+    L = xr.full_like(T_h, 1E5)
+    
+
     stable = (theta > Tsurf_h) & (WS_h > WS_lim)
     unstable = (theta < Tsurf_h) & (WS_h > WS_lim)
+    # TODO: check if unstable = ~stable? And if not why not
     # no_wind  = (WS_h <= WS_lim)
     
     for i in np.arange(0,31): # stable stratification

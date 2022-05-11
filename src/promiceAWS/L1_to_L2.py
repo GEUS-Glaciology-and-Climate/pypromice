@@ -308,8 +308,8 @@ def to_L2(L1=None):
     for var in df.index:
         if var not in list(ds.variables): continue
         if var == 'rh_cor':
-             ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'], other = 0)
-             ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'], other = 100)
+            ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'], other = 0)
+            ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'], other = 100)
         else:
             ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'])
             ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'])

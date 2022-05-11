@@ -16,7 +16,7 @@
 ### Command line
 
 ```python
-python promiceAWS.py --config_file=./test_data/L0/config/QAS_L.toml --data_dir=./test_data
+promiceAWS --config_file=./test_data/L0/config/QAS_L.toml --inpath=./data_test/test_2022_1/input -o ./data_test/pyout
 ls ./test_data/L3/QAS_L
 ```
 
@@ -30,7 +30,8 @@ ls ./test_data/L3/QAS_L
 ### Command line: parallelized
 
 ```python
-parallel --bar "python promiceAWS.py --config_file={1} --data_dir=./test_data" ::: $(ls ./test_data/L0/config/*)
+DIR=./test_data/test_2022_1
+parallel --bar "python promiceAWS.py -c ${DIR}/QAS_L.toml -i ${DIR}/input -o ${DIR}/pyout" ::: $(ls ./test_data/L0/config/*)
 ls ./test_data/L3/*/
 ```
 

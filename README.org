@@ -18,8 +18,8 @@
 ** Command line
 
 #+BEGIN_SRC bash :results output :exports both
-python promiceAWS.py --config_file=./test_data/L0/config/QAS_L.toml --data_dir=./test_data
-ls ./test_data/L3/QAS_L
+PYTHONPATH=./src python ./bin/promiceAWS --config_file=./test_data/metadata/QAS_L.toml --inpath=./test_data/input/QAS_L -o ./test_data/output_py
+ls ./test_data/output_py/
 #+END_SRC
 
 #+RESULTS:
@@ -31,7 +31,8 @@ ls ./test_data/L3/QAS_L
 ** Command line: parallelized
 
 #+BEGIN_SRC bash :results output :exports both
-parallel --bar "python promiceAWS.py --config_file={1} --data_dir=./test_data" ::: $(ls ./test_data/L0/config/*)
+DIR=./test_data/test_2022_1
+parallel --bar "python promiceAWS.py -c ${DIR}/QAS_L.toml -i ${DIR}/input -o ${DIR}/pyout" ::: $(ls ./test_data/L0/config/*)
 ls ./test_data/L3/*/
 #+END_SRC
 
@@ -314,7 +315,8 @@ columns = ["time", "rec", "min_y",
 	"z_boom", "z_boom_q", "z_stake", "z_stake_q", "z_pt",
 	"t_i_1", "t_i_2", "t_i_3", "t_i_4", "t_i_5", "t_i_6", "t_i_7", "t_i_8",
 	"tilt_x", "tilt_y",
-	"gps_time", "gps_lat", "gps_lon", "gps_alt", "gps_geoid", "SKIP_34", "SKIP_35", "gps_numsat", "gps_hdop",
+	"gps_time", "gps_lat", "gps_lon", "gps_alt", "gps_geoid",
+	"SKIP_34", "SKIP_35", "gps_numsat", "gps_hdop",
 	"t_log", "fan_dc", "SKIP_40", "batt_v_ss", "batt_v"]
 
 # Parameters applied to all files are above.
