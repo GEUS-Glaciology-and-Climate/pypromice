@@ -14,6 +14,8 @@
   - [[#examining-and-comparing-idl-and-python-variables-internally][Examining and comparing IDL and Python variables internally]]
   - [[#comparing-python-vs-idl-or-gdl][Comparing Python vs (IDL or GDL)]]
   - [[#comparing-gdl-vs-idl-or-gdl][Comparing GDL vs. (IDL or GDL)]]
+- [[#misc][Misc]]
+  - [[#metadatacsv-to-toml][metadata.csv to TOML]]
 
 * Development Environment(s)
 ** TODO Python
@@ -153,7 +155,7 @@ def mydf(y,m,d,h): return pd.to_datetime(y+'-'+m+'-'+d+':'+h, format='%Y-%m-%d:%
 
 gdl2py_col = pd.read_csv('variables.csv')[['field','IDL']].set_index('IDL').dropna().to_dict()['field']
 
-gdl = pd.read_csv("./test_data/output_GDL/"+station+"_hour_v03.txt",
+gdl = pd.read_csv("./test_data/output/"+station+"_hour_v03.txt",
                   delimiter="\s+", parse_dates={'time':[0,1,2,3]},
                   infer_datetime_format=True, date_parser=mydf, index_col=0)\
         .apply(pd.to_numeric, errors='coerce')\
@@ -194,43 +196,43 @@ def plot_diff(df,gdl,err,err_pct,var):
     ax1.title.set_color('red')
     
     ax2 = fig.add_subplot(212, sharex=ax1)
-    gdl[var].plot(label='GDL '+var, linewidth=3, ax=ax2, marker='.', markersize=4)
+    gdl[var].replace(-999,np.nan).plot(label='GDL '+var, linewidth=3, ax=ax2, marker='.', markersize=4)
     df[var].plot(label='Py '+var, ax=ax2, marker='.', markersize=3)
     ax2.set_ylabel(var + " [units]")
     legend()
 
 
 # ISSUES: dshf, dsr_cor, usr_cor, z_pt_cor
-var = 'albedo'
-var = 'batt_v'
-var = 'cc'
-var = 'dlhf' # issue
-var = 'dlr' # issue
-var = 'dshf' # issue
-var = 'dsr' # <0 instead of NaN for tx?
-var = 'dsr_cor' # <0 instead of NaN for tx?
-var = 'fan_dc'
-var = 'gps_alt'
-var = 'p'
-var = 'qh'
-var = 'rh_cor'
+var = 'albedo' # 1 point error, otherwise PERFECT
+var = 'batt_v' # PERFECT except GAPS
+var = 'cc' # FEW points: > 10 %; GAPS
+var = 'dlhf' # GAPS; 100 % error @ 10 units
+var = 'dlr' # GAPS; <5 % error at 10 units
+var = 'dshf' # GAPS; 100 % error at 40
+var = 'dsr' # GAPS
+var = 'dsr_cor' # 1 point error. GAPS
+var = 'fan_dc' # GAPS; PERFECT
+var = 'gps_alt' # GAPS; PERFECT
+var = 'p' # GAPS; PERFECT
+var = 'qh'# GAPS; PERFECT
+var = 'rh_cor' # GAPS; PERFECT
 var = 't_1'
 var = 't_2'
 var = 't_i_1'
 var = 't_i_8'
 var = 't_log'
-var = 't_surf' # error
+# var = 't_surf' # error
 var = 'tilt_x'
 var = 'tilt_y'
-var = 'ulr'
-# var = 'usr'
-# var = 'usr_cor' # error 1 pt
-# var = 'wdir' # gap filled when not in GDL? OOL?
-# var = 'wspd' # gap filled when not in GDL? OOL?
-# var = 'z_boom' # gap filled
-# var = 'z_pt' # gap filled
-# var = 'z_pt_cor' # gap filled
-# var = 'z_stake' # gap filled?
+var = 'ulr' # disagree but OK
+var = 'usr' # 3 % when units 6
+var = 'usr_cor' # 1 big error
+var = 'wdir' # GAP; PERFECT
+var = 'wspd' # GAP; PERFECT
+var = 'z_boom' # GAP
+var = 'z_pt' # GAP
+var = 'z_pt_cor' # GAP
+var = 'z_stake' # GAP
 
 plot_diff(df,gdl,err,err_pct,var)
 
@@ -247,48 +249,48 @@ desc
 : 
 : Python columns dropped: ['SKIP_1', 'alt', 'batt_v_ini', 'batt_v_ss', 'freq_vw', 'gps_geoid', 'gps_numsat', 'gps_q', 'lat', 'lon', 'n', 'precip', 'rh', 'rot', 't_rad', 'wd_std', 'wdir_std', 'wspd_x', 'wspd_y', 'z_boom_ice', 'z_boom_q', 'z_ice', 'z_snow', 'z_stake_q', 'z_surf'] 
 : 
-|          | mean         | std         | max            |
-|----------+--------------+-------------+----------------|
-| albedo   | 0.0 (0)      | 0.0 (0)     | 0.001 (0)      |
-| batt_v   | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
-| cc       | 0.002 (0)    | 0.002 (0)   | 0.005 (1)      |
-| dlhf     | 0.024 (0)    | 0.015 (0)   | 0.05 (0)       |
-| dlr      | 0.025 (0)    | 0.014 (0)   | 0.05 (0)       |
-| dshf     | 0.025 (0)    | 0.015 (0)   | 0.167 (0)      |
-| dsr      | 0.025 (0)    | 0.014 (0)   | 0.05 (0)       |
-| dsr_cor  | 0.277 (0)    | 13.498 (7)  | 1011.14 (497)  |
-| fan_dc   | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
-| gps_alt  | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
-| gps_hdop | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
-| gps_lat  | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
-| gps_lon  | 48.159 (200) | 0.005 (0)   | 48.163 (200)   |
-| gps_time | 0.171 (0)    | 0.273 (0)   | 0.71 (0)       |
-| p        | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
-| qh       | 0.003 (0)    | 0.001 (0)   | 0.005 (0)      |
-| rh_cor   | 0.023 (0)    | 0.016 (0)   | 0.05 (0)       |
-| t_1      | 0.002 (0)    | 0.002 (0)   | 0.005 (0)      |
-| t_2      | 0.002 (0)    | 0.002 (0)   | 0.005 (0)      |
-| t_i_1    | 0.002 (0)    | 0.002 (0)   | 0.005 (0)      |
-| t_i_2    | 0.002 (0)    | 0.002 (0)   | 0.005 (0)      |
-| t_i_3    | 0.001 (0)    | 0.002 (0)   | 0.005 (0)      |
-| t_i_4    | 0.001 (0)    | 0.002 (0)   | 0.005 (0)      |
-| t_i_5    | 0.001 (0)    | 0.001 (0)   | 0.005 (0)      |
-| t_i_6    | 0.001 (0)    | 0.001 (0)   | 0.005 (0)      |
-| t_i_7    | 0.0 (0)      | 0.001 (0)   | 0.005 (0)      |
-| t_i_8    | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
-| t_log    | <NA>         | <NA>        | <NA>           |
-| t_surf   | 0.002 (0)    | 0.001 (0)   | 0.005 (0)      |
-| tilt_x   | 0.002 (0)    | 0.002 (0)   | 0.005 (1)      |
-| tilt_y   | 0.002 (0)    | 0.001 (0)   | 0.005 (0)      |
-| ulr      | 0.025 (0)    | 0.014 (0)   | 0.05 (0)       |
-| usr      | 0.024 (0)    | 0.015 (0)   | 0.05 (0)       |
-| usr_cor  | 0.229 (0)    | 11.385 (14) | 858.598 (1063) |
-| wdir     | 0.011 (0)    | 0.016 (0)   | 0.05 (0)       |
-| wspd     | 0.002 (0)    | 0.002 (0)   | 0.005 (0)      |
-| z_boom   | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
-| z_pt     | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
-| z_pt_cor | 0.0 (0)      | 0.0 (0)     | 0.001 (0)      |
-| z_stake  | 0.0 (0)      | 0.0 (0)     | 0.0 (0)        |
+|          | mean         | std        | max            |
+|----------+--------------+------------+----------------|
+| albedo   | 0.0 (0)      | 0.005 (1)  | 0.452 (85)     |
+| batt_v   | 0.002 (0)    | 0.002 (0)  | 0.005 (0)      |
+| cc       | 0.002 (1)    | 0.002 (0)  | 0.118 (28)     |
+| dlhf     | 0.052 (1)    | 0.418 (5)  | 25.854 (337)   |
+| dlr      | 0.029 (0)    | 0.11 (0)   | 10.999 (5)     |
+| dshf     | 0.113 (0)    | 1.048 (4)  | 54.185 (201)   |
+| dsr      | 0.025 (0)    | 0.014 (0)  | 0.05 (0)       |
+| dsr_cor  | 0.178 (0)    | 7.253 (5)  | 1007.54 (722)  |
+| fan_dc   | 0.022 (0)    | 0.017 (0)  | 0.05 (0)       |
+| gps_alt  | 0.0 (0)      | 0.006 (0)  | 1.083 (0)      |
+| gps_hdop | 0.0 (0)      | 0.001 (0)  | 0.133 (18)     |
+| gps_lat  | 0.0 (0)      | 0.0 (0)    | 0.0 (0)        |
+| gps_lon  | 48.164 (200) | 0.002 (0)  | 48.166 (200)   |
+| gps_time | 0.15 (0)     | 23.069 (0) | 3834.167 (6)   |
+| p        | 0.002 (0)    | 0.002 (0)  | 0.005 (0)      |
+| qh       | 0.002 (0)    | 0.001 (0)  | 0.005 (0)      |
+| rh_cor   | 0.024 (0)    | 0.015 (0)  | 0.05 (0)       |
+| t_1      | 0.002 (0)    | 0.002 (0)  | 0.005 (0)      |
+| t_2      | 0.002 (0)    | 0.002 (0)  | 0.005 (0)      |
+| t_i_1    | 0.002 (0)    | 0.002 (0)  | 0.005 (0)      |
+| t_i_2    | 0.002 (0)    | 0.001 (0)  | 0.005 (0)      |
+| t_i_3    | 0.002 (0)    | 0.001 (0)  | 0.005 (0)      |
+| t_i_4    | 0.002 (0)    | 0.001 (0)  | 0.005 (0)      |
+| t_i_5    | 0.002 (0)    | 0.002 (0)  | 0.005 (0)      |
+| t_i_6    | 0.002 (0)    | 0.002 (0)  | 0.005 (0)      |
+| t_i_7    | 0.002 (0)    | 0.002 (0)  | 0.005 (0)      |
+| t_i_8    | 0.002 (0)    | 0.002 (0)  | 0.005 (0)      |
+| t_log    | 0.003 (0)    | 0.001 (0)  | 0.005 (0)      |
+| t_surf   | 0.005 (0)    | 0.028 (0)  | 1.686 (13)     |
+| tilt_x   | 0.006 (1)    | 0.01 (1)   | 0.736 (83)     |
+| tilt_y   | 0.005 (0)    | 0.009 (1)  | 0.498 (43)     |
+| ulr      | 0.032 (0)    | 0.107 (0)  | 7.214 (3)      |
+| usr      | 0.025 (0)    | 0.015 (0)  | 0.05 (0)       |
+| usr_cor  | 0.105 (0)    | 6.149 (8)  | 855.498 (1121) |
+| wdir     | 0.021 (0)    | 0.016 (0)  | 0.05 (0)       |
+| wspd     | 0.002 (0)    | 0.002 (0)  | 0.005 (0)      |
+| z_boom   | 0.0 (0)      | 0.0 (0)    | 0.001 (0)      |
+| z_pt     | 0.0 (0)      | 0.0 (0)    | 0.001 (0)      |
+| z_pt_cor | 0.0 (0)      | 0.0 (0)    | 0.001 (0)      |
+| z_stake  | 0.0 (0)      | 0.0 (0)    | 0.001 (0)      |
 :END:
 
 
@@ -413,4 +415,194 @@ LoggerTemperature(C)               0.593 (0)    1004.05 (101)
 FanCurrent(mA)                     0.671 (0)     1141.5 (128)
 BatteryVoltage(V)                  0.599 (0)    1013.58 (112)
 #+end_example
+
+
+* Misc
+** metadata.csv to TOML
+
+Automatically generate v4 TOML files from the v3 metadata.csv files
+
+#+BEGIN_SRC jupyter-python
+import glob
+import pandas as pd
+
+mlist = glob.glob('./data/L0/metadata/*_metadata.csv')
+
+rename = {'latitude_N(dd.ddddd)' : 'latitude',
+          'longitude_W(dd.ddddd)' : 'longitude',
+          'T_hygroclip_offset(C)' : 'hygroclip_t_offset',
+          'SRin_calcoef' : 'dsr_eng_coef',
+          'SRout_calcoef' : 'usr_eng_coef',
+          'LRin_calcoef' : 'dlr_eng_coef',
+          'LRout_calcoef' : 'ulr_eng_coef',
+          'H_PT_calcoef' : 'pt_z_coef',
+          'H_PT_p_cal' : 'pt_z_p_coef',
+          'H_PT_factor' : 'pt_z_factor',
+          'header_lines' : 'skiprows',
+          'antifreeze_PT_(%)' : 'pt_antifreeze',
+          'rotation_ini(deg)' : 'boom_azimuth',
+          'col_minute_of_year' : 'min_y',
+          'col_p' : 'p',
+          'col_T' : 't_1',
+          'col_T_hygroclip' : 't_2',
+          'col_RH' : 'rh',
+          'col_WS' : 'wspd',
+          'col_WD' : 'wdir',
+          'col_WD_sd' : 'wd_std',
+          'col_SRin' : 'dsr',
+          'col_SRout' : 'usr',
+          'col_LRin' : 'dlr',
+          'col_LRout' : 'ulr',
+          'col_T_rad' : 't_rad',
+          'col_H_aws' : 'z_boom',
+          'col_qual_H_aws' : 'z_boom_q',
+          'col_H_stk' : 'z_stake',
+          'col_qual_H_stk' : 'z_stake_q',
+          'col_H_pt' : 'z_pt',
+          'col_Tice1' : 't_i_1',
+          'col_Tice2' : 't_i_2',
+          'col_Tice3' : 't_i_3',
+          'col_Tice4' : 't_i_4',
+          'col_Tice5' : 't_i_5',
+          'col_Tice6' : 't_i_6',
+          'col_Tice7' : 't_i_7',
+          'col_Tice8' : 't_i_8',
+          'col_ornt' : 'ORIENTATION',
+          'col_tiltX' : 'tilt_x',
+          'col_tiltY' : 'tilt_y',
+          'col_GPStime' : 'gps_time',
+          'col_GPSlat' : 'gps_lat',
+          'col_GPSlon' : 'gps_lon',
+          'col_GPSelev' : 'gps_alt',
+          'col_GPSgeoid' : 'gps_geoid',
+          'col_GPSqual' : 'gps_q',
+          'col_GPSnumsats' : 'gps_numsats',
+          'col_GPShdop' : 'gps_hdop',
+          'col_Tlog' : 't_log',
+          'col_Ifan' : 'fan_dc',
+          'col_Vbat_ini' : 'batt_v_ss',
+          'col_Vbat' : 'batt_v',
+          'col_season' : 'SEASON'}
+
+
+for md in mlist:
+    df = pd.read_csv(md, index_col=0).rename(columns=rename)
+
+    station = '_'.join(md.split("/")[-1].split("_")[:-1])
+    out_file = open('./data/L0/config/' + station + '.toml', 'w')
+    print(f"station_id = '{station}'", file=out_file)
+    print("nodata     = ['-999', 'NAN'] # if one is a string, all must be strings\n", file=out_file)
+          
+    for f in df['filename']:
+        ddf = df[df['filename'] == f].T
+        if len(ddf.loc['filename']) == 0: continue
+        if ddf.loc['filename'].values[0][-4:] != ".txt": continue
+
+        print("['{}']".format(ddf.loc['filename'].values[0]), file=out_file)
+        if 'transmitted' in str(ddf.loc['filename']):
+            print("format     = 'TX'", file=out_file)
+        elif 'SlimTable' in str(ddf.loc['filename']):
+            print("format     = 'STM'", file=out_file)
+        else:
+            print("format     = 'raw'", file=out_file)
+
+        for n in ['skiprows', 'latitude', 'longitude', 'hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef', 'dlr_eng_coef', 'ulr_eng_coef', 'pt_z_coef', 'pt_z_p_coef', 'pt_z_factor', 'pt_antifreeze', 'boom_azimuth']:
+            print(n +  ' = {}'.format(np.round(ddf.loc[n].values[0],4)), file=out_file)
+
+        cols = ddf.loc[['min_y','p', 't_1', 't_2', 'rh', 'wspd', 'wdir', 'wd_std', 'dsr', 'usr', 'dlr', 'ulr', 't_rad',
+                        'z_boom', 'z_boom_q', 'z_stake', 'z_stake_q', 'z_pt', 't_i_1', 't_i_2', 't_i_3', 't_i_4',
+                        't_i_5', 't_i_6', 't_i_7', 't_i_8', 'ORIENTATION', 'tilt_x', 'tilt_y', 'gps_time',
+                        'gps_lat', 'gps_lon', 'gps_alt', 'gps_geoid', 'gps_q', 'gps_numsats', 'gps_hdop', 't_log',
+                        'fan_dc', 'batt_v_ss', 'batt_v', 'SEASON']]
+        cols.loc['rec'] = 2
+        cols.loc['time'] = 1
+        cols.columns = ['col']
+        for i in np.arange(int(cols.max())):
+            if i not in cols['col'].values:
+                cols.loc['SKIP_' + str(i)] = i
+        cols = cols.sort_values(by='col').replace(0,np.nan).dropna()
+        print('columns = {}'.format(np.array2string(cols.index.values, separator=',', max_line_width=60)), file=out_file)
+            
+        # print('latitude   = {}'.format(str(ddf.loc['latitude'].values[0])), file=out_file)
+        # print('longitude  = {}'.format(-ddf.loc['longitude'].values[0]), file=out_file)
+        print('\n', file=out_file)
+    out_file.close()
+
+ddf    
+#+END_SRC
+
+#+RESULTS:
+|                    |                              9 |
+|--------------------+--------------------------------|
+| filename           | TAS_A_2020_raw_transmitted.txt |
+| slimtablemem?      |                             no |
+| transmitted?       |                            yes |
+| skiprows           |                              0 |
+| data_lines         |                            884 |
+| columns            |                             38 |
+| year start         |                           2019 |
+| latitude           |                          65.78 |
+| longitude          |                           38.9 |
+| UTC_offset(h)      |                              0 |
+| hygroclip_t_offset |                              0 |
+| dsr_eng_coef       |                          14.15 |
+| usr_eng_coef       |                          12.97 |
+| dlr_eng_coef       |                          10.23 |
+| ulr_eng_coef       |                          13.47 |
+| pt_z_coef          |                          0.407 |
+| pt_z_p_coef        |                          982.1 |
+| pt_z_factor        |                            2.5 |
+| pt_antifreeze      |                             50 |
+| boom_azimuth       |                              0 |
+| col_datetime       |                              1 |
+| col_date           |                              0 |
+| col_year           |                              0 |
+| col_month          |                              0 |
+| col_day            |                              0 |
+| col_day_of_year    |                              0 |
+| col_time           |                              0 |
+| col_hour           |                              0 |
+| col_minute         |                              0 |
+| min_y              |                              0 |
+| p                  |                              3 |
+| t_1                |                              4 |
+| t_2                |                              5 |
+| rh                 |                              6 |
+| wspd               |                              7 |
+| wdir               |                              8 |
+| wd_std             |                              0 |
+| dsr                |                              9 |
+| usr                |                             10 |
+| dlr                |                             11 |
+| ulr                |                             12 |
+| t_rad              |                             13 |
+| z_boom             |                             14 |
+| z_boom_q           |                              0 |
+| z_stake            |                             15 |
+| z_stake_q          |                              0 |
+| z_pt               |                             16 |
+| t_i_1              |                             17 |
+| t_i_2              |                             18 |
+| t_i_3              |                             19 |
+| t_i_4              |                             20 |
+| t_i_5              |                             21 |
+| t_i_6              |                             22 |
+| t_i_7              |                             23 |
+| t_i_8              |                             24 |
+| ORIENTATION        |                              0 |
+| tilt_x             |                             25 |
+| tilt_y             |                             26 |
+| gps_time           |                             27 |
+| gps_lat            |                             28 |
+| gps_lon            |                             29 |
+| gps_alt            |                             30 |
+| gps_geoid          |                              0 |
+| gps_q              |                              0 |
+| gps_numsats        |                              0 |
+| gps_hdop           |                             31 |
+| t_log              |                              0 |
+| fan_dc             |                             32 |
+| batt_v_ss          |                              0 |
+| batt_v             |                             33 |
+| SEASON             |                              0 |
 
