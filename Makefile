@@ -11,6 +11,7 @@ env: ## Instructions for setting up python environment
 	@echo "	Note: See https://direnv.net/"
 
 test: ## Run python testing framework
+	python -m pytest
 
 build: FORCE ## Build Python for pip installation
 	python3 -m build
