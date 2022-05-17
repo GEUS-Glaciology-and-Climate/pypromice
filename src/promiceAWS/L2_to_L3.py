@@ -186,6 +186,7 @@ def to_L3(L2=None):
     ## Compute daily average
     # ds_d = ds_h.resample({'time':"1D"}).mean() # this takes ~2-3 minutes
     ## https://github.com/pydata/xarray/issues/4498 & https://stackoverflow.com/questions/64282393/
+    # TODO: Fixed in latest pandas: https://github.com/pydata/xarray/issues/4498#event-6610799698
     df_d = ds_h.to_dataframe().resample("1D").mean()
     vals = [xr.DataArray(
         data=df_d[c], dims=['time'], coords={'time':df_d.index}, attrs=ds_h[c].attrs)
