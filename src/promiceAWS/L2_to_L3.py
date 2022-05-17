@@ -9,7 +9,8 @@ def to_L3(L2=None):
     
     deg2rad = np.pi / 180
     rad2deg = 1 / deg2rad
-    
+
+    # TODO: Fixed in latest pandas: https://github.com/pydata/xarray/issues/4498#event-6610799698
     # ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minutes
     ## https://github.com/pydata/xarray/issues/4498 & https://stackoverflow.com/questions/64282393/
     df_h = ds.to_dataframe().resample("1H").mean()  # what we want (quickly), but in Pandas form
