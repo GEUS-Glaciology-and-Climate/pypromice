@@ -20,7 +20,7 @@
 + If you want to develop and not just use this code, see [[./HACKING.org]]
 
 #+BEGIN_SRC bash
-pip install --upgrade http://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing.git
+pip install --upgrade git+http://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing.git
 #+END_SRC
 
 * Example code

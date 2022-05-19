@@ -30,7 +30,7 @@ conda activate PROMICE_dev
 
 conda create -n PROMICE_dev python=3.6
 conda activate PROMICE_dev
-python -m pip install --upgrade http://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing.git
+python -m pip install --upgrade git+http://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing.git
 #+END_SRC
 
 Run the dev version without installing:
