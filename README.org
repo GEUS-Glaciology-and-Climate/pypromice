@@ -41,7 +41,7 @@ ls ./test_data/output_py/
 ** Command line: parallelized
 
 #+BEGIN_SRC bash :results output :exports both
-parallel --bar "promiceAWS -c {} -i {//}/../input/ -o {//}/../L3" ::: $(ls ./test_data/conf/*)
+parallel --bar "promiceAWS -c ./test_data/conf/{} -i ./input/ -o ./L3" ::: $(ls ./test_data/conf/)
 find ./test_data/L3
 #+END_SRC
 
