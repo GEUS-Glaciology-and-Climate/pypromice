@@ -141,8 +141,13 @@ def to_L1(L0=None):
     
     for v in ['gps_geounit','min_y']:
         if v in list(ds.variables): ds = ds.drop_vars(v)
-            
-    
+
+    # cleaning
+    for v in ['z_boom']:
+        a = ds[v].attrs # store
+        ds[v].values = pd.to_numeric(ds[v], errors='coerce')
+        ds[v].attrs = a # restore
+
     # if ds.attrs['format'] != 'raw':
     ds['time_orig'] = ds['time']
     ds['time'] = _time_shift(ds['time'], ds.attrs['format'])
