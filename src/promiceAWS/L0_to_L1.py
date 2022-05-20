@@ -195,13 +195,12 @@ def to_L1(L0=None):
         ds[v].attrs = a # restore
             
     if np.any((ds['gps_lat'] <= 90) & (ds['gps_lat'] > 0)):  # Some stations only recorded minutes, not degrees
-        xyz = np.array(re.findall("[-+]?[\d]*[.][\d]+", ds.attrs['geometry'])).astype(float)
-        x=xyz[0]; y=xyz[1]; z=xyz[2] if len(xyz) == 3 else 0
-        p = shapely.geometry.Point(x,y,z)
-        ds['gps_lat'] = ds['gps_lat'] + 100*p.y
+        px = ds.attrs['longitude']
+        py = ds.attrs['latitude']
+        ds['gps_lat'] = ds['gps_lat'] + 100*py
 
     if np.any((ds['gps_lon'] <= 90) & (ds['gps_lon'] > 0)):
-        ds['gps_lon'] = ds['gps_lon'] + 100*p.x
+        ds['gps_lon'] = ds['gps_lon'] + 100*px
             
     for v in ['gps_lat','gps_lon']:
         a = ds[v].attrs # store
