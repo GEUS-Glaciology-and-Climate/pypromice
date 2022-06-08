@@ -92,7 +92,9 @@ class promiceAWS:
                          skiprows = conf["skiprows"],
                          skip_blank_lines = True,
                          usecols=cols)
-
+        
+        ds = xr.Dataset.from_dataframe(df)
+        
         # carry relevant metadata with ds
         meta = {}
         skip = ["columns", "skiprows"]
