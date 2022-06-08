@@ -80,7 +80,7 @@ class promiceAWS:
     def _read_L0(self, conf):
 
         # don't read SKIP columns
-        cols, names = zip(*[(c,n) for c,n in enumerate(conf['columns']) if n != 'SKIP'])
+        cols, names = zip(*[(c,n) for c,n in enumerate(conf['columns']) if n[0:4] != 'SKIP'])
         
         df = pd.read_csv(conf['file'],
                          comment = "#",
