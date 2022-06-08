@@ -82,8 +82,19 @@ class promiceAWS:
         # don't read SKIP columns
         cols, names = zip(*[(c,n) for c,n in enumerate(conf['columns']) if n[0:4] != 'SKIP'])
 
-        fv = conf.get('file_version', -1)
-        if fv == 1:
+        df = pd.read_csv(conf['file'],
+                         comment = "#",
+                         index_col = 0,
+                         na_values = conf['nodata'],
+                         names = names,
+                         parse_dates = True,
+                         sep = ",",
+                         skiprows = conf["skiprows"],
+                         skip_blank_lines = True,
+                         usecols = cols)
+
+        if df.index[0] == df.index[1]: # v1 file. Indices aren't properly parsed
+            print("V1 file detected. Parsing...")
             def y_doy_t_to_dt(y,doy,t):
                 """Convert for yyyy,doy,hhmm (without leading 0s) to a pandas datetime.
                 Example: '2007,90,430' to '2007-03-31 04:30:00'"""
@@ -108,19 +119,8 @@ class promiceAWS:
                              skiprows = conf["skiprows"],
                              skip_blank_lines = True,
                              usecols = cols)
-        else:
-            df = pd.read_csv(conf['file'],
-                             comment = "#",
-                             index_col = 0,
-                             na_values = conf['nodata'],
-                             names = names,
-                             parse_dates = True,
-                             sep = ",",
-                             skiprows = conf["skiprows"],
-                             skip_blank_lines = True,
-                             usecols = cols)
 
-        # from IPython import embed; embed()
+        from IPython import embed; embed()
         
         ds = xr.Dataset.from_dataframe(df)
         
