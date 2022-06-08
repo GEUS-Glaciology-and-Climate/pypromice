@@ -312,8 +312,8 @@ columns = ["time", "rec", "min_y",
 	"t_i_1", "t_i_2", "t_i_3", "t_i_4", "t_i_5", "t_i_6", "t_i_7", "t_i_8",
 	"tilt_x", "tilt_y",
 	"gps_time", "gps_lat", "gps_lon", "gps_alt", "gps_geoid",
-	"SKIP_34", "SKIP_35", "gps_numsat", "gps_hdop",
-	"t_log", "fan_dc", "SKIP_40", "batt_v_ss", "batt_v"]
+	"SKIP", "SKIP", "gps_numsat", "gps_hdop",
+	"t_log", "fan_dc", "SKIP", "batt_v_ss", "batt_v"]
 
 # Parameters applied to all files are above.
 # Define files for processing and

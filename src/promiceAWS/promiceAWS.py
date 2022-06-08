@@ -78,18 +78,21 @@ class promiceAWS:
 
 
     def _read_L0(self, conf):
+
+        # don't read SKIP columns
+        cols, names = zip(*[(c,n) for c,n in enumerate(conf['columns']) if n != 'SKIP'])
+        
         df = pd.read_csv(conf['file'],
                          comment = "#",
                          index_col = 0,
                          na_values = conf['nodata'],
-                         names = conf['columns'],
+                         names = names,
                          parse_dates = True,
                          sep = ",",
                          skiprows = conf["skiprows"],
                          skip_blank_lines = True,
-                         usecols=range(len(conf['columns'])))
-        ds = xr.Dataset.from_dataframe(df)
-    
+                         usecols=cols)
+
         # carry relevant metadata with ds
         meta = {}
         skip = ["columns", "skiprows"]
