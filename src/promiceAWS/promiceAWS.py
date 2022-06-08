@@ -81,17 +81,46 @@ class promiceAWS:
 
         # don't read SKIP columns
         cols, names = zip(*[(c,n) for c,n in enumerate(conf['columns']) if n[0:4] != 'SKIP'])
+
+        fv = conf.get('file_version', -1)
+        if fv == 1:
+            def y_doy_t_to_dt(y,doy,t):
+                """Convert for yyyy,doy,hhmm (without leading 0s) to a pandas datetime.
+                Example: '2007,90,430' to '2007-03-31 04:30:00'"""
+                # NOTE: This sems to generate the following warning:
+                ###
+                ### src/promiceAWS/promiceAWS.py:93: FutureWarning: 
+                ### Use pd.to_datetime instead.
+                ###
+                # But I'm *using* pd.to_datetime. Not sure what is going on.
+                # Remove these comments once fixed.
+                return pd.to_datetime(f'{y}-{str(doy).zfill(3)}:{str(t).zfill(4)}',
+                                      format='%Y-%j:%H%M')
         
-        df = pd.read_csv(conf['file'],
-                         comment = "#",
-                         index_col = 0,
-                         na_values = conf['nodata'],
-                         names = names,
-                         parse_dates = True,
-                         sep = ",",
-                         skiprows = conf["skiprows"],
-                         skip_blank_lines = True,
-                         usecols=cols)
+            df = pd.read_csv(conf['file'],
+                             comment = "#",
+                             index_col = 0,
+                             na_values = conf['nodata'],
+                             names = names,
+                             parse_dates = {'time': [0,1,2]},
+                             date_parser = y_doy_t_to_dt,
+                             sep = ",",
+                             skiprows = conf["skiprows"],
+                             skip_blank_lines = True,
+                             usecols = cols)
+        else:
+            df = pd.read_csv(conf['file'],
+                             comment = "#",
+                             index_col = 0,
+                             na_values = conf['nodata'],
+                             names = names,
+                             parse_dates = True,
+                             sep = ",",
+                             skiprows = conf["skiprows"],
+                             skip_blank_lines = True,
+                             usecols = cols)
+
+        # from IPython import embed; embed()
         
         ds = xr.Dataset.from_dataframe(df)
         
