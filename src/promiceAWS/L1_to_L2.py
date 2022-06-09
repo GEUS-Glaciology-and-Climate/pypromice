@@ -2,6 +2,14 @@
 
 import numpy as np
 import pandas as pd
+import os
+
+
+def vartable():
+   """load the variables.csv file"""
+   varcsv = os.path.join(os.path.dirname(__file__), 'variables.csv')
+   return pd.read_csv(varcsv, index_col=0, comment="#")
+
 
 def to_L2(L1=None):
 
@@ -38,7 +46,8 @@ def to_L2(L1=None):
     # https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/23
     # Just adding special treatment here in service of replication. rh_cor is clipped not NaN'd
     # https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
-    df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('field','lo','hi','OOL'))
+    #df=pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('field','lo','hi','OOL'))
+    df = vartable()[['lo','hi','OOL']]
     df = df.dropna(how='all')
     for var in df.index:
         if var not in list(ds.variables): continue
@@ -303,7 +312,8 @@ def to_L2(L1=None):
     # https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/23
     # Just adding special treatment here in service of replication. rh_cor is clipped not NaN'd
     # https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
-    df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('field','lo','hi','OOL'))
+    #df=pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('field','lo','hi','OOL'))
+    df = vartable()[['lo','hi','OOL']]
     df = df.dropna(how='all')
     for var in df.index:
         if var not in list(ds.variables): continue

@@ -7,6 +7,11 @@ import xarray as xr
 import logging
 import re
 
+def vartable():
+   """load the variables.csv file"""
+   varcsv = os.path.join(os.path.dirname(__file__), 'variables.csv')
+   return pd.read_csv(varcsv, index_col=0, comment="#")
+
 # logging.basicConfig(format="{asctime} : ({filename}:{lineno}) : {message} ", style="{")
 
 def _flag_NAN(ds):
@@ -44,7 +49,8 @@ def _flag_NAN(ds):
 
 def _add_variable_metadata(ds):
     # Uses the variable DB (variables.csv) to add metadata to the xarray dataset.
-    df = pd.read_csv("./variables.csv", index_col=0, comment="#")
+    # df = pd.read_csv("./variables.csv", index_col=0, comment="#")
+    df = vartable()
     
     for v in df.index:
         if v == 'time': continue # coordinate variable, not normal var
@@ -114,7 +120,8 @@ def to_L1(L0=None):
     ds = _add_variable_metadata(ds)
     
     # create variables that are missing
-    df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('field','lo','hi','OOL'))
+    #df=pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('field','lo','hi','OOL'))
+    df = vartable()[['lo','hi','OOL']]
     for v in df.index:
         if v not in list(ds.variables):
             ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)

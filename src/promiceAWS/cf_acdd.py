@@ -4,13 +4,22 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import datetime
+import os
+
 
 xr.set_options(keep_attrs=True)
+
+def vartable():
+   """load the variables.csv file"""
+   varcsv = os.path.join(os.path.dirname(__file__), 'variables.csv')
+   return pd.read_csv(varcsv, index_col=0, comment="#")
+
 
 def cf_and_acdd(ds):
     # ds.attrs = attrs
     # load CSV to NetCDF lookup variable lookup table
-    vf = pd.read_csv('variables.csv', index_col=0)
+    # vf = pd.read_csv('variables.csv', index_col=0)
+    vf = vartable()
     # print(v.columns)
     # # return ds
     # vf = v.set_index('field')
