@@ -4,11 +4,19 @@ import pandas as pd
 import xarray as xr
 from pathlib import Path
 
-import promiceAWS.L0_to_L1 as L0
-import promiceAWS.merge as merge
-import promiceAWS.L1_to_L2 as L1
-import promiceAWS.L2_to_L3 as L2
-import promiceAWS.cf_acdd as cf_acdd
+
+try:
+    import L0_to_L1 as L0
+    import merge as merge
+    import L1_to_L2 as L1
+    import L2_to_L3 as L2
+    import cf_acdd as cf_acdd
+except:
+    import promiceAWS.L0_to_L1 as L0
+    import promiceAWS.merge as merge
+    import promiceAWS.L1_to_L2 as L1
+    import promiceAWS.L2_to_L3 as L2
+    import promiceAWS.cf_acdd as cf_acdd
 
 pd.set_option('display.precision', 2)
 xr.set_options(keep_attrs=True)
@@ -107,7 +115,8 @@ class promiceAWS:
                              sep = ",",
                              skiprows = conf["skiprows"],
                              skip_blank_lines = True,
-                             usecols = cols)
+                             usecols = range(len(cols)))
+                             # usecols = cols)
         else:
             df = pd.read_csv(conf['file'],
                              comment = "#",
@@ -118,9 +127,8 @@ class promiceAWS:
                              sep = ",",
                              skiprows = conf["skiprows"],
                              skip_blank_lines = True,
-                             usecols = cols)
-
-        # from IPython import embed; embed()
+                             usecols = range(len(cols)))
+                             # usecols = cols)
         
         ds = xr.Dataset.from_dataframe(df)
         
