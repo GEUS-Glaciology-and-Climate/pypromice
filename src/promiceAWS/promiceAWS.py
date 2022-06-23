@@ -115,8 +115,7 @@ class promiceAWS:
                              sep = ",",
                              skiprows = conf["skiprows"],
                              skip_blank_lines = True,
-                             usecols = range(len(cols)))
-                             # usecols = cols)
+                             usecols = cols)
         else:
             df = pd.read_csv(conf['file'],
                              comment = "#",
@@ -127,9 +126,8 @@ class promiceAWS:
                              sep = ",",
                              skiprows = conf["skiprows"],
                              skip_blank_lines = True,
-                             usecols = range(len(cols)))
-                             # usecols = cols)
-        
+                             usecols = cols)
+                             
         ds = xr.Dataset.from_dataframe(df)
         
         # carry relevant metadata with ds
