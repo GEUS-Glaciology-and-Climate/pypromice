@@ -87,9 +87,6 @@ class promiceAWS:
 
     def _read_L0(self, conf):
 
-        # don't read SKIP columns
-        cols, names = zip(*[(c,n) for c,n in enumerate(conf['columns']) if n[0:4] != 'SKIP'])
-
         fv = conf.get('file_version', -1)
         if fv == 1:
             def y_doy_t_to_dt(y,doy,t):
@@ -109,25 +106,30 @@ class promiceAWS:
                              comment = "#",
                              index_col = 0,
                              na_values = conf['nodata'],
-                             names = names,
+                             names = conf['columns'],
                              parse_dates = {'time': [0,1,2]},
                              date_parser = y_doy_t_to_dt,
                              sep = ",",
                              skiprows = conf["skiprows"],
                              skip_blank_lines = True,
-                             usecols = cols)
+                             usecols=range(len(conf['columns'])))
         else:
             df = pd.read_csv(conf['file'],
                              comment = "#",
                              index_col = 0,
                              na_values = conf['nodata'],
-                             names = names,
+                             names = conf['columns'],
                              parse_dates = True,
                              sep = ",",
                              skiprows = conf["skiprows"],
                              skip_blank_lines = True,
-                             usecols = cols)
-                             
+                             usecols=range(len(conf['columns'])))
+
+        # Drop SKIP columns
+        for c in df.columns:
+            if c[0:4] == 'SKIP':
+                df.drop(columns=c, inplace=True)
+
         ds = xr.Dataset.from_dataframe(df)
         
         # carry relevant metadata with ds
