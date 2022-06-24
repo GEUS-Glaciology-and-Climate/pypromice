@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 
 import pandas as pd
+import os
+
+
+def vartable():
+   """load the variables.csv file"""
+   varcsv = os.path.join(os.path.dirname(__file__), 'variables.csv')
+   return pd.read_csv(varcsv, index_col=0, comment="#")
 
 def merge(ds_list):
     
@@ -22,7 +29,8 @@ def merge(ds_list):
         for d in ds_list[1:]:
             ds = ds.combine_first(d)
         
-    df = pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('field','lo','hi','OOL'))
+    #df=pd.read_csv("./variables.csv", index_col=0, comment="#", usecols=('field','lo','hi','OOL'))
+    df = vartable()[['lo','hi','OOL']]
     df = df.dropna(how='all')
     for var in df.index:
         if var not in list(ds.variables): continue

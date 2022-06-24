@@ -50,7 +50,6 @@ class promiceAWS:
         self.outpath = outpath
         self.config = self._load_config(config_file=self.config_file, inpath=self.inpath)
         self.L0 = self.load(conf=self.config_file, L0_path=self.inpath)
-
         
     def _load_config(self, config_file, inpath):
         # Load a TOML file
@@ -139,7 +138,6 @@ class promiceAWS:
             if k not in skip: meta[k] = conf[k]
         ds.attrs = meta
         return ds
-
 
     def load(self, conf=None, L0_path=None):
         """Load PROMICE AWS level 0 (L0) data. Requires associated TOML-formatted config file
