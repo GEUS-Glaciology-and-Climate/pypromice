@@ -4,11 +4,19 @@ import pandas as pd
 import xarray as xr
 from pathlib import Path
 
-import promiceAWS.L0_to_L1 as L0
-import promiceAWS.merge as merge
-import promiceAWS.L1_to_L2 as L1
-import promiceAWS.L2_to_L3 as L2
-import promiceAWS.cf_acdd as cf_acdd
+
+try:
+    import L0_to_L1 as L0
+    import merge as merge
+    import L1_to_L2 as L1
+    import L2_to_L3 as L2
+    import cf_acdd as cf_acdd
+except:
+    import promiceAWS.L0_to_L1 as L0
+    import promiceAWS.merge as merge
+    import promiceAWS.L1_to_L2 as L1
+    import promiceAWS.L2_to_L3 as L2
+    import promiceAWS.cf_acdd as cf_acdd
 
 pd.set_option('display.precision', 2)
 xr.set_options(keep_attrs=True)
@@ -79,20 +87,49 @@ class promiceAWS:
 
     def _read_L0(self, conf):
 
-        # don't read SKIP columns
-        cols, names = zip(*[(c,n) for c,n in enumerate(conf['columns']) if n[0:4] != 'SKIP'])
+        fv = conf.get('file_version', -1)
+        if fv == 1:
+            def y_doy_t_to_dt(y,doy,t):
+                """Convert for yyyy,doy,hhmm (without leading 0s) to a pandas datetime.
+                Example: '2007,90,430' to '2007-03-31 04:30:00'"""
+                # NOTE: This sems to generate the following warning:
+                ###
+                ### src/promiceAWS/promiceAWS.py:93: FutureWarning: 
+                ### Use pd.to_datetime instead.
+                ###
+                # But I'm *using* pd.to_datetime. Not sure what is going on.
+                # Remove these comments once fixed.
+                return pd.to_datetime(f'{y}-{str(doy).zfill(3)}:{str(t).zfill(4)}',
+                                      format='%Y-%j:%H%M')
         
-        df = pd.read_csv(conf['file'],
-                         comment = "#",
-                         index_col = 0,
-                         na_values = conf['nodata'],
-                         names = names,
-                         parse_dates = True,
-                         sep = ",",
-                         skiprows = conf["skiprows"],
-                         skip_blank_lines = True,
-                         usecols=cols)
-        
+            df = pd.read_csv(conf['file'],
+                             comment = "#",
+                             index_col = 0,
+                             na_values = conf['nodata'],
+                             names = conf['columns'],
+                             parse_dates = {'time': [0,1,2]},
+                             date_parser = y_doy_t_to_dt,
+                             sep = ",",
+                             skiprows = conf["skiprows"],
+                             skip_blank_lines = True,
+                             usecols=range(len(conf['columns'])))
+        else:
+            df = pd.read_csv(conf['file'],
+                             comment = "#",
+                             index_col = 0,
+                             na_values = conf['nodata'],
+                             names = conf['columns'],
+                             parse_dates = True,
+                             sep = ",",
+                             skiprows = conf["skiprows"],
+                             skip_blank_lines = True,
+                             usecols=range(len(conf['columns'])))
+
+        # Drop SKIP columns
+        for c in df.columns:
+            if c[0:4] == 'SKIP':
+                df.drop(columns=c, inplace=True)
+
         ds = xr.Dataset.from_dataframe(df)
         
         # carry relevant metadata with ds
