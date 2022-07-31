@@ -17,9 +17,9 @@ sys.path.insert(0, os.path.abspath('../src'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'promice-aws-processing'
-copyright = '2022, Kenneth D. Mankoff'
-author = 'Kenneth D. Mankoff'
+project = 'pypromice'
+copyright = '2022, GEUS'
+author = 'Penelope How, Kenneth D. Mankoff'
 
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'

@@ -1,0 +1,75 @@
+Delivered-To: geus.aws@gmail.com
+Received: by 2002:a50:fe91:0:b0:43b:5235:2b05 with SMTP id d17csp1741072edt;
+        Mon, 25 Jul 2022 03:01:42 -0700 (PDT)
+X-Google-Smtp-Source: AGRyM1v1eQ1QVtVNUZEGRV6Ddi6Ah8lgtju0dNwaMATCWnhQHanPZ5Q8+SOZ7hUTRPbhXCinmMn/
+X-Received: by 2002:a05:6871:295:b0:10d:c587:d2c4 with SMTP id i21-20020a056871029500b0010dc587d2c4mr5977417oae.122.1658743302589;
+        Mon, 25 Jul 2022 03:01:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1658743302; cv=none;
+        d=google.com; s=arc-20160816;
+        b=AqG/qXwM8Qjcgz4aw96KJGU/z4e7vC7yRPw0NVAIjc6MJ85H6F58GY89JNLDsVMkOw
+         a0vZz/pWaz5o8wB5yZ+BBIdf2ImHzqYjUfqewvXS2xrt7hyE4BAyI4r40sJNmQoQzccF
+         CZNHuWntgZw8ntW0nN3tX3ma26pbIBai1hr8QywAyluOugvDuMP7ckUysYqld4GhX4fW
+         qBa0nprF7AC8gcoFpt0DQybj8tB/CVpXTPqnRhgvxtja1K24rdYwIcoizJBtMQw7VlM7
+         mPOo8i7CSYJS7x7TFTgVPg4Ae85yCj6vYlvTICEWBkS389IDIZK5k8E10GN8GKQUN5DU
+         wQug==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=message-id:mime-version:subject:to:from:reply-to:date;
+        bh=OOCiGWkYYU7jainW/gAZNi1LX19KmanlKArRM9kkONE=;
+        b=wRVS363YfkwDXW/cPlPFyMDqxf1Km7kyijJvgkYralUMAXll/qdx9JoIu3YbNk218S
+         QK9bCGlRwNR2m9Do4e1K5D+BQOPTe120MFmlZa0HoyqkWhjBVNW/N81OawlNNkeeN+Y4
+         QllhEC6yS6EhU2li95mu45g7X/sJrhJ1uPM4Bcl98Hf+wfXw5ZJbZbkNrc8zwmCtgyW6
+         mnzq0M0QvhKXCXK6+YAUIANsPtxO1CfiFfnZggoMr5RT5+hPZw6OEn1aHgoDwsI3RLlG
+         zpHuIDAfgo65ecGsLDQIgWt0RggVipvT6mKBifub9wnbGgnj9smWVPoItQj1Fl3ya8+S
+         L9og==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=pass (google.com: domain of sbdservice@sbd.iridium.com designates 12.47.179.11 as permitted sender) smtp.mailfrom=sbdservice@sbd.iridium.com
+Return-Path: <sbdservice@sbd.iridium.com>
+Received: from istsbdmailsv05.sbd.iridium.com (outbound.sbd.iridium.com. [12.47.179.11])
+        by mx.google.com with ESMTPS id u42-20020a056870702a00b000f333413e16si9950741oae.95.2022.07.25.03.01.42
+        for <geus.aws@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jul 2022 03:01:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sbdservice@sbd.iridium.com designates 12.47.179.11 as permitted sender) client-ip=12.47.179.11;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of sbdservice@sbd.iridium.com designates 12.47.179.11 as permitted sender) smtp.mailfrom=sbdservice@sbd.iridium.com
+Received: from pps.filterd (istsbdmailsv05.sbd.iridium.com [127.0.0.1])
+	by istsbdmailsv05.sbd.iridium.com (8.16.1.2/8.16.1.2) with SMTP id 26P9tBt9007175
+	for <geus.aws@gmail.com>; Mon, 25 Jul 2022 10:01:41 GMT
+Date: Mon, 25 Jul 2022 10:01:41 GMT
+Received: from sbd.iridium.com (istsbdspp02.sbd.iridium.com [10.11.1.156])
+	by istsbdmailsv05.sbd.iridium.com with ESMTP id 3hg8tfh9fm-1
+	for <geus.aws@gmail.com>; Mon, 25 Jul 2022 10:01:41 +0000
+Reply-To: <sbdservice@sbd.iridium.com>
+From: sbdservice@sbd.iridium.com
+To: geus.aws@gmail.com
+Subject: SBD Msg From Unit: 300234061165160
+MIME-Version: 1.0
+Content-Type: multipart/mixed;boundary="SBD.Boundary.605592468"
+Message-ID: <3hg8tfh9fm-1@istsbdmailsv05.sbd.iridium.com>
+X-TUID: F2mWOvnGwvQ6
+
+SBM Message
+--SBD.Boundary.605592468
+Content-Type: text/plain;charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
+
+MOMSN: 36820
+MTMSN: 0
+Time of Session (UTC): Mon Jul 25 10:01:41 2022
+Session Status: 00 - Transfer OK
+Message Size (bytes): 27
+
+Unit Location: Lat = 67.00865 Long = -47.07785
+CEPradius = 5
+
+
+
+--SBD.Boundary.605592468
+Content-Type: application/x-zip-compressed; name="SBMmessage.sbd"
+Content-Disposition: attachment; filename="300234061165160_036820.sbd"
+Content-Transfer-Encoding: base64
+
+Hj0/zCBjJ5LMLj8/CwAAAABVYk+CxDOmM4h7
+--SBD.Boundary.605592468--
+

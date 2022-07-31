@@ -4,11 +4,11 @@ with open("README.org", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="promice-aws-processing",
+    name="pypromice",
     version="0.0.1",
-    author="Kenneth D. Mankoff",
-    author_email="kdm@geus.dk",
-    description="PROMICE AWS processing toolbox",
+    author="Penelope How",
+    author_email="pho@geus.dk",
+    description="PROMICE data processing toolbox",
     long_description=long_description,
     long_description_content_type="text/plain",
     url="https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing",
@@ -32,5 +32,5 @@ setuptools.setup(
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
     install_requires=['numpy', 'pandas', 'scipy', 'bottleneck', 'xarray', 'netcdf4', 'toml'],
-    scripts=['bin/promiceAWS'],
+    scripts=['bin/promiceAWS', 'bin/getL0tx],
 )
