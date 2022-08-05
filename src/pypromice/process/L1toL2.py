@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 
 import numpy as np
-import pandas as pd
-import os
   
-def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1., 
-         eps_clear=9.36508e-6, emissivity=0.97):
+def toL2(L1, vars_df, cols=['lo','hi','OOL'], T_0=273.15, ews=1013.246, 
+         ei0=6.1071, eps_overcast=1., eps_clear=9.36508e-6, emissivity=0.97):
     '''Process one Level 1 (L1) product to Level 2
 
     Parameters
     ----------
     L1 : xarray.Dataset
         Level 1 dataset
+    vars_df : pandas.DataFrame
+        Variables look-up table dataframe
+    cols : list
+        List of columns in variables look-up table to pass forward
     T_0 : int, optional
         Steam point temperature. The default is 273.15.
     ews : int, optional
@@ -32,31 +34,33 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
         Level 2 dataset
     '''
     ds = L1                                                                    # Reassign dataset  
-  
-    # Determine relative humidity
-    T = ds['t_1'].copy(deep=True) 
-    T_100 = _getTempK(T_0)                                                     # Get steam point temperature in K
-    ds['rh_cor'] = _correctHumidity(ds['rh'], ds['t_1'], T, 
-                                    T_0, T_100, ews, ei0)                      # Correct relative humidity
+    
+    T_u = ds['t_u'].copy(deep=True)                                            # Correct relative humidity
+    T_100_u = _getTempK(T_u)  
+    ds['rh_u_cor'] = _correctHumidity(ds['rh_u'], ds['t_u'], T_u,  
+                                    T_0, T_100_u, ews, ei0)                       
     
     # Filter bad values
-    df = vartable()[['lo','hi','OOL']]                                         #TODO use attributes.getVars() function
+    df = vars_df[cols] 
     df = df.dropna(how='all')
     ds = _clipValues(ds, df)                                                   # Clip all values to pre-defined hi-lo range
-
-    # Determiune cloud and temperature
-    cc = _calcCloudCoverage(T, T_0, eps_overcast, eps_clear,                   # Calculate cloud coverage
-                            ds['dlr'], ds.attrs['station_id'])   
+    
+    # Determiune cloud cover
+    cc = _calcCloudCoverage(T_u, T_0, eps_overcast, eps_clear,                 # Calculate cloud coverage
+                              ds['dlr'], ds.attrs['station_id'])  
     ds['cc'] = (('time'), cc.data)
+    
+    # Determine surface temperature
     ds['t_surf'] = _calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],          # Calculate surface temperature
                                            emissivity)
+    
     # Determine station position relative to sun    
     doy = ds['time'].to_dataframe().index.dayofyear.values                     # Gather variables to calculate sun pos
     hour = ds['time'].to_dataframe().index.hour.values
     minute = ds['time'].to_dataframe().index.minute.values
     lat = ds.attrs['latitude']
     lon = ds.attrs['longitude']
-    DifFrac = 0.2 + 0.8 * cc  
+    
     deg2rad, rad2deg = _getRotation()                                          # Get degree-radian conversions  
     phi_sensor_rad, theta_sensor_rad = _calcTilt(ds['tilt_x'], ds['tilt_y'],   # Calculate station tilt 
                                                  deg2rad)    
@@ -67,20 +71,18 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
                                                    rad2deg)
     
     # Correct Downwelling shortwave radiation
+    DifFrac = 0.2 + 0.8 * cc 
     CorFac_all = _calcCorrectionFactor(Declination_rad, phi_sensor_rad,        # Calculate correction
                                        theta_sensor_rad, HourAngle_rad, 
                                        ZenithAngle_rad, ZenithAngle_deg, 
                                        lat, DifFrac, deg2rad)        
     ds['dsr_cor'] = ds['dsr'].copy(deep=True) * CorFac_all                     # Apply correction
-    
-    # Determine albedo
-    ds['albedo'] = ds['usr'] / ds['dsr_cor']                                   # Get observed albedo     
+
     AngleDif_deg = _calcAngleDiff(ZenithAngle_rad, HourAngle_rad,              # Calculate angle between sun and sensor
-                                  phi_sensor_rad, theta_sensor_rad) 
-    OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (ds['albedo'] < 1) & (ds['albedo'] > 0)
-    ds['albedo'][~OKalbedos] = np.nan                                          # NaN bad data
-    ds['albedo'] = ds['albedo'].interpolate_na(dim='time', use_coordinate=False) # Interpolate all. Note "use_coordinate=False" is used here to force comparison against the GDL code when that is run with *only* a TX file. Should eventually set to default (True) and interpolate based on time, not index.  
-    ds['albedo'] = ds['albedo'].ffill(dim='time').bfill(dim='time')            #TODO remove this line and one above?
+                                  phi_sensor_rad, theta_sensor_rad)   
+    
+    ds['albedo'], OKalbedos = _calcAlbedo(ds['usr'], ds['dsr_cor'],                       # Determine albedo
+                               AngleDif_deg, ZenithAngle_deg)
 
     # Correct upwelling and downwelling shortwave radiation
     sunonlowerdome =(AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)             # Determine when sun is in FOV of lower sensor, assuming sensor measures only diffuse radiation
@@ -107,19 +109,22 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     # sundown = ZenithAngle_deg >= 90
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)    
     
-    # # Determine wind speed as xy based on wind direction
-    # ds['wspd_x'] = ds['wspd'] * np.sin(ds['wdir'] * deg2rad)
-    # ds['wspd_y'] = ds['wspd'] * np.cos(ds['wdir'] * deg2rad)
+    if ds.attrs['number_of_booms']==2:      
+        T_l = ds['t_l'].copy(deep=True) 
+        T_100_l = _getTempK(T_l)                                               # Get steam point temperature in K
+        ds['rh_l_cor'] = _correctHumidity(ds['rh_l'], ds['t_l'], T_l,          # Correct relative humidity
+                                        T_0, T_100_l, ews, ei0)                          
     
+        if ~ds['msg_i'].isnull().all():                                            # Instantaneous msg processing
+            T_i = ds['t_i'].copy(deep=True) 
+            T_100_i = _getTempK(T_i)                                               # Get steam point temperature in K
+            ds['rh_i_cor'] = _correctHumidity(ds['rh_i'], ds['t_i'], T_l,          # Correct relative humidity
+                                            T_0, T_100_i, ews, ei0)     
+                   
     # Clip values to pre-defined hi-lo values 
     ds = _clipValues(ds, df)                                                   #TODO repetition with earlier. Is this needed?
-
     return ds
 
-def vartable():                                                                #TODO move this
-   """load the variables.csv file"""
-   varcsv = os.path.join(os.path.dirname(__file__), 'variables.csv')
-   return pd.read_csv(varcsv, index_col=0, comment="#")
 
 def _getTempK(T_0):                                                            #TODO same as L2toL3._getTempK()
     '''Return steam point temperature in K'''
@@ -156,7 +161,7 @@ def _clipValues(ds, df):
     for var in df.index:
         if var not in list(ds.variables): 
             continue
-        if var == 'rh_cor':
+        if 'rh_cor' in var:
              ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'], other = 0)
              ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'], other = 100)
         else:
@@ -367,12 +372,31 @@ def _calcAngleDiff(ZenithAngle_rad, HourAngle_rad, phi_sensor_rad,
                                    * np.sin(phi_sensor_rad)
                                    + np.cos(ZenithAngle_rad)
                                    * np.cos(theta_sensor_rad))  
+
+def _calcAlbedo(usr, dsr_cor, AngleDif_deg, ZenithAngle_deg):
+    '''Calculate surface albedo based on upwelling and downwelling shorwave 
+    flux, the angle between the sun and sensor, and the sun zenith'''
+    albedo = usr / dsr_cor    
+    
+    # NaN bad data
+    OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (albedo < 1) & (albedo > 0)    
+    albedo[~OKalbedos] = np.nan             
+    
+    # Interpolate all. Note "use_coordinate=False" is used here to force 
+    # comparison against the GDL code when that is run with *only* a TX file. 
+    # Should eventually set to default (True) and interpolate based on time, 
+    # not index.                                           
+    albedo = albedo.interpolate_na(dim='time', use_coordinate=False)           
+    albedo = albedo.ffill(dim='time').bfill(dim='time')                        #TODO remove this line and one above?
+    return albedo, OKalbedos
     
 def _calcTOA(ZenithAngle_deg, ZenithAngle_rad):
     '''Calculate incoming shortwave radiation at the top of the atmosphere,
     accounting for sunset periods'''
     sundown = ZenithAngle_deg >= 90
-    isr_toa = 1372 * np.cos(ZenithAngle_rad) # Incoming shortware radiation at the top of the atmosphere
+    
+    # Incoming shortware radiation at the top of the atmosphere
+    isr_toa = 1372 * np.cos(ZenithAngle_rad) 
     isr_toa[sundown] = 0
     return isr_toa 
     
