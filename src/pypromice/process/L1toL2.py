@@ -2,18 +2,14 @@
 
 import numpy as np
   
-def toL2(L1, vars_df, cols=['lo','hi','OOL'], T_0=273.15, ews=1013.246, 
-         ei0=6.1071, eps_overcast=1., eps_clear=9.36508e-6, emissivity=0.97):
+def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1., 
+         eps_clear=9.36508e-6, emissivity=0.97):
     '''Process one Level 1 (L1) product to Level 2
 
     Parameters
     ----------
     L1 : xarray.Dataset
         Level 1 dataset
-    vars_df : pandas.DataFrame
-        Variables look-up table dataframe
-    cols : list
-        List of columns in variables look-up table to pass forward
     T_0 : int, optional
         Steam point temperature. The default is 273.15.
     ews : int, optional
@@ -39,12 +35,7 @@ def toL2(L1, vars_df, cols=['lo','hi','OOL'], T_0=273.15, ews=1013.246,
     T_100_u = _getTempK(T_u)  
     ds['rh_u_cor'] = _correctHumidity(ds['rh_u'], ds['t_u'], T_u,  
                                     T_0, T_100_u, ews, ei0)                       
-    
-    # Filter bad values
-    df = vars_df[cols] 
-    df = df.dropna(how='all')
-    ds = _clipValues(ds, df)                                                   # Clip all values to pre-defined hi-lo range
-    
+        
     # Determiune cloud cover
     cc = _calcCloudCoverage(T_u, T_0, eps_overcast, eps_clear,                 # Calculate cloud coverage
                               ds['dlr'], ds.attrs['station_id'])  
@@ -119,10 +110,7 @@ def toL2(L1, vars_df, cols=['lo','hi','OOL'], T_0=273.15, ews=1013.246,
             T_i = ds['t_i'].copy(deep=True) 
             T_100_i = _getTempK(T_i)                                               # Get steam point temperature in K
             ds['rh_i_cor'] = _correctHumidity(ds['rh_i'], ds['t_i'], T_l,          # Correct relative humidity
-                                            T_0, T_100_i, ews, ei0)     
-                   
-    # Clip values to pre-defined hi-lo values 
-    ds = _clipValues(ds, df)                                                   #TODO repetition with earlier. Is this needed?
+                                            T_0, T_100_i, ews, ei0)                   
     return ds
 
 
@@ -135,46 +123,6 @@ def _getRotation():                                                            #
     deg2rad = np.pi / 180
     rad2deg = 1 / deg2rad
     return deg2rad, rad2deg
-
-def _clipValues(ds, df):
-    '''Clip values in dataset to defined "hi" and "lo" variables from dataframe.
-    Related issues:
-    
-    https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/23 - Just 
-    adding special treatment here in service of replication. rh_cor is clipped 
-    not NaN'd
-    
-    https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
-    
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset to clip hi-lo range to
-    df : pandas.DataFrame
-        Dataframe to retrieve attribute hi-lo values from
-    
-    Returns
-    -------
-    ds : xarray.Dataset
-        Dataset with clipped data
-    '''
-    for var in df.index:
-        if var not in list(ds.variables): 
-            continue
-        if 'rh_cor' in var:
-             ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'], other = 0)
-             ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'], other = 100)
-        else:
-            ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'])
-            ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'])
-        other_vars = df.loc[var]['OOL'] # either NaN or "foo" or "foo bar baz ..."
-        if isinstance(other_vars, str): 
-            for o in other_vars.split():
-                if o not in list(ds.variables): 
-                    continue
-                ds[o] = ds[o].where(ds[var] >= df.loc[var, 'lo'])
-                ds[o] = ds[o].where(ds[var] <= df.loc[var, 'hi'])  
-    return ds
 
 def _calcCloudCoverage(T, T_0, eps_overcast, eps_clear, dlr, station_id):
     '''Calculate cloud cover from T and T_0

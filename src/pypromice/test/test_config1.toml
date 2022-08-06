@@ -1,6 +1,6 @@
 station_id = 'TEST1'
 nodata     = ['-999', 'NAN'] # if one is a string, all must be strings
-number_of_booms = 1
+number_of_booms = 1 #1-boom = promice, 2-boom = gc-net
 latitude = 79.91
 longitude = 24.09
 

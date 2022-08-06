@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os, unittest, toml, datetime, uuid 
+import numpy as np
 import pandas as pd
 import xarray as xr
 from pathlib import Path
@@ -37,47 +38,83 @@ class AWS(object):
         '''
         assert(os.path.isfile(config_file))
         assert(os.path.isdir(inpath))
-        
+        print('\nAWS object initialising...')
         # Load config, variables CSF standards, and L0 files
         self.config = self.loadConfig(config_file, inpath)
         self.vars = getVars(var_file)
         self.meta = getMeta(meta_file)
+        
         self.L0 = self.loadL0(config_file, inpath)
-       
+        try:
+            print(f'AWS object initialised for processing data from {self.L0.attrs["station_id"]}') 
+        except:
+            print(f'AWS object initialised for processing data from {self.L0[0].attrs["station_id"]}')         
+        
         # Proces L0 to L3 product
         self.process()
-        self.addAttributes()
+        self.L3 = self.addAttributes(self.L3)
+        
+        # Resample to hourly, daily and monthly products
+        self.L3_h = self.resample('60min')
+        self.L3_d = self.resample('1D')
+        self.L3_m = self.resample('M')
         
         # Save to file if outpath given
         if outpath is not None:
             if os.path.isdir(outpath):
                 self.write(outpath)
             else:
-                print(f'Outpath f{outpath} does not exist')
+                print(f'Outpath f{outpath} does not exist. Unable to save to file')
                 pass
-            
+    
     def process(self):
         '''Perform L0 to L3 data processing'''
-        # Process and merge all L0 files
+        try:
+            print(f'Commencing {self.L0.attrs["number_of_booms"]}-boom processing...')
+        except:
+            print(f'Commencing {self.L0[0].attrs["number_of_booms"]}-boom processing...')        
+        
+        print('Level 1 processing...')
+        self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
         self.L1 = [toL1(item, self.vars) for item in self.L0]
         self.L1A = mergeVars(self.L1, self.vars)
         
         # L1 to L3 processing
-        self.L2 = toL2(self.L1A, self.vars)
-        self.L3_h, self.L3_d = toL3(self.L2)
+        print('Level 2 processing...')
+        self.L2 = toL2(self.L1A)
+        self.L2 = clipValues(self.L2, self.vars)
+
+        print('Level 3 processing...')        
+        self.L3 = toL3(self.L2)
+
+        
+    def resample(self, resample_factor):  
+        '''Resample L3 data'''
+        r = resampleL3(self.L3, resample_factor)
+        if resample_factor in 'M':
+            print('Level 3 successfully resampled to monthly product')
+        elif resample_factor in '1D':
+            print('Level 3 successfully resampled to daily product')           
+        elif resample_factor in '60min':
+            print('Level 3 successfully resampled to hourly product')  
+        else:
+            print('Level 3 successfully resampled')
+        return r
     
-    def addAttributes(self):
+    def addAttributes(self, L3):
         '''Add variable and attribute metadata'''
-        self.L3_h = addVars(self.L3_h, self.vars)
-        self.L3_h = addMeta(self.L3_h, self.meta)
-        self.L3_d = addVars(self.L3_d, self.vars)
-        self.L3_d = addMeta(self.L3_d, self.meta)
+        L3 = addVars(L3, self.vars)
+        L3 = addMeta(L3, self.meta)
+        return L3
 
     def write(self, outpath):
         '''Write L3 data to .nc and .csv hourly and daily files'''
-        outdir = os.path.join(outpath, self.L3_h.attrs['station_id'])       
-        writeL3(outdir, self.L3_h.attrs['station_id'], self.L3_h, self.L3_d)
-        
+        outdir = os.path.join(outpath, self.L3_h.attrs['station_id']) 
+        print('Writing to files...')
+        writeL3(outdir, self.L3_h.attrs['station_id'], 
+                self.L3_h, self.L3_d, self.L3_m)
+        print(f'Out files successfully written to {outdir}')
+
     def loadConfig(self, config_file, inpath):
         '''Load configuration from .toml file'''
         conf = getConfig(config_file, inpath)
@@ -89,12 +126,15 @@ class AWS(object):
         c = self.config
         if len(c.keys()) == 1: # one file in this config
             ds = self._readL0file(c[list(c.keys())[0]])
+            print(f'L0 data successfully loaded from {list(c.keys())[0]}')
             return [ds]
         else:
             ds_list = []
             for k in c.keys():
                 ds_list.append(self._readL0file(c[k]))
+                print(f'L0 data successfully loaded from {k}')
             return ds_list
+        
         
     def _readL0file(self, conf):
         ''' Read L0 .txt file to Dataset object using config dictionary and
@@ -186,6 +226,17 @@ def getL0(infile, nodata, cols, skiprows, file_version, delimiter=',', comment='
     ds = xr.Dataset.from_dataframe(df)
     return ds
 
+def addBasicMeta(ds, vars_df):
+    ''' Use a variable lookup table DataFrame to add the basic metadata 
+    to the xarray dataset. This is later amended to finalise L3'''
+    for v in vars_df.index:
+        if v == 'time': continue # coordinate variable, not normal var
+        if v not in list(ds.variables): continue
+        for c in ['standard_name', 'long_name', 'units']:
+            if isinstance(vars_df[c][v], float) and np.isnan(vars_df[c][v]): continue
+            ds[v].attrs[c] = vars_df[c][v]
+    return ds
+
 def populateMeta(ds, conf, skip):
     '''Populate L0 Dataset with metadata dictionary
     
@@ -217,15 +268,16 @@ def writeLx(outfile, Lx):
         os.remove(outfile+'.nc')
     Lx.to_netcdf(outfile+'.nc', mode='w', format='NETCDF4', compute=True)
     
-def writeL3(outpath, station_id, l3_h, l3_d):
+def writeL3(outpath, station_id, l3_h, l3_d, l3_m):
     '''Write L3 Dataset to .nc and .csv hourly and daily files'''
     if not os.path.isdir(outpath):
         os.mkdir(outpath)
     outfile_h = os.path.join(outpath, station_id + '_hour')
     outfile_d = os.path.join(outpath, station_id + '_day')
-    for o,l in zip([outfile_h, outfile_d], [l3_h ,l3_d]):
+    outfile_m = os.path.join(outpath, station_id + '_month')
+    for o,l in zip([outfile_h, outfile_d, outfile_m], [l3_h ,l3_d, l3_m]):
         writeLx(o,l)
-
+        
 def addAllInfo(ds, v_file='variables.csv', m_file='metadata.csv'):
     '''Add variable attributes and metadata to dataset
     
@@ -265,40 +317,72 @@ def mergeVars(ds_list, variables, cols=['lo','hi','OOL']):                     #
     # This could be as simple as:
     # ds = xr.open_mfdataset(infile_list, combine='by_coords', mask_and_scale=False).load()     
     # Except that some files have overlapping times.
-    
+
     # Combine Dataset objects
     ds = ds_list[0]
     if len(ds_list) > 1:
         for d in ds_list[1:]:
             ds = ds.combine_first(d)
-    
+     
     # Get variables
     df = variables[cols]
     df = df.dropna(how='all')
     
-    # Merge where variable name matches
-    for var in df.index:
-        if var not in list(ds.variables): continue
-        if var == 'rh_cor':
-             ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'], other = 0)
-             ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'], other = 100)
-        else:
-            ds[var] = ds[var].where(ds[var] >= df.loc[var, 'lo'])
-            ds[var] = ds[var].where(ds[var] <= df.loc[var, 'hi'])
-        other_vars = df.loc[var]['OOL'] # either NaN or "foo" or "foo bar baz ..."
-        if isinstance(other_vars, str): 
-            for o in other_vars.split():
-                if o not in list(ds.variables): continue
-                ds[o] = ds[o].where(ds[var] >= df.loc[var, 'lo'])
-                ds[o] = ds[o].where(ds[var] <= df.loc[var, 'hi'])
-
+    # Remove outliers
+    ds = clipValues(ds, df, cols)
+                        
     # Clean up metadata
     for k in ['format', 'hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
               'dlr_eng_coef', 'ulr_eng_coef', 'pt_z_coef', 'pt_z_p_coef',
               'pt_z_factor', 'pt_antifreeze', 'boom_azimuth', 'nodata',
               'conf', 'file']:
         if k in ds.attrs.keys():
-            ds.attrs.pop(k)
+            ds.attrs.pop(k) 
+    return ds
+
+def clipValues(ds, df, cols=['lo','hi','OOL']):
+    '''Clip values in dataset to defined "hi" and "lo" variables from dataframe.
+    Related issues:
+    
+    https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/23 - Just 
+    adding special treatment here in service of replication. rh_cor is clipped 
+    not NaN'd
+    
+    https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
+    
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset to clip hi-lo range to
+    df : pandas.DataFrame
+        Dataframe to retrieve attribute hi-lo values from
+    
+    Returns
+    -------
+    ds : xarray.Dataset
+        Dataset with clipped data
+    '''
+    df = df[cols] 
+    df = df.dropna(how='all')
+    lo = cols[0]
+    hi = cols[1]
+    ool = cols[2]
+    for var in df.index:
+        if var not in list(ds.variables): 
+            continue
+        if var in ['rh_u_cor', 'rh_l_cor']:
+             ds[var] = ds[var].where(ds[var] >= df.loc[var, lo], other = 0)
+             ds[var] = ds[var].where(ds[var] <= df.loc[var, hi], other = 100)
+        else:
+            ds[var] = ds[var].where(ds[var] >= df.loc[var, lo])
+            ds[var] = ds[var].where(ds[var] <= df.loc[var, hi])
+        other_vars = df.loc[var][ool] # either NaN or "foo" or "foo bar baz ..."
+        if isinstance(other_vars, str): 
+            for o in other_vars.split():
+                if o not in list(ds.variables): 
+                    continue
+                ds[o] = ds[o].where(ds[var] >= df.loc[var, lo])
+                ds[o] = ds[o].where(ds[var] <= df.loc[var, hi])  
     return ds
 
 def addVars(ds, variables):
@@ -433,13 +517,45 @@ def getMeta(m_file, delimiter=','):                                            #
         meta[l.split(',')[0]] = l.split(delimiter)[1].split('\n')[0].replace(';',',')        
     return meta
 
+def resampleL3(ds_h, t):
+    '''Resample L3 AWS data, e.g. hourly to daily average. This uses pandas 
+    DataFrame resampling at the moment as a work-around to the xarray Dataset
+    resampling. As stated, xarray resampling is a lengthy process that takes
+    ~2-3 minutes per operation:
+
+    ds_d = ds_h.resample({'time':"1D"}).mean()
+    https://github.com/pydata/xarray/issues/4498 & https://stackoverflow.com/questions/64282393/
+    
+    This has now been fixed in the latest pandas, so needs implementing:
+    https://github.com/pydata/xarray/issues/4498#event-6610799698
+    
+    Parameters
+    ----------
+    ds_h : xarray.Dataset
+        L3 AWS daily dataset
+    t : str
+        Resample factor, same variable definition as in 
+        pandas.DataFrame.resample()
+    
+    Returns
+    -------
+    ds_d : xarray.Dataset
+        L3 AWS hourly dataset
+    '''
+    df_d = ds_h.to_dataframe().resample(t).mean()
+    vals = [xr.DataArray(data=df_d[c], dims=['time'], 
+           coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
+    ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)  
+    return ds_d
+
 def _addAttr(ds, key, value):
     '''Add attribute to xarray dataset'''
     if len(key.split('.')) == 2:
         try:
             ds[key.split('.')[0]].attrs[key.split('.')[1]] = value
         except:
-            print(f'Unable to add metadata to {key.split(".")[0]}')
+            pass
+            # print(f'Unable to add metadata to {key.split(".")[0]}')
     else:
         ds.attrs[key] = value    
         
@@ -502,37 +618,22 @@ class TestProcess(unittest.TestCase):
         self.assertIsInstance(pAWS.L3_h, xr.Dataset)
         self.assertTrue(pAWS.L3_h.attrs['station_id']=='TEST1')
 
+#------------------------------------------------------------------------------
+
 if __name__ == "__main__": 
     config_file = '../test/test_config1.toml'
     inpath= '../test/'
     outpath = '../test/'
-    pAWS = AWS(config_file, inpath, outpath, var_file='./variables.csv', meta_file='./metadata.csv')
+    pAWS_prom = AWS(config_file, inpath, outpath)
 
 
     config_file = '../test/test_config2.toml'
-    var_file='./variables.csv'
-    meta_file='./metadata.csv'
     inpath= '../test/'
-    outpath = '../test/'
-    c = getConfig(config_file, inpath)
-    conf = c[list(c.keys())[0]]
-    v = getVars(var_file)
-    meta = getMeta(meta_file)
+    outpath = '../test/'  
+    pAWS_gc = AWS(config_file, inpath, outpath)
+
     
 
-    file_version = conf.get('file_version', -1)  
-    ds = getL0(conf['file'], conf['nodata'], conf['columns'], 
-                conf["skiprows"], file_version)
-    ds = populateMeta(ds, conf, ["columns", "skiprows"])
-        
-        
-    l1 = toL1(ds, v)
-    l2 = toL2(l1, v)
-    l3_h, l3_d = toL3(l2)
-    # pAWS = AWS(config_file, inpath, outpath)
-    
-    outdir = os.path.join(outpath, l3_h.attrs['station_id'])       
-    writeL3(outdir, l3_h.attrs['station_id'], l3_h, l3_d)
 
 
     # unittest.main()   

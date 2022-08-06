@@ -34,15 +34,13 @@ def toL1(L0, vars_df, col='station_type', T_0=273.15, tilt_threshold=-100):
     ds = L0
 
     ds = _flagNAN(ds)                                                          # Flag NaNs
-    ds = _addBasicMeta(ds, vars_df)                                            # Add metadata
-    
+
     ds['time_orig'] = ds['time']                                               # Check and shift time
     ds['time'] = _addTimeShift(ds['time'], ds.attrs['format'])
     _, index = np.unique(ds['time'], return_index=True)
     ds = ds.isel(time=index)
 
-    # No hydroclip offset needed
-    # ds['t_2'] = ds['t_2'] - ds.attrs['hygroclip_t_offset']                     # Remove HygroClip temperature offset
+    # ds['t_2'] = ds['t_2'] - ds.attrs['hygroclip_t_offset']                    # No hydroclip offset needed
     
     ds['dsr'] = (ds['dsr'] * 10) / ds.attrs['dsr_eng_coef']                    # Convert radiation from engineering to physical units
     ds['usr'] = (ds['usr'] * 10) / ds.attrs['usr_eng_coef']
@@ -61,9 +59,9 @@ def toL1(L0, vars_df, col='station_type', T_0=273.15, tilt_threshold=-100):
     ds['gps_lat'] = _reformatGPS(ds['gps_lat'], ds.attrs['latitude'])
     ds['gps_lon'] = _reformatGPS(ds['gps_lon'], ds.attrs['longitude'])
 
-    if ds.attrs['format'] != 'TX':                                             # Convert tilt voltage to degrees
-        ds['tilt_x'] = _getTiltDegrees(ds['tilt_x'], 7)
-        ds['tilt_y'] = _getTiltDegrees(ds['tilt_y'], 7)
+    # if ds.attrs['format'] != 'TX':                                             # Convert tilt voltage to degrees
+    ds['tilt_x'] = _getTiltDegrees(ds['tilt_x'], 7)
+    ds['tilt_y'] = _getTiltDegrees(ds['tilt_y'], 7)
   
     if hasattr(ds, 'tilt_y_factor'):                                           # Apply tilt factor (e.g. -1 will invert tilt angle)
         ds['tilt_y'] = ds['tilt_y']*ds.attrs['tilt_y_factor']
@@ -72,9 +70,7 @@ def toL1(L0, vars_df, col='station_type', T_0=273.15, tilt_threshold=-100):
     ds['tilt_y']  = _filterTilt(ds['tilt_y'], tilt_threshold)                  # TODO check tilt_y inversion +ive to -ive for Gc-Net stations
 
     ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                       # Get directional wind speed                    
-    ds['wspd_x_u'], ds['wspd_y_u'] = _calcWindDir(ds['wspd_u'], ds['wdir_u'])    
-
-
+    ds['wspd_x_u'], ds['wspd_y_u'] = _calcWindDir(ds['wspd_u'], ds['wdir_u']) 
     if ds.attrs['number_of_booms']==1:                                         # 1-boom processing
         if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density                                           
             ds['z_pt_cor'],ds['z_pt']=_getPressDepth(ds['z_pt'], ds['p_u'], 
@@ -95,7 +91,6 @@ def toL1(L0, vars_df, col='station_type', T_0=273.15, tilt_threshold=-100):
         ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l'] + T_0)/T_0)**0.5         # Adjust sonic ranger readings for sensitivity to air temperature
         ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0)                   # Get directional wind speed    
         ds['wspd_x_l'], ds['wspd_y_l'] = _calcWindDir(ds['wspd_l'], ds['wdir_l'])
-
         names = vars_df.loc[vars_df[col] != 'one-boom']
         for v in list(names.index):
             if v not in list(ds.variables):
@@ -104,7 +99,7 @@ def toL1(L0, vars_df, col='station_type', T_0=273.15, tilt_threshold=-100):
         if ~ds['msg_i'].isnull().all():                                            # Instantaneous msg processing
             ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)                   # Get directional wind speed                    
             ds['wspd_x_i'], ds['wspd_y_i'] = _calcWindDir(ds['wspd_i'], ds['wdir_i'])   
-  
+
     return ds
 
 def _flagNAN(ds):
@@ -144,17 +139,6 @@ def _flagNAN(ds):
         
         # TODO: Mark these values in the ds_flags dataset using perhaps 
         # flag_LUT.loc["NAN"]['value']
-    return ds
-
-def _addBasicMeta(ds, vars_df):
-    ''' Use a variable lookup table DataFrame to add the basic metadata 
-    to the xarray dataset. This is later amended to finalise L3'''
-    for v in vars_df.index:
-        if v == 'time': continue # coordinate variable, not normal var
-        if v not in list(ds.variables): continue
-        for c in ['standard_name', 'long_name', 'units']:
-            if isinstance(vars_df[c][v], float) and np.isnan(vars_df[c][v]): continue
-            ds[v].attrs[c] = vars_df[c][v]
     return ds
 
 def _addTimeShift(ds, fmt):

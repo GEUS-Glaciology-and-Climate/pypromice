@@ -86,8 +86,8 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
         if ~ds['msg_i'].isnull().all():                                            # Instantaneous msg processing
             ds_h['wdir_i'] = _calcWindDir(ds_h['wspd_x_i'], ds_h['wspd_y_i'])      # Calculatate wind direction  
     
-    ds_d = _getDailyAver(ds_h)                                                 # Get daily average dataset  
-    return [ds_h, ds_d]
+    # ds_d = _getDailyAver(ds_h)                                                 # Get daily average dataset  
+    return ds_h
 
 def _calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h, 
               kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622, 
@@ -221,33 +221,33 @@ def _calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
     return SHF_h, LHF_h
 
 
-def _getDailyAver(ds_h):
-    '''Compute daily average from L3 AWS hourly data. This uses pandas 
-    DataFrame resampling at the moment as a work-around to the xarray Dataset
-    resampling. As stated, xarray resampling is a lengthy process that takes
-    ~2-3 minutes per operation:
+# def _getDailyAver(ds_h):
+#     '''Compute daily average from L3 AWS hourly data. This uses pandas 
+#     DataFrame resampling at the moment as a work-around to the xarray Dataset
+#     resampling. As stated, xarray resampling is a lengthy process that takes
+#     ~2-3 minutes per operation:
 
-    ds_d = ds_h.resample({'time':"1D"}).mean()
-    https://github.com/pydata/xarray/issues/4498 & https://stackoverflow.com/questions/64282393/
+#     ds_d = ds_h.resample({'time':"1D"}).mean()
+#     https://github.com/pydata/xarray/issues/4498 & https://stackoverflow.com/questions/64282393/
     
-    This has now been fixed in the latest pandas, so needs implementing:
-    https://github.com/pydata/xarray/issues/4498#event-6610799698
+#     This has now been fixed in the latest pandas, so needs implementing:
+#     https://github.com/pydata/xarray/issues/4498#event-6610799698
     
-    Parameters
-    ----------
-    ds_h : xarray.Dataset
-        L3 AWS daily dataset
+#     Parameters
+#     ----------
+#     ds_h : xarray.Dataset
+#         L3 AWS daily dataset
     
-    Returns
-    -------
-    ds_d : xarray.Dataset
-        L3 AWS hourly dataset
-    '''
-    df_d = ds_h.to_dataframe().resample("1D").mean()
-    vals = [xr.DataArray(data=df_d[c], dims=['time'], 
-           coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
-    ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)  
-    return ds_d
+#     Returns
+#     -------
+#     ds_d : xarray.Dataset
+#         L3 AWS hourly dataset
+#     '''
+#     df_d = ds_h.to_dataframe().resample("1D").mean()
+#     vals = [xr.DataArray(data=df_d[c], dims=['time'], 
+#            coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
+#     ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)  
+#     return ds_d
 
 def _getRotation():
     '''Return degrees-to-radians and radians-to-degrees''' 
