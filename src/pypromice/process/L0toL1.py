@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-
+"""
+pypromice L0 to L1 processing
+"""
 import os
 import numpy as np
 import pandas as pd
 import xarray as xr
-import logging
 import re
-# logging.basicConfig(format="{asctime} : ({filename}:{lineno}) : {message} ", style="{")
 
-def toL1(L0, vars_df, col='station_type', T_0=273.15, tilt_threshold=-100):
+def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
     '''Process one Level 0 (L0) product to Level 1
 
     Parameters
@@ -33,7 +33,7 @@ def toL1(L0, vars_df, col='station_type', T_0=273.15, tilt_threshold=-100):
     assert(type(L0) == xr.Dataset)
     ds = L0
 
-    ds = _flagNAN(ds)                                                          # Flag NaNs
+    ds = _flagNAN(ds, flag_file)                                               # Flag NaNs
 
     ds['time_orig'] = ds['time']                                               # Check and shift time
     ds['time'] = _addTimeShift(ds['time'], ds.attrs['format'])
@@ -49,20 +49,21 @@ def toL1(L0, vars_df, col='station_type', T_0=273.15, tilt_threshold=-100):
 
     ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
     ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u'] + T_0)/T_0)**0.5             # Adjust sonic ranger readings for sensitivity to air temperature       
-    
+ 
     if ds['gps_lat'].dtype.kind == 'O':                                        # Decode and reformat GPS information
         assert('NH' in ds['gps_lat'].dropna(dim='time').values[0])
         ds = _decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
+    
     for l in ['gps_lat', 'gps_lon', 'gps_time']:
         ds[l] = _reformatArray(ds[l])  
-
+    
     ds['gps_lat'] = _reformatGPS(ds['gps_lat'], ds.attrs['latitude'])
     ds['gps_lon'] = _reformatGPS(ds['gps_lon'], ds.attrs['longitude'])
 
-    # if ds.attrs['format'] != 'TX':                                             # Convert tilt voltage to degrees
-    ds['tilt_x'] = _getTiltDegrees(ds['tilt_x'], 7)
-    ds['tilt_y'] = _getTiltDegrees(ds['tilt_y'], 7)
-  
+    if ds.attrs['format'] != 'TX':                                             # Convert tilt voltage to degrees
+        ds['tilt_x'] = _getTiltDegrees(ds['tilt_x'], 7)                        # TODO if you follow RSF, this should also be needed for TX messages; but then this does not match KDM output - values from TX message and hand-carried data matches. 
+        ds['tilt_y'] = _getTiltDegrees(ds['tilt_y'], 7)
+    
     if hasattr(ds, 'tilt_y_factor'):                                           # Apply tilt factor (e.g. -1 will invert tilt angle)
         ds['tilt_y'] = ds['tilt_y']*ds.attrs['tilt_y_factor']
 
@@ -79,40 +80,34 @@ def toL1(L0, vars_df, col='station_type', T_0=273.15, tilt_threshold=-100):
                                                      ds.attrs['pt_z_coef'], 
                                                      ds.attrs['pt_z_p_coef'])
             ds['z_pt_cor'].attrs['long_name'] = ds['z_pt'].long_name + ' corrected'         
-
-        names = vars_df.loc[vars_df[col] != 'two-boom']
-        for v in list(names.index):
-            if v not in list(ds.variables):
-                ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)
-        ds = _removeVars(ds, ['gps_geounit', 'min_y'])                         # Remove redundant variables
             
     elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height    
         ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l'] + T_0)/T_0)**0.5         # Adjust sonic ranger readings for sensitivity to air temperature
         ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0)                   # Get directional wind speed    
         ds['wspd_x_l'], ds['wspd_y_l'] = _calcWindDir(ds['wspd_l'], ds['wdir_l'])
-        names = vars_df.loc[vars_df[col] != 'one-boom']
-        for v in list(names.index):
-            if v not in list(ds.variables):
-                ds[v] = (('time'), np.arange(ds['time'].size)*np.nan) 
      
-        if ~ds['msg_i'].isnull().all():                                            # Instantaneous msg processing
-            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)                   # Get directional wind speed                    
+    if hasattr(ds, 'wdir_i'):    
+        if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():      # Instantaneous msg processing
+            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)               # Get directional wind speed                    
             ds['wspd_x_i'], ds['wspd_y_i'] = _calcWindDir(ds['wspd_i'], ds['wdir_i'])   
-
     return ds
 
-def _flagNAN(ds):
+def _flagNAN(ds, flag_file=None):
     '''Read flagged data from .csv file. For each variable, and downstream 
     dependents, flag as invalid (or other) if set in the flag .csv'''
-    flag_file = "./data/flags/" + ds.attrs["station_id"] + ".csv"
+    # flag_file = "./data/flags/" + ds.attrs["station_id"] + ".csv"
+    if flag_file is None:
+        print('Flag file not given. No data flagged')
+        return ds
     
-    if not os.path.isfile(flag_file):
-        print(f'Flag file {flag_file} not found - no data flagged')
-        return ds # no flag file
-    
-    df = pd.read_csv(flag_file, parse_dates=[0,1], comment="#") \
-           .dropna(how='all', axis='rows')
+    else:
+        if not os.path.isfile(flag_file):
+            print(f'Flag file {flag_file} not found. No data flagged')
+            return ds # no flag file
+        else:
+            df = pd.read_csv(flag_file, parse_dates=[0,1], comment="#") \
+                .dropna(how='all', axis='rows')
     
     # Check format of flags.csv. Either both or neither t0 and t1 must be defined
     assert(((np.isnan(df['t0'].values).astype(int) + np.isnan(df['t1'].values).astype(int)) % 2).sum() == 0)
@@ -140,6 +135,36 @@ def _flagNAN(ds):
         # TODO: Mark these values in the ds_flags dataset using perhaps 
         # flag_LUT.loc["NAN"]['value']
     return ds
+
+def _popCols(ds, booms, data_type, vars_df, cols):
+    if booms==1:
+        names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
+
+    elif booms==2:
+        names = vars_df.loc[(vars_df[cols[0]]!='one-boom')]
+       
+    for v in list(names.index):
+        if v not in list(ds.variables):
+            ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
+    return ds
+
+# def _popCols(ds, booms, data_type, vars_df, cols):
+#     if booms==1:
+#         if data_type !='TX':
+#             names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
+#         else:
+#             names = vars_df.loc[(vars_df[cols[0]] != 'two-boom') & vars_df[cols[1]] != 'tx']
+    
+#     elif booms==2:
+#         if data_type !='TX':
+#             names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
+#         else:
+#             names = vars_df.loc[(vars_df[cols[0]] != 'two-boom') & vars_df[cols[1]] != 'tx']
+       
+#     for v in list(names.index):
+#         if v not in list(ds.variables):
+#             ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
+#     return ds
 
 def _addTimeShift(ds, fmt):
     '''Adjust times based on file format. For raw (10 min), values are sampled 

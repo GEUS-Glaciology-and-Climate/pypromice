@@ -1,0 +1,62 @@
+#!/usr/bin/env python
+from argparse import ArgumentParser
+
+from configparser import ConfigParser
+import os, imaplib, email
+from glob import glob
+
+from tx import getMail, L0tx, sortLines, addTail
+
+
+def parse_arguments():
+	parser = ArgumentParser(description="PROMICE dataset fetcher")       
+	parser.add_argument('-n', '--awsname', default=None, type=str, required=True, 
+		        help='AWS name')
+	parser.add_argument('-f', '--format', default='csv', type=str, required=False, 
+		        help='File format to save data as')                      
+	parser.add_argument('-o', '--outpath', default=os.getcwd(), type=str, required=False, 
+		        help='Directory where file will be written to')            	        
+	args = parser.parse_args()
+	return args
+
+
+if __name__ == '__main__':
+	"""Executed from the command line"""
+	args = parse_arguments()
+	
+	# Construct AWS dataset name
+	name = args.awsname.lower() + '_hour'
+	n = aws_names()
+	assert(args.awsname in n) 
+
+	# Check file format type
+	f = args.format.lower()
+	assert(args.format in ['csv', 'nc', '.csv', '.nc'])
+	
+	# Construct output file path
+	assert(os.path.exists(args.outpath)
+	if f in 'csv':
+   	    outfile = os.path.join(args.outpath, name+'.csv')
+   	elif f in 'nc'
+   	    outfile = os.path.join(args.outpath, name+'.nc')
+	
+	# Remove pre-existing files of same name
+	if os.path.isfile(f):
+	    os.remove(f)
+	    	
+	# Fetch data 
+	print(f'Fetching {name}...')
+	data = aws_data(name)
+	
+	# Save to file
+	if f in 'csv':
+	    data.to_dataframe().to_csv(outfile+'.csv')
+	elif f in 'nc':
+	    data.to_netcdf(outfile, mode='w', format='NETCDF4', compute=True
+	
+	print(f'File saved to {outfile}')
+
+else:
+    """Executed on import"""
+    pass
+        

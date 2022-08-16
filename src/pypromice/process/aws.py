@@ -1,9 +1,11 @@
 #!/usr/bin/env python
+"""
+pypromice AWS processing module
+"""
 import os, unittest, toml, datetime, uuid 
 import numpy as np
 import pandas as pd
 import xarray as xr
-from pathlib import Path
 from datetime import timedelta
 
 try:
@@ -39,16 +41,21 @@ class AWS(object):
         assert(os.path.isfile(config_file))
         assert(os.path.isdir(inpath))
         print('\nAWS object initialising...')
+        
         # Load config, variables CSF standards, and L0 files
         self.config = self.loadConfig(config_file, inpath)
         self.vars = getVars(var_file)
         self.meta = getMeta(meta_file)
         
-        self.L0 = self.loadL0(config_file, inpath)
+        L0 = self.loadL0(config_file, inpath)
+        self.L0=[]
+        for l in L0:
+            n = getColNames(self.vars, l.attrs['number_of_booms'], l.attrs['format'])
+            self.L0.append(popCols(l, n))
         try:
-            print(f'AWS object initialised for processing data from {self.L0.attrs["station_id"]}') 
+            print(f'Processing data from {self.L0.attrs["station_id"]}...') 
         except:
-            print(f'AWS object initialised for processing data from {self.L0[0].attrs["station_id"]}')         
+            print(f'Processing data from {self.L0[0].attrs["station_id"]}...')         
         
         # Proces L0 to L3 product
         self.process()
@@ -58,6 +65,11 @@ class AWS(object):
         self.L3_h = self.resample('60min')
         self.L3_d = self.resample('1D')
         self.L3_m = self.resample('M')
+        
+        # Round all values to specified decimals places
+        self.L3_h = roundValues(self.L3_h, self.vars)
+        self.L3_d = roundValues(self.L3_d, self.vars)
+        self.L3_m = roundValues(self.L3_m, self.vars)
         
         # Save to file if outpath given
         if outpath is not None:
@@ -76,17 +88,17 @@ class AWS(object):
         
         print('Level 1 processing...')
         self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
-        self.L1 = [toL1(item, self.vars) for item in self.L0]
+        self.L1 = [toL1(item) for item in self.L0]
         self.L1A = mergeVars(self.L1, self.vars)
         
-        # L1 to L3 processing
+        # L1 to L2 processing
         print('Level 2 processing...')
         self.L2 = toL2(self.L1A)
         self.L2 = clipValues(self.L2, self.vars)
 
+        # L2 to L3 processing
         print('Level 3 processing...')        
         self.L3 = toL3(self.L2)
-
         
     def resample(self, resample_factor):  
         '''Resample L3 data'''
@@ -110,9 +122,18 @@ class AWS(object):
     def write(self, outpath):
         '''Write L3 data to .nc and .csv hourly and daily files'''
         outdir = os.path.join(outpath, self.L3_h.attrs['station_id']) 
+        
+        f = [l.attrs['format'] for l in self.L0]
+        if all(f):
+            col_names = getColNames(self.vars, self.L3_h.attrs['number_of_booms'], 
+                                    self.L0[0].attrs['format'])
+        else:
+            col_names = getColNames(self.vars, self.L3_h.attrs['number_of_booms'], 
+                                    None)
+        
         print('Writing to files...')
         writeL3(outdir, self.L3_h.attrs['station_id'], 
-                self.L3_h, self.L3_d, self.L3_m)
+                self.L3_h, self.L3_d, self.L3_m, col_names)
         print(f'Out files successfully written to {outdir}')
 
     def loadConfig(self, config_file, inpath):
@@ -133,8 +154,7 @@ class AWS(object):
             for k in c.keys():
                 ds_list.append(self._readL0file(c[k]))
                 print(f'L0 data successfully loaded from {k}')
-            return ds_list
-        
+            return ds_list    
         
     def _readL0file(self, conf):
         ''' Read L0 .txt file to Dataset object using config dictionary and
@@ -142,7 +162,7 @@ class AWS(object):
         file_version = conf.get('file_version', -1)  
         ds = getL0(conf['file'], conf['nodata'], conf['columns'], 
                    conf["skiprows"], file_version)
-        ds = populateMeta(ds, conf, ["columns", "skiprows"])
+        ds = populateMeta(ds, conf, ["columns", "skiprows", "modem"])
         return ds
 
 #------------------------------------------------------------------------------
@@ -180,7 +200,8 @@ def getConfig(config_file, inpath):
             assert(field in conf[k].keys())
     return conf
 
-def getL0(infile, nodata, cols, skiprows, file_version, delimiter=',', comment='#'):
+def getL0(infile, nodata, cols, skiprows, file_version, 
+          delimiter=',', comment='#'):
     ''' Read L0 data file into pandas DataFrame object
     
     Parameters
@@ -204,7 +225,7 @@ def getL0(infile, nodata, cols, skiprows, file_version, delimiter=',', comment='
     -------
     ds : xarray.Dataset
         L0 Dataset
-    '''     
+    '''      
     if file_version == 1:        
         df = pd.read_csv(infile, comment=comment, index_col=0, 
                          na_values=nodata, names=cols, 
@@ -223,10 +244,10 @@ def getL0(infile, nodata, cols, skiprows, file_version, delimiter=',', comment='
             df.drop(columns=c, inplace=True)
 
     # Carry relevant metadata with ds
-    ds = xr.Dataset.from_dataframe(df)
+    ds = xr.Dataset.from_dataframe(df)    
     return ds
 
-def addBasicMeta(ds, vars_df):
+def addBasicMeta( ds, vars_df):
     ''' Use a variable lookup table DataFrame to add the basic metadata 
     to the xarray dataset. This is later amended to finalise L3'''
     for v in vars_df.index:
@@ -261,14 +282,26 @@ def populateMeta(ds, conf, skip):
     ds.attrs = meta
     return ds
 
-def writeLx(outfile, Lx):
-    '''Write Lx Dataset to .nc and .csv files'''
-    Lx.to_dataframe().dropna(how='all').to_csv(outfile+'.csv')
-    if os.path.exists(outfile+'.nc'): 
-        os.remove(outfile+'.nc')
-    Lx.to_netcdf(outfile+'.nc', mode='w', format='NETCDF4', compute=True)
+def writeCSV(outfile, Lx, csv_order):
+    Lcsv = Lx.to_dataframe().dropna(how='all')
+    if csv_order is not None:   
+        names = [c for c in csv_order if c in list(Lcsv.columns)]
+        Lcsv = Lcsv[names]
+    Lcsv.to_csv(outfile)
     
-def writeL3(outpath, station_id, l3_h, l3_d, l3_m):
+def writeNC(outfile, Lx):
+    if os.path.isfile(outfile): 
+        os.remove(outfile)
+    Lx.to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)    
+
+# def writeLx(outfile, Lx):
+#     '''Write Lx Dataset to .nc and .csv files'''
+#     Lx.to_dataframe().dropna(how='all').to_csv(outfile+'.csv')
+#     if os.path.exists(outfile+'.nc'): 
+#         os.remove(outfile+'.nc')
+#     Lx.to_netcdf(outfile+'.nc', mode='w', format='NETCDF4', compute=True)
+    
+def writeL3(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
     '''Write L3 Dataset to .nc and .csv hourly and daily files'''
     if not os.path.isdir(outpath):
         os.mkdir(outpath)
@@ -276,26 +309,8 @@ def writeL3(outpath, station_id, l3_h, l3_d, l3_m):
     outfile_d = os.path.join(outpath, station_id + '_day')
     outfile_m = os.path.join(outpath, station_id + '_month')
     for o,l in zip([outfile_h, outfile_d, outfile_m], [l3_h ,l3_d, l3_m]):
-        writeLx(o,l)
-        
-def addAllInfo(ds, v_file='variables.csv', m_file='metadata.csv'):
-    '''Add variable attributes and metadata to dataset
-    
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset to add variable attributes to
-    
-    Returns
-    -------
-    ds : xarray.Dataset
-        Dataset with metadata
-    '''
-    varcsv = os.path.join(os.path.dirname(__file__), v_file)                   #TODO move this to function input                  
-    metcsv = os.path.join(os.path.dirname(__file__), m_file)                   
-    ds = addVars(ds, varcsv)
-    ds = addMeta(ds, metcsv)
-    return ds
+        writeCSV(o+'.csv',l, csv_order)
+        writeNC(o+'.nc',l)        
 
 def mergeVars(ds_list, variables, cols=['lo','hi','OOL']):                     #TODO find way to make this one line as described
     '''Merge dataset by variable attributes from lookup table file. 
@@ -385,6 +400,38 @@ def clipValues(ds, df, cols=['lo','hi','OOL']):
                 ds[o] = ds[o].where(ds[var] <= df.loc[var, hi])  
     return ds
 
+def popCols(ds, names):       
+    for v in names:
+        if v not in list(ds.variables):
+            ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
+    return ds
+
+def getColNames(vars_df, booms=None, data_type=None, 
+                cols=['station_type', 'data_type']):
+    if booms==1:
+        vars_df = vars_df.loc[vars_df['station_type'].isin(['one-boom','all'])]
+    elif booms==2:
+        vars_df = vars_df.loc[vars_df['station_type'].isin(['two-boom','all'])]
+    
+    if data_type=='TX':
+        vars_df = vars_df.loc[vars_df['data_type'].isin(['TX','all'])]
+    elif data_type=='STM' or data_type=='raw':
+        vars_df = vars_df.loc[vars_df['data_type'].isin(['raw','all'])]
+
+    return list(vars_df.index)
+
+def roundValues(ds, df, col='max_decimals'):
+    '''Round all variable values in data array based on pre-defined rounding 
+    value in variables look-up table DataFrame'''
+    df = df[col]
+    df = df.dropna(how='all')
+    for var in df.index:
+        if var not in list(ds.variables): 
+            continue
+        if df[var] is not np.nan:
+            ds[var] = ds[var].round(decimals=int(df[var]))
+    return ds
+        
 def addVars(ds, variables):
     '''Add variable attributes from file to dataset
     
@@ -421,7 +468,7 @@ def addMeta(ds, meta):
     -------
     ds : xarray.Dataset
         Dataset with metadata
-   '''    
+   '''  
     a = ds['gps_lon'].attrs
     ds['gps_lon'] = -1 * ds['gps_lon']
     ds['gps_lon'].attrs = a
@@ -626,14 +673,23 @@ if __name__ == "__main__":
     outpath = '../test/'
     pAWS_prom = AWS(config_file, inpath, outpath)
 
-
     config_file = '../test/test_config2.toml'
     inpath= '../test/'
     outpath = '../test/'  
     pAWS_gc = AWS(config_file, inpath, outpath)
 
+    config_file = '../test/test_config2_raw.toml'
+    inpath= '../test/'
+    outpath = '../test/'  
+    pAWS_raw = AWS(config_file, inpath, outpath)
+
     
+    config_file = '../test/test_config2_tx.toml'
+    inpath= '../test/'
+    outpath = '../test/'  
+    pAWS_tx = AWS(config_file, inpath, outpath)
 
-
-
-    # unittest.main()   
+    config_file = '../test/SDM.toml'
+    inpath= '../test/aws_L0'
+    outpath = '../test'  
+    pAWS_SDM = AWS(config_file, inpath, outpath)

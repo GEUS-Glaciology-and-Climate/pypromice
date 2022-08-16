@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-
+"""
+pypromice L1 to L2 processing
+"""
 import numpy as np
   
 def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1., 
@@ -106,10 +108,11 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
         ds['rh_l_cor'] = _correctHumidity(ds['rh_l'], ds['t_l'], T_l,          # Correct relative humidity
                                         T_0, T_100_l, ews, ei0)                          
     
-        if ~ds['msg_i'].isnull().all():                                            # Instantaneous msg processing
+    if hasattr(ds,'t_i'):       
+        if ~ds['t_i'].isnull().all():                                        # Instantaneous msg processing
             T_i = ds['t_i'].copy(deep=True) 
-            T_100_i = _getTempK(T_i)                                               # Get steam point temperature in K
-            ds['rh_i_cor'] = _correctHumidity(ds['rh_i'], ds['t_i'], T_l,          # Correct relative humidity
+            T_100_i = _getTempK(T_i)                                           # Get steam point temperature in K
+            ds['rh_i_cor'] = _correctHumidity(ds['rh_i'], ds['t_i'], T_i,      # Correct relative humidity
                                             T_0, T_100_i, ews, ei0)                   
     return ds
 

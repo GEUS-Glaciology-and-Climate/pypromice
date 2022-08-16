@@ -14,9 +14,10 @@ def parse_arguments():
 		        help='Email account .ini file')
 	parser.add_argument('-p', '--password', default=None, type=str, required=True, 
 		        help='Email credentials .ini file')                      
-	parser.add_argument('-o', '--outpath', default='aws_data', type=str, required=True, 
+	parser.add_argument('-o', '--outpath', default=os.cwd(), type=str, required=True, 
 		        help='Path where to write output')            
-	parser.add_argument('-f', '--formats', default='payload_formatter.csv', type=str, 				required=True, help='Path to Payload format .csv file')
+	parser.add_argument('-f', '--formats', default='payload_formatter.csv', type=str, 
+			required=True, help='Path to Payload format .csv file')
 	parser.add_argument('-t', '--types', default='payload_type.csv', type=str,
 			required=True, help='Path to Payload type .csv file')
 	parser.add_argument('-i', '--imei', default=None, type=str, required=False, 

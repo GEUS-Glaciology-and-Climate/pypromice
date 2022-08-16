@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jul 14 12:53:41 2022
-
-AWS L0 transmission module
-
-@author: Penelope How, pho@geus.dk
+pypromice L0 transmission (tx) module
 """
 
 from collections import deque
@@ -181,8 +177,8 @@ class SbdMessage(object):
     def getLocation(self, content, seps=' ', key='Unit Location'):
         '''Get latitude longitude unit location from email message'''
         line = findLine(content, key)
-        l = line.split(seps)
         try:
+            l = line.split(seps)
             if l[2].lower() == 'lat':
                 lat = float(l[4])
             
@@ -457,7 +453,7 @@ class L0tx(EmailMessage, PayloadFormat):
         '''Get data line from transmission message'''
         # Retrieve payload and prime object if valid binary message        
         bin_msg = self.payload[1:]
-        if self.bin_valid:
+        if self.bin_valid and bin_msg:
             print('%s-%s (binary)' %(self.imei, self.momsn) , self.bin_name)
 
             dataline = ''

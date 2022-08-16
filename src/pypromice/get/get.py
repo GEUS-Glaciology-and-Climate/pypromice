@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+"""
+pypromice data retrieval module
+"""
 import pandas as pd
 import unittest
 from datetime import datetime
@@ -202,3 +204,4 @@ class TestGet(unittest.TestCase):
             
 if __name__ == "__main__": 
     unittest.main()   
+    print(aws_names())

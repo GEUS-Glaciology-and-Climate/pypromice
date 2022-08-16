@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-
+"""
+pypromice L2 to L3 processing
+"""
 import numpy as np
 import xarray as xr
 
@@ -50,7 +52,7 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
                        p_h_u, RH_cor_h_u)          
     SHF_h_u, LHF_h_u= _calcHeatFlux(T_0, T_h_u, Tsurf_h, rho_atm_u, WS_h_u,    # Calculate latent and sensible heat fluxes
                                     z_WS_u, z_T_u, nu_u, q_h_u, p_h_u)     
-    SHF_h_u, SHF_h_u = _cleanHeatFlux(SHF_h_u, LHF_h_u, T_h_u, Tsurf_h, p_h_u, # Clean heat flux values
+    SHF_h_u, LHF_h_u = _cleanHeatFlux(SHF_h_u, LHF_h_u, T_h_u, Tsurf_h, p_h_u, # Clean heat flux values
                                       WS_h_u, RH_cor_h_u, ds_h['z_boom_u'])
     q_h_u = 1000 * q_h_u                                                       # Convert sp.humid from kg/kg to g/kg
     q_h_u = _cleanSpHumid(q_h_u, T_h_u, Tsurf_h, p_h_u, RH_cor_h_u)            # Clean sp.humid values    
@@ -75,7 +77,7 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
                            p_h_l, RH_cor_h_l)        
         SHF_h_l, LHF_h_l= _calcHeatFlux(T_0, T_h_l, Tsurf_h, rho_atm_l, WS_h_l,    # Calculate latent and sensible heat fluxes 
                                         z_WS_l, z_T_l, nu_l, q_h_l, p_h_l)        
-        SHF_h_l, SHF_h_l = _cleanHeatFlux(SHF_h_l, LHF_h_l, T_h_l, Tsurf_h, p_h_l, # Clean heat flux values
+        SHF_h_l, LHF_h_l = _cleanHeatFlux(SHF_h_l, LHF_h_l, T_h_l, Tsurf_h, p_h_l, # Clean heat flux values
                                           WS_h_l, RH_cor_h_l, ds_h['z_boom_l'])        
         q_h_l = 1000 * q_h_l                                                       # Convert sp.humid from kg/kg to g/kg
         q_h_l = _cleanSpHumid(q_h_l, T_h_l, Tsurf_h, p_h_l, RH_cor_h_l)            # Clean sp.humid values
@@ -83,7 +85,8 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
         ds_h['dlhf_l'] = (('time'), LHF_h_l.data)
         ds_h['qh_l'] = (('time'), q_h_l.data)    
 
-        if ~ds['msg_i'].isnull().all():                                            # Instantaneous msg processing
+    if hasattr(ds, 'wspd_x_i'): 
+        if ~ds['wspd_x_i'].isnull().all() and ~ds['wspd_x_i'].isnull().all(): # Instantaneous msg processing
             ds_h['wdir_i'] = _calcWindDir(ds_h['wspd_x_i'], ds_h['wspd_y_i'])      # Calculatate wind direction  
     
     # ds_d = _getDailyAver(ds_h)                                                 # Get daily average dataset  
