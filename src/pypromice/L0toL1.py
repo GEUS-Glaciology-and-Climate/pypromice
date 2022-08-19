@@ -41,7 +41,7 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
     ds = ds.isel(time=index)
 
     # ds['t_2'] = ds['t_2'] - ds.attrs['hygroclip_t_offset']                    # No hydroclip offset needed
-    
+
     ds['dsr'] = (ds['dsr'] * 10) / ds.attrs['dsr_eng_coef']                    # Convert radiation from engineering to physical units
     ds['usr'] = (ds['usr'] * 10) / ds.attrs['usr_eng_coef']
     ds['dlr'] = ((ds['dlr'] * 10) / ds.attrs['dlr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
@@ -51,7 +51,7 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
     ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u'] + T_0)/T_0)**0.5             # Adjust sonic ranger readings for sensitivity to air temperature       
  
     if ds['gps_lat'].dtype.kind == 'O':                                        # Decode and reformat GPS information
-        assert('NH' in ds['gps_lat'].dropna(dim='time').values[0])
+        assert('NH' in ds['gps_lat'].dropna(dim='time').values[1])
         ds = _decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
     
     for l in ['gps_lat', 'gps_lon', 'gps_time']:

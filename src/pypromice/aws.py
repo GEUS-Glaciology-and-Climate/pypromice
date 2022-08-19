@@ -2,7 +2,7 @@
 """
 pypromice AWS processing module
 """
-import os, unittest, toml, datetime, uuid 
+import os, unittest, toml, datetime, uuid, glob 
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -196,7 +196,8 @@ def getConfig(config_file, inpath):
     for t in top: conf.pop(t)                                                  # Delete all top level keys beause each file
                                                                                # should carry all properties with it
     for k in conf.keys():                                                      # Check required fields are present
-        for field in ["columns", "station_id", "format", "latitude", "longitude", "skiprows"]:
+        print(k)
+        for field in ["columns", "station_id", "format", "skiprows", "latitude", "longitude"]:
             assert(field in conf[k].keys())
     return conf
 
@@ -225,11 +226,11 @@ def getL0(infile, nodata, cols, skiprows, file_version,
     -------
     ds : xarray.Dataset
         L0 Dataset
-    '''      
+    '''    
     if file_version == 1:        
         df = pd.read_csv(infile, comment=comment, index_col=0, 
                          na_values=nodata, names=cols, 
-                         parse_dates={'time': [0,1,2]}, 
+                         parse_dates={'time': ['year', 'doy', 'hhmm']}, 
                          date_parser=_getDateParserV1, sep=delimiter,
                          skiprows=skiprows, skip_blank_lines=True,
                          usecols=range(len(cols)))
@@ -670,26 +671,25 @@ class TestProcess(unittest.TestCase):
 if __name__ == "__main__": 
     config_file = '../test/test_config1.toml'
     inpath= '../test/'
-    outpath = '../test/'
-    pAWS_prom = AWS(config_file, inpath, outpath)
-
+    outpath = '../test/'  
+    pAWS_gc = AWS(config_file, inpath, outpath)
+    
     config_file = '../test/test_config2.toml'
     inpath= '../test/'
     outpath = '../test/'  
     pAWS_gc = AWS(config_file, inpath, outpath)
 
-    config_file = '../test/test_config2_raw.toml'
-    inpath= '../test/'
-    outpath = '../test/'  
-    pAWS_raw = AWS(config_file, inpath, outpath)
 
-    
-    config_file = '../test/test_config2_tx.toml'
-    inpath= '../test/'
-    outpath = '../test/'  
-    pAWS_tx = AWS(config_file, inpath, outpath)
+    # c = glob.glob('test/config/*.toml')
+    # inpath= 'test/aws_L0/'
+    # outpath = 'test/aws_L3'
+    # for config_file in list(c):
+    #     pAWS_prom = AWS(config_file, inpath, outpath)
 
-    config_file = '../test/SDM.toml'
-    inpath= '../test/aws_L0'
-    outpath = '../test'  
-    pAWS_SDM = AWS(config_file, inpath, outpath)
+    # c = glob.glob('/home/pho/python_workspace/promice/aws-data/level_0/config/*.toml')
+    # outpath = '/home/pho/python_workspace/promice/aws-l3/level_3'
+    # for config_file in list(c)[30:]:
+    #     name = config_file.split('.toml')[0].split('/')[-1]
+    #     print(name)
+    #     inpath= '/home/pho/python_workspace/promice/aws-data/level_0/' + name       
+    #     pAWS_prom = AWS(config_file, inpath, outpath)
