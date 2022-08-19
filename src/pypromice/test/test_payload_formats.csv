@@ -1,0 +1,4 @@
+type,expected_values,format,description,flags,notes
+30,12,tfffffffffff,Promice 2015 summer message,,Test 1
+32,12,tfffffffffff,Promice 2015 winter message,,Test 2
+75,38,tfffffffffffFFfffgneffffffffffffffffff,THE VERSION-3!,don’t use,Test 3

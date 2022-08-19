@@ -1,0 +1,152 @@
+attribute,entry
+acknowledgements,The Programme for Monitoring of the Greenland Ice Sheet (PROMICE)
+albedo.coordinates,time lat lon alt
+albedo.coverage_content_type,modelResult
+albedo.units,-
+alt.axis,Z
+alt.coverage_content_type,coordinate
+alt.long_name,station altitude
+alt.positive,up
+batt_v.coordinates,time lat lon alt
+batt_v.coverage_content_type,modelResult
+cc.coordinates,time lat lon alt
+cc.coverage_content_type,modelResult
+cdm_data_type,
+comment,https://doi.org/10.22008/promice/data/aws
+contributor_name,
+contributor_role,
+conventions,ACDD-1.3; CF-1.7
+creater_email,kdm@geus.dk
+creater_url,https://promice.dk
+creator_institution,GEUS
+creator_name,Ken Mankoff
+creator_type,person
+dlhf_u.coordinates,time lat lon alt
+dlhf_u.coverage_content_type,modelResult
+dlhf_l.coordinates,time lat lon alt
+dlhf_l.coverage_content_type,modelResult
+dlr.coordinates,time lat lon alt
+dlr.coverage_content_type,modelResult
+dshf_u.coordinates,time lat lon alt
+dshf_u.coverage_content_type,modelResult
+dshf_l.coordinates,time lat lon alt
+dshf_l.coverage_content_type,modelResult
+dsr_cor.coordinates,time lat lon alt
+dsr_cor.coverage_content_type,modelResult
+dsr.coordinates,time lat lon alt
+dsr.coverage_content_type,modelResult
+fan_dc_l.coordinates,time lat lon alt
+fan_dc_l.coverage_content_type,modelResult
+fan_dc_u.coordinates,time lat lon alt
+fan_dc_u.coverage_content_type,modelResult
+featureType,timeSeries
+geospatial_bounds_crs,EPSG:4979
+geospatial_lat_extents_match,gps_lat
+geospatial_lat_resolution,
+geospatial_lat_units,degrees_north
+geospatial_lon_extents_match,gps_lon
+geospatial_lon_resolution,
+geospatial_lon_units,degrees_east
+geospatial_vertical_resolution,
+geospatial_vertical_units,EPSG:4979 CHECKME
+gps_alt.positive,up
+gps_hdop.coordinates,time lat lon alt
+gps_hdop.coverage_content_type,qualityInformation
+gps_lon.units,degrees_east
+gps_time.coverage_content_type,coordinate
+institution,GEUS
+instrument,See https://doi.org/10.5194/essd-13-3819-2021
+instrument_vocabulary,GCMD:GCMD Keywords
+keywords,GCMDSK:EARTH SCIENCE > CRYOSPHERE > GLACIERS/ICE SHEETS > ICE SHEETS > ICE SHEET MEASUREMENTS; GCMDSK:EARTH SCIENCE > CRYOSPHERE > GLACIERS/ICE SHEETS > GLACIER MASS BALANCE/ICE SHEET MASS BALANCE; GCMDSK:EARTH SCIENCE > CRYOSPHERE > SNOW/ICE > SNOW/ICE TEMPERATURE; GCMDSK:EARTH SCIENCE > CRYOSPHERE > SNOW/ICE; GCMDSK:EARTH SCIENCE > CRYOSPHERE > SNOW/ICE > SNOW MELT; GCMDSK:EARTH SCIENCE > CRYOSPHERE > SNOW/ICE > SNOW DEPTH; GCMDSK:EARTH SCIENCE > CRYOSPHERE > SNOW/ICE > ICE VELOCITY; GCMDSK:EARTH SCIENCE > CRYOSPHERE > SNOW/ICE > ALBEDO; GCMDSK:EARTH SCIENCE > TERRESTRIAL HYDROSPHERE > SNOW/ICE > ALBEDO; GCMDSK:EARTH SCIENCE > TERRESTRIAL HYDROSPHERE > SNOW/ICE > ICE GROWTH/MELT; GCMDSK:EARTH SCIENCE > TERRESTRIAL HYDROSPHERE > SNOW/ICE > ICE VELOCITY; GCMDSK:EARTH SCIENCE > TERRESTRIAL HYDROSPHERE > SNOW/ICE > SNOW DEPTH; GCMDSK:EARTH SCIENCE > TERRESTRIAL HYDROSPHERE > SNOW/ICE > SNOW MELT; GCMDSK:EARTH SCIENCE > TERRESTRIAL HYDROSPHERE > SNOW/ICE > SNOW/ICE TEMPERATURE; GCMDSK:EARTH SCIENCE > TERRESTRIAL HYDROSPHERE > SNOW/ICE; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC PRESSURE; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > ALBEDO; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > INCOMING SOLAR RADIATION; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > LONGWAVE RADIATION > DOWNWELLING LONGWAVE RADIATION; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > LONGWAVE RADIATION > UPWELLING LONGWAVE RADIATION; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > LONGWAVE RADIATION; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > NET RADIATION; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > OUTGOING LONGWAVE RADIATION; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > RADIATIVE FLUX; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > RADIATIVE FORCING; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > SHORTWAVE RADIATION > DOWNWELLING SHORTWAVE RADIATION; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > SHORTWAVE RADIATION; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION > SUNSHINE; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC RADIATION; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC TEMPERATURE > SURFACE TEMPERATURE > AIR TEMPERATURE; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC WATER VAPOR > WATER VAPOR INDICATORS > HUMIDITY > ABSOLUTE HUMIDITY; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC WATER VAPOR > WATER VAPOR INDICATORS > HUMIDITY > RELATIVE HUMIDITY; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC WINDS > LOCAL WINDS; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC WINDS > SURFACE WINDS > U/V WIND COMPONENTS; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC WINDS > SURFACE WINDS > WIND DIRECTION; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC WINDS > SURFACE WINDS > WIND SPEED; GCMDSK:EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC WINDS > SURFACE WINDS; GCMDSK:EARTH SCIENCE > ATMOSPHERE > CLOUDS; GCMDSK:EARTH SCIENCE > ATMOSPHERE > PRECIPITATION
+keywords_vocabulary,GCMDSK:GCMD Science Keywords:https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords
+lat.axis,Y
+lat.coverage_content_type,coordinate
+lat.long_name,station latitude
+license,Creative Commons Attribution 4.0 International (CC-BY-4.0) https://creativecommons.org/licenses/by/4.0
+lon.axis,X
+lon.coverage_content_type,coordinate
+lon.long_name,station longitude
+lon.units,degrees_east
+metadata_link,
+naming_authority,dk.geus.promice
+p_u.coordinates,time lat lon alt
+p_u.coverage_content_type,physicalMeasurement
+p_l.coordinates,time lat lon alt
+p_l.coverage_content_type,physicalMeasurement
+platform,
+platform_vocabulary,GCMD:GCMD Keywords
+processing_level,Level 3
+product_version,3
+program,PROMICE
+project,PROMICE
+publisher_email,info@promice.dk
+publisher_institution,GEUS
+publisher_name,GEUS
+publisher_type,institution
+publisher_url,https://promice.dk
+references,Fausto; R. S.; van As; D.; Mankoff; K. D.; Vandecrux; B.; Citterio; M.; Ahlstrom; A. P.; Andersen; S. B.; Colgan; W.; Karlsson; N. B.; Kjeldsen; K. K.; Korsgaard; N. J.; Larsen; S. H.; Nielsen; S.; Pedersen; A. O.; Shields; C. L.; Solgaard; A. M.; and Box; J. E.: Programme for Monitoring of the Greenland Ice Sheet (PROMICE) automatic weather station data; Earth Syst. Sci. Data; 13; 3819–3845; https://doi.org/10.5194/essd-13-3819-2021; 2021.
+references_bib,@article{Fausto2021; doi = {10.5194/essd-13-3819-2021}; url = {https://doi.org/10.5194/essd-13-3819-2021}; year = {2021}; month=8; publisher= {Copernicus {GmbH}}; volume = {13}; number = {8}; pages = {3819–3845}; author = {Robert S. Fausto and Dirk van As and Kenneth D. Mankoff and Baptiste Vandecrux and Michele Citterio and Andreas P. Ahlstr{\o}m and Signe B. Andersen and William Colgan and Nanna B. Karlsson and Kristian K. Kjeldsen and Niels J. Korsgaard and Signe H. Larsen and S{\o}ren Nielsen and Allan {\O}. Pedersen and Christopher L. Shields and Anne M. Solgaard and Jason E. Box}; title = {Programme for Monitoring of the Greenland Ice Sheet ({PROMICE}) automatic weather station data}; journal = {Earth System Science Data}}
+rh_u_cor.coordinates,time lat lon alt
+rh_u_cor.coverage_content_type,physicalMeasurement
+rh_u.coordinates,time lat lon alt
+rh_u.coverage_content_type,physicalMeasurement
+rh_l_cor.coordinates,time lat lon alt
+rh_l_cor.coverage_content_type,physicalMeasurement
+rh_l.coordinates,time lat lon alt
+rh_l.coverage_content_type,physicalMeasurement
+source,pyPROMICE
+standard_name_vocabulary,CF Standard Name Table (v77; 19 January 2021)
+summary,"The Programme for Monitoring of the Greenland Ice Sheet (PROMICE) has been measuring climate and ice sheet properties since 2007. Currently the PROMICE automatic weather station network includes 25 instrumented sites in Greenland. Accurate measurements of the surface and near-surface atmospheric conditions in a changing climate is important for reliable present and future assessment of changes to the Greenland ice sheet. Here we present the PROMICE vision and methodology and each link in the production chain for obtaining and sharing quality-checked data. In this paper we mainly focus on the critical components for calculating the surface energy balance and surface mass balance. A user-contributable dynamic webbased database of known data quality issues is associated with the data products at https://github.com/GEUS-PROMICE/ PROMICE-AWS-data-issues/. As part of the living data option the datasets presented and described here are available at DOI: 10.22008/promice/data/aws, https://doi.org/10.22008/promice/data/aws"
+t_u.coordinates,time lat lon alt
+t_u.coverage_content_type,physicalMeasurement
+t_l.coordinates,time lat lon alt
+t_l.coverage_content_type,physicalMeasurement
+t_i_1.coordinates,time lat lon alt
+t_i_1.coverage_content_type,physicalMeasurement
+t_i_2.coordinates,time lat lon alt
+t_i_2.coverage_content_type,physicalMeasurement
+t_i_3.coordinates,time lat lon alt
+t_i_3.coverage_content_type,physicalMeasurement
+t_i_4.coordinates,time lat lon alt
+t_i_4.coverage_content_type,physicalMeasurement
+t_i_5.coordinates,time lat lon alt
+t_i_5.coverage_content_type,physicalMeasurement
+t_i_6.coordinates,time lat lon alt
+t_i_6.coverage_content_type,physicalMeasurement
+t_i_7.coordinates,time lat lon alt
+t_i_7.coverage_content_type,physicalMeasurement
+t_i_8.coordinates,time lat lon alt
+t_i_8.coverage_content_type,physicalMeasurement
+t_log.coordinates,time lat lon alt
+t_log.coverage_content_type,physicalMeasurement
+t_surf.coordinates,time lat lon alt
+t_surf.coverage_content_type,modelResult
+tilt_x.coordinates,time lat lon alt
+tilt_x.coverage_content_type,physicalMeasurement
+tilt_y.coordinates,time lat lon alt
+tilt_y.coverage_content_type,physicalMeasurement
+time.long_name,time
+time.metadata,
+time.standard_name,time
+ulr.coordinates,time lat lon alt
+ulr.coverage_content_type,modelResult
+usr_cor.coordinates,time lat lon alt
+usr_cor.coverage_content_type,modelResult
+usr.coordinates,time lat lon alt
+usr.coverage_content_type,modelResult
+wdir_u.coordinates,time lat lon alt
+wdir_u.coverage_content_type,physicalMeasurement
+wdir_l.coordinates,time lat lon alt
+wdir_l.coverage_content_type,physicalMeasurement
+wspd_u.coordinates,time lat lon alt
+wspd_u.coverage_content_type,physicalMeasurement
+wspd_l.coordinates,time lat lon alt
+wspd_l.coverage_content_type,physicalMeasurement
+z_boom_u.coordinates,time lat lon alt
+z_boom_u.coverage_content_type,physicalMeasurement
+z_boom_l.coordinates,time lat lon alt
+z_boom_l.coverage_content_type,physicalMeasurement
+z_pt.coordinates,time lat lon alt
+z_pt.coverage_content_type,physicalMeasurement
+z_stake.coordinates,time lat lon alt
+z_stake.coverage_content_type,physicalMeasurement

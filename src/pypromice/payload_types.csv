@@ -1,0 +1,7 @@
+type_letter,bytes,process,nan_values,inf_values,-inf_values,notes
+f,2,1,8191,8190,"-8190,-8191",value encoded as 2 bytes base-10 floating point (GFP2)
+l,4,1,"-2147483648,2147450879",,,value encoded as 4 bytes two's complement integer (GLI4)
+t,4,%Y-%m-%d %H:%M:%S,,,,timestamp as seconds since 1990-01-01 00:00:00 +0000 encoded as GLI4
+g,4,100,,,,GPS time encoded as GLI4
+n,4,100000,,,,GPS latitude encoded as GLI4
+e,4,100000,,,,GPS latitude encoded as GLI4

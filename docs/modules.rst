@@ -1,55 +1,50 @@
 Modules
 =======
 
-cf_accd module
---------------
+aws module
+----------
 
-.. automodule:: cf_acdd
+.. automodule:: aws
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   
+get module
+----------
+
+.. automodule:: get
    :members:
    :undoc-members:
    :show-inheritance:
 
-
-L0_to_L1 module
----------------
-
-.. automodule:: L0_to_L1
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
-L1_to_L2 module
----------------
-
-.. automodule:: L1_to_L2
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
-L2_to_L3 module
----------------
-
-.. automodule:: L2_to_L3
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
-merge module
+L0toL1 module
 -------------
 
-.. automodule:: merge
+.. automodule:: L0toL1
    :members:
    :undoc-members:
    :show-inheritance:
 
+L1toL2 module
+--------------
 
-promiceAWS module
------------------
+.. automodule:: L1toL2
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-.. automodule:: promiceAWS
+L2toL3 module
+--------------
+
+.. automodule:: L2toL3
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   
+tx module
+---------
+
+.. automodule:: tx
    :members:
    :undoc-members:
    :show-inheritance:

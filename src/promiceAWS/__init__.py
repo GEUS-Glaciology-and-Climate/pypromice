@@ -1,2 +1,0 @@
-from .promiceAWS import promiceAWS
-

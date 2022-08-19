@@ -1,23 +1,23 @@
 import setuptools
 
-with open("README.org", "r", encoding="utf-8") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="promice-aws-processing",
+    name="pypromice",
     version="0.0.1",
-    author="Kenneth D. Mankoff",
-    author_email="kdm@geus.dk",
-    description="PROMICE AWS processing toolbox",
+    author="Penelope How",
+    author_email="pho@geus.dk",
+    description="PROMICE data processing toolbox",
     long_description=long_description,
-    long_description_content_type="text/plain",
+    long_description_content_type="text/markdown",
     url="https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing",
     project_urls={
         "Bug Tracker": "https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing/issues",
         "Documentation": "https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing",
     "Source Code": "https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing"
     },
-    keywords="promice aws climate glaciology greenland",
+    keywords="promice gc-net aws climate glaciology greenland geus",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
@@ -31,6 +31,6 @@ setuptools.setup(
     include_package_data = True,
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
-    install_requires=['numpy', 'pandas', 'scipy', 'bottleneck', 'xarray', 'netcdf4', 'toml'],
-    scripts=['bin/promiceAWS'],
+    install_requires=['numpy', 'pandas', 'xarray', 'toml'],
+    scripts=['bin/getData', 'bin/getL0tx', 'bin/getL3],
 )

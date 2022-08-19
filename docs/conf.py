@@ -13,13 +13,15 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../src'))
-
+sys.path.insert(0, os.path.abspath('../src/pypromice/process'))
+sys.path.insert(0, os.path.abspath('../src/pypromice/get'))
+sys.path.insert(0, os.path.abspath('../src/pypromice/tx'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'promice-aws-processing'
-copyright = '2022, Kenneth D. Mankoff'
-author = 'Kenneth D. Mankoff'
+project = 'pypromice'
+copyright = '2022, GEUS'
+author = 'Penelope How, Kenneth D. Mankoff'
 
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
@@ -41,7 +43,7 @@ napoleon_google_docstring = False
 napoleon_numpy_docstring = True   
 napoleon_use_ivar = True 
 
-autodoc_mock_imports = ['numpy', 'pandas', 'xarray']
+autodoc_mock_imports = ['xarray']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
