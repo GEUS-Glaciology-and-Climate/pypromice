@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 from argparse import ArgumentParser
 from pypromice.aws import AWS
 
@@ -22,7 +23,9 @@ def parse_arguments():
 if __name__ == '__main__':
     """Executed from the command line"""
     args = parse_arguments()
-    pAWS = AWS(args.config_file, args.inpath, args.outpath, args.variables, args.metadata)
+    station_name = args.config_file.split('/')[-1].split('.')[0] 
+    station_path = os.path.join(args.inpath, station_name)
+    pAWS = AWS(args.config_file, station_path, args.outpath, args.variables, args.metadata)
 
 else:
     """Executed on import"""
