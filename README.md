@@ -44,7 +44,7 @@ python -m unittest tx.py promiceAWS.py attributes.py get.py
  
 ## Design
 
-![pypromice](https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing/obj/fig/pypromice_prelim.png)
+![pypromice](https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/pypromice/main/fig/pypromice_prelim.png)
 
 It is planned that the pyPROMICE toolbox will be the go-to tool for handling and processing PROMICE and GC-Net datasets, available through pip and conda-forge, perhaps even across platforms such as R and Matlab:
 
@@ -63,7 +63,7 @@ The `tx` module contains all objects and functions for processing transmissions 
 
 ### Level 0 data products
 
-![tx_workflow](https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing/obj/fig/L00_to_L0.png)
+![tx_workflow](https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/pypromice/main/fig/L00_to_L0.png)
 
 Level 0 is generated from one of three methods:
 - [ ] Copied from CF card in the field
@@ -155,7 +155,7 @@ The workflow in `tx.py` fetches messages over IMAP sent from the Iridium SBD ser
 
 The workflow is object-oriented to handle each component needed to fetch and decode messages.
 
-![tx_workflow](https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing/obj/fig/tx_design.png)
+![tx_workflow](https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/pypromice/main/fig/tx_design.png)
 
 1. `PayloadFormat` handles the message types and formatting templates. These can be imported from file, with the two .csv files in the `payload_formatter` currently used. These used to be hardcoded in the script, but it seemed more appropriate to store them in files
 
@@ -232,6 +232,6 @@ This processes L0 files in the following manner:
   - [X] Derived products (e.g. SHF and LHF)
   - [ ] Merged, patched, and filled (raw > STM > TX) to one product
   
-![process_workflow](https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing/obj/fig/levels.png)  
+![process_workflow](https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/pypromice/main/fig/levels.png)  
   
 

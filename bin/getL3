@@ -9,7 +9,7 @@ def parse_arguments():
                         help='Path to config (TOML) file')
     parser.add_argument('-i', '--inpath', default='data', type=str, required=True, 
                         help='Path to input data')
-    parser.add_argument('-o', '--outpath', default='data', type=str, required=True, 
+    parser.add_argument('-o', '--outpath', default=None, type=str, required=False, 
                         help='Path where to write output')
     parser.add_argument('-v', '--variables', default='./variables.csv', type=str, 
                         required=False, help='File path to variables look-up table')

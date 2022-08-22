@@ -5,7 +5,7 @@ from configparser import ConfigParser
 import os, imaplib, email
 from glob import glob
 
-from tx import getMail, L0tx, sortLines, addTail
+from pypromice.tx import getMail, L0tx, sortLines, addTail
 
 
 def parse_arguments():

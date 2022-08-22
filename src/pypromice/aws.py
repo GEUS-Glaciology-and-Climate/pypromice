@@ -13,9 +13,9 @@ try:
     from L1toL2 import toL2
     from L2toL3 import toL3
 except:
-    from promiceAWS.L0toL1 import toL1
-    from promiceAWS.L1toL2 import toL2
-    from promiceAWS.L2toL3 import toL3
+    from pypromice.L0toL1 import toL1
+    from pypromice.L1toL2 import toL2
+    from pypromice.L2toL3 import toL3
 
 pd.set_option('display.precision', 2)
 xr.set_options(keep_attrs=True)
@@ -23,7 +23,7 @@ xr.set_options(keep_attrs=True)
 #------------------------------------------------------------------------------
 
 class AWS(object):
-    '''promiceAWS object to load and process PROMICE AWS data'''
+    '''AWS object to load and process PROMICE AWS data'''
     
     def __init__(self, config_file, inpath, outpath=None, 
                  var_file='./variables.csv', meta_file='./metadata.csv'):
@@ -535,7 +535,7 @@ def getVars(v_file):
    
    Parameters
    ----------
-   v_file : str
+   v_file : str I've moved back here  I've moved back here 
        Variable lookup table file path
 
    Returns
@@ -574,7 +574,7 @@ def resampleL3(ds_h, t):
     ds_d = ds_h.resample({'time':"1D"}).mean()
     https://github.com/pydata/xarray/issues/4498 & https://stackoverflow.com/questions/64282393/
     
-    This has now been fixed in the latest pandas, so needs implementing:
+    This has now been fixed i I've moved back here n the latest pandas, so needs implementing:
     https://github.com/pydata/xarray/issues/4498#event-6610799698
     
     Parameters
