@@ -40,7 +40,7 @@ if __name__ == '__main__':
             elif len(m[1:])==2:
                    aws[name] = [datetime.strptime(m[1],'%Y-%m-%d %H:%M:%S'), datetime.strptime(m[2], '%Y-%m-%d %H:%M:%S')]
        	    count+=1
-    print(aws)
+
  	#----------------------------------
 
  	# Set payload formatter paths
@@ -157,7 +157,7 @@ if __name__ == '__main__':
  	# Write last aws uid to ini file
     try:
         with open(uid_file, 'w') as last_uid_f:
-            last_uid_f.write(uid)
+            last_uid_f.write(str(uid))
     except:
         print(f'Could not write last uid {uid} to {uid_file}')
     
