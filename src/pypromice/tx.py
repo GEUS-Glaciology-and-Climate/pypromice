@@ -334,18 +334,23 @@ class L0tx(EmailMessage, PayloadFormat):
         if self.checkPayload() and self.checkByte(self.payload[:1]):
             
             self.bin_val, self.bin_format, self.bin_name, self.bin_len, self.bin_idx, self.bin_valid = self.getFormat()
-
+            
             msg = self.getDataLine() 
             
-            if msg:  
-                if self.checkLength():
-                    self.flag = '-F'
-                elif self.isDiagnostics(msg):
-                    self.flag = '-D'
-                elif self.isObservations(msg):
-                    self.flag = ''
+            if msg:
+                if self.bin_valid: 
+                    
+                    if self.checkLength():
+                        self.flag = '-F'
+                    elif self.isDiagnostics(msg):
+                        self.flag = '-D'
+                    elif self.isObservations(msg):
+                        self.flag = ''
+                    else:
+                        self.flag = '-X'
                 else:
-                    self.flag = '-X'
+                    self.flag=''
+                
                 self.msg = msg
             
             else:
@@ -387,7 +392,7 @@ class L0tx(EmailMessage, PayloadFormat):
         else:
             return True
     
-    def checkLength(self):                                                     
+    def checkLength(self):                                                   
         if len(self.payload) != self.bin_len:
             print(f'Message malformed: expected {self.bin_len} bytes, ' + 
                   f'found {len(self.payload)}. Missing values to be replaced by '+
