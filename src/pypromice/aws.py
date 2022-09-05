@@ -519,8 +519,13 @@ def addMeta(ds, meta):
     ds.attrs['time_coverage_end'] = str(ds['time'][-1].values)
     
     # https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm
-    ds.attrs['time_coverage_duration'] = pd.Timedelta((ds['time'][-1] - ds['time'][0]).values).isoformat()
-    ds.attrs['time_coverage_resolution'] = pd.Timedelta((ds['time'][1] - ds['time'][0]).values).isoformat()
+
+    try:
+        ds.attrs['time_coverage_duration'] = pd.Timedelta((ds['time'][-1] - ds['time'][0]).values).isoformat()
+        ds.attrs['time_coverage_resolution'] = pd.Timedelta((ds['time'][1] - ds['time'][0]).values).isoformat()
+    except:
+        ds.attrs['time_coverage_duration'] = pd.Timedelta(0).isoformat()
+        ds.attrs['time_coverage_resolution'] = pd.Timedelta(0).isoformat()   
         
     ds.time.encoding["dtype"] = "int32" # CF standard requires time as int not int64
     # ds['time'].encoding['units'] = 'hours since 2016-05-01 00:00:00'
