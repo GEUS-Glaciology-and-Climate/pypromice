@@ -58,7 +58,8 @@ type,expected_values,format,description,flags,notes
 75,38,tffffffffffffffffgneffffffffffffffffff,THE VERSION-3!,,THE VERSION-3; note the debug FF letters for the sonic rangers
 75,37,tffffffffffffffffgneffffffffffffffffff,THE VERSION-3!,don’t use,THE VERSION-3; note the debug FF letters for the sonic rangers
 80,37,tffffffffffffffffffffffffgnefffffffff,THE VERSION-3!,don’t use,THE VERSION-3; new version 2020-01-23; note the debug FF letters for the sonic rangers
-80,40,tfffffffffffffffffffffffffffffffffffffff,THE VERSION-3!,,THE VERSION-3; new version 2020-01-23; note the debug FF letters for the sonic rangers
+80,39,tfffffffffffffffffffffffffgneffffffffff,THE VERSION-3!,,THE VERSION-3; new version 2020-01-23; note the debug FF letters for the sonic rangers
+80,40,tfffffffffffffffffffffffffffffffffffffff,THE VERSION-3!,don’t use,THE VERSION-3; new version 2020-01-23; note the debug FF letters for the sonic rangers
 81,24,tffffffffffffffffgneffff,QAS_B,don’t use,GC-NET stations
 85,48,tffffffffffffffffffffffffffffffffffgneffffffffff,THE GC-NET VERSION!,don’t use,GC-NET stations
 90,49, tfffffffffffffffffffffffffffffffffgneffffffffffff,THE GC-NET VERSION!,don’t use,GC-NET stations
