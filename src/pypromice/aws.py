@@ -89,7 +89,7 @@ class AWS(object):
         print('Level 1 processing...')
         self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
         self.L1 = [toL1(item) for item in self.L0]
-        self.L1A = mergeVars(self.L1, self.vars)   
+        self.L1A = mergeVars(self.L1, self.vars)
         
         # L1 to L2 processing
         print('Level 2 processing...')
@@ -343,10 +343,10 @@ def mergeVars(ds_list, variables, cols=['lo','hi','OOL']):                     #
     # Get variables
     df = variables[cols]
     df = df.dropna(how='all')
-
+    
     # Remove outliers
     ds = clipValues(ds, df, cols)
-                      
+                        
     # Clean up metadata
     for k in ['format', 'hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
               'dlr_eng_coef', 'ulr_eng_coef', 'pt_z_coef', 'pt_z_p_coef',
@@ -407,7 +407,7 @@ def clipValues(ds, df, cols=['lo','hi','OOL']):
                     if ~np.isnan(df.loc[var, hi]):  
                         ds[o] = ds[o].where(ds[var] <= df.loc[var, hi])  
     return ds
-    
+
 def popCols(ds, names):       
     for v in names:
         if v not in list(ds.variables):
@@ -526,8 +526,13 @@ def addMeta(ds, meta):
     ds.attrs['time_coverage_end'] = str(ds['time'][-1].values)
     
     # https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm
-    ds.attrs['time_coverage_duration'] = pd.Timedelta((ds['time'][-1] - ds['time'][0]).values).isoformat()
-    ds.attrs['time_coverage_resolution'] = pd.Timedelta((ds['time'][1] - ds['time'][0]).values).isoformat()
+
+    try:
+        ds.attrs['time_coverage_duration'] = pd.Timedelta((ds['time'][-1] - ds['time'][0]).values).isoformat()
+        ds.attrs['time_coverage_resolution'] = pd.Timedelta((ds['time'][1] - ds['time'][0]).values).isoformat()
+    except:
+        ds.attrs['time_coverage_duration'] = pd.Timedelta(0).isoformat()
+        ds.attrs['time_coverage_resolution'] = pd.Timedelta(0).isoformat()   
         
     ds.time.encoding["dtype"] = "int32" # CF standard requires time as int not int64
     # ds['time'].encoding['units'] = 'hours since 2016-05-01 00:00:00'
@@ -693,21 +698,11 @@ if __name__ == "__main__":
     # for config_file in list(c):
     #     pAWS_prom = AWS(config_file, inpath, outpath)
 
-    # c = glob.glob('/home/pho/python_workspace/promice/aws-data/level_0/config/*.toml')
-    # outpath = '/home/pho/python_workspace/promice/aws-l3/level_3'
-    # for config_file in list(c)[30:]:
-    #     name = config_file.split('.toml')[0].split('/')[-1]
-    #     print(name)
-    #     inpath= '/home/pho/python_workspace/promice/aws-data/level_0/' + name       
-    #     pAWS_prom = AWS(config_file, inpath, outpath)
-
-    c = glob.glob('/home/pho/python_workspace/promice/aws-data/tx/config/JAR_O*.toml')
-    inpath= '/home/pho/python_workspace/promice/aws-data/tx/' 
+    c = glob.glob('/home/pho/python_workspace/promice/aws-data/tx/config/SWC*.toml')
     # outpath = '/home/pho/python_workspace/promice/aws-l3/level_3'
     for config_file in list(c):
-        name = config_file.split('.toml')[0].split('/')[-1]    
-        pAWS = AWS(config_file, inpath, outpath=None)
-        # print(pAWS.L0[0]['precip_u'])
-        # print(pAWS.L1[0]['precip_u'])
-        # print(pAWS.L1A['precip_u'])
-        # print(pAWS.L2['precip_u'])
+        name = config_file.split('.toml')[0].split('/')[-1]
+        print(name)
+        inpath= '/home/pho/python_workspace/promice/aws-data/tx/'      
+        pAWS_prom = AWS(config_file, inpath, outpath=None)
+        print(pAWS_prom.L3['precip_u'])
