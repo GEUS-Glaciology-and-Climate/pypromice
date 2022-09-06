@@ -386,19 +386,26 @@ def clipValues(ds, df, cols=['lo','hi','OOL']):
     for var in df.index:
         if var not in list(ds.variables): 
             continue
+        
         if var in ['rh_u_cor', 'rh_l_cor']:
              ds[var] = ds[var].where(ds[var] >= df.loc[var, lo], other = 0)
              ds[var] = ds[var].where(ds[var] <= df.loc[var, hi], other = 100)
         else:
-            ds[var] = ds[var].where(ds[var] >= df.loc[var, lo])
-            ds[var] = ds[var].where(ds[var] <= df.loc[var, hi])
-        other_vars = df.loc[var][ool] # either NaN or "foo" or "foo bar baz ..."
-        if isinstance(other_vars, str): 
+            if ~np.isnan(df.loc[var, lo]):
+                ds[var] = ds[var].where(ds[var] >= df.loc[var, lo])
+            if ~np.isnan(df.loc[var, hi]):                
+                ds[var] = ds[var].where(ds[var] <= df.loc[var, hi])
+                
+        other_vars = df.loc[var][ool]
+        if isinstance(other_vars, str) and ~ds[var].isnull().all():            # TODO change this to accomodate for instances where all values are flagged and nan'd prior
             for o in other_vars.split():
                 if o not in list(ds.variables): 
                     continue
-                ds[o] = ds[o].where(ds[var] >= df.loc[var, lo])
-                ds[o] = ds[o].where(ds[var] <= df.loc[var, hi])  
+                else:
+                    if ~np.isnan(df.loc[var, lo]):
+                        ds[o] = ds[o].where(ds[var] >= df.loc[var, lo])
+                    if ~np.isnan(df.loc[var, hi]):  
+                        ds[o] = ds[o].where(ds[var] <= df.loc[var, hi])  
     return ds
 
 def popCols(ds, names):       
