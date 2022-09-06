@@ -18,8 +18,8 @@ wspd_x_u,wind_speed_from_x_direction,Wind speed from x direction (upper boom),m 
 wspd_y_u,wind_speed_from_y_direction,Wind speed from y direction (upper boom),m s-1,-100,100,wdir_u wspd_u,all,all,4,
 wspd_x_l,wind_speed_from_x_direction,Wind speed from x direction (lower boom),m s-1,-100,100,wdir_l wspd_l,two-boom,all,4,
 wspd_y_l,wind_speed_from_y_direction,Wind speed from y direction (lower boom),m s-1,-100,100,wdir_l wspd_l,two-boom,all,4,
-precip_u,precipitation,Precipitation (upper boom) (cumulative solid & liquid),mm,,,,all,all,4,Without wind/undercatch correction
-precip_l,precipitation,Precipitation (lower boom) (cumulative solid & liquid),mm,,,,two-boom,all,4,Without wind/undercatch correction
+precip_u,precipitation,Precipitation (upper boom) (cumulative solid & liquid),mm,0,,,all,all,4,Without wind/undercatch correction
+precip_l,precipitation,Precipitation (lower boom) (cumulative solid & liquid),mm,0,,,two-boom,all,4,Without wind/undercatch correction
 t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,C,-80,40,,all,all,4,t1 is installed @ 1 m depth
 t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,C,-80,40,,all,all,4,
 t_i_3,ice_temperature_at_t3,Ice temperature at sensor 3,C,-80,40,,all,all,4,

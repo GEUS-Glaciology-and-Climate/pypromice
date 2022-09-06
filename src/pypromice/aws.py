@@ -681,15 +681,15 @@ class TestProcess(unittest.TestCase):
 #------------------------------------------------------------------------------
 
 if __name__ == "__main__": 
-    # config_file = '../test/test_config1.toml'
-    # inpath= '../test/'
-    # outpath = '../test/'  
-    # pAWS_gc = AWS(config_file, inpath, outpath)
+    config_file = '../test/test_config1.toml'
+    inpath= '../test/'
+    outpath = '../test/'  
+    pAWS_gc = AWS(config_file, inpath, outpath)
     
-    # config_file = '../test/test_config2.toml'
-    # inpath= '../test/'
-    # outpath = '../test/'  
-    # pAWS_gc = AWS(config_file, inpath, outpath)
+    config_file = '../test/test_config2.toml'
+    inpath= '../test/'
+    outpath = '../test/'  
+    pAWS_gc = AWS(config_file, inpath, outpath)
 
 
     # c = glob.glob('test/config/*.toml')
@@ -698,11 +698,10 @@ if __name__ == "__main__":
     # for config_file in list(c):
     #     pAWS_prom = AWS(config_file, inpath, outpath)
 
-    c = glob.glob('/home/pho/python_workspace/promice/aws-data/tx/config/SWC*.toml')
-    # outpath = '/home/pho/python_workspace/promice/aws-l3/level_3'
-    for config_file in list(c):
+    c = glob.glob('/home/pho/python_workspace/promice/aws-data/level_0/config/*.toml')
+    outpath = '/home/pho/python_workspace/promice/aws-l3/level_3'
+    for config_file in list(c)[30:]:
         name = config_file.split('.toml')[0].split('/')[-1]
         print(name)
-        inpath= '/home/pho/python_workspace/promice/aws-data/tx/'      
-        pAWS_prom = AWS(config_file, inpath, outpath=None)
-        print(pAWS_prom.L3['precip_u'])
+        inpath= '/home/pho/python_workspace/promice/aws-data/raw/' + name      
+        pAWS_prom = AWS(config_file, inpath, outpath)
