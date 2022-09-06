@@ -32,7 +32,6 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
     '''
     assert(type(L0) == xr.Dataset)
     ds = L0
-
     ds = _flagNAN(ds, flag_file)                                               # Flag NaNs
 
     ds['time_orig'] = ds['time']                                               # Check and shift time
@@ -91,6 +90,7 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
         if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():      # Instantaneous msg processing
             ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)               # Get directional wind speed                    
             ds['wspd_x_i'], ds['wspd_y_i'] = _calcWindDir(ds['wspd_i'], ds['wdir_i'])   
+    
     return ds
 
 def _flagNAN(ds, flag_file=None):
