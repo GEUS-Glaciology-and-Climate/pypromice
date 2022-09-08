@@ -51,8 +51,13 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     doy = ds['time'].to_dataframe().index.dayofyear.values                     # Gather variables to calculate sun pos
     hour = ds['time'].to_dataframe().index.hour.values
     minute = ds['time'].to_dataframe().index.minute.values
-    lat = ds.attrs['latitude']
-    lon = ds.attrs['longitude']
+    
+    if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
+        lat = ds.attrs['latitude']                                             # TODO Why is mean GPS lat lon not preferred for calcs?
+        lon = ds.attrs['longitude']
+    else:
+        lat = ds['gps_lat'].mean()
+        lon = ds['gps_lon'].mean()
     
     deg2rad, rad2deg = _getRotation()                                          # Get degree-radian conversions  
     phi_sensor_rad, theta_sensor_rad = _calcTilt(ds['tilt_x'], ds['tilt_y'],   # Calculate station tilt 

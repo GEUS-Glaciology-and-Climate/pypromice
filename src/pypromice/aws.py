@@ -197,7 +197,7 @@ def getConfig(config_file, inpath):
                                                                                # should carry all properties with it
     for k in conf.keys():                                                      # Check required fields are present
         print(k)
-        for field in ["columns", "station_id", "format", "skiprows", "latitude", "longitude"]:
+        for field in ["columns", "station_id", "format", "skiprows"]:
             assert(field in conf[k].keys())
     return conf
 
@@ -681,15 +681,15 @@ class TestProcess(unittest.TestCase):
 #------------------------------------------------------------------------------
 
 if __name__ == "__main__": 
-    config_file = '../test/test_config1.toml'
-    inpath= '../test/'
-    outpath = '../test/'  
-    pAWS_gc = AWS(config_file, inpath, outpath)
+    # config_file = '../test/test_config1.toml'
+    # inpath= '../test/'
+    # outpath = '../test/'  
+    # pAWS_gc = AWS(config_file, inpath, outpath)
     
-    config_file = '../test/test_config2.toml'
-    inpath= '../test/'
-    outpath = '../test/'  
-    pAWS_gc = AWS(config_file, inpath, outpath)
+    # config_file = '../test/test_config2.toml'
+    # inpath= '../test/'
+    # outpath = '../test/'  
+    # pAWS_gc = AWS(config_file, inpath, outpath)
 
 
     # c = glob.glob('test/config/*.toml')
@@ -698,10 +698,22 @@ if __name__ == "__main__":
     # for config_file in list(c):
     #     pAWS_prom = AWS(config_file, inpath, outpath)
 
-    c = glob.glob('/home/pho/python_workspace/promice/aws-data/level_0/config/*.toml')
-    outpath = '/home/pho/python_workspace/promice/aws-l3/level_3'
-    for config_file in list(c)[30:]:
+    c = glob.glob('/home/pho/python_workspace/promice/aws-data/tx/config/*.toml')
+    outpath = '/home/pho/Desktop/aws_data/'
+    for config_file in list(c):
         name = config_file.split('.toml')[0].split('/')[-1]
-        print(name)
-        inpath= '/home/pho/python_workspace/promice/aws-data/raw/' + name      
-        pAWS_prom = AWS(config_file, inpath, outpath)
+        inpath= '/home/pho/python_workspace/promice/aws-data/tx/'   
+        try:
+            pAWS_prom = AWS(config_file, inpath, outpath)
+            print(pAWS_prom.L3)
+        except:
+            print(f'Processing failed for {name}')
+
+    # c = glob.glob('/home/pho/python_workspace/promice/aws-data/level_0/config/*.toml')
+    # # outpath = '/home/pho/Desktop/AWS_test/'
+    # for config_file in list(c):
+    #     name = config_file.split('.toml')[0].split('/')[-1]
+    #     if name in ['NUK_Uv3']:
+    #         inpath= '/home/pho/python_workspace/promice/aws-data/level_0/' + name   
+    #         pAWS_prom = AWS(config_file, inpath, outpath=None)
+    #         print(pAWS_prom.L3)

@@ -35,17 +35,25 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
 
     ds = _flagNAN(ds, flag_file)                                               # Flag NaNs
 
+    for l in list(ds.keys()):
+        if l not in ['time', 'msg_i']:
+            ds[l] = _reformatArray(ds[l])
+    
     ds['time_orig'] = ds['time']                                               # Check and shift time
     ds['time'] = _addTimeShift(ds['time'], ds.attrs['format'])
     _, index = np.unique(ds['time'], return_index=True)
     ds = ds.isel(time=index)
-
+        
     # ds['t_2'] = ds['t_2'] - ds.attrs['hygroclip_t_offset']                    # No hydroclip offset needed
 
-    ds['dsr'] = (ds['dsr'] * 10) / ds.attrs['dsr_eng_coef']                    # Convert radiation from engineering to physical units
-    ds['usr'] = (ds['usr'] * 10) / ds.attrs['usr_eng_coef']
-    ds['dlr'] = ((ds['dlr'] * 10) / ds.attrs['dlr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
-    ds['ulr'] = ((ds['ulr'] * 10) / ds.attrs['ulr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
+    if hasattr(ds, 'dsr_eng_coef'): 
+        ds['dsr'] = (ds['dsr'] * 10) / ds.attrs['dsr_eng_coef']                # Convert radiation from engineering to physical units
+    if hasattr(ds, 'usr_eng_coef'):                                            # TODO add metadata to indicate whether radiometer values are corrected with calibration values or not
+        ds['usr'] = (ds['usr'] * 10) / ds.attrs['usr_eng_coef']
+    if hasattr(ds, 'dlr_eng_coef'):
+        ds['dlr'] = ((ds['dlr'] * 10) / ds.attrs['dlr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
+    if hasattr(ds, 'ulr_eng_coef'):
+        ds['ulr'] = ((ds['ulr'] * 10) / ds.attrs['ulr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
 
     ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
     ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u'] + T_0)/T_0)**0.5             # Adjust sonic ranger readings for sensitivity to air temperature       
@@ -54,11 +62,12 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
         assert('NH' in ds['gps_lat'].dropna(dim='time').values[1])
         ds = _decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
     
-    for l in ['gps_lat', 'gps_lon', 'gps_time']:
-        ds[l] = _reformatArray(ds[l])  
+    # for l in ['gps_lat', 'gps_lon', 'gps_time']:
+    #     ds[l] = _reformatArray(ds[l])  
     
-    ds['gps_lat'] = _reformatGPS(ds['gps_lat'], ds.attrs['latitude'])
-    ds['gps_lon'] = _reformatGPS(ds['gps_lon'], ds.attrs['longitude'])
+    if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
+        ds['gps_lat'] = _reformatGPS(ds['gps_lat'], ds.attrs['latitude'])
+        ds['gps_lon'] = _reformatGPS(ds['gps_lon'], ds.attrs['longitude'])
 
     if ds.attrs['format'] != 'TX':                                             # Convert tilt voltage to degrees
         ds['tilt_x'] = _getTiltDegrees(ds['tilt_x'], 7)                        # TODO if you follow RSF, this should also be needed for TX messages; but then this does not match KDM output - values from TX message and hand-carried data matches. 
@@ -72,6 +81,7 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
 
     ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                       # Get directional wind speed                    
     ds['wspd_x_u'], ds['wspd_y_u'] = _calcWindDir(ds['wspd_u'], ds['wdir_u']) 
+    
     if ds.attrs['number_of_booms']==1:                                         # 1-boom processing
         if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density                                           
             ds['z_pt_cor'],ds['z_pt']=_getPressDepth(ds['z_pt'], ds['p_u'], 
