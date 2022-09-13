@@ -167,6 +167,12 @@ The workflow is object-oriented to handle each component needed to fetch and dec
 
 To reprocess old messages, these can be retrieved from the mailbox by rolling back the counter in `last_aws_uid.ini` or by reading from .sbd file.
 
+To fetch L0 TX messages from all valid stations:
+
+```
+getL0tx -a accounts.ini -p credentials.ini -c tx/config -f payload_formats.csv -t payload_types.csv -u last_aws_uid.ini -o tx
+```
+
 
 ## get
 
@@ -204,13 +210,13 @@ The `process` module is for processing PROMICE AWS observations from Level 0 (L0
 To process from L0>>L3, the following command can be used:
 
 ```
-promiceAWS --config_file=./test_data/conf/KPC_L.toml --inpath=./test_data/input --outpath=./test_data/output_py
+getL3 -v variables.csv -m metadata.csv -c config/KPC_L.toml -i . -o ../../aws-l3/tx"
 ```
 
-And in parallel:
+And in parallel through all configuration .toml files `$imei_list`:
 
 ```
-parallel --bar "promiceAWS -c ./test_data/conf/{} -i ./input/ -o ./L3" ::: $(ls ./test_data/conf/)
+parallel --bar "getL3 -v variables.csv -m metadata.csv -c ./{} -i . -o ../../aws-l3/tx" ::: $(ls $imei_list)
 ```
 
 This processes L0 files in the following manner:
