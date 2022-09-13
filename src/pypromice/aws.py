@@ -239,6 +239,7 @@ def getL0(infile, nodata, cols, skiprows, file_version,
                          na_values=nodata, names=cols, parse_dates=True,
                          sep=delimiter, skiprows=skiprows,
                          skip_blank_lines=True, usecols=range(len(cols)))        
+    
     # Drop SKIP columns
     for c in df.columns:
         if c[0:4] == 'SKIP':
@@ -284,6 +285,7 @@ def populateMeta(ds, conf, skip):
     return ds
 
 def writeCSV(outfile, Lx, csv_order):
+    '''Write data product to CSV file'''
     Lcsv = Lx.to_dataframe().dropna(how='all')
     if csv_order is not None:   
         names = [c for c in csv_order if c in list(Lcsv.columns)]
@@ -291,6 +293,7 @@ def writeCSV(outfile, Lx, csv_order):
     Lcsv.to_csv(outfile)
     
 def writeNC(outfile, Lx):
+    '''Write data product to NetCDF file'''
     if os.path.isfile(outfile): 
         os.remove(outfile)
     Lx.to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)    
@@ -360,11 +363,11 @@ def clipValues(ds, df, cols=['lo','hi','OOL']):
     '''Clip values in dataset to defined "hi" and "lo" variables from dataframe.
     Related issues:
     
-    https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/23 - Just 
+    https://github.com/GEUS-Glaciology-and-Climate/pypromice/issues/23 - Just 
     adding special treatment here in service of replication. rh_cor is clipped 
     not NaN'd
     
-    https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
+    https://github.com/GEUS-Glaciology-and-Climate/pypromice/issues/20
     
     Parameters
     ----------
@@ -681,39 +684,13 @@ class TestProcess(unittest.TestCase):
 #------------------------------------------------------------------------------
 
 if __name__ == "__main__": 
-    # config_file = '../test/test_config1.toml'
-    # inpath= '../test/'
-    # outpath = '../test/'  
-    # pAWS_gc = AWS(config_file, inpath, outpath)
+    config_file = 'test/test_config1.toml'
+    inpath= 'test/'
+    outpath = 'test/'  
+    pAWS_gc = AWS(config_file, inpath, outpath)
     
-    # config_file = '../test/test_config2.toml'
-    # inpath= '../test/'
-    # outpath = '../test/'  
-    # pAWS_gc = AWS(config_file, inpath, outpath)
+    config_file = 'test/test_config2.toml'
+    inpath= 'test/'
+    outpath = 'test/'  
+    pAWS_gc = AWS(config_file, inpath, outpath)
 
-
-    # c = glob.glob('test/config/*.toml')
-    # inpath= 'test/aws_L0/'
-    # outpath = 'test/aws_L3'
-    # for config_file in list(c):
-    #     pAWS_prom = AWS(config_file, inpath, outpath)
-
-    c = glob.glob('/home/pho/python_workspace/promice/aws-data/tx/config/*.toml')
-    outpath = '/home/pho/Desktop/aws_data/'
-    for config_file in list(c):
-        name = config_file.split('.toml')[0].split('/')[-1]
-        inpath= '/home/pho/python_workspace/promice/aws-data/tx/'   
-        try:
-            pAWS_prom = AWS(config_file, inpath, outpath)
-            print(pAWS_prom.L3)
-        except:
-            print(f'Processing failed for {name}')
-
-    # c = glob.glob('/home/pho/python_workspace/promice/aws-data/level_0/config/*.toml')
-    # # outpath = '/home/pho/Desktop/AWS_test/'
-    # for config_file in list(c):
-    #     name = config_file.split('.toml')[0].split('/')[-1]
-    #     if name in ['NUK_Uv3']:
-    #         inpath= '/home/pho/python_workspace/promice/aws-data/level_0/' + name   
-    #         pAWS_prom = AWS(config_file, inpath, outpath=None)
-    #         print(pAWS_prom.L3)

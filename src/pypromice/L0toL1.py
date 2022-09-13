@@ -36,7 +36,7 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
     ds = _flagNAN(ds, flag_file)                                               # Flag NaNs
 
     for l in list(ds.keys()):
-        if l not in ['time', 'msg_i']:
+        if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
             ds[l] = _reformatArray(ds[l])
     
     ds['time_orig'] = ds['time']                                               # Check and shift time
@@ -57,13 +57,19 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
 
     ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
     ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u'] + T_0)/T_0)**0.5             # Adjust sonic ranger readings for sensitivity to air temperature       
- 
-    if ds['gps_lat'].dtype.kind == 'O':                                        # Decode and reformat GPS information
-        assert('NH' in ds['gps_lat'].dropna(dim='time').values[1])
-        ds = _decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
     
-    # for l in ['gps_lat', 'gps_lon', 'gps_time']:
-    #     ds[l] = _reformatArray(ds[l])  
+    if ds['gps_lat'].dtype.kind == 'O':                                        # Decode and reformat GPS information
+        # assert('NH' in ds['gps_lat'].dropna(dim='time').values[1])
+        if 'NH' in ds['gps_lat'].dropna(dim='time').values[1]:
+            ds = _decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
+        else:
+            try:
+                ds = _decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])          # TODO this is a work around specifically for L0 RAW processing for THU_U. Find a way to make this slicker
+            except:
+                print('Invalid GPS type {ds["gps_lat"].dtype} for decoding')
+            
+    for l in ['gps_lat', 'gps_lon', 'gps_alt','gps_time']:
+        ds[l] = _reformatArray(ds[l])  
     
     if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
         ds['gps_lat'] = _reformatGPS(ds['gps_lat'], ds.attrs['latitude'])

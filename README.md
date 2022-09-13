@@ -15,13 +15,13 @@ pyPROMICE can either be cloned and ran in an environment with the needed depende
 conda create --name pypromice python=3.8
 conda activate pypromice
 conda install xarray pandas pathlib
-git clone https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing.git
+git clone https://github.com/GEUS-Glaciology-and-Climate/pypromice.git
 ```
 
 Or installed directly using pip:
 
 ```
-pip install --upgrade git+http://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing.git
+pip install --upgrade git+http://github.com/GEUS-Glaciology-and-Climate/pypromice.git
 ```
 
 Note that [eccodes](https://confluence.ecmwf.int/display/ECC/ecCodes+installation), the official package for BUFR encoding and decoding, is not included in this set-up given the problems that conda has with resolving environments. Try firstly to install with conda-forge like so:
@@ -39,7 +39,7 @@ pip3 install eccodes-python
 Once the pyPROMICE toolbox is cloned/installed, the toolbox can be checked with its in-built unittesting:
 
 ```
-python -m unittest tx.py promiceAWS.py attributes.py get.py
+python -m unittest tx.py aws.py get.py
 ```
  
 ## Design
