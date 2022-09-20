@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+import os
+import pandas as pd
+import xarray as xr
+from argparse import ArgumentParser
+from pypromice.aws import getVars, getMeta, addMeta, _addAttr, getColNames, \
+    roundValues, resampleL3, writeAll
+
+def parse_arguments():
+    parser = ArgumentParser(description="AWS L3 processor")
+
+    parser.add_argument('-s', '--file1', type=str, required=True,
+                        help='Path to source L3 file, which will be preferenced in merge process')
+    parser.add_argument('-t', '--file2', type=str, required=True, 
+                        help='Path to target L3 file, which will be used to fill gaps in merge process')
+    parser.add_argument('-o', '--outpath', default=os.getcwd(), type=str, required=True, 
+                        help='Path where to write output')
+    parser.add_argument('-v', '--variables', default=None, type=str, required=False, 
+    			 help='Path to variables look-up table .csv file for variable name retained'''),
+    parser.add_argument('-m', '--metadata', default=None, type=str, required=False, 
+    			 help='Path to metadata table .csv file for metadata information'''),
+    parser.add_argument('-d', '--datatype', default='raw', type=str, required=False, 
+    			 help='Data type to output, raw or tx')
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == '__main__':
+    """Executed from the command line"""
+    args = parse_arguments()
+    
+    # Check files
+    assert(os.path.isfile(args.file1))
+    assert(os.path.isfile(args.file2))       	
+
+    name = args.file1.split('/')[-1].split('.csv')[0].split('_hour')[0].split('_day')[0].split('_month')[0]
+    print(f'Joining L3 data for {name}')
+        
+    df1 = pd.read_csv(args.file1, index_col=0, parse_dates=True)
+    df2 = pd.read_csv(args.file2, index_col=0, parse_dates=True)    
+    ds1 = xr.Dataset.from_dataframe(df1) 
+    ds2 = xr.Dataset.from_dataframe(df2)     
+    
+    # # Load arrays for merging
+    # ds1 = xr.open_dataset(args.file1)
+    # ds2 = xr.open_dataset(args.file2)
+        
+    # Merge arrays
+    print(f'Combining {args.file1} with {args.file2}...')
+    all_ds = ds1.combine_first(ds2)
+    
+    # Get hourly, daily and monthly datasets
+    print('Resampling L3 data to hourly, daily and monthly resolutions...')
+    l3_h = resampleL3(all_ds, '60min')
+    l3_d = resampleL3(all_ds, '1D')
+    l3_m = resampleL3(all_ds, 'M')
+    
+    if args.variables is not None:
+        print(f'Adding variable information from {args.variables}...')
+        
+        # Load variables look-up table
+        assert(os.path.isfile(args.variables)) 
+        var = getVars(args.variables)
+        	
+        # Round all values to specified decimals places
+        l3_h = roundValues(l3_h, var)
+        l3_d = roundValues(l3_d, var)
+        l3_m = roundValues(l3_m, var)
+        
+        # Get columns to keep
+        if hasattr(ds1, 'p_l'):
+            col_names = getColNames(var, 2, args.datatype.lower())  
+        else:
+            col_names = getColNames(var, 1, args.datatype.lower())
+    
+    else:
+    	col_names=None     
+
+    # Assign station id
+    for l in [l3_h, l3_d, l3_m]:
+        l.attrs['station_id'] = name
+    
+    if args.metadata is not None:
+        print(f'Adding metadata from {args.metadata}...')
+        m = getMeta(args.metadata)
+        # try:
+        l3_h = addMeta(l3_h, m)
+        l3_d = addMeta(l3_d, m)
+        l3_m = addMeta(l3_m, m)
+        
+        # except:
+        #     [_addAttr(l3_h, key, value) for key,value in m.items()]
+        #     [_addAttr(l3_d, key, value) for key,value in m.items()]
+        #     [_addAttr(l3_m, key, value) for key,value in m.items()]
+        
+    # Set up output path
+    out = os.path.join(args.outpath, name)
+    
+    # Write to files
+    writeAll(out, name, l3_h, l3_d, l3_m, col_names)
+    print(f'Files saved to {os.path.join(out, name)}...')
+ 
+else:
+    """Executed on import"""
+    pass

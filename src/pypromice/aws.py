@@ -59,22 +59,35 @@ class AWS(object):
         
         # Proces L0 to L3 product
         self.process()
-        self.L3 = self.addAttributes(self.L3)
+    
+        # Resample L3 product
+        f = [l.attrs['format'] for l in self.L0]
+        if 'raw' in f or 'STM' in f:
+            self.L3 = resampleL3(self.L3, '10min')
+        else:
+            self.L3 = resampleL3(self.L3, '60min') 
         
-        # Resample to hourly, daily and monthly products
-        self.L3_h = self.resample('60min')
-        self.L3_d = self.resample('1D')
-        self.L3_m = self.resample('M')
+        # Re-format time 
+        t = self.L3['time'].values
+        self.L3['time'] = list(t)
+        
+        # Add variables and metadata
+        self.L3 = self.addAttributes(self.L3)
+                   
+        # # Resample to hourly, daily and monthly products
+        # self.L3_h = self.resample('60min')
+        # self.L3_d = self.resample('1D')
+        # self.L3_m = self.resample('M')
         
         # Round all values to specified decimals places
-        self.L3_h = roundValues(self.L3_h, self.vars)
-        self.L3_d = roundValues(self.L3_d, self.vars)
-        self.L3_m = roundValues(self.L3_m, self.vars)
+        self.L3 = roundValues(self.L3, self.vars)
+        # self.L3_d = roundValues(self.L3_d, self.vars)
+        # self.L3_m = roundValues(self.L3_m, self.vars)
         
         # Save to file if outpath given
         if outpath is not None:
             if os.path.isdir(outpath):
-                self.write(outpath)
+                self.writeArr(outpath, self.L3)
             else:
                 print(f'Outpath f{outpath} does not exist. Unable to save to file')
                 pass
@@ -100,18 +113,18 @@ class AWS(object):
         print('Level 3 processing...')        
         self.L3 = toL3(self.L2)
         
-    def resample(self, resample_factor):  
-        '''Resample L3 data'''
-        r = resampleL3(self.L3, resample_factor)
-        if resample_factor in 'M':
-            print('Level 3 successfully resampled to monthly product')
-        elif resample_factor in '1D':
-            print('Level 3 successfully resampled to daily product')           
-        elif resample_factor in '60min':
-            print('Level 3 successfully resampled to hourly product')  
-        else:
-            print('Level 3 successfully resampled')
-        return r
+    # def resample(self, resample_factor):  
+    #     '''Resample L3 data'''
+    #     r = resampleL3(self.L3, resample_factor)
+    #     if resample_factor in 'M':
+    #         print('Level 3 successfully resampled to monthly product')
+    #     elif resample_factor in '1D':
+    #         print('Level 3 successfully resampled to daily product')           
+    #     elif resample_factor in '60min':
+    #         print('Level 3 successfully resampled to hourly product')  
+    #     else:
+    #         print('Level 3 successfully resampled')
+    #     return r
     
     def addAttributes(self, L3):
         '''Add variable and attribute metadata'''
@@ -119,23 +132,24 @@ class AWS(object):
         L3 = addMeta(L3, self.meta)
         return L3
 
-    def write(self, outpath):
+    def writeArr(self, outpath, L3):
         '''Write L3 data to .nc and .csv hourly and daily files'''
-        outdir = os.path.join(outpath, self.L3_h.attrs['station_id']) 
+        outdir = os.path.join(outpath, L3.attrs['station_id']) 
         
         f = [l.attrs['format'] for l in self.L0]
         if all(f):
-            col_names = getColNames(self.vars, self.L3_h.attrs['number_of_booms'], 
+            col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
                                     self.L0[0].attrs['format'])
         else:
-            col_names = getColNames(self.vars, self.L3_h.attrs['number_of_booms'], 
+            col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
                                     None)
         
         print('Writing to files...')
-        writeL3(outdir, self.L3_h.attrs['station_id'], 
-                self.L3_h, self.L3_d, self.L3_m, col_names)
-        print(f'Out files successfully written to {outdir}')
-
+        writeCSV(os.path.join(outdir, L3.attrs['station_id']+'.csv'), L3, col_names)
+        writeNC(os.path.join(outdir, L3.attrs['station_id']+'.nc'), L3) 
+        print(f'Written to {os.path.join(outdir, L3.attrs["station_id"]+".csv")}')           
+        print(f'Written to {os.path.join(outdir, L3.attrs["station_id"]+".nc")}') 
+        
     def loadConfig(self, config_file, inpath):
         '''Load configuration from .toml file'''
         conf = getConfig(config_file, inpath)
@@ -297,16 +311,10 @@ def writeNC(outfile, Lx):
     if os.path.isfile(outfile): 
         os.remove(outfile)
     Lx.to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)    
-
-# def writeLx(outfile, Lx):
-#     '''Write Lx Dataset to .nc and .csv files'''
-#     Lx.to_dataframe().dropna(how='all').to_csv(outfile+'.csv')
-#     if os.path.exists(outfile+'.nc'): 
-#         os.remove(outfile+'.nc')
-#     Lx.to_netcdf(outfile+'.nc', mode='w', format='NETCDF4', compute=True)
     
-def writeL3(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
-    '''Write L3 Dataset to .nc and .csv hourly and daily files'''
+def writeAll(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
+    '''Write L3 hourly, daily and monthly datasets to .nc and .csv 
+    files'''
     if not os.path.isdir(outpath):
         os.mkdir(outpath)
     outfile_h = os.path.join(outpath, station_id + '_hour')
@@ -463,6 +471,8 @@ def addVars(ds, variables):
         ds[k].attrs['standard_name'] = variables.loc[k]['standard_name']
         ds[k].attrs['long_name'] = variables.loc[k]['long_name']
         ds[k].attrs['units'] = variables.loc[k]['units']
+        ds[k].attrs['coverage_content_type'] = variables.loc[k]['coverage_content_type']
+        ds[k].attrs['coordinates'] = variables.loc[k]['coordinates']        
     return ds
 
 def addMeta(ds, meta):
@@ -483,7 +493,6 @@ def addMeta(ds, meta):
     a = ds['gps_lon'].attrs
     ds['gps_lon'] = -1 * ds['gps_lon']
     ds['gps_lon'].attrs = a
-    
     ds['lon'] = ds['gps_lon'].mean()
     ds['lon'].attrs = a
     
@@ -492,15 +501,11 @@ def addMeta(ds, meta):
     
     ds['alt'] = ds['gps_alt'].mean()
     ds['alt'].attrs = ds['gps_alt'].attrs
-       
-    # ds['station_name'] = (('name_strlen'), [fname.split('hour')[0].split('/')[2][:-1]])
-    # # ds['station_name'].attrs['long_name'] = 'station name'
-    # ds['station_name'].attrs['cf_role'] = 'timeseries_id'
 
-    for k in ds.keys(): # for each var
-        if 'units' in ds[k].attrs:        
-            if ds[k].attrs['units'] == 'C':
-                ds[k].attrs['units'] = 'degrees_C'
+    # for k in ds.keys(): # for each var
+    #     if 'units' in ds[k].attrs:        
+    #         if ds[k].attrs['units'] == 'C':
+    #             ds[k].attrs['units'] = 'degrees_C'
 
     # https://wiki.esipfed.org/Attribute_Convention_for_Data_Discovery_1-3#geospatial_bounds
     # highly recommended
@@ -518,12 +523,12 @@ def addMeta(ds, meta):
         f"{ds['lat'].max().values} {ds['lon'].min().values}, " + \
         f"{ds['lat'].min().values} {ds['lon'].min().values}))"
 
-    ds.attrs['geospatial_lat_min'] = ds['lat'].min().values
-    ds.attrs['geospatial_lat_max'] = ds['lat'].max().values
-    ds.attrs['geospatial_lon_min'] = ds['lon'].min().values
-    ds.attrs['geospatial_lon_max'] = ds['lon'].max().values
-    ds.attrs['geospatial_vertical_min'] = ds['alt'].min().values
-    ds.attrs['geospatial_vertical_max'] = ds['alt'].max().values
+    ds.attrs['geospatial_lat_min'] = str(ds['lat'].min().values)
+    ds.attrs['geospatial_lat_max'] = str(ds['lat'].max().values)
+    ds.attrs['geospatial_lon_min'] = str(ds['lon'].min().values)
+    ds.attrs['geospatial_lon_max'] = str(ds['lon'].max().values)
+    ds.attrs['geospatial_vertical_min'] = str(ds['alt'].min().values)
+    ds.attrs['geospatial_vertical_max'] = str(ds['alt'].max().values)
     ds.attrs['geospatial_vertical_positive'] = 'up'
     ds.attrs['time_coverage_start'] = str(ds['time'][0].values)
     ds.attrs['time_coverage_end'] = str(ds['time'][-1].values)
@@ -531,15 +536,19 @@ def addMeta(ds, meta):
     # https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm
 
     try:
-        ds.attrs['time_coverage_duration'] = pd.Timedelta((ds['time'][-1] - ds['time'][0]).values).isoformat()
-        ds.attrs['time_coverage_resolution'] = pd.Timedelta((ds['time'][1] - ds['time'][0]).values).isoformat()
+        ds.attrs['time_coverage_duration'] = str(pd.Timedelta((ds['time'][-1] - ds['time'][0]).values).isoformat())
+        ds.attrs['time_coverage_resolution'] = str(pd.Timedelta((ds['time'][1] - ds['time'][0]).values).isoformat())
     except:
-        ds.attrs['time_coverage_duration'] = pd.Timedelta(0).isoformat()
-        ds.attrs['time_coverage_resolution'] = pd.Timedelta(0).isoformat()   
+        ds.attrs['time_coverage_duration'] = str(pd.Timedelta(0).isoformat())
+        ds.attrs['time_coverage_resolution'] = str(pd.Timedelta(0).isoformat())   
         
-    ds.time.encoding["dtype"] = "int32" # CF standard requires time as int not int64
-    # ds['time'].encoding['units'] = 'hours since 2016-05-01 00:00:00'
-    # ds['time'] = ds['time'].astype('datetime64[D]')
+    if pd.Timedelta((ds['time'][1] - ds['time'][0]).values)==np.timedelta64(1, 'h'):
+        ds['time'].encoding['units'] = 'Hours since ' + str(ds['time'][0].values).split('T')[0] 
+    else:
+        ds['time'].encoding['units'] = 'Minutes since ' + str(ds['time'][0].values).split('T')[0]         
+      
+    ds.time.encoding["dtype"] = "int64"                                        # TODO CF standard requires time as int not int64 
+    ds.time.encoding["calendar"] = 'proleptic_gregorian'
     
     # Load metadata attributes and add to Dataset   
     [_addAttr(ds, key, value) for key,value in meta.items()]
@@ -615,7 +624,7 @@ def _addAttr(ds, key, value):
     '''Add attribute to xarray dataset'''
     if len(key.split('.')) == 2:
         try:
-            ds[key.split('.')[0]].attrs[key.split('.')[1]] = value
+            ds[key.split('.')[0]].attrs[key.split('.')[1]] = str(value)
         except:
             pass
             # print(f'Unable to add metadata to {key.split(".")[0]}')
@@ -687,10 +696,12 @@ if __name__ == "__main__":
     config_file = 'test/test_config1.toml'
     inpath= 'test/'
     outpath = 'test/'  
-    pAWS_gc = AWS(config_file, inpath, outpath)
+    vari = 'variables.csv'
+    pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
     
     config_file = 'test/test_config2.toml'
     inpath= 'test/'
     outpath = 'test/'  
-    pAWS_gc = AWS(config_file, inpath, outpath)
+    vari = 'variables.csv'
+    pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
 
