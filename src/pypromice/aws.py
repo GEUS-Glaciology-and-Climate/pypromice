@@ -69,8 +69,8 @@ class AWS(object):
         
         # Re-format time 
         t = self.L3['time'].values
-        self.L3['time'] = list(t)
-        
+        self.L3['time'] = list(t)                                              # TODO this is an attempt to de-bug datetime64 problem for importing nc data. However, it currently does not work
+
         # Add variables and metadata
         self.L3 = self.addAttributes(self.L3)
                    
@@ -135,6 +135,8 @@ class AWS(object):
     def writeArr(self, outpath, L3):
         '''Write L3 data to .nc and .csv hourly and daily files'''
         outdir = os.path.join(outpath, L3.attrs['station_id']) 
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
         
         f = [l.attrs['format'] for l in self.L0]
         if all(f):
@@ -145,10 +147,16 @@ class AWS(object):
                                     None)
         
         print('Writing to files...')
-        writeCSV(os.path.join(outdir, L3.attrs['station_id']+'.csv'), L3, col_names)
-        writeNC(os.path.join(outdir, L3.attrs['station_id']+'.nc'), L3) 
-        print(f'Written to {os.path.join(outdir, L3.attrs["station_id"]+".csv")}')           
-        print(f'Written to {os.path.join(outdir, L3.attrs["station_id"]+".nc")}') 
+        if 'raw' in f or 'STM' in f:
+            out_csv = os.path.join(outdir, L3.attrs['station_id']+'_10min.csv')
+            out_nc = os.path.join(outdir, L3.attrs['station_id']+'_10min.nc')
+        else:
+            out_csv = os.path.join(outdir, L3.attrs['station_id']+'_hour.csv')
+            out_nc = os.path.join(outdir, L3.attrs['station_id']+'_hour.nc')            
+        writeCSV(out_csv, L3, col_names)
+        writeNC(out_nc, L3) 
+        print(f'Written to {out_csv}.csv')           
+        print(f'Written to {out_nc}.nc') 
         
     def loadConfig(self, config_file, inpath):
         '''Load configuration from .toml file'''

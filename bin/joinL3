@@ -7,8 +7,7 @@ from pypromice.aws import getVars, getMeta, addMeta, _addAttr, getColNames, \
     roundValues, resampleL3, writeAll
 
 def parse_arguments():
-    parser = ArgumentParser(description="AWS L3 processor")
-
+    parser = ArgumentParser(description="AWS L3 joiner for merging together two L3 products, for example an L3 RAW and L3 TX data product. An hourly, daily and monthly L3 data product is outputted to the defined output path")
     parser.add_argument('-s', '--file1', type=str, required=True,
                         help='Path to source L3 file, which will be preferenced in merge process')
     parser.add_argument('-t', '--file2', type=str, required=True, 
@@ -33,20 +32,20 @@ if __name__ == '__main__':
     assert(os.path.isfile(args.file1))
     assert(os.path.isfile(args.file2))       	
 
-    name = args.file1.split('/')[-1].split('.csv')[0].split('_hour')[0].split('_day')[0].split('_month')[0]
+    # Load arrays for merging        
+    name = args.file2.split('/')[-1].split('.csv')[0].split('_hour')[0]
     print(f'Joining L3 data for {name}')
-        
     df1 = pd.read_csv(args.file1, index_col=0, parse_dates=True)
     df2 = pd.read_csv(args.file2, index_col=0, parse_dates=True)    
     ds1 = xr.Dataset.from_dataframe(df1) 
     ds2 = xr.Dataset.from_dataframe(df2)     
     
-    # # Load arrays for merging
     # ds1 = xr.open_dataset(args.file1)
     # ds2 = xr.open_dataset(args.file2)
+    # name = ds1.attrs['station_name']
         
     # Merge arrays
-    print(f'Combining {args.file1} with {args.file2}...')
+    print(f'\nCombining {args.file1} with {args.file2}...')
     all_ds = ds1.combine_first(ds2)
     
     # Get hourly, daily and monthly datasets
