@@ -29,24 +29,57 @@ if __name__ == '__main__':
     args = parse_arguments()
     
     # Check files
-    assert(os.path.isfile(args.file1))
-    assert(os.path.isfile(args.file2))       	
+    if os.path.isfile(args.file1) and os.path.isfile(args.file2):      	
 
-    # Load arrays for merging        
-    name = args.file2.split('/')[-1].split('.csv')[0].split('_hour')[0]
-    print(f'Joining L3 data for {name}')
-    df1 = pd.read_csv(args.file1, index_col=0, parse_dates=True)
-    df2 = pd.read_csv(args.file2, index_col=0, parse_dates=True)    
-    ds1 = xr.Dataset.from_dataframe(df1) 
-    ds2 = xr.Dataset.from_dataframe(df2)     
+    	# Load arrays for merging        
+    	name = args.file2.split('/')[-1].split('.csv')[0].split('_hour')[0]
+    	print(f'\nJoining L3 data for {name}')
+    	df1 = pd.read_csv(args.file1, index_col=0, parse_dates=True)
+    	df2 = pd.read_csv(args.file2, index_col=0, parse_dates=True)    
+    	ds1 = xr.Dataset.from_dataframe(df1) 
+    	ds2 = xr.Dataset.from_dataframe(df2)     
     
-    # ds1 = xr.open_dataset(args.file1)
-    # ds2 = xr.open_dataset(args.file2)
-    # name = ds1.attrs['station_name']
+    	# ds1 = xr.open_dataset(args.file1)
+    	# ds2 = xr.open_dataset(args.file2)
+    	# name = ds1.attrs['station_name']
         
-    # Merge arrays
-    print(f'\nCombining {args.file1} with {args.file2}...')
-    all_ds = ds1.combine_first(ds2)
+    	# Merge arrays
+    	print(f'Combining {args.file1} with {args.file2}...')
+    	all_ds = ds1.combine_first(ds2)
+    
+    elif os.path.isfile(args.file1):
+    
+    	# Load arrays for merging        
+    	name = args.file1.split('/')[-1].split('.csv')[0].split('_10min')[0]
+    	print(f'\nJoining L3 data for {name}')
+    	df1 = pd.read_csv(args.file1, index_col=0, parse_dates=True)    
+    	ds1 = xr.Dataset.from_dataframe(df1)     
+    
+    	# ds1 = xr.open_dataset(args.file1)
+    	# name = ds1.attrs['station_name']
+        
+    	# Merge arrays
+    	print(f'Only one file found {args.file1}...')
+    	all_ds = ds1  
+
+    elif os.path.isfile(args.file2):
+    
+    	# Load arrays for merging        
+    	name = args.file2.split('/')[-1].split('.csv')[0].split('_hour')[0]
+    	print(f'\nJoining L3 data for {name}')
+    	df2 = pd.read_csv(args.file2, index_col=0, parse_dates=True)    
+    	ds2 = xr.Dataset.from_dataframe(df2)     
+    
+    	# ds2 = xr.open_dataset(args.file1)
+    	# name = ds1.attrs['station_name']
+        
+    	# Merge arrays
+    	print(f'Only one file found {args.file2}...')
+    	all_ds = ds2
+    
+    else:
+        print(f'Invalid files {args.file1}, {args.file2}')
+        exit()
     
     # Get hourly, daily and monthly datasets
     print('Resampling L3 data to hourly, daily and monthly resolutions...')
@@ -67,7 +100,7 @@ if __name__ == '__main__':
         l3_m = roundValues(l3_m, var)
         
         # Get columns to keep
-        if hasattr(ds1, 'p_l'):
+        if hasattr(all_ds, 'p_l'):
             col_names = getColNames(var, 2, args.datatype.lower())  
         else:
             col_names = getColNames(var, 1, args.datatype.lower())

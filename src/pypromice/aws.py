@@ -155,8 +155,8 @@ class AWS(object):
             out_nc = os.path.join(outdir, L3.attrs['station_id']+'_hour.nc')            
         writeCSV(out_csv, L3, col_names)
         writeNC(out_nc, L3) 
-        print(f'Written to {out_csv}.csv')           
-        print(f'Written to {out_nc}.nc') 
+        print(f'Written to {out_csv}')           
+        print(f'Written to {out_nc}') 
         
     def loadConfig(self, config_file, inpath):
         '''Load configuration from .toml file'''
