@@ -712,4 +712,3 @@ if __name__ == "__main__":
     outpath = 'test/'  
     vari = 'variables.csv'
     pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
-
