@@ -1,0 +1,5 @@
+__pycache__
+*.egg-info
+build/*
+src/pypromice/test/TEST1/*
+src/pypromice/test/TEST2/*
