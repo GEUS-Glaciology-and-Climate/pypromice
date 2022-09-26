@@ -30,7 +30,7 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
     '''
     ds = L2
     # ds_h = ds.resample({'time':"1H"}).mean() # this takes ~2-3 minutes       #TODO Fixed in latest pandas: https://github.com/pydata/xarray/issues/4498#event-6610799698 & https://github.com/pydata/xarray/issues/4498 & https://stackoverflow.com/questions/64282393/
-    df_h = ds.to_dataframe().resample("1H").mean()                             # Resample xarray (quick with pandas)
+    df_h = ds.to_dataframe().resample("1H").mean(numeric_only=True)                             # Resample xarray (quick with pandas)
     vals = [xr.DataArray(data=df_h[c], dims=['time'], coords={'time':df_h.index}, attrs=ds[c].attrs) for c in df_h.columns]
     ds_h = xr.Dataset(dict(zip(df_h.columns,vals)), attrs=ds.attrs)            # Rebuild xarray dataset https://www.theurbanist.com.au/2020/03/how-to-create-an-xarray-dataset-from-scratch/
 

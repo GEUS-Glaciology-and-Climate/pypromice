@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__
+*.pyc
+
+# Distribution / packaging
+*.egg-info/
+build/
+
+# Test output directories
+src/pypromice/test/TEST1/*
+src/pypromice/test/TEST2/*
