@@ -107,18 +107,26 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     # sundown = ZenithAngle_deg >= 90
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)    
     
+    # Correct precipitation
+    ds['precip_u_cor'], ds['precip_u_rate'] = _correctPrecip(ds['precip_u'], 
+                                                             ds['wspd_u'])
+    
     if ds.attrs['number_of_booms']==2:      
         T_l = ds['t_l'].copy(deep=True) 
         T_100_l = _getTempK(T_l)                                               # Get steam point temperature in K
         ds['rh_l_cor'] = _correctHumidity(ds['rh_l'], ds['t_l'], T_l,          # Correct relative humidity
                                         T_0, T_100_l, ews, ei0)                          
+
+        # Correct precipitation
+        ds['precip_l_cor'], ds['precip_l_rate']= _correctPrecip(ds['precip_l'], 
+                                                                ds['wspd_l'])
     
     if hasattr(ds,'t_i'):       
         if ~ds['t_i'].isnull().all():                                        # Instantaneous msg processing
             T_i = ds['t_i'].copy(deep=True) 
             T_100_i = _getTempK(T_i)                                           # Get steam point temperature in K
             ds['rh_i_cor'] = _correctHumidity(ds['rh_i'], ds['t_i'], T_i,      # Correct relative humidity
-                                            T_0, T_100_i, ews, ei0)                   
+                                              T_0, T_100_i, ews, ei0)                   
     return ds
 
 
@@ -275,6 +283,45 @@ def _correctHumidity(rh, t_1, T, T_0, T_100, ews, ei0):                        #
 
     # Set to Groff & Gratch values when freezing, otherwise just rh                         
     return rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))                                 
+
+def _correctPrecip(precip, wspd):
+    '''Correct precipitation with the undercatch correction method used in 
+    Yang et al. (1999) and Box et al. (2022), based on Goodison et al. (1998)
+    
+    Yang, D., Ishida, S., Goodison, B. E., and Gunther, T.: Bias correction of 
+    daily precipitation measurements for Greenland, 
+    https://doi.org/10.1029/1998jd200110, 1999.
+    
+    Box, J., Wehrle, A., van As, D., Fausto, R., Kjeldsen, K., Dachauer, A.,
+    Ahlstrom, A. P., and Picard, G.: Greenland Ice Sheet rainfall, heat and 
+    albedo feedback imapacts from the Mid-August 2021 atmospheric river, 
+    Geophys. Res. Lett. 49 (11), e2021GL097356, 
+    https://doi.org/10.1029/2021GL097356, 2022.
+    
+    Goodison, B. E., Louie, P. Y. T., and Yang, D.: Solid Precipitation 
+    Measurement Intercomparison, WMO, 1998
+    '''
+    # Calculate undercatch correction factor
+    corr=100/(100.00-4.37*wspd+0.35*wspd*wspd)
+
+    # Fix all values below 1.02 to 1.02
+    corr = corr.where(corr>1.02, other=1.02)
+                                              
+    # Remove nan values
+    precip1 = precip.dropna(dim='time')   
+    
+    # Calculate precipitation rate
+    precip_rate = precip1 - precip1.shift(time=1) 
+    
+    # Apply correct to rate
+    precip_rate = precip_rate*corr
+    
+    # Disregard negative precip rate values
+    precip_rate = precip_rate.where(precip_rate>-0.01, other=0) 
+    
+    # Get corrected cumulative precipitation
+    precip_cor = precip_rate.cumsum(dim=None, axis=None, skipna=True)
+    return precip_cor, precip_rate
                                   
 def _calcDeclination(doy, hour, minute):
     '''Calculate sun declination based on time'''
