@@ -85,17 +85,23 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
     ds['tilt_x']  = _filterTilt(ds['tilt_x'], tilt_threshold)                  # Filter tilt 
     ds['tilt_y']  = _filterTilt(ds['tilt_y'], tilt_threshold)                  # TODO check tilt_y inversion +ive to -ive for Gc-Net stations
 
+    if hasattr(ds, 'bedrock'):                                                 # Fix tilt to zero if station is on bedrock
+        if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
+            ds['tilt_x'] = (('time'), np.arange(ds['time'].size)*0)
+            ds['tilt_y'] = (('time'), np.arange(ds['time'].size)*0)
+            
     ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                       # Get directional wind speed                    
     ds['wspd_x_u'], ds['wspd_y_u'] = _calcWindDir(ds['wspd_u'], ds['wdir_u']) 
     
     if ds.attrs['number_of_booms']==1:                                         # 1-boom processing
         if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density                                           
+            if hasattr(ds, 'pt_z_offset'):                                     # Apply SR50 stake offset
+                ds['z_pt'] = ds['z_pt'] + int(ds.attrs['pt_z_offset'])              
             ds['z_pt_cor'],ds['z_pt']=_getPressDepth(ds['z_pt'], ds['p_u'], 
                                                      ds.attrs['pt_antifreeze'], 
                                                      ds.attrs['pt_z_factor'], 
                                                      ds.attrs['pt_z_coef'], 
-                                                     ds.attrs['pt_z_p_coef'])
-            ds['z_pt_cor'].attrs['long_name'] = ds['z_pt'].long_name + ' corrected'         
+                                                     ds.attrs['pt_z_p_coef'])       
             
     elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height    

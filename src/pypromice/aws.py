@@ -2,6 +2,7 @@
 """
 pypromice AWS processing module
 """
+from importlib import metadata
 import os, unittest, toml, datetime, uuid, glob 
 import numpy as np
 import pandas as pd
@@ -541,6 +542,10 @@ def addMeta(ds, meta):
     ds.attrs['time_coverage_start'] = str(ds['time'][0].values)
     ds.attrs['time_coverage_end'] = str(ds['time'][-1].values)
     
+    try:
+        ds.attrs['source']= 'pypromice v' + str(metadata.version('pypromice'))
+    except:
+        ds.attrs['source'] = 'pypromice'
     # https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm
 
     try:
@@ -560,6 +565,11 @@ def addMeta(ds, meta):
     
     # Load metadata attributes and add to Dataset   
     [_addAttr(ds, key, value) for key,value in meta.items()]
+    
+    # Check attribute formating
+    for k,v in ds.attrs.items():
+        if not isinstance(v, str) or not isinstance(v, int):
+            ds.attrs[k]=str(v) 
     return ds
 
 def getVars(v_file):
