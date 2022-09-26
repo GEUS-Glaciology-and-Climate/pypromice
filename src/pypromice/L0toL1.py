@@ -268,10 +268,11 @@ def _getTiltDegrees(tilt, win_size):
     '''
     s = int(win_size/2)
     tdf = tilt.to_dataframe()
-    return (('time'), tdf.iloc[:s][::-1] \
-            .append(tdf) \
-            .append(tdf.iloc[-s:][::-1]) \
-            .rolling(win_size, win_type='boxcar', center=True) \
+    mirror_start = tdf.iloc[:s][::-1]
+    mirror_end = tdf.iloc[-s:][::-1]
+    mirrored_tdf = pd.concat([mirror_start, tdf, mirror_end])
+
+    return (('time'), mirrored_tdf.rolling(win_size, win_type='boxcar', center=True) \
             .mean()[s:-s] \
             .values \
             .flatten())
