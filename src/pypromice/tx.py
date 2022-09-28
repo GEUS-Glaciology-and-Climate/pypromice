@@ -52,7 +52,6 @@ class PayloadFormat(object):
                 pass
             else:
                 payload_fmt[int(info[0])] = [int(info[1]), info[2], info[3]]
-         
         return payload_fmt  
 
     def addCount(self):
@@ -334,9 +333,7 @@ class L0tx(EmailMessage, PayloadFormat):
         if self.checkPayload() and self.checkByte(self.payload[:1]):
             
             self.bin_val, self.bin_format, self.bin_name, self.bin_len, self.bin_idx, self.bin_valid = self.getFormat()
-            
             msg = self.getDataLine() 
-            
             if msg:
                 if self.bin_valid: 
                     
@@ -380,6 +377,15 @@ class L0tx(EmailMessage, PayloadFormat):
             bidx = ord(self.getFirstByte()) 
             try:
                 bval, bfor, bname, blength = self.payload_format[bidx]
+                
+                # if bidx==80:                                                   # TODO. This is a temporary workaround for QAS_Lv3 formatting being different. Needs a more permanent fix!
+                #     print('Checking version 3...')
+                #     if len(self.payload) != blength:
+                #         print('Mismatched lengths found...')
+                #         if len(self.payload) == 83:
+                #             print('Fetching QAS_Lv3 specific formatting...')
+                #             bval, bfor, bname, blength = self.payload_format[70]
+                
                 return bval, bfor, bname, blength, bidx, True
             except KeyError:
                 return None, None, None, None, bidx, False
