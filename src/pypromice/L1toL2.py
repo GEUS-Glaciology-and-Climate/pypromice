@@ -3,6 +3,7 @@
 pypromice L1 to L2 processing
 """
 import numpy as np
+import xarray as xr
   
 def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1., 
          eps_clear=9.36508e-6, emissivity=0.97):
@@ -61,7 +62,8 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     
     deg2rad, rad2deg = _getRotation()                                          # Get degree-radian conversions  
     phi_sensor_rad, theta_sensor_rad = _calcTilt(ds['tilt_x'], ds['tilt_y'],   # Calculate station tilt 
-                                                 deg2rad)    
+                                                 deg2rad)  
+    
     Declination_rad = _calcDeclination(doy, hour, minute)                      # Calculate declination
     HourAngle_rad = _calcHourAngle(hour, minute, lon)                          # Calculate hour angle       
     ZenithAngle_rad, ZenithAngle_deg = _calcZenith(lat, Declination_rad,       # Calculate zenith
@@ -106,7 +108,7 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     # # Check sun position
     # sundown = ZenithAngle_deg >= 90
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)    
-    
+
     # Correct precipitation
     ds['precip_u_cor'], ds['precip_u_rate'] = _correctPrecip(ds['precip_u'], 
                                                              ds['wspd_u'])
@@ -306,21 +308,23 @@ def _correctPrecip(precip, wspd):
 
     # Fix all values below 1.02 to 1.02
     corr = corr.where(corr>1.02, other=1.02)
-                                              
-    # Remove nan values
-    precip1 = precip.dropna(dim='time')   
+
+    # Fill nan values in precip with preceding value                                           
+    precip = precip.ffill(dim='time')   
     
     # Calculate precipitation rate
-    precip_rate = precip1 - precip1.shift(time=1) 
+    precip_rate = precip.diff(dim='time', n=1)
     
-    # Apply correct to rate
+    # Apply correction to rate
     precip_rate = precip_rate*corr
     
-    # Disregard negative precip rate values
-    precip_rate = precip_rate.where(precip_rate>-0.01, other=0) 
+    # Flag rain bucket reset
+    precip_rate = precip_rate.where(precip_rate>-0.01, other=np.nan) 
+    b = precip_rate.to_dataframe('precip_flag').notna().to_xarray()
     
-    # Get corrected cumulative precipitation
-    precip_cor = precip_rate.cumsum(dim=None, axis=None, skipna=True)
+    # Get corrected cumulative precipitation, reset if rain bucket flag
+    precip_cor = precip_rate.cumsum()-precip_rate.cumsum().where(~b['precip_flag']).ffill(dim='time').fillna(0).astype(float)
+       
     return precip_cor, precip_rate
                                   
 def _calcDeclination(doy, hour, minute):

@@ -75,16 +75,17 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
         ds['gps_lat'] = _reformatGPS(ds['gps_lat'], ds.attrs['latitude'])
         ds['gps_lon'] = _reformatGPS(ds['gps_lon'], ds.attrs['longitude'])
 
-    if ds.attrs['format'] != 'TX':                                             # Convert tilt voltage to degrees
-        ds['tilt_x'] = _getTiltDegrees(ds['tilt_x'], 7)                        # TODO if you follow RSF, this should also be needed for TX messages; but then this does not match KDM output - values from TX message and hand-carried data matches. 
-        ds['tilt_y'] = _getTiltDegrees(ds['tilt_y'], 7)
-    
+    if hasattr(ds, 'logger_type'):                                             # Convert tilt voltage to degrees
+        if ds.attrs['logger_type'].upper() == 'CR1000' or ds.attrs['logger_type'].upper() == 'CR':                    
+            ds['tilt_x']  = _getTiltDegrees(ds['tilt_x'], 7) 
+            ds['tilt_y'] = _getTiltDegrees(ds['tilt_y'], 7)  
+            
     if hasattr(ds, 'tilt_y_factor'):                                           # Apply tilt factor (e.g. -1 will invert tilt angle)
         ds['tilt_y'] = ds['tilt_y']*ds.attrs['tilt_y_factor']
 
     ds['tilt_x']  = _filterTilt(ds['tilt_x'], tilt_threshold)                  # Filter tilt 
     ds['tilt_y']  = _filterTilt(ds['tilt_y'], tilt_threshold)                  # TODO check tilt_y inversion +ive to -ive for Gc-Net stations
-
+    
     if hasattr(ds, 'bedrock'):                                                 # Fix tilt to zero if station is on bedrock
         if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
             ds['tilt_x'] = (('time'), np.arange(ds['time'].size)*0)
@@ -261,8 +262,7 @@ def _getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef):
     return z_pt_cor, z_pt
 
 def _getTiltDegrees(tilt, win_size):
-    '''Convert tilt-o-meter voltage to degrees. This should be implemented
-    on all messages not transmitted.
+    '''Convert inclinometer tilt voltage to degrees
     
     IDL translation:
     tiltX = smooth(tiltX,7,/EDGE_MIRROR,MISSING=-999) & tiltY = smooth(tiltY,7,/EDGE_MIRROR, MISSING=-999)
@@ -277,11 +277,11 @@ def _getTiltDegrees(tilt, win_size):
     mirror_start = tdf.iloc[:s][::-1]
     mirror_end = tdf.iloc[-s:][::-1]
     mirrored_tdf = pd.concat([mirror_start, tdf, mirror_end])
-
-    return (('time'), mirrored_tdf.rolling(win_size, win_type='boxcar', center=True) \
+          
+    return (('time'), mirrored_tdf.rolling(win_size, win_type='boxcar', min_periods=1, center=True) \
             .mean()[s:-s] \
             .values \
-            .flatten())
+            .flatten())    
 
 def _filterTilt(tilt, threshold):
     '''Filter tilt with given threshold'''

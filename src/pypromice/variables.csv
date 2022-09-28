@@ -37,16 +37,16 @@ z_boom_u,distance_to_surface_from_boom,Upper boom height,m,0.3,3,dshf_u dlhf_u q
 z_boom_q_u,distance_to_surface_from_boom_quality,Upper boom height (quality),-,,,,all,,4,qualityInformation,time lat lon alt,
 z_boom_l,distance_to_surface_from_boom,Lower boom height,m,1,3,dshf_l dlhf_l qh_l,two-boom,all,4,physicalMeasurement,time lat lon alt,
 z_boom_q_l,distance_to_surface_from_boom_quality,Loer boom height (quality),-,,,,two-boom,,4,qualityInformation,time lat lon alt,
-z_pt,depth_of_pressure_transducer_in_ice,Depth of pressure transducer in ice,m,0,30,z_pt_cor,one-boom,all,4,physicalMeasurement,time lat lon alt,DepthPressureTransducer(m)
-z_pt_cor,depth_of_pressure_transducer_in_ice_corrected,Depth of pressure transducer in ice - corrected,m,0,30,,one-boom,all,4,modelResult,time lat lon alt,Derived value (L2 or later)
 z_stake,distance_to_surface_from_stake_assembly,Stake height,m,0.3,8,,one-boom,all,4,physicalMeasurement,time lat lon alt,HeightStakes(m)
 z_stake_q,distance_to_surface_from_stake_assembly_quality,Stake height (quality),-,,,,one-boom,,4,qualityInformation,time lat lon alt,
+z_pt,depth_of_pressure_transducer_in_ice,Depth of pressure transducer in ice,m,0,30,z_pt_cor,one-boom,all,4,physicalMeasurement,time lat lon alt,DepthPressureTransducer(m)
+z_pt_cor,depth_of_pressure_transducer_in_ice_corrected,Depth of pressure transducer in ice - corrected,m,0,30,,one-boom,all,4,modelResult,time lat lon alt,Derived value (L2 or later)
 precip_u,precipitation,Precipitation (upper boom) (cumulative solid & liquid),mm,0,,precip_u_cor precip_u_rate,all,all,4,physicalMeasurement,time lat lon alt,Without wind/undercatch correction
 precip_u_cor,precipitation_corrected,Precipitation (upper boom) (cumulative solid & liquid) – corrected,mm,0,,,all,all,4,modelResult,time lat lon alt,With wind/undercatch correction
-precip_u_rate,precipitation_rate,Precipitation rate (upper boom) (cumulative solid & liquid) – corrected,mm,0,,,all,,4,modelResult,time lat lon alt,With wind/undercatch correction
-precip_l,precipitation,Precipitation (lower boom) (cumulative solid & liquid),mm,0,,precip_u_cor precip_u_rate,two-boom,all,4,physicalMeasurement,time lat lon alt,Without wind/undercatch correction
+precip_u_rate,precipitation_rate,Precipitation rate (upper boom) (cumulative solid & liquid) – corrected,mm,0,,,all,all,4,modelResult,time lat lon alt,With wind/undercatch correction
+precip_l,precipitation,Precipitation (lower boom) (cumulative solid & liquid),mm,0,,precip_l_cor precip_l_rate,two-boom,all,4,physicalMeasurement,time lat lon alt,Without wind/undercatch correction
 precip_l_cor,precipitation_corrected,Precipitation (lower boom) (cumulative solid & liquid) – corrected,mm,0,,,two-boom,all,4,modelResult,time lat lon alt,Without wind/undercatch correction
-precip_l_rate,precipitation_rate,Precipitation rate (lower boom) (cumulative solid & liquid) – corrected,mm,0,,,two-boom,,4,modelResult,time lat lon alt,Without wind/undercatch correction
+precip_l_rate,precipitation_rate,Precipitation rate (lower boom) (cumulative solid & liquid) – corrected,mm,0,,,two-boom,all,4,modelResult,time lat lon alt,Without wind/undercatch correction
 t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,t1 is installed @ 1 m depth
 t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,
 t_i_3,ice_temperature_at_t3,Ice temperature at sensor 3,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,
