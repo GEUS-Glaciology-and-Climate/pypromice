@@ -710,7 +710,16 @@ class TestProcess(unittest.TestCase):
 
 #------------------------------------------------------------------------------
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
+
+
+    test_station = 'CEN2'
+    config_file = '../../../aws-data/raw/config/{}.toml'.format(test_station)
+    inpath= '../../../aws-data/raw/{}/'.format(test_station)
+    outpath = 'test/'
+    vari = 'variables.csv'
+    pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
+
     config_file = 'test/test_config1.toml'
     inpath= 'test/'
     outpath = 'test/'  
