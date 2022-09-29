@@ -555,13 +555,13 @@ def addMeta(ds, meta):
         ds.attrs['time_coverage_duration'] = str(pd.Timedelta(0).isoformat())
         ds.attrs['time_coverage_resolution'] = str(pd.Timedelta(0).isoformat())   
         
-    if pd.Timedelta((ds['time'][1] - ds['time'][0]).values)==np.timedelta64(1, 'h'):
-        ds['time'].encoding['units'] = 'Hours since ' + str(ds['time'][0].values).split('T')[0] 
-    else:
-        ds['time'].encoding['units'] = 'Minutes since ' + str(ds['time'][0].values).split('T')[0]         
+#    if pd.Timedelta((ds['time'][1] - ds['time'][0]).values)==np.timedelta64(1, 'h'):
+#        ds['time'].encoding['units'] = 'Hours since ' + str(ds['time'][0].values).split('T')[0] 
+#    else:
+#        ds['time'].encoding['units'] = 'Minutes since ' + str(ds['time'][0].values).split('T')[0]         
       
-    ds.time.encoding["dtype"] = "int64"                                        # TODO CF standard requires time as int not int64 
-    ds.time.encoding["calendar"] = 'proleptic_gregorian'
+#    ds.time.encoding["dtype"] = "int64"                                        # TODO CF standard requires time as int not int64 
+#    ds.time.encoding["calendar"] = 'proleptic_gregorian'
     
     # Load metadata attributes and add to Dataset   
     [_addAttr(ds, key, value) for key,value in meta.items()]
