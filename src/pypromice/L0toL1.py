@@ -76,7 +76,7 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
         ds['gps_lon'] = _reformatGPS(ds['gps_lon'], ds.attrs['longitude'])
 
     if hasattr(ds, 'logger_type'):                                             # Convert tilt voltage to degrees
-        if ds.attrs['logger_type'].upper() == 'CR1000' and ds.attrs['format'].upper() != 'TX':                    
+        if ds.attrs['logger_type'].upper() == 'CR1000':                    
             ds['tilt_x']  = _getTiltDegrees(ds['tilt_x'], tilt_threshold) 
             ds['tilt_y'] = _getTiltDegrees(ds['tilt_y'], tilt_threshold)  
             
