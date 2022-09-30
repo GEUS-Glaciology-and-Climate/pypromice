@@ -9,3 +9,4 @@ build/
 # Test output directories
 src/pypromice/test/TEST1/*
 src/pypromice/test/TEST2/*
+src/pypromice/test/STATION/*
