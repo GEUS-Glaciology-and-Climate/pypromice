@@ -131,11 +131,11 @@ class SbdMessage(object):
     def checkAttachmentName(self, attach_file):
         '''Check if attachment is .sbd file'''
         root, ext = os.path.splitext(attach_file)
-        if ext != '.sbd':
-            print(f'Unrecognised attachment file type: {attach_file()}')
-            return False
-        else:
+        if ext == '.sbd' or ext == '.dat':
             return True
+        else:
+            print(f'Unrecognised attachment file type: {attach_file}')
+            return False
     
     def getPayloadFromEmail(self, attach, message_size):
         '''Get Sbd payload from email object'''
@@ -166,8 +166,8 @@ class SbdMessage(object):
     def getStatus(self, content, seps1=': ', seps2=' ', key='Session Status'):
         '''Get session status from email message'''
         line = findLine(content, key)
-        value = parseValue(line, seps1).split(seps2)
         try:
+            value = parseValue(line, seps1).split(seps2)
             return [int(value[0]), value[2]]
         except:
             print(f'Session status not parsed from line "{line}"')
@@ -268,7 +268,10 @@ class EmailMessage(SbdMessage):                                                #
     
     def getIMEI(self):
         '''Get modem identifier from email subject string'''
-        imei, = re.findall(r'[0-9]+', self.email_data['subject'])
+        try:
+            imei, = re.findall(r'[0-9]+', self.email_data['subject'])
+        except:
+            imei=None
         return imei
         
     def getEmailInfo(self):
@@ -369,8 +372,7 @@ class L0tx(EmailMessage, PayloadFormat):
         
     def getFormat(self):
         '''Get binary format type from first byte in payload'''
-        if self.getFirstByte().isdigit() or (self.payload[:2] == '\n' and      #TODO needed?
-                                             self.imei == 300234064121930):
+        if self.getFirstByte().isdigit() or 'Watson' in self.email_data['subject'] or (self.payload[:2] == '\n' and self.imei == 300234064121930):     #TODO needed?
             return None, None, None, None, -9999, False
         
         else:
@@ -434,7 +436,11 @@ class L0tx(EmailMessage, PayloadFormat):
     def isSummer(self, DataLine):
         '''Flag if message is summer message'''
         return ('!S' in DataLine and '!M' in DataLine[-2:]) or self.bin_idx % 5 in (0, 1)
-        
+    
+    def isWatsonObservation(self, DataLine):
+        '''Flag if message is Watson River measurement'''
+        return ('watson' in DataLine.lower())
+    
     def isWithInstance(self, DataLine):
         '''Flag if message is with instance'''
         return '!I' in DataLine[-5:-3] or (self.bin_idx % 5 in (1, 3) and self.bin_idx != -9999)
@@ -540,13 +546,18 @@ class L0tx(EmailMessage, PayloadFormat):
                 bin_msg = '2' + bin_msg.decode('cp850')                        #TODO de-bug so first byte is passed (currently misses of the first "2" of the year e.g. "022" instead of "2022")
             except:
                 bin_msg = ''
-            
             if self.isDiagnostics(bin_msg):
                 desc = f'{self.imei}-{self.momsn} ASCII generic diagnostic message'
             elif self.isObservations(bin_msg) and self.isSummer(bin_msg):
                 desc = f'{self.imei}-{self.momsn} ASCII generic summer observations message'
             elif self.isObservations(bin_msg) and not self.isSummer(bin_msg):
                 desc = f'{self.imei}-{self.momsn} ASCII generic winter observations message'
+            elif self.isWatsonObservation(bin_msg):
+                desc = 'Watson River observations message'
+                bin_msg = bin_msg.split('"Smp"')[-1].replace('"', '')
+                    
+            else:
+                desc=None
                 
             if desc:
                 if self.isWithInstance(bin_msg):
