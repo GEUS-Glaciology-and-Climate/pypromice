@@ -77,14 +77,17 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
 
     if hasattr(ds, 'logger_type'):                                             # Convert tilt voltage to degrees
         if ds.attrs['logger_type'].upper() == 'CR1000' and ds.attrs['format'].upper() != 'TX':                    
-            ds['tilt_x']  = _getTiltDegrees(ds['tilt_x'], 7) 
-            ds['tilt_y'] = _getTiltDegrees(ds['tilt_y'], 7)  
+            ds['tilt_x']  = _getTiltDegrees(ds['tilt_x'], tilt_threshold) 
+            ds['tilt_y'] = _getTiltDegrees(ds['tilt_y'], tilt_threshold)  
             
     if hasattr(ds, 'tilt_y_factor'):                                           # Apply tilt factor (e.g. -1 will invert tilt angle)
         ds['tilt_y'] = ds['tilt_y']*ds.attrs['tilt_y_factor']
 
-    ds['tilt_x']  = _filterTilt(ds['tilt_x'], tilt_threshold)                  # Filter tilt 
-    ds['tilt_y']  = _filterTilt(ds['tilt_y'], tilt_threshold)                  # TODO check tilt_y inversion +ive to -ive for Gc-Net stations
+    # Smooth everything
+    # Note that this should be OK for CR1000 tx (data only every 6 hrs),
+    # since we interpolate above in _getTiltDegrees. PJW
+    ds['tilt_x']  = _smoothTilt(ds['tilt_x'], 7)                               # Smooth tilt
+    ds['tilt_y']  = _smoothTilt(ds['tilt_y'], 7)                               # TODO check tilt_y inversion +ive to -ive for Gc-Net stations
     
     if hasattr(ds, 'bedrock'):                                                 # Fix tilt to zero if station is on bedrock
         if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
@@ -261,13 +264,27 @@ def _getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef):
     
     return z_pt_cor, z_pt
 
-def _getTiltDegrees(tilt, win_size):
-    '''Convert inclinometer tilt voltage to degrees
-    
+def _smoothTilt(tilt, win_size):
+    '''Smooth tilt values using a rolling window.
+
+    Parameters
+    ----------
+    tilt : xarray.DataArray
+        Array (either 'tilt_x' or 'tilt_y'), tilt values (can be in degrees or voltage)
+    win_size : int
+        Window size to use in pandas 'rolling' method.
+        e.g. a value of 7 spans 70 minutes using 10 minute data.
+
+    Returns
+    -------
+    tdf_rolling : tuple, as: (str, numpy.ndarray)
+        The numpy array is the tilt values, smoothed with a rolling mean
+
+    NOTES:
     IDL translation:
     tiltX = smooth(tiltX,7,/EDGE_MIRROR,MISSING=-999) & tiltY = smooth(tiltY,7,/EDGE_MIRROR, MISSING=-999)
     endif
-    
+
     In Python, this should be 
     dstxy = dstxy.rolling(time=7, win_type='boxcar', center=True).mean()
     But the /EDGE_MIRROR makes it a bit more complicated
@@ -277,22 +294,39 @@ def _getTiltDegrees(tilt, win_size):
     mirror_start = tdf.iloc[:s][::-1]
     mirror_end = tdf.iloc[-s:][::-1]
     mirrored_tdf = pd.concat([mirror_start, tdf, mirror_end])
-          
-    return (('time'), mirrored_tdf.rolling(win_size, win_type='boxcar', min_periods=1, center=True) \
-            .mean()[s:-s] \
-            .values \
-            .flatten())    
 
-def _filterTilt(tilt, threshold):
-    '''Filter tilt with given threshold'''
+    tdf_rolling = (
+        ('time'),
+        mirrored_tdf.rolling(
+            win_size, win_type='boxcar', min_periods=1, center=True
+            ).mean()[s:-s].values.flatten()
+        )
+    return tdf_rolling
+
+def _getTiltDegrees(tilt, threshold):
+    '''Filter tilt with given threshold,
+    and convert from voltage to degrees.
+
+    Parameters
+    ----------
+    tilt : xarray.DataArray
+        Array (either 'tilt_x' or 'tilt_y'), tilt values (voltage)
+    threshold : int
+        Values below this threshold (-100) will not be retained.
     
-# # notOKtiltX = where(tiltX lt -100, complement=OKtiltX) & notOKtiltY = where(tiltY lt -100, complement=OKtiltY)
+    Returns
+    -------
+    dst.interpolate_na() : xarray.DataArray
+        Array (either 'tilt_x' or 'tilt_y'), tilt values (degrees)
+    '''
+    # notOKtiltX = where(tiltX lt -100, complement=OKtiltX) & notOKtiltY = where(tiltY lt -100, complement=OKtiltY)
     notOKtilt = (tilt < threshold)
     OKtilt = (tilt >= threshold)
     
-    # tiltX = tiltX/10.
     tilt = tilt / 10
     
+    # IDL version:
+    # tiltX = tiltX/10.
     # tiltnonzero = where(tiltX ne 0 and tiltX gt -40 and tiltX lt 40)
     # if n_elements(tiltnonzero) ne 1 then tiltX[tiltnonzero] = tiltX[tiltnonzero]/abs(tiltX[tiltnonzero])*(-0.49*(abs(tiltX[tiltnonzero]))^4 + 3.6*(abs(tiltX[tiltnonzero]))^3 - 10.4*(abs(tiltX[tiltnonzero]))^2 +21.1*(abs(tiltX[tiltnonzero])))
     
@@ -302,6 +336,9 @@ def _filterTilt(tilt, threshold):
     
     dst = tilt
     nz = (dst != 0) & (np.abs(dst) < 40)
+    # Convert from voltage to degrees
+    # See similar eqtn in 3.2.9 here:
+    # https://essd.copernicus.org/articles/13/3819/2021/#section3
     dst = dst.where(~nz, other = dst / np.abs(dst)
                       * (-0.49
                          * (np.abs(dst))**4 + 3.6
