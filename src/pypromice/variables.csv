@@ -33,9 +33,9 @@ dlhf_u,surface_downward_latent_heat_flux,Latent heat flux (upper boom),W m-2,,,,
 dlhf_l,surface_downward_latent_heat_flux,Latent heat flux (lower boom),W m-2,,,,two-boom,all,4,modelResult,time lat lon alt,Derived value (L2 or later)
 dshf_u,surface_downward_sensible_heat_flux,Sensible heat flux (upper boom),W m-2,,,,all,all,4,modelResult,time lat lon alt,Derived value (L2 or later)
 dshf_l,surface_downward_sensible_heat_flux,Sensible heat flux (lower boom),W m-2,,,,two-boom,all,4,modelResult,time lat lon alt,Derived value (L2 or later)
-z_boom_u,distance_to_surface_from_boom,Upper boom height,m,0.3,3,dshf_u dlhf_u qh_u,all,all,4,physicalMeasurement,time lat lon alt,
+z_boom_u,distance_to_surface_from_boom,Upper boom height,m,0.3,10,dshf_u dlhf_u qh_u,all,all,4,physicalMeasurement,time lat lon alt,
 z_boom_q_u,distance_to_surface_from_boom_quality,Upper boom height (quality),-,,,,all,,4,qualityInformation,time lat lon alt,
-z_boom_l,distance_to_surface_from_boom,Lower boom height,m,1,3,dshf_l dlhf_l qh_l,two-boom,all,4,physicalMeasurement,time lat lon alt,
+z_boom_l,distance_to_surface_from_boom,Lower boom height,m,0.3,5,dshf_l dlhf_l qh_l,two-boom,all,4,physicalMeasurement,time lat lon alt,
 z_boom_q_l,distance_to_surface_from_boom_quality,Loer boom height (quality),-,,,,two-boom,,4,qualityInformation,time lat lon alt,
 z_stake,distance_to_surface_from_stake_assembly,Stake height,m,0.3,8,,one-boom,all,4,physicalMeasurement,time lat lon alt,HeightStakes(m)
 z_stake_q,distance_to_surface_from_stake_assembly_quality,Stake height (quality),-,,,,one-boom,,4,qualityInformation,time lat lon alt,
