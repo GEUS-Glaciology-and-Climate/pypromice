@@ -43,11 +43,11 @@ def setBUFRvalue(ibufr, b_name, value):
     
     Parameters
     ----------
-    ibufr : bufr.msg                   
-        Active BUFR message 
+    ibufr : bufr.msg                
+        Active BUFR message
     b_name : str
         BUFR message variable name
-    value : int/float           
+    value : int/float
         Value to be assigned to variable
     '''
     if math.isnan(value) is False:
@@ -87,7 +87,7 @@ def setTemplate(ibufr, timestamp, ed=4, master=0, vers=13,
         Timestamp of observation
     ed : int
         Edition. The default is 4.
-    master : int   
+    master : int
         Master table number. The default is 0.
     vers : int
         Master table version number. The default is 13.
@@ -97,25 +97,25 @@ def setTemplate(ibufr, timestamp, ed=4, master=0, vers=13,
         Encoding type. The default is "unexpandedDescriptors".
     '''  
     #Indicator section (BUFR 4 letters, total msg size, edition number)
-    #Current edition is version 4                             
-    codes_set(ibufr, 'edition', ed)                                    
-   
+    #Current edition is version 4                   
+    codes_set(ibufr, 'edition', ed)                                   
+
     #Identification section (master table, id, sequence number, data cat number)
-    codes_set(ibufr, 'masterTableNumber', master)                      
-    codes_set(ibufr, 'masterTablesVersionNumber', vers)                
+    codes_set(ibufr, 'masterTableNumber', master)                   
+    codes_set(ibufr, 'masterTablesVersionNumber', vers)             
     codes_set(ibufr, 'localTablesVersionNumber', 0)
     
     #BUFR header centre 98 = ECMF
-    codes_set(ibufr, 'bufrHeaderCentre', 98)                           
+    codes_set(ibufr, 'bufrHeaderCentre', 98)                         
     codes_set(ibufr, 'bufrHeaderSubCentre', 0)
     codes_set(ibufr, 'updateSequenceNumber', 0)
     
     #Data category 0 = surface data, land
-    codes_set(ibufr, 'dataCategory', 0)    
+    codes_set(ibufr, 'dataCategory', 0) 
 
-    #International data subcategory 7 = n-min obs from AWS stations                
-    codes_set(ibufr, 'internationalDataSubCategory', 7)                
-    codes_set(ibufr, 'dataSubCategory', 7)                             
+    #International data subcategory 7 = n-min obs from AWS stations             
+    codes_set(ibufr, 'internationalDataSubCategory', 7)        
+    codes_set(ibufr, 'dataSubCategory', 7)                   
 
     codes_set(ibufr, 'observedData', 1)
     codes_set(ibufr, 'compressedData', 0)
@@ -128,13 +128,13 @@ def setTemplate(ibufr, timestamp, ed=4, master=0, vers=13,
     codes_set(ibufr, 'typicalDay', timestamp.day)
     codes_set(ibufr, 'typicalHour', timestamp.hour)
     codes_set(ibufr, 'typicalMinute', timestamp.minute)
-    codes_set(ibufr, 'typicalSecond', timestamp.second)       
+    codes_set(ibufr, 'typicalSecond', timestamp.second) 
     
     #Assign message template
     ivalues = (template)
     
-    #Assign key name to encode sequence number                             
-    codes_set(ibufr, key, ivalues) 
+    #Assign key name to encode sequence number                         
+    codes_set(ibufr, key, ivalues)
 
 
 def setStation(ibufr, stationNumber, blockNumber):
@@ -144,7 +144,7 @@ def setStation(ibufr, stationNumber, blockNumber):
     ----------
     ibufr : bufr.msg
         Bufr message object
-    '''   
+    '''
     #Data Description and Binary Data section
     #Set AWS station info
     
@@ -169,8 +169,8 @@ def setStation(ibufr, stationNumber, blockNumber):
     # codes_set(ibufr, 'temperatureObservationPrecision', 0.1)
     # codes_set(ibufr, 'solarAndInfraredRadiationCorrection', 0)
     # codes_set(ibufr, 'pressureSensorType', 30)
-    # codes_set(ibufr, 'temperatureSensorType', 30) 
-    # codes_set(ibufr, 'humiditySensorType', 30)     
+    # codes_set(ibufr, 'temperatureSensorType', 30)
+    # codes_set(ibufr, 'humiditySensorType', 30)   
 
 
 def setAWSvariables(ibufr, row, timestamp):
@@ -184,7 +184,7 @@ def setAWSvariables(ibufr, row, timestamp):
         DataFrame row with AWS info
     timestamp: datetime.datetime
         timestamp for this row
-    '''         
+    '''
     #Set baseline AWS info
     setBUFRvalue(ibufr, 'year', timestamp.year)
     setBUFRvalue(ibufr, 'month', timestamp.month)
@@ -226,7 +226,7 @@ def setAWSvariables(ibufr, row, timestamp):
                       row['gps_alt']+row['z_boom_u'])
             
 
-def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13, 
+def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
             template=307080, key='unexpandedDescriptors'):
     '''Construct and export .bufr messages to file from DataFrame.
     
@@ -256,7 +256,7 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
     for i1, r1 in df1.iterrows():
 
         #Create new bufr message to write to
-        ibufr = codes_bufr_new_from_samples('BUFR4')  
+        ibufr = codes_bufr_new_from_samples('BUFR4')
         
         try:
             #Get timestamp
@@ -274,7 +274,7 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
             setAWSvariables(ibufr, r1, timestamp)
             
             #Encode keys in data section
-            codes_set(ibufr, 'pack', 1)                       
+            codes_set(ibufr, 'pack', 1)                     
             
             #Write bufr message to bufr file
             codes_write(ibufr, fout)
@@ -324,10 +324,10 @@ if __name__ == '__main__':
         # df1['AirTemperature(K)'] = df1.apply(lambda row: getTempK(row), axis=1)
         
         #Get Pa pressure
-        # df1['AirPressure(Pa)'] = df1.apply(lambda row: getPressPa(row), axis=1)         
+        # df1['AirPressure(Pa)'] = df1.apply(lambda row: getPressPa(row), axis=1)      
         
         #Construct and export BUFR file
         getBUFR(df1_limited, lookup, outFiles+bufrname)
-        print(f'Successfully exported bufr file to {outFiles+bufrname}')   
+        print(f'Successfully exported bufr file to {outFiles+bufrname}')  
         
     print('Finished')
