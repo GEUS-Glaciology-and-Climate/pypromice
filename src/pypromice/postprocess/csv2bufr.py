@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep  9 13:44:49 2021
+Created on Thu Sep 9 13:44:49 2021
 
 @author: pho
 
-Playground script for converting PROMICE .txt files to WMO-compliant BUFR files
+Playground script for converting PROMICE .csv files to WMO-compliant BUFR files
 
 This script uses the package eccodes to run. 
 https://confluence.ecmwf.int/display/ECC/ecCodes+installation
@@ -20,7 +20,6 @@ https://gist.github.com/MHBalsmeier/a01ad4e07ecf467c90fad2ac7719844a
 
 Processing steps based on this example:
 https://confluence.ecmwf.int/display/UDOC/How+do+I+create+BUFR+from+a+CSV+-+ecCodes+BUFR+FAQ
-   
 
 According to DMI, the BUFR messages should adhere to Common Code Table 13:
 https://confluence.ecmwf.int/display/ECC/WMO%3D13+element+table#WMO=13elementtable-CL_1
@@ -40,7 +39,8 @@ from IPython import embed
 
 def setBUFRvalue(ibufr, b_name, value):
     '''Set variable in BUFR message
-    
+    Maybe investigate codes_set_array?? PJW
+
     Parameters
     ----------
     ibufr : bufr.msg                
@@ -56,7 +56,7 @@ def setBUFRvalue(ibufr, b_name, value):
         except CodesInternalError as ec:
             print(f'{ec}: {b_name}')
     #else:
-    # PJW do we need to specifically set a nan in the ibufr?
+    # do we need to specifically set a nan in the ibufr? PJW
 
 
 def getTempK(row):
@@ -78,7 +78,7 @@ def getPressPa(row):
 def setTemplate(ibufr, timestamp, ed=4, master=0, vers=13, 
                 template=307080, key='unexpandedDescriptors'):
     '''Set bufr message template.
-    
+
     Parameters
     ----------
     ibufr : bufr.msg
@@ -91,55 +91,54 @@ def setTemplate(ibufr, timestamp, ed=4, master=0, vers=13,
         Master table number. The default is 0.
     vers : int
         Master table version number. The default is 13.
+        The online example now shows 31 PJW
     template : int
-        Template number. The default is 307u080.
+        Template number. The default is 307080 ("synopLand").
+        What about 307091 "surfaceObservationOneHour"?,
+        or 307096 "synopOneHour"? PJW
     key : str
         Encoding type. The default is "unexpandedDescriptors".
     '''  
     #Indicator section (BUFR 4 letters, total msg size, edition number)
     #Current edition is version 4                   
-    codes_set(ibufr, 'edition', ed)                                   
+    codes_set(ibufr, 'edition', ed)
 
     #Identification section (master table, id, sequence number, data cat number)
-    codes_set(ibufr, 'masterTableNumber', master)                   
-    codes_set(ibufr, 'masterTablesVersionNumber', vers)             
+    codes_set(ibufr, 'masterTableNumber', master)
+    codes_set(ibufr, 'masterTablesVersionNumber', vers)
     codes_set(ibufr, 'localTablesVersionNumber', 0)
-    
+
     #BUFR header centre 98 = ECMF
-    codes_set(ibufr, 'bufrHeaderCentre', 98)                         
+    codes_set(ibufr, 'bufrHeaderCentre', 98)
     codes_set(ibufr, 'bufrHeaderSubCentre', 0)
     codes_set(ibufr, 'updateSequenceNumber', 0)
-    
-    #Data category 0 = surface data, land
-    codes_set(ibufr, 'dataCategory', 0) 
 
-    #International data subcategory 7 = n-min obs from AWS stations             
-    codes_set(ibufr, 'internationalDataSubCategory', 7)        
-    codes_set(ibufr, 'dataSubCategory', 7)                   
+    #Data category 0 = surface data, land
+    codes_set(ibufr, 'dataCategory', 0)
+
+    #International data subcategory 7 = n-min obs from AWS stations
+    codes_set(ibufr, 'internationalDataSubCategory', 7)
+    codes_set(ibufr, 'dataSubCategory', 7)
 
     codes_set(ibufr, 'observedData', 1)
     codes_set(ibufr, 'compressedData', 0)
-    # codes_set(ibufr, 'typicalYear', int(r1['Year']))
-    # codes_set(ibufr, 'typicalMonth', int(r1['MonthOfYear']))
-    # codes_set(ibufr, 'typicalDay', int(r1['DayOfMonth']))
-    # codes_set(ibufr, 'typicalHour', int(r1['HourOfDay(UTC)']))
     codes_set(ibufr, 'typicalYear', timestamp.year)
     codes_set(ibufr, 'typicalMonth', timestamp.month)
     codes_set(ibufr, 'typicalDay', timestamp.day)
     codes_set(ibufr, 'typicalHour', timestamp.hour)
     codes_set(ibufr, 'typicalMinute', timestamp.minute)
-    codes_set(ibufr, 'typicalSecond', timestamp.second) 
-    
+    codes_set(ibufr, 'typicalSecond', timestamp.second)
+
     #Assign message template
     ivalues = (template)
-    
-    #Assign key name to encode sequence number                         
+
+    #Assign key name to encode sequence number
     codes_set(ibufr, key, ivalues)
 
 
 def setStation(ibufr, stationNumber, blockNumber):
     '''Set station info to bufr message.
-    
+
     Parameters
     ----------
     ibufr : bufr.msg
@@ -147,22 +146,22 @@ def setStation(ibufr, stationNumber, blockNumber):
     '''
     #Data Description and Binary Data section
     #Set AWS station info
-    
+
     #Need to set WMO block and station number
     codes_set(ibufr, 'stationNumber', 1)
     codes_set(ibufr, 'blockNumber', 1)
     # codes_set(ibufr, 'wmoRegionSubArea', 1)
-    
-    # #Region number=7 (unknown)
+
+    #Region number=7 (unknown)
     # codes_set(ibufr, 'regionNumber', 7)
-    
+
     #Unset parameters
     # codes_set(ibufr, 'stationOrSiteName', CCITT IA5)
     # codes_set(ibufr, 'shortStationName', CCITT IA5)
     # codes_set(ibufr, 'shipOrMobileLandStationIdentifier', CCITT IA5)
     # codes_set(ibufr, 'directionOfMotionOfMovingObservingPlatform', deg)
     # codes_set(ibufr, 'movingObservingPlatformSpeed', m/s)
-    
+
     codes_set(ibufr, 'stationType', 0)
     codes_set(ibufr, 'instrumentationForWindMeasurement', 6)
     # codes_set(ibufr, 'measuringEquipmentType', 0)
@@ -189,7 +188,9 @@ def setAWSvariables(ibufr, row, timestamp):
     setBUFRvalue(ibufr, 'year', timestamp.year)
     setBUFRvalue(ibufr, 'month', timestamp.month)
     setBUFRvalue(ibufr, 'day', timestamp.day)
-    
+    setBUFRvalue(ibufr, 'hour', timestamp.hour)
+    setBUFRvalue(ibufr, 'minute', timestamp.minute)
+
     setBUFRvalue(ibufr, 'relativeHumidity', row['rh_u_cor']) # rh_u vs rh_u_cor?
     setBUFRvalue(ibufr, 'windSpeed', row['wspd_u'])
     setBUFRvalue(ibufr, 'windDirection', row['wdir_u'])
@@ -198,22 +199,20 @@ def setAWSvariables(ibufr, row, timestamp):
 
     setBUFRvalue(ibufr, 'latitude', row['gps_lat'])
     setBUFRvalue(ibufr, 'longitude', row['gps_lon'])
-    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel',
-                 row['gps_alt'])
-    setBUFRvalue(ibufr, 'heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
-                 row['z_boom_u'])
+    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt'])
+    setBUFRvalue(ibufr, 'heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', row['z_boom_u'])
 
     #Set monitoring time period (-10=10 minutes)
     if math.isnan(row['wspd_u']) is False:
         codes_set(ibufr, '#11#timePeriod', -10)
-   
+
     #Set time significance (2=temporally averaged)
     codes_set(ibufr, '#1#timeSignificance', 2)
     if math.isnan(row['wspd_u']) is False:
         codes_set(ibufr, '#2#timeSignificance', 2)
-    
+
     #Set measurement heights
-    # PJW Why do we do both -0.1 and +0.4?
+    # Why do we do both -0.1 and +0.4? PJW
     if math.isnan(row['z_boom_u']) is False:
         codes_set(ibufr,
                   '#2#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
@@ -224,12 +223,12 @@ def setAWSvariables(ibufr, row, timestamp):
         if math.isnan(row['gps_alt']) is False:
             codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel',
                       row['gps_alt']+row['z_boom_u'])
-            
+
 
 def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
             template=307080, key='unexpandedDescriptors'):
     '''Construct and export .bufr messages to file from DataFrame.
-    
+
     Parameters
     ----------
     df : pandas.DataFrame
@@ -257,35 +256,36 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
 
         #Create new bufr message to write to
         ibufr = codes_bufr_new_from_samples('BUFR4')
-        
+
         try:
             #Get timestamp
             timestamp = datetime.strptime(r1['time'], '%Y-%m-%d %H:%M:%S')
-            
+
             #Set table formatting and templating
+            #Strange to set this for every row... PJW
             setTemplate(ibufr, timestamp)
-            
-            #Set station info
+
+            #Set station info !!!! CHANGE !!!!
             stationNumber=1
             blockNumber=1
             setStation(ibufr, stationNumber, blockNumber)
- 
+
             #Set AWS measurments
             setAWSvariables(ibufr, r1, timestamp)
-            
+
             #Encode keys in data section
             codes_set(ibufr, 'pack', 1)                     
-            
+
             #Write bufr message to bufr file
             codes_write(ibufr, fout)
 
         except CodesInternalError as ec:
             print(ec)
-            
+
         codes_release(ibufr)
-        
+
     fout.close()
- 
+
 
 #------------------------------------------------------------------------------
 
@@ -318,16 +318,16 @@ if __name__ == '__main__':
         df1 = pd.read_csv(fname, delimiter=',')
         # df1.index = pd.to_datetime(df1['time'])
         df1.set_index(pd.to_datetime(df1['time']), inplace=True)
-        df1_limited = df1.last('14D')
+        df1_limited = df1.last('14D') # limit to previous 2 weeks
 
         #Get Kelvin temperature
         # df1['AirTemperature(K)'] = df1.apply(lambda row: getTempK(row), axis=1)
-        
+
         #Get Pa pressure
         # df1['AirPressure(Pa)'] = df1.apply(lambda row: getPressPa(row), axis=1)      
-        
+
         #Construct and export BUFR file
         getBUFR(df1_limited, lookup, outFiles+bufrname)
         print(f'Successfully exported bufr file to {outFiles+bufrname}')  
-        
+
     print('Finished')
