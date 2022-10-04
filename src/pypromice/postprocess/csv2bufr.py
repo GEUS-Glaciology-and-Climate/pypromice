@@ -30,27 +30,15 @@ import glob, os
 from datetime import datetime
 from eccodes import codes_set, codes_write, codes_release, \
                     codes_bufr_new_from_samples, CodesInternalError
+import math
+import datetime as dt
 # from pybufrkit.encoder import Encoder
+
+from IPython import embed
 
 #------------------------------------------------------------------------------
 
-def getTXT(filename, delim='\s+'):
-    '''Get values from .txt or .csv file
-    
-    Parameters
-    ----------
-    filename : str
-        File path to .txt or .csv file
-    
-    Returns
-    -------
-    df : pandas.DataFrame
-        Pandas dataframe of imported values
-    '''
-    df = pd.read_csv(filename, delimiter=delim)
-    return df
-
-def setBUFRvalue(ibufr, b_name, value, nullvalue=-999):
+def setBUFRvalue(ibufr, b_name, value):
     '''Set variable in BUFR message
     
     Parameters
@@ -61,35 +49,30 @@ def setBUFRvalue(ibufr, b_name, value, nullvalue=-999):
         BUFR message variable name
     value : int/float           
         Value to be assigned to variable
-    nullvalue : int/float
-        Null value to be assigned to variable
     '''
-    nullFlag=False
-    if isinstance(value, int) or isinstance(value, float):
-        if value==nullvalue:
-            nullFlag=True
-            # print('Null value found in ' + str(b_name))
-    if nullFlag==False:
+    if math.isnan(value) is False:
         try:
             codes_set(ibufr, b_name, value)
         except CodesInternalError as ec:
             print(f'{ec}: {b_name}')
+    #else:
+    # PJW do we need to specifically set a nan in the ibufr?
 
 
-def getTempK(row, nullvalue=-999):
+def getTempK(row):
     '''Convert temperature from celsius to kelvin units'''
-    if row['AirTemperature(C)'] == nullvalue:
-        return nullvalue
+    if math.isnan(row['t_u']) is True:
+        return float('nan')
     else:
-        return row['AirTemperature(C)'] + 273.15
+        return row['t_u'] + 273.15
 
 
-def getPressPa(row, nullvalue=-999):
+def getPressPa(row):
     '''Convert hPa pressure values to Pa units'''
-    if row['AirPressure(hPa)'] == nullvalue:
-        return nullvalue
+    if math.isnan(row['p_u']) is True:
+        return float('nan')
     else:
-        return row['AirPressure(hPa)']*100
+        return row['p_u']*100
 
 
 def setTemplate(ibufr, timestamp, ed=4, master=0, vers=13, 
@@ -190,7 +173,7 @@ def setStation(ibufr, stationNumber, blockNumber):
     # codes_set(ibufr, 'humiditySensorType', 30)     
 
 
-def setAWSvariables(ibufr, row, nullValue=-999):
+def setAWSvariables(ibufr, row, timestamp):
     '''Set AWS measurements to bufr message.
     
     Parameters
@@ -199,61 +182,48 @@ def setAWSvariables(ibufr, row, nullValue=-999):
         Bufr message object
     row : pandas.DataFrame
         DataFrame row with AWS info
-    nullValue : int
-        Null value for nan measurements. The default is -999.
+    timestamp: datetime.datetime
+        timestamp for this row
     '''         
     #Set baseline AWS info
-    setBUFRvalue(ibufr, 'year', row['Year'])   
-    setBUFRvalue(ibufr, 'month', row['MonthOfYear']) 
-    setBUFRvalue(ibufr, 'day', row['DayOfMonth'])
+    setBUFRvalue(ibufr, 'year', timestamp.year)
+    setBUFRvalue(ibufr, 'month', timestamp.month)
+    setBUFRvalue(ibufr, 'day', timestamp.day)
     
-    setBUFRvalue(ibufr, 'relativeHumidity', row['RelativeHumidity(%)'])   
-    setBUFRvalue(ibufr, 'windSpeed', row['WindSpeed(m/s)']) 
-    setBUFRvalue(ibufr, 'windDirection', row['WindDirection(d)']) 
-    setBUFRvalue(ibufr, 'airTemperature', getTempK(row,nullValue))  
-    setBUFRvalue(ibufr, 'pressure', getPressPa(row,nullValue))      
-    setBUFRvalue(ibufr, 'cloudCoverTotal', row['CloudCover'])  
-    
-    setBUFRvalue(ibufr, '#1#shortWaveRadiationIntegratedOverPeriodSpecified', 
-                 row['ShortwaveRadiationDown_Cor(W/m2)'])     
-    setBUFRvalue(ibufr, '#2#shortWaveRadiationIntegratedOverPeriodSpecified', 
-                 row['ShortwaveRadiationUp_Cor(W/m2)']) 
-    setBUFRvalue(ibufr, '#1#longWaveRadiationIntegratedOverPeriodSpecified', 
-                 row['LongwaveRadiationDown(W/m2)']) 
-    setBUFRvalue(ibufr, '#2#longWaveRadiationIntegratedOverPeriodSpecified', 
-                 row['LongwaveRadiationUp(W/m2)']) 
+    setBUFRvalue(ibufr, 'relativeHumidity', row['rh_u_cor']) # rh_u vs rh_u_cor?
+    setBUFRvalue(ibufr, 'windSpeed', row['wspd_u'])
+    setBUFRvalue(ibufr, 'windDirection', row['wdir_u'])
+    setBUFRvalue(ibufr, 'airTemperature', getTempK(row))
+    setBUFRvalue(ibufr, 'pressure', getPressPa(row))
 
-    setBUFRvalue(ibufr, 'latitude', row['LatitudeGPS(degN)'])  
-    setBUFRvalue(ibufr, 'longitude', row['LongitudeGPS(degW)'])  
-    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', 
-                 row['ElevationGPS(m)'])  
-    setBUFRvalue(ibufr, 'heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', 
-                 row['HeightSensorBoom(m)'])  
+    setBUFRvalue(ibufr, 'latitude', row['gps_lat'])
+    setBUFRvalue(ibufr, 'longitude', row['gps_lon'])
+    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel',
+                 row['gps_alt'])
+    setBUFRvalue(ibufr, 'heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
+                 row['z_boom_u'])
 
     #Set monitoring time period (-10=10 minutes)
-    if row['WindSpeed(m/s)'] != nullValue:
+    if math.isnan(row['wspd_u']) is False:
         codes_set(ibufr, '#11#timePeriod', -10)
-    if row['ShortwaveRadiationDown_Cor(W/m2)'] != nullValue:
-        codes_set(ibufr, '#14#timePeriod', -10)
-    if row['LongwaveRadiationDown(W/m2)'] != nullValue:
-        codes_set(ibufr, '#15#timePeriod', -10)
    
     #Set time significance (2=temporally averaged)
     codes_set(ibufr, '#1#timeSignificance', 2)
-    if row['WindSpeed(m/s)'] != nullValue:
+    if math.isnan(row['wspd_u']) is False:
         codes_set(ibufr, '#2#timeSignificance', 2)
     
     #Set measurement heights
-    if row['HeightSensorBoom(m)'] != nullValue:
-        codes_set(ibufr, 
-                  '#2#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', 
-                  row['HeightSensorBoom(m)']-0.1)
-        codes_set(ibufr, 
-                  '#8#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', 
-                  row['HeightSensorBoom(m)']+0.4)
-        if row['ElevationGPS(m)'] != nullValue:
-            codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel', 
-                      row['ElevationGPS(m)']+row['HeightSensorBoom(m)'])    
+    # PJW Why do we do both -0.1 and +0.4?
+    if math.isnan(row['z_boom_u']) is False:
+        codes_set(ibufr,
+                  '#2#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
+                  row['z_boom_u']-0.1)
+        codes_set(ibufr,
+                  '#8#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
+                  row['z_boom_u']+0.4)
+        if math.isnan(row['gps_alt']) is False:
+            codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel',
+                      row['gps_alt']+row['z_boom_u'])
             
 
 def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13, 
@@ -264,7 +234,7 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
     ----------
     df : pandas.DataFrame
         Pandas dataframe of weather station observations
-    df2 : pandas.DataFrame
+    df2 : pandas.DataFrame NOT USED!!
         Pandas dataframe of lookup table
     outBUFR : str
         File path that .bufr file will be exported to
@@ -281,7 +251,7 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
     '''
     #Open bufr file
     fout = open(outBUFR, 'wb')
-       
+
     #Iterate over rows in weather observations dataframe
     for i1, r1 in df1.iterrows():
 
@@ -289,12 +259,8 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
         ibufr = codes_bufr_new_from_samples('BUFR4')  
         
         try:
-            
             #Get timestamp
-            timestamp = datetime(int(r1['Year']), 
-                                 int(r1['MonthOfYear']), 
-                                 int(r1['DayOfMonth']), 
-                                 int(r1['HourOfDay(UTC)']), 0, 0)
+            timestamp = datetime.strptime(r1['time'], '%Y-%m-%d %H:%M:%S')
             
             #Set table formatting and templating
             setTemplate(ibufr, timestamp)
@@ -305,10 +271,10 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
             setStation(ibufr, stationNumber, blockNumber)
  
             #Set AWS measurments
-            setAWSvariables(ibufr, r1)
+            setAWSvariables(ibufr, r1, timestamp)
             
             #Encode keys in data section
-            codes_set(ibufr, 'pack', 1)                                            
+            codes_set(ibufr, 'pack', 1)                       
             
             #Write bufr message to bufr file
             codes_write(ibufr, fout)
@@ -316,7 +282,7 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
         except CodesInternalError as ec:
             print(ec)
             
-        codes_release(ibufr)            
+        codes_release(ibufr)
         
     fout.close()
  
@@ -325,36 +291,43 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
 
 if __name__ == '__main__':
 
-    #Get all txt files in directory
-    txtFiles = glob.glob('AWS_data/*hour*')
-    
-    #Get lookup table
-    lookup = getTXT('./variables_bufr.csv', None)
- 
-    #Get all txt files in directory
+    # Get station names and file paths
+    l3path = '/home/pwright/GEUS/pypromice-dev/aws-l3/level_3'
+    stns = [name for name in os.listdir(l3path) if os.path.isdir(l3path)]
+    fpaths = glob.glob('/home/pwright/GEUS/pypromice-dev/aws-l3/level_3/*/*_hour.csv')
+
+    # Get lookup table
+    # NOT USED!
+    lookup = pd.read_csv('./variables_bufr.csv', delimiter=',')
+
+    # Make out dir
     outFiles = './BUFR_out/'
     if os.path.exists(outFiles) is False:
         os.mkdir(outFiles)
-       
-    # #Iterate through txt files
-    for fname in txtFiles[0:1]:
-    
+
+    # Iterate through csv files
+    for fname in fpaths:
         #Generate output BUFR filename
-        bufrname = fname.split('/')[-1].split('.txt')[0][:-4][:-5]+'.bufr'
+        last_index = fname.rfind('_')
+        first_index = fname.rfind('/')
+        bufrname = fname[first_index+1:last_index]+'.bufr'
+        # bufrname = fname.split('/')[-1].split('.csv')[0][:-5]+'.bufr'
         print(f'Generating {bufrname} from {fname}')
-    
-        #Get text file
-        df1 = getTXT(fname)
-        
-        # #Get Kelvin temperature        
+
+        # Read csv file
+        df1 = pd.read_csv(fname, delimiter=',')
+        # df1.index = pd.to_datetime(df1['time'])
+        df1.set_index(pd.to_datetime(df1['time']), inplace=True)
+        df1_limited = df1.last('14D')
+
+        #Get Kelvin temperature
         # df1['AirTemperature(K)'] = df1.apply(lambda row: getTempK(row), axis=1)
         
-        # #Get Pa pressure
+        #Get Pa pressure
         # df1['AirPressure(Pa)'] = df1.apply(lambda row: getPressPa(row), axis=1)         
         
         #Construct and export BUFR file
-        getBUFR(df1, lookup, outFiles+bufrname)
+        getBUFR(df1_limited, lookup, outFiles+bufrname)
         print(f'Successfully exported bufr file to {outFiles+bufrname}')   
-        
         
     print('Finished')
