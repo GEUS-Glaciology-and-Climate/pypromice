@@ -78,7 +78,7 @@ def setTemplate(ibufr, timestamp, ed=4, master=0, vers=13,
         Master table version number. The default is 13.
         The online example now shows 31 PJW
     template : int
-        Template number. The default is 307080 ("synopLand").
+        Template number. The default is 307080 ("synopLand"), which DMI uses.
         What about 307091 "surfaceObservationOneHour"?,
         or 307096 "synopOneHour"? PJW
     key : str
@@ -176,11 +176,11 @@ def setAWSvariables(ibufr, row, timestamp):
     setBUFRvalue(ibufr, 'hour', timestamp.hour)
     setBUFRvalue(ibufr, 'minute', timestamp.minute)
 
-    setBUFRvalue(ibufr, 'relativeHumidity', row['rh_u_cor']) # rh_u vs rh_u_cor?
-    setBUFRvalue(ibufr, 'windSpeed', row['wspd_u'])
-    setBUFRvalue(ibufr, 'windDirection', row['wdir_u'])
-    setBUFRvalue(ibufr, 'airTemperature', row['t_u'])
-    setBUFRvalue(ibufr, 'pressure', row['p_u'])
+    setBUFRvalue(ibufr, 'relativeHumidity', row['rh_i']) # rh_i vs rh_i_cor? PJW
+    setBUFRvalue(ibufr, 'windSpeed', row['wspd_i'])
+    setBUFRvalue(ibufr, 'windDirection', row['wdir_i'])
+    setBUFRvalue(ibufr, 'airTemperature', row['t_i'])
+    setBUFRvalue(ibufr, 'pressure', row['p_i'])
 
     setBUFRvalue(ibufr, 'latitude', row['gps_lat'])
     setBUFRvalue(ibufr, 'longitude', row['gps_lon'])
@@ -188,12 +188,12 @@ def setAWSvariables(ibufr, row, timestamp):
     setBUFRvalue(ibufr, 'heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', row['z_boom_u'])
 
     #Set monitoring time period (-10=10 minutes)
-    if math.isnan(row['wspd_u']) is False:
+    if math.isnan(row['wspd_i']) is False:
         codes_set(ibufr, '#11#timePeriod', -10)
 
     #Set time significance (2=temporally averaged)
     codes_set(ibufr, '#1#timeSignificance', 2)
-    if math.isnan(row['wspd_u']) is False:
+    if math.isnan(row['wspd_i']) is False:
         codes_set(ibufr, '#2#timeSignificance', 2)
 
     #Set measurement heights
@@ -306,10 +306,10 @@ if __name__ == '__main__':
         df1.set_index(pd.to_datetime(df1['time']), inplace=True)
 
         # Convert air temp, C to Kelvin
-        df1.t_u = df1.t_u + 273.15
+        df1.t_i = df1.t_i + 273.15
 
         # Convert pressure, hPa to Pa
-        df1.p_u = df1.p_u * 100.
+        df1.p_i = df1.p_i * 100.
 
         df1_limited = df1.last(args.time_limit) # limit to previous 2 weeks
 
