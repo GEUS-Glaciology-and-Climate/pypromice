@@ -25,13 +25,14 @@ According to DMI, the BUFR messages should adhere to Common Code Table 13:
 https://confluence.ecmwf.int/display/ECC/WMO%3D13+element+table#WMO=13elementtable-CL_1
 """
 import pandas as pd
-import glob, os
+import glob, os, sys
 from datetime import datetime
 from eccodes import codes_set, codes_write, codes_release, \
                     codes_bufr_new_from_samples, CodesInternalError
 import math
 import datetime as dt
-# from pybufrkit.encoder import Encoder
+
+from args import args
 
 from IPython import embed
 
@@ -122,6 +123,7 @@ def setTemplate(ibufr, timestamp, ed=4, master=0, vers=13,
 
     codes_set(ibufr, 'observedData', 1)
     codes_set(ibufr, 'compressedData', 0)
+
     codes_set(ibufr, 'typicalYear', timestamp.year)
     codes_set(ibufr, 'typicalMonth', timestamp.month)
     codes_set(ibufr, 'typicalDay', timestamp.day)
@@ -166,7 +168,6 @@ def setStation(ibufr, stationNumber, blockNumber):
     codes_set(ibufr, 'instrumentationForWindMeasurement', 6)
     # codes_set(ibufr, 'measuringEquipmentType', 0)
     # codes_set(ibufr, 'temperatureObservationPrecision', 0.1)
-    # codes_set(ibufr, 'solarAndInfraredRadiationCorrection', 0)
     # codes_set(ibufr, 'pressureSensorType', 30)
     # codes_set(ibufr, 'temperatureSensorType', 30)
     # codes_set(ibufr, 'humiditySensorType', 30)   
@@ -212,20 +213,19 @@ def setAWSvariables(ibufr, row, timestamp):
         codes_set(ibufr, '#2#timeSignificance', 2)
 
     #Set measurement heights
-    # Why do we do both -0.1 and +0.4? PJW
     if math.isnan(row['z_boom_u']) is False:
         codes_set(ibufr,
                   '#2#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
-                  row['z_boom_u']-0.1)
+                  row['z_boom_u']-0.1) # For air temp
         codes_set(ibufr,
                   '#8#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
-                  row['z_boom_u']+0.4)
+                  row['z_boom_u']+0.4) # For wind speed
         if math.isnan(row['gps_alt']) is False:
             codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel',
                       row['gps_alt']+row['z_boom_u'])
 
 
-def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
+def getBUFR(df1, outBUFR, ed=4, master=0, vers=13,
             template=307080, key='unexpandedDescriptors'):
     '''Construct and export .bufr messages to file from DataFrame.
 
@@ -233,8 +233,6 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
     ----------
     df : pandas.DataFrame
         Pandas dataframe of weather station observations
-    df2 : pandas.DataFrame NOT USED!!
-        Pandas dataframe of lookup table
     outBUFR : str
         File path that .bufr file will be exported to
     ed : int
@@ -292,16 +290,20 @@ def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13,
 if __name__ == '__main__':
 
     # Get station names and file paths
-    l3path = '/home/pwright/GEUS/pypromice-dev/aws-l3/level_3'
-    stns = [name for name in os.listdir(l3path) if os.path.isdir(l3path)]
-    fpaths = glob.glob('/home/pwright/GEUS/pypromice-dev/aws-l3/level_3/*/*_hour.csv')
+    if args.dev is True:
+        l3path = args.l3_path_dev
+        fpaths = glob.glob(args.l3_files_dev)
+    else:
+        print('Prod paths not yet defined. Need to pass --dev.')
+        sys.exit()
 
-    # Get lookup table
-    # NOT USED!
-    lookup = pd.read_csv('./variables_bufr.csv', delimiter=',')
+    stns = [name for name in os.listdir(l3path) if os.path.isdir(l3path)]
+
+    # Get lookup table NOT USED!
+    # lookup = pd.read_csv('./variables_bufr.csv', delimiter=',')
 
     # Make out dir
-    outFiles = './BUFR_out/'
+    outFiles = args.bufr_out
     if os.path.exists(outFiles) is False:
         os.mkdir(outFiles)
 
@@ -318,7 +320,7 @@ if __name__ == '__main__':
         df1 = pd.read_csv(fname, delimiter=',')
         # df1.index = pd.to_datetime(df1['time'])
         df1.set_index(pd.to_datetime(df1['time']), inplace=True)
-        df1_limited = df1.last('14D') # limit to previous 2 weeks
+        df1_limited = df1.last(args.time_limit) # limit to previous 2 weeks
 
         #Get Kelvin temperature
         # df1['AirTemperature(K)'] = df1.apply(lambda row: getTempK(row), axis=1)
@@ -327,7 +329,7 @@ if __name__ == '__main__':
         # df1['AirPressure(Pa)'] = df1.apply(lambda row: getPressPa(row), axis=1)      
 
         #Construct and export BUFR file
-        getBUFR(df1_limited, lookup, outFiles+bufrname)
+        getBUFR(df1_limited, outFiles+bufrname)
         print(f'Successfully exported bufr file to {outFiles+bufrname}')  
 
     print('Finished')
