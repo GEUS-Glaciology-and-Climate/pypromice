@@ -125,7 +125,6 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
                                         T_0, T_100_l, ews, ei0)                          
 
         # Correct precipitation
-
         if ~ds['precip_l'].isnull().all() and precip_flag: 
             ds['precip_l_cor'], ds['precip_l_rate']= _correctPrecip(ds['precip_l'],  
                                                                     ds['wspd_l'])
@@ -291,7 +290,8 @@ def _correctHumidity(rh, t_1, T, T_0, T_100, ews, ei0):                        #
     freezing = (t_1 < 0) & (t_1 > -100).values 
 
     # Set to Groff & Gratch values when freezing, otherwise just rh                         
-    return rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))                                 
+    rh_cor = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice)) 
+    return rh_cor                             
 
 def _correctPrecip(precip, wspd):
     '''Correct precipitation with the undercatch correction method used in 

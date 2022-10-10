@@ -109,7 +109,7 @@ class AWS(object):
         print('Level 2 processing...')
         self.L2 = toL2(self.L1A)
         self.L2 = clipValues(self.L2, self.vars)
-
+        
         # L2 to L3 processing
         print('Level 3 processing...')        
         self.L3 = toL3(self.L2)
@@ -407,10 +407,15 @@ def clipValues(ds, df, cols=['lo','hi','OOL']):
         if var not in list(ds.variables): 
             continue
         
-        if var in ['rh_u_cor', 'rh_l_cor']:
-             ds[var] = ds[var].where(ds[var] >= df.loc[var, lo], other = 0)
-             ds[var] = ds[var].where(ds[var] <= df.loc[var, hi], other = 100)
-        else:
+        if var in ['rh_u_cor', 'rh_l_cor']:                                  
+              ds[var] = ds[var].where(ds[var] >= df.loc[var, lo], other=0)
+              ds[var] = ds[var].where(ds[var] <= df.loc[var, hi], other=100)
+              
+              # Mask out invalid corrections based on uncorrected var
+              var_uncor=var.split('_cor')[0]
+              ds[var] = ds[var].where(~np.isnan(ds[var_uncor]), other=np.nan)
+              
+        else: 
             if ~np.isnan(df.loc[var, lo]):
                 ds[var] = ds[var].where(ds[var] >= df.loc[var, lo])
             if ~np.isnan(df.loc[var, hi]):                
@@ -713,10 +718,10 @@ class TestProcess(unittest.TestCase):
 if __name__ == "__main__":
 
     # Test an individual station
-    test_station = 'KPC_U'
+    test_station = 'NUK_N'
     config_file = '../../../aws-l0/raw/config/{}.toml'.format(test_station)
     inpath= '../../../aws-l0/raw/{}/'.format(test_station)
-    outpath = 'test/'
+    outpath = 'test/NUK_N_origin'
     vari = 'variables.csv'
     pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
 
