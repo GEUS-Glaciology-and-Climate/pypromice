@@ -110,9 +110,13 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)    
 
     # Correct precipitation
-    if ~ds['precip_u'].isnull().all(): 
-    	ds['precip_u_cor'], ds['precip_u_rate'] = _correctPrecip(ds['precip_u'], 
-        	                                                 ds['wspd_u'])
+    if hasattr(ds, 'correct_precip'):
+        precip_flag=ds.attrs['correct_precip']
+    else:
+        precip_flag=True
+    if ~ds['precip_u'].isnull().all() and precip_flag: 
+        ds['precip_u_cor'], ds['precip_u_rate'] = _correctPrecip(ds['precip_u'], 
+                                                              ds['wspd_u'])
     
     if ds.attrs['number_of_booms']==2:      
         T_l = ds['t_l'].copy(deep=True) 
@@ -121,7 +125,8 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
                                         T_0, T_100_l, ews, ei0)                          
 
         # Correct precipitation
-        if ~ds['precip_l'].isnull().all(): 
+
+        if ~ds['precip_l'].isnull().all() and precip_flag: 
             ds['precip_l_cor'], ds['precip_l_rate']= _correctPrecip(ds['precip_l'],  
                                                                     ds['wspd_l'])
     
