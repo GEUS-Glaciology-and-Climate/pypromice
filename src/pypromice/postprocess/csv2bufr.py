@@ -60,22 +60,6 @@ def setBUFRvalue(ibufr, b_name, value):
     # do we need to specifically set a nan in the ibufr? PJW
 
 
-def getTempK(row):
-    '''Convert temperature from celsius to kelvin units'''
-    if math.isnan(row['t_u']) is True:
-        return float('nan')
-    else:
-        return row['t_u'] + 273.15
-
-
-def getPressPa(row):
-    '''Convert hPa pressure values to Pa units'''
-    if math.isnan(row['p_u']) is True:
-        return float('nan')
-    else:
-        return row['p_u']*100
-
-
 def setTemplate(ibufr, timestamp, ed=4, master=0, vers=13, 
                 template=307080, key='unexpandedDescriptors'):
     '''Set bufr message template.
@@ -195,8 +179,8 @@ def setAWSvariables(ibufr, row, timestamp):
     setBUFRvalue(ibufr, 'relativeHumidity', row['rh_u_cor']) # rh_u vs rh_u_cor?
     setBUFRvalue(ibufr, 'windSpeed', row['wspd_u'])
     setBUFRvalue(ibufr, 'windDirection', row['wdir_u'])
-    setBUFRvalue(ibufr, 'airTemperature', getTempK(row))
-    setBUFRvalue(ibufr, 'pressure', getPressPa(row))
+    setBUFRvalue(ibufr, 'airTemperature', row['t_u'])
+    setBUFRvalue(ibufr, 'pressure', row['p_u'])
 
     setBUFRvalue(ibufr, 'latitude', row['gps_lat'])
     setBUFRvalue(ibufr, 'longitude', row['gps_lon'])
@@ -231,7 +215,7 @@ def getBUFR(df1, outBUFR, ed=4, master=0, vers=13,
 
     Parameters
     ----------
-    df : pandas.DataFrame
+    df1 : pandas.DataFrame
         Pandas dataframe of weather station observations
     outBUFR : str
         File path that .bufr file will be exported to
@@ -309,7 +293,7 @@ if __name__ == '__main__':
 
     # Iterate through csv files
     for fname in fpaths:
-        #Generate output BUFR filename
+        # Generate output BUFR filename
         last_index = fname.rfind('_')
         first_index = fname.rfind('/')
         bufrname = fname[first_index+1:last_index]+'.bufr'
@@ -320,15 +304,16 @@ if __name__ == '__main__':
         df1 = pd.read_csv(fname, delimiter=',')
         # df1.index = pd.to_datetime(df1['time'])
         df1.set_index(pd.to_datetime(df1['time']), inplace=True)
+
+        # Convert air temp, C to Kelvin
+        df1.t_u = df1.t_u + 273.15
+
+        # Convert pressure, hPa to Pa
+        df1.p_u = df1.p_u * 100.
+
         df1_limited = df1.last(args.time_limit) # limit to previous 2 weeks
 
-        #Get Kelvin temperature
-        # df1['AirTemperature(K)'] = df1.apply(lambda row: getTempK(row), axis=1)
-
-        #Get Pa pressure
-        # df1['AirPressure(Pa)'] = df1.apply(lambda row: getPressPa(row), axis=1)      
-
-        #Construct and export BUFR file
+        # Construct and export BUFR file
         getBUFR(df1_limited, outFiles+bufrname)
         print(f'Successfully exported bufr file to {outFiles+bufrname}')  
 
