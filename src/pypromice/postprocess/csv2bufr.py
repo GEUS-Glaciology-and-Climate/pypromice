@@ -308,8 +308,9 @@ if __name__ == '__main__':
         # Convert air temp, C to Kelvin
         df1.t_i = df1.t_i + 273.15
 
-        # Convert pressure, hPa to Pa
-        df1.p_i = df1.p_i * 100.
+        # Convert pressure, correct the -1000 offset, then hPa to Pa
+        # note that instantaneous pressure has 0.01 hPa precision
+        df1.p_i = (df1.p_i+1000.) * 100.
 
         df1_limited = df1.last(args.time_limit) # limit to previous 2 weeks
 
