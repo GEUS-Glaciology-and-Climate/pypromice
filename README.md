@@ -1,4 +1,5 @@
 # pyPROMICE
+[![](<https://img.shields.io/badge/Dataverse DOI-10.22008/FK2/IPOHT5-orange>)](https://www.doi.org/10.22008/FK2/IPOHT5)
  
 The pyPROMICE toolbox is for retrieving, processing and handling PROMICE datasets. This is a development toolbox, compiled from several repositories:
 - Receive and decode transmissions from PROMICE automatic weather stations - [awsrx](https://github.com/GEUS-Glaciology-and-Climate/awsrx)
