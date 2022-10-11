@@ -184,7 +184,7 @@ def setAWSvariables(ibufr, row, timestamp):
 
     setBUFRvalue(ibufr, 'latitude', row['gps_lat'])
     setBUFRvalue(ibufr, 'longitude', row['gps_lon'])
-    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt'])
+    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt_smooth'])
     setBUFRvalue(ibufr, 'heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', row['z_boom_u'])
 
     #Set monitoring time period (-10=10 minutes)
@@ -206,7 +206,7 @@ def setAWSvariables(ibufr, row, timestamp):
                   row['z_boom_u']+0.4) # For wind speed
         if math.isnan(row['gps_alt']) is False:
             codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel',
-                      row['gps_alt']+row['z_boom_u'])
+                      row['gps_alt_smooth']+row['z_boom_u'])
 
 
 def getBUFR(df1, outBUFR, ed=4, master=0, vers=13,
@@ -311,6 +311,14 @@ if __name__ == '__main__':
         # Convert pressure, correct the -1000 offset, then hPa to Pa
         # note that instantaneous pressure has 0.01 hPa precision
         df1.p_i = (df1.p_i+1000.) * 100.
+
+        # Smooth altitude
+        df1['gps_alt_smooth'] = df1['gps_alt'].rolling(
+            '24H',
+            min_periods=1,
+            center=True, # set the window labels as the center of the window
+            closed='both' # no points in the window are excluded (first or last)
+            ).mean().round(decimals=1) # could also round to whole meters (decimals=0)?
 
         df1_limited = df1.last(args.time_limit) # limit to previous 2 weeks
 
