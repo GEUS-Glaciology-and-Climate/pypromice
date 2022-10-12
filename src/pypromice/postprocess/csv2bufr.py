@@ -210,7 +210,7 @@ def setAWSvariables(ibufr, row, timestamp):
 
 
 def getBUFR(df1, outBUFR, ed=4, master=0, vers=13,
-            template=307080, key='unexpandedDescriptors'):
+            template=307090, key='unexpandedDescriptors'):
     '''Construct and export .bufr messages to file from DataFrame.
 
     Parameters
@@ -226,7 +226,8 @@ def getBUFR(df1, outBUFR, ed=4, master=0, vers=13,
     vers : int
         Master table version number. The default is 13.
     template : int
-        Template table number. The default is 307080.
+        Template table number. 307090 is "BUFR template for synoptic reports from
+        mobile land stations suitable for SYNOP MOBIL data". Recommended by DMI.
     key : str
         Encoding key name. The default is "unexpandedDescriptors".
     '''
