@@ -62,7 +62,7 @@ tilt_x,platform_view_angle_x,Tilt to east,degrees,-30,30,dsr_cor usr_cor albedo,
 tilt_y,platform_view_angle_y,Tilt to north,degrees,-30,30,dsr_cor usr_cor albedo,all,all,4,physicalMeasurement,time lat lon alt,
 rot,platform_azimuth_angle,Station rotation from true North,degrees,0,360,,all,all,2,physicalMeasurement,time lat lon alt,v4 addition
 gps_lat,gps_latitude,Latitude,degrees_north,50,83,,all,all,6,coordinate,time lat lon alt,
-gps_lon,gps_longitude,Longitude,degrees_east,10,70,,all,all,6,coordinate,time lat lon alt,
+gps_lon,gps_longitude,Longitude,degrees_east,5,70,,all,all,6,coordinate,time lat lon alt,
 gps_alt,gps_altitude,Altitude,m,0,3000,,all,all,2,coordinate,time lat lon alt,
 gps_time,gps_time,GPS time,s,0,240000,,all,all,,coordinate,time lat lon alt,
 gps_geoid,gps_geoid_separation,Height of EGM96 geoid over WGS84 ellipsoid,m,,,,one-boom,all,,physicalMeasurement,time lat lon alt,
