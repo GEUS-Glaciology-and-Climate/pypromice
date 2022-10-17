@@ -26,15 +26,18 @@ https://confluence.ecmwf.int/display/ECC/WMO%3D13+element+table#WMO=13elementtab
 """
 import pandas as pd
 import glob, os, sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from eccodes import codes_set, codes_write, codes_release, \
                     codes_bufr_new_from_samples, CodesInternalError
 import math
-import datetime as dt
+import pickle
 
 from args import args
 
 from IPython import embed
+
+# To suppress SettingWithCopyWarning
+pd.options.mode.chained_assignment = None  # default='warn'
 
 #------------------------------------------------------------------------------
 
@@ -209,14 +212,14 @@ def setAWSvariables(ibufr, row, timestamp):
                       row['gps_alt_smooth']+row['z_boom_u'])
 
 
-def getBUFR(df1, outBUFR, ed=4, master=0, vers=13,
+def getBUFR(s1, outBUFR, ed=4, master=0, vers=13,
             template=307090, key='unexpandedDescriptors'):
     '''Construct and export .bufr messages to file from DataFrame.
 
     Parameters
     ----------
-    df1 : pandas.DataFrame
-        Pandas dataframe of weather station observations
+    s1 : pandas.Series
+        Pandas series of single most recent obset for a station
     outBUFR : str
         File path that .bufr file will be exported to
     ed : int
@@ -234,38 +237,36 @@ def getBUFR(df1, outBUFR, ed=4, master=0, vers=13,
     #Open bufr file
     fout = open(outBUFR, 'wb')
 
-    #Iterate over rows in weather observations dataframe
-    for i1, r1 in df1.iterrows():
+    # for i1, r1 in df1.iterrows(): # If dataframe passed w/ multiple rows
 
-        #Create new bufr message to write to
-        ibufr = codes_bufr_new_from_samples('BUFR4')
+    #Create new bufr message to write to
+    ibufr = codes_bufr_new_from_samples('BUFR4')
 
-        try:
-            #Get timestamp
-            timestamp = datetime.strptime(r1['time'], '%Y-%m-%d %H:%M:%S')
+    try:
+        #Get timestamp
+        timestamp = datetime.strptime(s1['time'], '%Y-%m-%d %H:%M:%S')
 
-            #Set table formatting and templating
-            #Strange to set this for every row... PJW
-            setTemplate(ibufr, timestamp)
+        #Set table formatting and templating
+        setTemplate(ibufr, timestamp)
 
-            #Set station info !!!! CHANGE !!!!
-            stationNumber=1
-            blockNumber=1
-            setStation(ibufr, stationNumber, blockNumber)
+        #Set station info !!!! CHANGE !!!!
+        stationNumber=1
+        blockNumber=1
+        setStation(ibufr, stationNumber, blockNumber)
 
-            #Set AWS measurments
-            setAWSvariables(ibufr, r1, timestamp)
+        #Set AWS measurments
+        setAWSvariables(ibufr, s1, timestamp)
 
-            #Encode keys in data section
-            codes_set(ibufr, 'pack', 1)                     
+        #Encode keys in data section
+        codes_set(ibufr, 'pack', 1)
 
-            #Write bufr message to bufr file
-            codes_write(ibufr, fout)
+        #Write bufr message to bufr file
+        codes_write(ibufr, fout)
 
-        except CodesInternalError as ec:
-            print(ec)
+    except CodesInternalError as ec:
+        print(ec)
 
-        codes_release(ibufr)
+    codes_release(ibufr)
 
     fout.close()
 
@@ -283,6 +284,8 @@ if __name__ == '__main__':
         sys.exit()
 
     stns = [name for name in os.listdir(l3path) if os.path.isdir(l3path)]
+    # Note that stn count includes Roof_PROMICE, Roof_GEUS and XXX
+    print('Processing {} stations'.format(len(stns)))
 
     # Get lookup table NOT USED!
     # lookup = pd.read_csv('./variables_bufr.csv', delimiter=',')
@@ -292,39 +295,71 @@ if __name__ == '__main__':
     if os.path.exists(outFiles) is False:
         os.mkdir(outFiles)
 
+    # Read existing timestamps pickle to dictionary
+    if os.path.isfile('latest_timestamps.pickle'):
+        with open('latest_timestamps.pickle', 'rb') as handle:
+            latest_timestamps = pickle.load(handle)
+    else:
+        print('latest_timestamps.pickle not found!')
+        latest_timestamps = {}
+    # Initiate a new dict for current timestamps
+    current_timestamps = {}
+
     # Iterate through csv files
     for fname in fpaths:
         # Generate output BUFR filename
         last_index = fname.rfind('_')
         first_index = fname.rfind('/')
-        bufrname = fname[first_index+1:last_index]+'.bufr'
-        # bufrname = fname.split('/')[-1].split('.csv')[0][:-5]+'.bufr'
+        stid = fname[first_index+1:last_index]
+        # stid = fname.split('/')[-1].split('.csv')[0][:-5]
+        bufrname = stid + '.bufr'
         print(f'Generating {bufrname} from {fname}')
 
         # Read csv file
         df1 = pd.read_csv(fname, delimiter=',')
-        # df1.index = pd.to_datetime(df1['time'])
         df1.set_index(pd.to_datetime(df1['time']), inplace=True)
+        df1.sort_index(inplace=True) # make sure we are time-sorted
 
-        # Convert air temp, C to Kelvin
-        df1.t_i = df1.t_i + 273.15
+        current_timestamp = df1.index.max()
+        current_timestamps[stid] = current_timestamp # set in the timestamps dict
+        if stid in latest_timestamps:
+            latest_timestamp = latest_timestamps[stid]
+            two_days_ago = datetime.utcnow() - timedelta(days=2)
 
-        # Convert pressure, correct the -1000 offset, then hPa to Pa
-        # note that instantaneous pressure has 0.01 hPa precision
-        df1.p_i = (df1.p_i+1000.) * 100.
+            if 1 == 1: # dev bypass
+            # if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
+                print('Time checks passed, proceeding with processing.')
 
-        # Smooth altitude
-        df1['gps_alt_smooth'] = df1['gps_alt'].rolling(
-            '24H',
-            min_periods=1,
-            center=True, # set the window labels as the center of the window
-            closed='both' # no points in the window are excluded (first or last)
-            ).mean().round(decimals=1) # could also round to whole meters (decimals=0)?
+                # Smooth altitude, using full timeseries (or smaller window...)
+                df1['gps_alt_smooth'] = df1['gps_alt'].rolling(
+                    '30D',
+                    min_periods=7,
+                    center=True, # set the window labels as the center of the window
+                    closed='both' # no points in the window are excluded (first or last)
+                    ).median().round(decimals=1) # could also round to whole meters (decimals=0)?
 
-        df1_limited = df1.last(args.time_limit) # limit to previous 2 weeks
+                # df1_limited = df1.last(args.time_limit) # limit to previous 2 weeks
+                s1_current = df1.loc[current_timestamp] # limit to single most recent row (series)
 
-        # Construct and export BUFR file
-        getBUFR(df1_limited, outFiles+bufrname)
-        print(f'Successfully exported bufr file to {outFiles+bufrname}')  
+                # Convert air temp, C to Kelvin
+                s1_current.t_i = s1_current.t_i + 273.15
 
-    print('Finished')
+                # Convert pressure, correct the -1000 offset, then hPa to Pa
+                # note that instantaneous pressure has 0.01 hPa precision
+                s1_current.p_i = (s1_current.p_i+1000.) * 100.
+
+                # Construct and export BUFR file
+                getBUFR(s1_current, outFiles+bufrname)
+                print(f'Successfully exported bufr file to {outFiles+bufrname}')
+            else:
+                print('Latest ob not processed.')
+                print('Current:', current_timestamp)
+                print('latest:', latest_timestamp)
+        else:
+            print('{} not found in latest_timestamps'.format(stid))
+    # Write the most recent timestamps back to the pickle on disk
+    print('writing latest_timestamps.pickle')
+    with open('latest_timestamps.pickle', 'wb') as handle:
+        pickle.dump(current_timestamps, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    print('Finished processing {} stations.'.format(len(stns)))

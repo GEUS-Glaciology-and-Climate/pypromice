@@ -21,7 +21,7 @@ parser.add_argument('--bufr-out',
     type=str,
     help='Path to the BUFR out directory.')
 
-parser.add_argument('--time-limit',
+parser.add_argument('--time-limit', # not currently used
     default='14D',
     type=str,
     help='Previous time to limit BUFR files.')
