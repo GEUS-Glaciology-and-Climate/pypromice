@@ -321,13 +321,15 @@ if __name__ == '__main__':
         df1.sort_index(inplace=True) # make sure we are time-sorted
 
         current_timestamp = df1.index.max()
-        current_timestamps[stid] = current_timestamp # set in the timestamps dict
+        # set in dict, will be written back to disk at end
+        current_timestamps[stid] = current_timestamp
+
         if stid in latest_timestamps:
             latest_timestamp = latest_timestamps[stid]
             two_days_ago = datetime.utcnow() - timedelta(days=2)
 
-            if 1 == 1: # dev bypass
-            # if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
+            # if 1 == 1: # dev bypass
+            if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
                 print('Time checks passed, proceeding with processing.')
 
                 # Smooth altitude, using full timeseries (or smaller window...)
@@ -337,6 +339,8 @@ if __name__ == '__main__':
                     center=True, # set the window labels as the center of the window
                     closed='both' # no points in the window are excluded (first or last)
                     ).median().round(decimals=1) # could also round to whole meters (decimals=0)?
+                #Smooth lat?
+                #Smooth lon?
 
                 # df1_limited = df1.last(args.time_limit) # limit to previous 2 weeks
                 s1_current = df1.loc[current_timestamp] # limit to single most recent row (series)
@@ -352,7 +356,7 @@ if __name__ == '__main__':
                 getBUFR(s1_current, outFiles+bufrname)
                 print(f'Successfully exported bufr file to {outFiles+bufrname}')
             else:
-                print('Latest ob not processed.')
+                print('Current ob not processed.')
                 print('Current:', current_timestamp)
                 print('latest:', latest_timestamp)
         else:
