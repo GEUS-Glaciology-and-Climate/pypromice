@@ -21,9 +21,9 @@ parser.add_argument('--bufr-out',
     type=str,
     help='Path to the BUFR out directory.')
 
-parser.add_argument('--time-limit', # not currently used
-    default='14D',
+parser.add_argument('--time-limit',
+    default='3M',
     type=str,
-    help='Previous time to limit BUFR files.')
+    help='Previous time to limit dataframe before applying linear regression.')
 
 args = parser.parse_args()

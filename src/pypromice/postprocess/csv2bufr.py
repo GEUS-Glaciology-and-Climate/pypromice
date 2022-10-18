@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Sep 9 13:44:49 2021
+Major modifications: Oct 2022
 
-@author: pho
+@author: pho, pajwr
 
-Playground script for converting PROMICE .csv files to WMO-compliant BUFR files
+Script for converting PROMICE .csv files to WMO-compliant BUFR files
 
 This script uses the package eccodes to run. 
 https://confluence.ecmwf.int/display/ECC/ecCodes+installation
@@ -31,13 +32,15 @@ from eccodes import codes_set, codes_write, codes_release, \
                     codes_bufr_new_from_samples, CodesInternalError
 import math
 import pickle
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
 from args import args
 
 from IPython import embed
 
 # To suppress SettingWithCopyWarning
-pd.options.mode.chained_assignment = None  # default='warn'
+pd.options.mode.chained_assignment = None # default='warn'
 
 #------------------------------------------------------------------------------
 
@@ -179,15 +182,15 @@ def setAWSvariables(ibufr, row, timestamp):
     setBUFRvalue(ibufr, 'hour', timestamp.hour)
     setBUFRvalue(ibufr, 'minute', timestamp.minute)
 
-    setBUFRvalue(ibufr, 'relativeHumidity', row['rh_i']) # rh_i vs rh_i_cor? PJW
+    setBUFRvalue(ibufr, 'relativeHumidity', row['rh_i']) # DMI wants non-corrected
     setBUFRvalue(ibufr, 'windSpeed', row['wspd_i'])
     setBUFRvalue(ibufr, 'windDirection', row['wdir_i'])
     setBUFRvalue(ibufr, 'airTemperature', row['t_i'])
     setBUFRvalue(ibufr, 'pressure', row['p_i'])
 
-    setBUFRvalue(ibufr, 'latitude', row['gps_lat'])
-    setBUFRvalue(ibufr, 'longitude', row['gps_lon'])
-    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt_smooth'])
+    setBUFRvalue(ibufr, 'latitude', row['gps_lat_fit'])
+    setBUFRvalue(ibufr, 'longitude', row['gps_lon_fit'])
+    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt_fit'])
     setBUFRvalue(ibufr, 'heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', row['z_boom_u'])
 
     #Set monitoring time period (-10=10 minutes)
@@ -207,9 +210,9 @@ def setAWSvariables(ibufr, row, timestamp):
         codes_set(ibufr,
                   '#8#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
                   row['z_boom_u']+0.4) # For wind speed
-        if math.isnan(row['gps_alt']) is False:
+        if math.isnan(row['gps_alt_fit']) is False:
             codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel',
-                      row['gps_alt_smooth']+row['z_boom_u'])
+                      row['gps_alt_fit']+row['z_boom_u'])
 
 
 def getBUFR(s1, outBUFR, ed=4, master=0, vers=13,
@@ -270,6 +273,81 @@ def getBUFR(s1, outBUFR, ed=4, master=0, vers=13,
 
     fout.close()
 
+def linear_fit(df, column, decimals):
+    '''Apply a linear regression to the input column
+
+    Parameters
+    ----------
+    df : pandas.Dataframe
+        datetime-indexed df, limited to desired time length for linear fit
+    column : str
+        The target column for applying linear fit
+    decimals : int
+        How many decimals to round the output fit values
+
+    Returns
+    -------
+    df : pandas.Dataframe
+        The original input df, with added column for the linear regression values
+
+    Linear regression is following:
+    https://realpython.com/linear-regression-in-python/#simple-linear-regression-with-scikit-learn
+    '''
+    df_dropna = df[df[column].notna()] # limit to only non-nan for the target column
+    if len(df_dropna[column]) > 0:
+        # Get datetime x values into epoch sec integers
+        x_epoch = df_dropna.index.values.astype(np.int64) // 10 ** 9
+        x = x_epoch.reshape(-1,1)
+        y = df_dropna[column].values # can also reshape this, but not necessary
+        model = LinearRegression().fit(x, y)
+        y_pred = model.predict(x).round(decimals=decimals)
+
+        # Plot data if desired
+        # if column == 'gps_alt':
+        #     import matplotlib.pyplot as plt
+        #     plt.scatter(x,y)
+        #     plt.plot(x,y_pred, color='red')
+        #     plt.show()
+
+        # Add y_pred back to original df
+        df_dropna['y_pred'] = y_pred
+        df['{}_fit'.format(column)] = df_dropna['y_pred']
+    else:
+        # There is no data! Just write NaNs using the original column
+        print('----> No {} data for {}!'.format(column, stid))
+        df['{}_fit'.format(column)] = df[column]
+    return df
+
+def rolling_window(df, column, window, min_periods, decimals):
+    '''Apply a rolling window (smoothing) to the input column
+    CURRENTLY NOT USED
+
+    Parameters
+    ----------
+    df : pandas.Dataframe
+        datetime-indexed df
+    column : str
+        The target column for applying rolling window
+    window : str
+        Window size (e.g. '24H' or 30D')
+    min_periods : int
+        Minimum number of observations in window required to have a value;
+        otherwise, result is np.nan.
+    decimals : int
+        How many decimal places to round the output smoothed values
+
+    Returns
+    -------
+    df : pandas.Dataframe
+        The original input df, with added column for the smoothed values
+    '''
+    df['{}_smooth'.format(column)] = df[column].rolling(
+        window,
+        min_periods=min_periods,
+        center=True, # set the window labels as the center of the window
+        closed='both' # no points in the window are excluded (first or last)
+        ).median().round(decimals=decimals) # could also round to whole meters (decimals=0)
+    return df
 
 #------------------------------------------------------------------------------
 
@@ -302,6 +380,7 @@ if __name__ == '__main__':
     else:
         print('latest_timestamps.pickle not found!')
         latest_timestamps = {}
+
     # Initiate a new dict for current timestamps
     current_timestamps = {}
 
@@ -328,28 +407,23 @@ if __name__ == '__main__':
             latest_timestamp = latest_timestamps[stid]
             two_days_ago = datetime.utcnow() - timedelta(days=2)
 
-            # if 1 == 1: # dev bypass
-            if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
+            if 1 == 1: # dev bypass
+            # if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
                 print('Time checks passed, proceeding with processing.')
+                # limit the dataframe for linear regression
+                df1_limited = df1.last(args.time_limit)
+                # Add '{}_fit' to df (linear fit of alt, lat, lon)
+                df1_limited = linear_fit(df1_limited, 'gps_alt', 1)
+                df1_limited = linear_fit(df1_limited, 'gps_lat', 6)
+                df1_limited = linear_fit(df1_limited, 'gps_lon', 6)
 
-                # Smooth altitude, using full timeseries (or smaller window...)
-                df1['gps_alt_smooth'] = df1['gps_alt'].rolling(
-                    '30D',
-                    min_periods=7,
-                    center=True, # set the window labels as the center of the window
-                    closed='both' # no points in the window are excluded (first or last)
-                    ).median().round(decimals=1) # could also round to whole meters (decimals=0)?
-                #Smooth lat?
-                #Smooth lon?
-
-                # df1_limited = df1.last(args.time_limit) # limit to previous 2 weeks
-                s1_current = df1.loc[current_timestamp] # limit to single most recent row (series)
+                s1_current = df1_limited.loc[current_timestamp] # limit to single most recent row (series)
 
                 # Convert air temp, C to Kelvin
                 s1_current.t_i = s1_current.t_i + 273.15
 
                 # Convert pressure, correct the -1000 offset, then hPa to Pa
-                # note that instantaneous pressure has 0.01 hPa precision
+                # note that instantaneous pressure has 0.1 hPa precision
                 s1_current.p_i = (s1_current.p_i+1000.) * 100.
 
                 # Construct and export BUFR file
