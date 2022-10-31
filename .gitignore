@@ -13,5 +13,5 @@ src/pypromice/test/STATION/*
 src/pypromice/postprocess/BUFR_out/*
 
 # Pickled timestamp reference file
-src/pypromice/postprocess/*.pickle
-src/pypromice/postprocess/*.pkl
+src/pypromice/postprocess/latest_timestamps.pickle
+src/pypromice/postprocess/latest_timestamps.pkl
