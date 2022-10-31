@@ -77,9 +77,9 @@ ibufr_settings = {
         # 'instrumentationForWindMeasurement': 6, #Unclear in docs how to set this
         'measuringEquipmentType': 0, #Pressure instrument associated with wind-measuring equipment
         'temperatureObservationPrecision': 0.1, #Kelvin
-        'pressureSensorType': 30, #Other
-        'temperatureSensorType': 30, #Other
-        'humiditySensorType': 30, #Other
+        'pressureSensorType': 0, #capacitance aneroid
+        'temperatureSensorType': 2, #capacitance bead
+        'humiditySensorType': 4, #capacitance sensor
         'anemometerType': 1, #propeller rotor
         'methodOfPrecipitationMeasurement': 1, #tipping bucket method
     }
