@@ -21,9 +21,6 @@ https://gist.github.com/MHBalsmeier/a01ad4e07ecf467c90fad2ac7719844a
 
 Processing steps based on this example:
 https://confluence.ecmwf.int/display/UDOC/How+do+I+create+BUFR+from+a+CSV+-+ecCodes+BUFR+FAQ
-
-According to DMI, the BUFR messages should adhere to Common Code Table 13:
-https://confluence.ecmwf.int/display/ECC/WMO%3D13+element+table#WMO=13elementtable-CL_1
 """
 import pandas as pd
 import glob, os, sys, traceback
