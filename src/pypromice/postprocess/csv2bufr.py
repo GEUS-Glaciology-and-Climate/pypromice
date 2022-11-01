@@ -29,7 +29,8 @@ import pandas as pd
 import glob, os, sys, traceback
 from datetime import datetime, timedelta
 from eccodes import codes_set, codes_write, codes_release, \
-                    codes_bufr_new_from_samples, CodesInternalError
+                    codes_bufr_new_from_samples, CodesInternalError, \
+                    codes_is_defined
 import math
 import pickle
 import numpy as np
@@ -104,7 +105,11 @@ def setTemplate(ibufr, timestamp):
         Timestamp of observation
     '''
     for k, v in ibufr_settings['template'].items():
-        codes_set(ibufr, k, v)
+        if codes_is_defined(ibufr, k) == 1:
+            codes_set(ibufr, k, v)
+        else:
+            print('-----> setTemplate Key not defined: {}'.format(k))
+            continue
 
     codes_set(ibufr, 'typicalYear', timestamp.year)
     codes_set(ibufr, 'typicalMonth', timestamp.month)
@@ -125,12 +130,18 @@ def setStation(ibufr, stid):
         The station ID to be processed. e.g. 'KPC_U'
     '''
     for k, v in ibufr_settings['station'].items():
-        if k == 'stationNumber':
-            # codes_set(ibufr, k, v[stid])
-            codes_set(ibufr, k, 1) # Force 1 for testing
+        if codes_is_defined(ibufr, k) == 1:
+            if k == 'shipOrMobileLandStationIdentifier':
+                if stid in v:
+                    codes_set(ibufr, k, str(v[stid]))
+                else:
+                    codes_set(ibufr, k, '1111111') # for testing
+                    # sys.exit('!!!!!!!!!! WMO ID not found for {}'.format(stid))
+            else:
+                codes_set(ibufr, k, v)
         else:
-            codes_set(ibufr, k, v)
-    codes_set(ibufr, 'stationOrSiteName', stid) # e.g. 'KPC_U'
+            print('-----> setStation Key not defined: {}'.format(k))
+            continue
 
 
 def setAWSvariables(ibufr, row, timestamp):
@@ -203,8 +214,8 @@ def setBUFRvalue(ibufr, b_name, value):
         except CodesInternalError as ec:
             print(f'{ec}: {b_name}')
             sys.exit('-----> CodesInternalError in setBUFRvalue!')
-    #else:
-    # do we need to specifically set a nan in the ibufr? PJW
+    else:
+        print('----> {} {}'.format(b_name, value))
 
 
 def linear_fit(df, column, decimals, stid):
@@ -343,7 +354,7 @@ if __name__ == '__main__':
 
             if 1 == 1: # dev bypass
             # if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
-                print('Time checks passed, proceeding with processing.')
+                print('Time checks passed.')
                 # limit the dataframe for linear regression
                 df1_limited = df1.last(args.time_limit)
                 # Add '{}_fit' to df (linear fit of alt, lat, lon)
@@ -363,8 +374,8 @@ if __name__ == '__main__':
                 # Construct and export BUFR file
                 getBUFR(s1_current, outFiles+bufrname, stid)
                 print(f'Successfully exported bufr file to {outFiles+bufrname}')
-                if stid == 'KPC_U':
-                    embed()
+                # if stid == 'KPC_U':
+                #     embed()
             else:
                 print('Current ob not processed for {}'.format(stid))
                 print('current:', current_timestamp)

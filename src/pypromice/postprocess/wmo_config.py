@@ -3,33 +3,32 @@
 Config file to store wmo-related reference objects
 Imported by csv2bufr.py
 Patrick Wright, GEUS
-Oct, 2022
+Nov, 2022
 
 see documentation here:
 https://confluence.ecmwf.int/display/ECC/Documentation
 
-WMO=13 element table
-https://confluence.ecmwf.int/display/ECC/WMO%3D13+element+table
+BUFR element table for WMO master table version 32
+https://confluence.ecmwf.int/display/ECC/WMO%3D32+element+table
 '''
 ibufr_settings = {
     'template': {
-        'unexpandedDescriptors': (307090), #message template, 307090 is "synopMobil"
-        'edition': 4, #latest edition
+        'unexpandedDescriptors': (307090), # message template, 307090 is "synopMobil"
+        'edition': 4, # latest edition
         'masterTableNumber': 0,
-        'masterTablesVersionNumber': 13,
+        'masterTablesVersionNumber': 32, # DMI recommends any table version between 28-32
         'localTablesVersionNumber': 0,
-        'bufrHeaderCentre': 94, #originating centre 98=ECMWF, 94=DMI
+        'bufrHeaderCentre': 94, # originating centre 98=ECMWF, 94=DMI
         # 'bufrHeaderSubCentre': 0,
-        'updateSequenceNumber': 0, #0 is original message, incremented by 1 for updates
-        'dataCategory': 0, #surface data - land
-        'internationalDataSubCategory': 3, #hourly synoptic observations from mobile-land stations (SYNOP MOBIL)
+        'updateSequenceNumber': 0, # 0 is original message, incremented by 1 for updates
+        'dataCategory': 0, # surface data - land
+        'internationalDataSubCategory': 3, # hourly synoptic observations from mobile-land stations (SYNOP MOBIL)
         # 'dataSubCategory': 0,
         'observedData': 1,
         'compressedData': 0,
     },
     'station': {
-        'stationNumber': {
-            #ECCODES ERROR:encode_double_value: stationNumber (001002). Value (4.20422e+06) out of range (minAllowed=0, maxAllowed=1023).
+        'shipOrMobileLandStationIdentifier': {
             'CEN_A': 4204207,
             'CEN_T': 4204208,
             'CEN_i': 4204229, #CEN1 & CEN2?
@@ -62,26 +61,25 @@ ibufr_settings = {
             'UPE_L': 4204226,
             'UPE_U': 4204227
         },
-        'blockNumber': 4, #4 is Greenland, 6 is Denmark
-        'regionNumber': 7, #7 is MISSING VALUE, 6 is Europe
-        'centre': 94, #Copenhagen
-        # 'agencyInChargeOfOperatingObservingPlatform': xx, #CODE TABLE?
+        # 'blockNumber': 4, # 4 is Greenland, 6 is Denmark; not valid if using synopMobil template
+        'regionNumber': 6, # 6 is Europe, 7 is MISSING VALUE
+        'centre': 94, # 94 is Copenhagen
+        # 'agencyInChargeOfOperatingObservingPlatform': , #CODE TABLE?
         # 'wmoRegionSubArea': 1,
-        # 'stationOrSiteName': xx, #use stid to set this directly (e.g. KPC_U)
-        # 'shortStationName': xx,
-        # 'longStationName': xx,
-        # 'shipOrMobileLandStationIdentifier': xx,
+        # 'stationOrSiteName': , # not valid if using synopMobil template
+        # 'shortStationName': , # not valid if using synopMobil template
+        # 'longStationName': , # not valid if using synopMobil template
         # 'directionOfMotionOfMovingObservingPlatform': ,
         # 'movingObservingPlatformSpeed': ,
-        'stationType': 0, #automatic station
-        # 'instrumentationForWindMeasurement': 6, #Unclear in docs how to set this
-        'measuringEquipmentType': 0, #Pressure instrument associated with wind-measuring equipment
-        'temperatureObservationPrecision': 0.1, #Kelvin
-        'pressureSensorType': 0, #capacitance aneroid
-        'temperatureSensorType': 2, #capacitance bead
-        'humiditySensorType': 4, #capacitance sensor
-        'anemometerType': 1, #propeller rotor
-        'methodOfPrecipitationMeasurement': 1, #tipping bucket method
+        'stationType': 0, # automatic station
+        # 'instrumentationForWindMeasurement': 6, # Unclear in docs how to set this
+        # 'measuringEquipmentType': 0, # Pressure instrument associated with wind-measuring equipment; not valid if using synopMobil template
+        # 'temperatureObservationPrecision': 0.1, # Kelvin; not valid if using synopMobil template
+        # 'pressureSensorType': 0, # capacitance aneroid; not valid if using synopMobil template
+        # 'temperatureSensorType': 2, # capacitance bead; not valid if using synopMobil template
+        # 'humiditySensorType': 4, # capacitance sensor; not valid if using synopMobil template
+        # 'anemometerType': 1, # propeller rotor; not valid if using synopMobil template
+        # 'methodOfPrecipitationMeasurement': 1, # tipping bucket method; not valid if using synopMobil template
     }
 }
 
