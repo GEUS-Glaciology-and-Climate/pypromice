@@ -160,37 +160,34 @@ def setAWSvariables(ibufr, row, timestamp):
     setBUFRvalue(ibufr, 'minute', timestamp.minute)
 
     setBUFRvalue(ibufr, 'relativeHumidity', row['rh_i']) # DMI wants non-corrected
-    setBUFRvalue(ibufr, 'windSpeed', row['wspd_i'])
-    setBUFRvalue(ibufr, 'windDirection', row['wdir_i'])
     setBUFRvalue(ibufr, 'airTemperature', row['t_i'])
     setBUFRvalue(ibufr, 'pressure', row['p_i'])
+    setBUFRvalue(ibufr, 'windDirection', row['wdir_i'])
+    setBUFRvalue(ibufr, 'windSpeed', row['wspd_i'])
 
     setBUFRvalue(ibufr, 'latitude', row['gps_lat_fit'])
     setBUFRvalue(ibufr, 'longitude', row['gps_lon_fit'])
     setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt_fit']) # also height and heightOfStation?
-    setBUFRvalue(ibufr, 'heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', row['z_boom_u'])
 
-    #Set monitoring time period (-10=10 minutes)
-    # if math.isnan(row['wspd_i']) is False:
-    #     codes_set(ibufr, '#11#timePeriod', -10)
-
-    #Set time significance (2=temporally averaged)
-    # codes_set(ibufr, '#1#timeSignificance', 2)
-    # if math.isnan(row['wspd_i']) is False:
-    #     codes_set(ibufr, '#2#timeSignificance', 2)
+    if math.isnan(row['wspd_i']) is False:
+        #Set time significance (2=temporally averaged)
+        codes_set(ibufr, '#1#timeSignificance', 2)
+        #Set monitoring time period (-10=10 minutes)
+        codes_set(ibufr, '#10#timePeriod', -10)
 
     #Set measurement heights
-    if math.isnan(row['z_boom_u']) is False:
+    if math.isnan(row['z_boom_u_smooth']) is False:
         codes_set(ibufr,
-                  '#2#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
-                  row['z_boom_u']-0.1) # For air temp
+                  '#1#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
+                  row['z_boom_u_smooth']-0.1) # For air temp and RH
         codes_set(ibufr,
-                  '#8#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
-                  row['z_boom_u']+0.4) # For wind speed
+                  '#7#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
+                  row['z_boom_u_smooth']+0.4) # For wind speed
         if math.isnan(row['gps_alt_fit']) is False:
             codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel',
-                      row['gps_alt_fit']+row['z_boom_u'])
-
+                      row['gps_alt_fit']+row['z_boom_u_smooth']) # For pressure
+    # if stid == 'KPC_U':
+    #     embed()
 
 def setBUFRvalue(ibufr, b_name, value):
     '''Set variable in BUFR message
@@ -265,7 +262,6 @@ def linear_fit(df, column, decimals, stid):
 
 def rolling_window(df, column, window, min_periods, decimals):
     '''Apply a rolling window (smoothing) to the input column
-    CURRENTLY NOT USED
 
     Parameters
     ----------
@@ -294,6 +290,30 @@ def rolling_window(df, column, window, min_periods, decimals):
         ).median().round(decimals=decimals) # could also round to whole meters (decimals=0)
     return df
 
+def round_values(s):
+    '''Enforce precision
+    Note the sensor accuracies listed here:
+    https://essd.copernicus.org/articles/13/3819/2021/#section8
+    In addition to sensor accuracy, WMO requires pressure and heights
+    to be reported at 0.1 precision.
+    
+    Parameters
+    ----------
+    s : pandas series (could also be a dataframe)
+
+    Returns
+    -------
+    s : pandas series (could also be a dataframe)
+    '''
+    s['rh_i'] = s['rh_i'].round(decimals=0)
+    s['wspd_i'] = s['wspd_i'].round(decimals=1)
+    s['wdir_i'] = s['wdir_i'].round(decimals=0)
+    s['t_i'] = s['t_i'].round(decimals=1)
+    s['p_i'] = s['p_i'].round(decimals=1)
+
+    # gps_lat,gps_lon,gps_alt,z_boom_u are all rounded in linear_fit() or rolling_window()
+    return s
+
 #------------------------------------------------------------------------------
 
 if __name__ == '__main__':
@@ -302,8 +322,7 @@ if __name__ == '__main__':
         l3path = args.l3_path_dev
         fpaths = glob.glob(args.l3_files_dev)
     else:
-        print('Prod paths not yet defined. Need to pass --dev.')
-        sys.exit()
+        sys.exit('Prod paths not yet defined. Need to pass --dev.')
 
     stns = [name for name in os.listdir(l3path) if os.path.isdir(l3path)]
     # Note that stn count includes Roof_PROMICE, Roof_GEUS and XXX
@@ -341,7 +360,12 @@ if __name__ == '__main__':
         df1.set_index(pd.to_datetime(df1['time']), inplace=True)
         df1.sort_index(inplace=True) # make sure we are time-sorted
 
-        current_timestamp = df1.index.max()
+        # We cannot always use the single most-recent timestamp in the dataframe
+        # For 6-hr transmissions, *_u will have hourly data while *_i is nan
+        # Need to check for last valid (non-nan) instead, using t_i as a proxy
+        # current_timestamp = df1.index.max()
+        current_timestamp = df1['t_i'].last_valid_index()
+
         # set in dict, will be written back to disk at end
         current_timestamps[stid] = current_timestamp
 
@@ -352,14 +376,26 @@ if __name__ == '__main__':
             if 1 == 1: # dev bypass
             # if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
                 print('Time checks passed.')
-                # limit the dataframe for linear regression
+                # limit the dataframe for linear regression (e.g. previous 3 months)
                 df1_limited = df1.last(args.time_limit)
                 # Add '{}_fit' to df (linear fit of alt, lat, lon)
                 df1_limited = linear_fit(df1_limited, 'gps_alt', 1, stid)
                 df1_limited = linear_fit(df1_limited, 'gps_lat', 6, stid)
                 df1_limited = linear_fit(df1_limited, 'gps_lon', 6, stid)
 
-                s1_current = df1_limited.loc[current_timestamp] # limit to single most recent row (series)
+                # Apply smoothing to z_boom_u
+                # require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
+                df1_limited = rolling_window(df1_limited, 'z_boom_u', '72H', 2, 1)
+
+                # limit to single most recent row (series)
+                if args.dev is True:
+                    # In prod, we start with a time check. This is only needed when 1==1 bypass is enabled above.
+                    if current_timestamp in df1_limited.index:
+                        s1_current = df1_limited.loc[current_timestamp]
+                    else:
+                        continue
+                else:
+                    s1_current = df1_limited.loc[current_timestamp]
 
                 # Convert air temp, C to Kelvin
                 s1_current.t_i = s1_current.t_i + 273.15
@@ -368,13 +404,15 @@ if __name__ == '__main__':
                 # note that instantaneous pressure has 0.1 hPa precision
                 s1_current.p_i = (s1_current.p_i+1000.) * 100.
 
+                s1_current = round_values(s1_current)
+
                 # Construct and export BUFR file
                 getBUFR(s1_current, outFiles+bufrname, stid)
                 print(f'Successfully exported bufr file to {outFiles+bufrname}')
                 # if stid == 'KPC_U':
                 #     embed()
             else:
-                print('Current ob not processed for {}'.format(stid))
+                print('Time checks failled for {}'.format(stid))
                 print('current:', current_timestamp)
                 print('latest:', latest_timestamp)
         else:

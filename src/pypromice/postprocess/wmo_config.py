@@ -13,16 +13,16 @@ https://confluence.ecmwf.int/display/ECC/WMO%3D32+element+table
 '''
 ibufr_settings = {
     'template': {
-        'unexpandedDescriptors': (307090), # message template, 307090 is "synopMobil"
-        'edition': 4, # latest edition
+        'unexpandedDescriptors': (307090), #message template, 307090 is "synopMobil"
+        'edition': 4, #latest edition
         'masterTableNumber': 0,
-        'masterTablesVersionNumber': 32, # DMI recommends any table version between 28-32
+        'masterTablesVersionNumber': 32, #DMI recommends any table version between 28-32
         'localTablesVersionNumber': 0,
-        'bufrHeaderCentre': 94, # originating centre 98=ECMWF, 94=DMI
+        'bufrHeaderCentre': 94, #originating centre 98=ECMWF, 94=DMI
         # 'bufrHeaderSubCentre': 0,
-        'updateSequenceNumber': 0, # 0 is original message, incremented by 1 for updates
-        'dataCategory': 0, # surface data - land
-        'internationalDataSubCategory': 3, # hourly synoptic observations from mobile-land stations (SYNOP MOBIL)
+        'updateSequenceNumber': 0, #0 is original message, incremented by 1 for updates
+        'dataCategory': 0, #surface data - land
+        'internationalDataSubCategory': 3, #hourly synoptic observations from mobile-land stations (SYNOP MOBIL)
         # 'dataSubCategory': 0,
         'observedData': 1,
         'compressedData': 0,
@@ -61,25 +61,26 @@ ibufr_settings = {
             'UPE_L': 4204226,
             'UPE_U': 4204227
         },
-        # 'blockNumber': 4, # 4 is Greenland, 6 is Denmark; not valid if using synopMobil template
-        'regionNumber': 6, # 6 is Europe, 7 is MISSING VALUE
-        'centre': 94, # 94 is Copenhagen
-        # 'agencyInChargeOfOperatingObservingPlatform': , #CODE TABLE?
+        # 'blockNumber': 4, #4 is Greenland, 6 is Denmark; not valid if using synopMobil template
+        'regionNumber': 6, #6 is Europe, 7 is MISSING VALUE
+        'centre': 94, #94 is Copenhagen
+        # 'agencyInChargeOfOperatingObservingPlatform': , #nothing for DMI or GEUS in code table
         # 'wmoRegionSubArea': 1,
-        # 'stationOrSiteName': , # not valid if using synopMobil template
-        # 'shortStationName': , # not valid if using synopMobil template
-        # 'longStationName': , # not valid if using synopMobil template
+        # 'stationOrSiteName': , #not valid if using synopMobil template
+        # 'shortStationName': , #not valid if using synopMobil template
+        # 'longStationName': , #not valid if using synopMobil template
         # 'directionOfMotionOfMovingObservingPlatform': ,
         # 'movingObservingPlatformSpeed': ,
-        'stationType': 0, # automatic station
-        # 'instrumentationForWindMeasurement': 6, # Unclear in docs how to set this
-        # 'measuringEquipmentType': 0, # Pressure instrument associated with wind-measuring equipment; not valid if using synopMobil template
-        # 'temperatureObservationPrecision': 0.1, # Kelvin; not valid if using synopMobil template
-        # 'pressureSensorType': 0, # capacitance aneroid; not valid if using synopMobil template
-        # 'temperatureSensorType': 2, # capacitance bead; not valid if using synopMobil template
-        # 'humiditySensorType': 4, # capacitance sensor; not valid if using synopMobil template
-        # 'anemometerType': 1, # propeller rotor; not valid if using synopMobil template
-        # 'methodOfPrecipitationMeasurement': 1, # tipping bucket method; not valid if using synopMobil template
+        'stationType': 0, #automatic station
+        'instrumentationForWindMeasurement': 8, #certified instruments
+        # 'measuringEquipmentType': 0, #Pressure instrument associated with wind-measuring equipment; not valid if using synopMobil template
+        # 'temperatureObservationPrecision': 0.1, #Kelvin; not valid if using synopMobil template
+        # 'pressureSensorType': 0, #capacitance aneroid; not valid if using synopMobil template
+        # 'temperatureSensorType': 2, #capacitance bead; not valid if using synopMobil template
+        # 'humiditySensorType': 4, #capacitance sensor; not valid if using synopMobil template
+        # 'anemometerType': 1, #propeller rotor; not valid if using synopMobil template
+        # 'methodOfPrecipitationMeasurement': 1, #tipping bucket method; not valid if using synopMobil template
+        'stationElevationQualityMarkForMobileStations': 1, #Excellent - within 3m
     }
 }
 
