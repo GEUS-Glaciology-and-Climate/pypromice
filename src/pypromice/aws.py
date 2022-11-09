@@ -21,6 +21,7 @@ except:
 pd.set_option('display.precision', 2)
 xr.set_options(keep_attrs=True)
 
+# from IPython import embed
 #------------------------------------------------------------------------------
 
 class AWS(object):
@@ -47,8 +48,15 @@ class AWS(object):
         self.config = self.loadConfig(config_file, inpath)
         self.vars = getVars(var_file)
         self.meta = getMeta(meta_file)
-        
+
+        # Hard-wire the msg_lat and msg_lon here
+        # Prevents having to list these vars in the individual station toml files
+        config_keys = list(self.config.keys())
+        for i in config_keys:
+            self.config[i]['columns'].extend(['msg_lat', 'msg_lon'])
+
         L0 = self.loadL0(config_file, inpath)
+
         self.L0=[]
         for l in L0:
             n = getColNames(self.vars, l.attrs['number_of_booms'], l.attrs['format'])
@@ -57,7 +65,7 @@ class AWS(object):
             print(f'Processing data from {self.L0.attrs["station_id"]}...') 
         except:
             print(f'Processing data from {self.L0[0].attrs["station_id"]}...')         
-        
+
         # Proces L0 to L3 product
         self.process()
     
@@ -71,7 +79,6 @@ class AWS(object):
         # Re-format time 
         t = self.L3['time'].values
         self.L3['time'] = list(t)                                              # TODO this is an attempt to de-bug datetime64 problem for importing nc data. However, it currently does not work
-
         # Add variables and metadata
         self.L3 = self.addAttributes(self.L3)
                    
@@ -166,19 +173,43 @@ class AWS(object):
         
     def loadL0(self, conf, L0_path):
         '''Load PROMICE AWS level 0 (L0) data from associated TOML-formatted 
-        config file and L0 data file'''
+        config file and L0 data file
+
+        Try _readL0file() using the config with msg_lat & msg_lon appended.
+        The specific ParserError except will occur when the number of columns in the tx
+        file does not match the expected columns. In this case, remove msg_lat & msg_lon
+        from the config and call _readL0file() again. These station files either have no
+        data after Nov 2022 (when msg_lat & msg_lon were added to processing), or for
+        whatever reason these fields did not exist in the modem message and were not added.
+        PJW
+        '''
         c = self.config
         if len(c.keys()) == 1: # one file in this config
-            ds = self._readL0file(c[list(c.keys())[0]])
+            target = c[list(c.keys())[0]]
+            try:
+                ds = self._readL0file(target)
+            except pd.errors.ParserError as e:
+                # ParserError: Too many columns specified: expected 40 and found 38
+                print(f'-----> No msg_lat or msg_lon for {list(c.keys())[0]}')
+                for item in ['msg_lat', 'msg_lon']:
+                    target['columns'].remove(item) # also removes from self.config
+                ds = self._readL0file(target)
             print(f'L0 data successfully loaded from {list(c.keys())[0]}')
             return [ds]
         else:
             ds_list = []
             for k in c.keys():
-                ds_list.append(self._readL0file(c[k]))
+                try:
+                    ds_list.append(self._readL0file(c[k]))
+                except pd.errors.ParserError as e:
+                    # ParserError: Too many columns specified: expected 40 and found 38
+                    print(f'-----> No msg_lat or msg_lon for {k}')
+                    for item in ['msg_lat', 'msg_lon']:
+                        c[k]['columns'].remove(item) # also removes from self.config
+                    ds_list.append(self._readL0file(c[k]))
                 print(f'L0 data successfully loaded from {k}')
-            return ds_list    
-        
+            return ds_list
+
     def _readL0file(self, conf):
         ''' Read L0 .txt file to Dataset object using config dictionary and
         populate with initial metadata'''
@@ -249,27 +280,30 @@ def getL0(infile, nodata, cols, skiprows, file_version,
     -------
     ds : xarray.Dataset
         L0 Dataset
-    '''    
+    '''
     if file_version == 1:        
         df = pd.read_csv(infile, comment=comment, index_col=0, 
                          na_values=nodata, names=cols, 
                          parse_dates={'time': ['year', 'doy', 'hhmm']}, 
                          date_parser=_getDateParserV1, sep=delimiter,
                          skiprows=skiprows, skip_blank_lines=True,
-                         usecols=range(len(cols)))
+                         usecols=range(len(cols))
+                         )
     else:
         df = pd.read_csv(infile, comment=comment, index_col=0,
                          na_values=nodata, names=cols, parse_dates=True,
                          sep=delimiter, skiprows=skiprows,
-                         skip_blank_lines=True, usecols=range(len(cols)))        
-    
+                         skip_blank_lines=True,
+                         usecols=range(len(cols))
+                         )
+
     # Drop SKIP columns
     for c in df.columns:
         if c[0:4] == 'SKIP':
             df.drop(columns=c, inplace=True)
 
     # Carry relevant metadata with ds
-    ds = xr.Dataset.from_dataframe(df)    
+    ds = xr.Dataset.from_dataframe(df)
     return ds
 
 def addBasicMeta( ds, vars_df):
@@ -713,17 +747,19 @@ class TestProcess(unittest.TestCase):
 if __name__ == "__main__":
 
     # Test an individual station
-    test_station = 'CEN2'
-    config_file = '../../../aws-data/raw/config/{}.toml'.format(test_station)
-    inpath= '../../../aws-data/raw/{}/'.format(test_station)
+    test_station = 'KPC_U'
+    # config_file = '../../../aws-data/raw/config/{}.toml'.format(test_station)
+    config_file = '../../../aws-data/tx/config/{}.toml'.format(test_station)
+    # inpath= '../../../aws-data/raw/{}/'.format(test_station)
+    inpath= '../../../aws-data/tx/'
     outpath = 'test/STATION/'
     vari = 'variables.csv'
     pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
 
     # Use test configs
-    config_files = ['test/test_config1.toml', 'test/test_config2.toml']
-    inpath= 'test/'
-    outpath = 'test/'
-    vari = 'variables.csv'
-    for cf in config_files:
-        pAWS_gc = AWS(cf, inpath, outpath, var_file=vari)
+    # config_files = ['test/test_config1.toml', 'test/test_config2.toml']
+    # inpath= 'test/'
+    # outpath = 'test/'
+    # vari = 'variables.csv'
+    # for cf in config_files:
+    #     pAWS_gc = AWS(cf, inpath, outpath, var_file=vari)

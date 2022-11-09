@@ -70,7 +70,11 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
             
     for l in ['gps_lat', 'gps_lon', 'gps_alt','gps_time']:
         ds[l] = _reformatArray(ds[l])  
-    
+
+    # Switch msg_lon to positive to be consistent with gps_lon
+    if 'msg_lon' in ds:
+        ds['msg_lon'] = ds['msg_lon'] * -1
+
     if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
         ds['gps_lat'] = _reformatGPS(ds['gps_lat'], ds.attrs['latitude'])
         ds['gps_lon'] = _reformatGPS(ds['gps_lon'], ds.attrs['longitude'])

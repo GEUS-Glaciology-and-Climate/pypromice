@@ -90,3 +90,5 @@ wdir_i,wind_from_direction,Wind from direction (instantaneous),degrees,1,360,wsp
 wspd_x_i,wind_speed_from_x_direction,Wind speed from x direction (instantaneous),m s-1,-100,100,wdir_i wspd_i,all,,4,modelResult,time lat lon alt,For meteorological observations
 wspd_y_i,wind_speed_from_y_direction,Wind speed from y direction (instantaneous),m s-1,-100,100,wdir_i wspd_i,all,,4,modelResult,time lat lon alt,For meteorological observations
 msg_i,message,Message string (instantaneous),-,,,,all,TX,,qualityInformation,time lat lon alt,For meteorological observations
+msg_lat,message_latitude,latitude from modem (email text),degrees_north,50,83,,all,all,6,coordinate,time lat lon alt,
+msg_lon,message_longitude,longitude from modem (email text),degrees_west,5,70,,all,all,6,coordinate,time lat lon alt,
