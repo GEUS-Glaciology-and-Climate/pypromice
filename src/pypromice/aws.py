@@ -66,7 +66,7 @@ class AWS(object):
         except:
             print(f'Processing data from {self.L0[0].attrs["station_id"]}...')         
 
-        # Proces L0 to L3 product
+        # Process L0 to L3 product
         self.process()
     
         # Resample L3 product
@@ -79,9 +79,15 @@ class AWS(object):
         # Re-format time 
         t = self.L3['time'].values
         self.L3['time'] = list(t)                                              # TODO this is an attempt to de-bug datetime64 problem for importing nc data. However, it currently does not work
-        # Add variables and metadata
+        
+        # Switch gps_lon to negative (degrees_east)
+        # Do this here, and NOT in addMeta, otherwise we switch back to positive
+        # when calling getMeta in joinL3! PJW
+        self.L3['gps_lon'] = self.L3['gps_lon'] * -1
+
+        # Add variable attributes and metadata
         self.L3 = self.addAttributes(self.L3)
-                   
+       
         # # Resample to hourly, daily and monthly products
         # self.L3_h = self.resample('60min')
         # self.L3_d = self.resample('1D')
@@ -532,12 +538,9 @@ def addMeta(ds, meta):
     -------
     ds : xarray.Dataset
         Dataset with metadata
-   '''  
-    a = ds['gps_lon'].attrs
-    ds['gps_lon'] = -1 * ds['gps_lon']
-    ds['gps_lon'].attrs = a
+   '''
     ds['lon'] = ds['gps_lon'].mean()
-    ds['lon'].attrs = a
+    ds['lon'].attrs = ds['gps_lon'].attrs
     
     ds['lat'] = ds['gps_lat'].mean()
     ds['lat'].attrs = ds['gps_lat'].attrs
