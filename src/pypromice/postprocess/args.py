@@ -6,10 +6,10 @@ parser.add_argument('--dev',
     action='store_true',
     help='If included (True), run in dev mode.')
 
-parser.add_argument('--l3-path-dev',
-    default='/home/pwright/GEUS/pypromice-dev/aws-l3/tx',
-    type=str,
-    help='Path to the dev l3 directory.')
+# parser.add_argument('--l3-path-dev',
+#     default='/home/pwright/GEUS/pypromice-dev/aws-l3/tx',
+#     type=str,
+#     help='Path to the dev l3 directory.')
 
 parser.add_argument('--l3-files-dev',
     default='/home/pwright/GEUS/pypromice-dev/aws-l3/tx/*/*_hour.csv',

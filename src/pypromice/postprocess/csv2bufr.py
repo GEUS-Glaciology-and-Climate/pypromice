@@ -238,29 +238,34 @@ def linear_fit(df, column, decimals, stid):
     Linear regression is following:
     https://realpython.com/linear-regression-in-python/#simple-linear-regression-with-scikit-learn
     '''
-    df_dropna = df[df[column].notna()] # limit to only non-nan for the target column
-    if len(df_dropna[column]) > 0:
-        # Get datetime x values into epoch sec integers
-        x_epoch = df_dropna.index.values.astype(np.int64) // 10 ** 9
-        x = x_epoch.reshape(-1,1)
-        y = df_dropna[column].values # can also reshape this, but not necessary
-        model = LinearRegression().fit(x, y)
-        y_pred = model.predict(x).round(decimals=decimals)
+    if column in df:
+        df_dropna = df[df[column].notna()] # limit to only non-nan for the target column
+        if len(df_dropna[column]) > 0:
+            # Get datetime x values into epoch sec integers
+            x_epoch = df_dropna.index.values.astype(np.int64) // 10 ** 9
+            x = x_epoch.reshape(-1,1)
+            y = df_dropna[column].values # can also reshape this, but not necessary
+            model = LinearRegression().fit(x, y)
+            y_pred = model.predict(x).round(decimals=decimals)
 
-        # Plot data if desired
-        # if column == 'gps_alt':
-        #     import matplotlib.pyplot as plt
-        #     plt.scatter(x,y)
-        #     plt.plot(x,y_pred, color='red')
-        #     plt.show()
+            # Plot data if desired
+            # if column == 'gps_alt':
+            #     import matplotlib.pyplot as plt
+            #     plt.scatter(x,y)
+            #     plt.plot(x,y_pred, color='red')
+            #     plt.show()
 
-        # Add y_pred back to original df
-        df_dropna['y_pred'] = y_pred
-        df['{}_fit'.format(column)] = df_dropna['y_pred']
+            # Add y_pred back to original df
+            df_dropna['y_pred'] = y_pred
+            df['{}_fit'.format(column)] = df_dropna['y_pred']
+        else:
+            # All data is NaN! Just write NaNs using the original column
+            print('----> No {} data for {}!'.format(column, stid))
+            df['{}_fit'.format(column)] = df[column]
     else:
-        # There is no data! Just write NaNs using the original column
-        print('----> No {} data for {}!'.format(column, stid))
-        df['{}_fit'.format(column)] = df[column]
+        print('----> {} not found in dataframe!'.format(column))
+        pass
+
     return df
 
 
@@ -307,7 +312,7 @@ def round_values(s):
 
     Returns
     -------
-    s : pandas series (could also be a dataframe)
+    s : modified pandas series (could also be a dataframe)
     '''
     s['rh_i'] = s['rh_i'].round(decimals=0)
     s['wspd_i'] = s['wspd_i'].round(decimals=1)
@@ -318,19 +323,46 @@ def round_values(s):
     # gps_lat,gps_lon,gps_alt,z_boom_u are all rounded in linear_fit() or rolling_window()
     return s
 
+def replace_missing_gps(s):
+    '''Check gps_lat and gps_lon, if NaN then use msg_lat and msg_lon
+
+    Parameters
+    ----------
+    s : pandas series
+
+    Returns
+    -------
+    s : modified pandas series
+    '''
+    to_check = ['lat','lon']
+    for i in to_check:
+        if (f'gps_{i}_fit' in s) and (f'msg_{i}_fit' in s):
+            if pd.isna(s[f'gps_{i}_fit']) is True:
+                if (pd.isna(s[f'msg_{i}_fit']) is False) and (s[f'msg_{i}_fit'] != 0.0):
+                    print(f'----> Replacing gps_{i} with msg_{i}')
+                    s[f'gps_{i}_fit'] = s[f'msg_{i}_fit']
+    return s
+
 #------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     # Get station names and file paths
     if args.dev is True:
-        l3path = args.l3_path_dev
+        # l3path = args.l3_path_dev
         fpaths = glob.glob(args.l3_files_dev)
     else:
         sys.exit('Prod paths not yet defined. Need to pass --dev.')
 
-    stns = [name for name in os.listdir(l3path) if os.path.isdir(l3path)]
-    # Note that stn count includes Roof_PROMICE, Roof_GEUS and XXX
-    print('Processing {} stations'.format(len(stns)))
+    # stns = [name for name in os.listdir(l3path) if os.path.isdir(l3path)]
+
+    to_remove = []
+    for f in fpaths:
+        if ('v3' in f) or ('Roof' in f) or ('XXX' in f):
+            print(f'Skipping {f}')
+            to_remove.append(f)
+    fpaths = [x for x in fpaths if x not in to_remove]
+
+    print('Processing {} stations'.format(len(fpaths)))
 
     # Make out dir
     outFiles = args.bufr_out
@@ -365,10 +397,11 @@ if __name__ == '__main__':
         df1.sort_index(inplace=True) # make sure we are time-sorted
 
         # We cannot always use the single most-recent timestamp in the dataframe
-        # For 6-hr transmissions, *_u will have hourly data while *_i is nan
+        # e.g. for 6-hr transmissions, *_u will have hourly data while *_i is nan
         # Need to check for last valid (non-nan) instead, using t_i as a proxy
-        # current_timestamp = df1.index.max()
         current_timestamp = df1['t_i'].last_valid_index()
+        # current_timestamp = df1.index.max()
+        print(f'TIMESTAMP: {current_timestamp}')
 
         # set in dict, will be written back to disk at end
         current_timestamps[stid] = current_timestamp
@@ -386,6 +419,8 @@ if __name__ == '__main__':
                 df1_limited = linear_fit(df1_limited, 'gps_alt', 1, stid)
                 df1_limited = linear_fit(df1_limited, 'gps_lat', 6, stid)
                 df1_limited = linear_fit(df1_limited, 'gps_lon', 6, stid)
+                df1_limited = linear_fit(df1_limited, 'msg_lat', 6, stid)
+                df1_limited = linear_fit(df1_limited, 'msg_lon', 6, stid)
 
                 # Apply smoothing to z_boom_u
                 # require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
@@ -410,6 +445,8 @@ if __name__ == '__main__':
 
                 s1_current = round_values(s1_current)
 
+                s1_current = replace_missing_gps(s1_current)
+
                 # Construct and export BUFR file
                 getBUFR(s1_current, outFiles+bufrname, stid)
                 print(f'Successfully exported bufr file to {outFiles+bufrname}')
@@ -426,4 +463,4 @@ if __name__ == '__main__':
     with open('latest_timestamps.pickle', 'wb') as handle:
         pickle.dump(current_timestamps, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    print('Finished processing {} stations.'.format(len(stns)))
+    print('Finished processing {} stations.'.format(len(fpaths)))
