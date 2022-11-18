@@ -11,6 +11,18 @@ https://confluence.ecmwf.int/display/ECC/Documentation
 BUFR element table for WMO master table version 32
 https://confluence.ecmwf.int/display/ECC/WMO%3D32+element+table
 '''
+stid_to_skip = { # All the following IDS will not be processed or submitted
+    'test': ['XXX'],
+    'discontinued': ['CEN1','TAS_U','QAS_A','NUK_N','THU_U','JAR','SWC'],
+    'no_instantaneous': ['ZAK_L','ZAK_U','KAN_B'], # currently not transmitting instantaneous values
+    'suspect_data': ['LYN_L','LYN_U','LYN_T'], # cannot confirm instantaneous data is good
+    'use_v3': ['KPC_L','NUK_U','ZAK_U'], # use v3 versions instead (but registered IDs will be non-v3)
+    'v3_bad': ['KPC_Uv3','QAS_Uv3','QAS_Lv3'] # KPC_Uv3 years are 2056, QAS_Uv3 stops at 2022-10-31, QAS_Lv3 new ablation sensor w/different txt fields?
+}
+# NOTE: Use both THU_L and THU_L2; use ONLY THU_U2, but register it as THU_U
+# NOTE: Use JAR_O and SWC_O, but register them as JAR and SWC
+# NOTE: CEN2 data is registered as CEN
+
 ibufr_settings = {
     'template': {
         'unexpandedDescriptors': (307090), #message template, 307090 is "synopMobil"
@@ -29,9 +41,10 @@ ibufr_settings = {
     },
     'station': {
         'shipOrMobileLandStationIdentifier': {
+            # Temporary placeholder list
             'CEN_A': 4204207,
             'CEN_T': 4204208,
-            'CEN_i': 4204229, #CEN1 & CEN2?
+            'CEN_i': 4204229,
             'DIS_A': 4204209,
             'EGP_A': 4204210,
             'EGP_i': 4204210,
