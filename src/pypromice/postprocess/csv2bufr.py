@@ -431,7 +431,8 @@ def min_data_check(s, stid):
 
     Returns
     -------
-    None
+    result : bool
+        True (default), the test passed. False, the test failed.
     '''
     result = True
 
@@ -527,6 +528,9 @@ if __name__ == '__main__':
             df1.sort_index(inplace=True) # make sure we are time-sorted
 
             # Check that the last valid index for all instaneous values match
+            # Note: we cannot always use the single most-recent timestamp in the dataframe
+            # e.g. for 6-hr transmissions, *_u will have hourly data while *_i is nan
+            # Need to check for last valid (non-nan) index instead
             lvi = {'t_i': df1['t_i'].last_valid_index(),
                    'p_i': df1['p_i'].last_valid_index(),
                    'rh_i': df1['rh_i'].last_valid_index(),
@@ -564,9 +568,6 @@ if __name__ == '__main__':
                 else:
                     # all values are present, with matching timestamps, so just use t_i
                     current_timestamp = df1['t_i'].last_valid_index()
-                    # Note: we cannot always use the single most-recent timestamp in the dataframe
-                    # e.g. for 6-hr transmissions, *_u will have hourly data while *_i is nan
-                    # Need to check for last valid (non-nan) instead
 
             print(f'TIMESTAMP: {current_timestamp}')
 
@@ -609,6 +610,9 @@ if __name__ == '__main__':
 
                     s1_current = replace_missing_gps(s1_current)
 
+                    # Check that we have minimum required valid data
+                    # This should really only apply to the case of partial data (from the timestamp checks above)
+                    # However, good sanity check to just run this once here for all stids
                     min_data_result = min_data_check(s1_current, stid)
                     if min_data_result is False:
                         continue
