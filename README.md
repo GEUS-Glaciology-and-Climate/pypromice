@@ -16,6 +16,7 @@ pyPROMICE can either be cloned and ran in an environment with the needed depende
 conda create --name pypromice python=3.8
 conda activate pypromice
 conda install xarray pandas pathlib
+pip install netCDF4
 git clone https://github.com/GEUS-Glaciology-and-Climate/pypromice.git
 ```
 
