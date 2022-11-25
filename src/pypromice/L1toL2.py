@@ -35,9 +35,9 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     ds = L1                                                                    # Reassign dataset  
     
     T_u = ds['t_u'].copy(deep=True)                                            # Correct relative humidity
-    T_100_u = _getTempK(T_u)  
+    T_100 = _getTempK(T_0)  
     ds['rh_u_cor'] = _correctHumidity(ds['rh_u'], ds['t_u'], T_u,  
-                                    T_0, T_100_u, ews, ei0)                       
+                                    T_0, T_100, ews, ei0)                       
         
     # Determiune cloud cover
     cc = _calcCloudCoverage(T_u, T_0, eps_overcast, eps_clear,                 # Calculate cloud coverage
@@ -261,14 +261,14 @@ def _correctHumidity(rh, t_1, T, T_0, T_100, ews, ei0):                        #
         Air temperature
     T : xarray.DataArray
         Air temperature replicate
-    T_0 : int
-        Steam point temperature
-    T_100 : int
+    T_0 : float
+        Ice point temperature in K
+    T_100 : float
         Steam point temperature in K
-    ews : int
+    ews : float
         Saturation pressure (normal atmosphere) at steam point temperature
-    ei0 : int
-        DESCRIPTION
+    ei0 : float
+        Saturation pressure (normal atmosphere) at ice-point temperature
         
     Returns
     -------
