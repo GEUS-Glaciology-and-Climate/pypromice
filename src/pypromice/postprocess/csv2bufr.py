@@ -420,9 +420,15 @@ def min_data_check(s, stid):
         result = False
 
     # Must have a valid position
-    # Missing just elevation OK, but if lat and lon are missing, do not submit
     # Note that gps_ variables have already had replacement with msg_ positions if needed
-    if (pd.isna(s['gps_lat_fit']) is False) and (pd.isna(s['gps_lon_fit']) is False):
+
+    # Missing just elevation OK
+    # if (pd.isna(s['gps_lat_fit']) is False) and (pd.isna(s['gps_lon_fit']) is False):
+    #     pass
+    # Require all three: lat, lon, elev
+    if ((pd.isna(s['gps_lat_fit']) is False) and
+        (pd.isna(s['gps_lon_fit']) is False) and
+        (pd.isna(s['gps_alt_fit']) is False)):
         pass
     else:
         print('----> Failed min_data_check for position!')
