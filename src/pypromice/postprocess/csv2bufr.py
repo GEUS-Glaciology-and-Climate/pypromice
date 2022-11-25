@@ -323,29 +323,6 @@ def round_values(s):
     # gps_lat,gps_lon,gps_alt,z_boom_u are all rounded in linear_fit() or rolling_window()
     return s
 
-def replace_missing_gps(s):
-    '''Check gps_lat and gps_lon, if NaN then use msg_lat and msg_lon.
-    NOTE: If we use msg_lat or msg_lon we just assign those values back
-    to the gps_{i}_fit value, which is what is used to write to BUFR.
-
-    Parameters
-    ----------
-    s : pandas series
-        The current obset we are working with (for BUFR submission)
-
-    Returns
-    -------
-    s : modified pandas series
-    '''
-    to_check = ['lat','lon']
-    for i in to_check:
-        if (f'gps_{i}_fit' in s) and (f'msg_{i}_fit' in s):
-            if pd.isna(s[f'gps_{i}_fit']) is True:
-                if (pd.isna(s[f'msg_{i}_fit']) is False) and (s[f'msg_{i}_fit'] != 0.0):
-                    print(f'----> Replacing gps_{i} with msg_{i}')
-                    s[f'gps_{i}_fit'] = s[f'msg_{i}_fit']
-    return s
-
 def write_positions(s, stid):
     '''Set valid lat, lon, alt to the positions dict.
     Find recent position metadata for submitting to DMI/WMO.
@@ -366,9 +343,6 @@ def write_positions(s, stid):
     for i in to_write:
         if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
             positions[stid][i] = s[f'gps_{i}_fit']
-        elif (f'msg_{i}_fit' in s) and (pd.isna(s[f'msg_{i}_fit']) is False) and (s[f'msg_{i}_fit'] != 0.0):
-            positions[stid][i] = s[f'msg_{i}_fit']
-            positions[stid][f'{i}_s'] = 'MSG' #source flag
 
     # Add altitude to positions dict:
     if ('gps_alt_fit' in s) and (pd.isna(s['gps_alt_fit']) is False):
@@ -582,18 +556,28 @@ if __name__ == '__main__':
                     print('Time checks passed.')
                     # limit the dataframe for linear regression (e.g. previous 3 months)
                     df1_limited = df1.last(args.time_limit)
+
+                    # Combine gps and msg lat and lon using combine_first()
+                    # If any GPS positions are missing, we will fill the missing GPS positions with modem
+                    # positions (if they are present). Important to do this first, and then apply linear fit
+                    # to the resulting single array. Otherwise, we can have jumps when the GPS data goes out
+                    # or comes back. The message coordinates can sometimes all be 0.0, so check for this.
+                    if ('msg_lat' in df1_limited) and ('msg_lon' in df1_limited):
+                        if (0.0 not in df1_limited['msg_lat'].values):
+                            df1_limited['gps_lat'] = df1_limited['gps_lat'].combine_first(df1_limited['msg_lat'])
+                        if (0.0 not in df1_limited['msg_lon'].values):
+                            df1_limited['gps_lon'] = df1_limited['gps_lon'].combine_first(df1_limited['msg_lon'])
+
                     # Add '{}_fit' to df (linear fit of alt, lat, lon)
                     df1_limited = linear_fit(df1_limited, 'gps_alt', 1, stid)
                     df1_limited = linear_fit(df1_limited, 'gps_lat', 6, stid)
                     df1_limited = linear_fit(df1_limited, 'gps_lon', 6, stid)
-                    df1_limited = linear_fit(df1_limited, 'msg_lat', 6, stid)
-                    df1_limited = linear_fit(df1_limited, 'msg_lon', 6, stid)
 
                     # Apply smoothing to z_boom_u
                     # require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
                     df1_limited = rolling_window(df1_limited, 'z_boom_u', '72H', 2, 1)
 
-                    # limit to single most recent row (series)
+                    # limit to single most recent valid row (convert to series)
                     s1_current = df1_limited.loc[current_timestamp]
 
                     # Convert air temp, C to Kelvin
@@ -607,8 +591,6 @@ if __name__ == '__main__':
 
                     if args.dev is True:
                         write_positions(s1_current, stid)
-
-                    s1_current = replace_missing_gps(s1_current)
 
                     # Check that we have minimum required valid data
                     # This should really only apply to the case of partial data (from the timestamp checks above)
