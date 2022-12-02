@@ -15,6 +15,7 @@ pyPROMICE can either be cloned and ran in an environment with the needed depende
 ```
 conda create --name pypromice python=3.8
 conda activate pypromice
+
 conda install xarray pandas pathlib
 pip install netCDF4
 pip install scikit-learn # If you will be running `csv2bufr.py` in the `postprocess` directory
