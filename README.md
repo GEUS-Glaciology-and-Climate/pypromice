@@ -18,7 +18,7 @@ conda activate pypromice
 
 conda install xarray pandas pathlib
 pip install netCDF4
-pip install scikit-learn # If you will be running `csv2bufr.py` in the `postprocess` directory
+pip install scikit-learn # If you will be running `postprocess/csv2bufr.py`
 
 git clone git@github.com:GEUS-Glaciology-and-Climate/pypromice.git
 ```
