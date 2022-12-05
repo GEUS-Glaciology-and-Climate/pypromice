@@ -135,7 +135,17 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
 
 
 def _getTempK(T_0):                                                            #TODO same as L2toL3._getTempK()
-    '''Return steam point temperature in K'''
+    '''Return steam point temperature in Kelvins
+    
+    Parameters
+    ----------
+    T_0 : float
+        Steam point temperature in degrees celsius
+    
+    Returns
+    -------
+    float
+        Steam point temperature in K'''
     return T_0+100
 
 def _getRotation():                                                            #TODO same as L2toL3._getRotation()
@@ -208,7 +218,24 @@ def _calcSurfaceTemperature(T_0, ulr, dlr, emissivity):
     return t_surf.where(t_surf <= 0, other = 0)
     
 def _calcTilt(tilt_x, tilt_y, deg2rad):
-    '''Calculate station tilt'''
+    '''Calculate station tilt
+    
+    Parameters
+    ----------
+    tilt_x : xarray.DataArray
+        X tilt inclinometer measurements
+    tilt_y : xarray.DataArray
+        Y tilt inclinometer measurements
+    deg2rad : float
+        Degrees to radians conversion
+    
+    Returns
+    -------
+    phi_sensor_rad : xarray.DataArray
+        Spherical tilt coordinates
+    theta_sensor_rad : xarray.DataArray
+        Total tilt of sensor, where 0 is horizontal
+    '''
     # Tilt as radians
     tx = tilt_x * deg2rad
     ty = tilt_y * deg2rad
@@ -232,7 +259,21 @@ def _calcTilt(tilt_x, tilt_y, deg2rad):
     return phi_sensor_rad, theta_sensor_rad 
 
 def _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass):
-    '''Check sun position'''
+    '''Check sun position
+    
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Data set
+    OKalbedos : xarray.DataArray
+        Valid measurements flag
+    sundown : xarray.DataArray
+        Sun below horizon flag
+    sunonlowerdome : xarray.DataArray
+        Sun in view of lower sensor flag
+    TOA_crit_nopass : xarray.DataArray
+        Top-of-Atmosphere flag
+    '''
     valid = (~(ds['dsr_cor'].isnull())).sum()
     print('Sun in view of upper sensor / workable albedos:', OKalbedos.sum().values,
           (100*OKalbedos.sum()/valid).round().values, "%")
@@ -304,6 +345,20 @@ def _correctPrecip(precip, wspd):
     
     Goodison, B. E., Louie, P. Y. T., and Yang, D.: Solid Precipitation 
     Measurement Intercomparison, WMO, 1998
+    
+    Parameters
+    ----------
+    precip : xarray.DataArray
+        Cumulative precipitation measurements
+    wspd : xarray.DataArray
+        Wind speed measurements
+    
+    Returns
+    -------
+    precip_cor : xarray.DataArray
+        Cumulative precipitation corrected
+    precip_rate : xarray.DataArray
+        Precipitation rate corrected
     '''
     # Calculate undercatch correction factor
     corr=100/(100.00-4.37*wspd+0.35*wspd*wspd)
@@ -330,7 +385,22 @@ def _correctPrecip(precip, wspd):
     return precip_cor, precip_rate
                                   
 def _calcDeclination(doy, hour, minute):
-    '''Calculate sun declination based on time'''
+    '''Calculate sun declination based on time
+    
+    Parameters
+    ----------
+    doy : int
+        Day of year
+    hour : int
+        Hour of day
+    minute : int
+        Minute of hour
+    
+    Returns
+    -------
+    float
+        Sun declination
+    '''
     d0_rad = 2 * np.pi * (doy + (hour + minute / 60) / 24 -1) / 365
     return np.arcsin(0.006918 - 0.399912
                      * np.cos(d0_rad) + 0.070257
@@ -343,21 +413,68 @@ def _calcDeclination(doy, hour, minute):
 def _calcHourAngle(hour, minute, lon):
     '''Calculate hour angle of sun based on time and longitude. Make sure that
     time is set to UTC and longitude is positive when west. Hour angle should
-    be 0 at noon'''
+    be 0 at noon
+    
+    Parameters
+    ----------
+    hour : int
+        Hour of day
+    minute : int
+        Minute of hour
+    lon : float
+        Longitude
+    
+    Returns
+    -------
+    float
+        Hour angle of sun
+    '''
     return 2 * np.pi * (((hour + minute / 60) / 24 - 0.5) - lon/360)
      # ; - 15.*timezone/360.)
 
 def _calcDirectionDeg(HourAngle_rad):                                          #TODO remove if not plan to use this
     '''Calculate sun direction as degrees. This is an alternative to 
     _calcHourAngle that is currently not implemented into the offical L0>>L3
-    workflow. Here, 180 degrees is at noon (NH), as opposed to HourAngle'''
+    workflow. Here, 180 degrees is at noon (NH), as opposed to HourAngle
+    
+    Parameters
+    ----------
+    HourAngle_rad : float
+        Sun hour angle in radians
+    
+    Returns
+    -------
+    DirectionSun_deg
+        Sun direction in degrees
+    '''
     DirectionSun_deg = HourAngle_rad * 180/np.pi - 180
     DirectionSun_deg[DirectionSun_deg < 0] += 360
     DirectionSun_deg[DirectionSun_deg < 0] += 360
     return DirectionSun_deg
 
 def _calcZenith(lat, Declination_rad, HourAngle_rad, deg2rad, rad2deg):
-    '''Calculate sun zenith in radians and degrees'''
+    '''Calculate sun zenith in radians and degrees
+    
+    Parameters
+    ----------
+    lat : float
+        Latitude
+    Declination_Rad : float
+        Sun declination in radians
+    HourAngle_rad : float
+        Sun hour angle in radians
+    deg2rad : float
+        Degrees to radians conversion
+    rad2deg : float
+        Radians to degrees conversion
+    
+    Returns
+    -------
+    ZenithAngle_rad : float
+        Zenith angle in radians
+    ZenithAngle_deg : float
+        Zenith angle in degrees
+    '''
     ZenithAngle_rad = np.arccos(np.cos(lat * deg2rad)
                                 * np.cos(Declination_rad)
                                 * np.cos(HourAngle_rad)
@@ -370,7 +487,24 @@ def _calcZenith(lat, Declination_rad, HourAngle_rad, deg2rad, rad2deg):
 def _calcAngleDiff(ZenithAngle_rad, HourAngle_rad, phi_sensor_rad, 
                   theta_sensor_rad):
     '''Calculate angle between sun and upper sensor (to determine when sun is
-    in sight of upper sensor'''
+    in sight of upper sensor
+    
+    Parameters
+    ----------
+    ZenithAngle_rad : float
+        Zenith angle in radians
+    HourAngle_rad : float 
+        Sun hour angle in radians
+    phi_sensor_rad : xarray.DataArray
+        Spherical tilt coordinates
+    theta_sensor_rad : xarray.DataArray
+        Total tilt of sensor, where 0 is horizontal
+    
+    Returns
+    -------
+    float
+        Angle between sun and sensor
+    '''
     return 180 / np.pi * np.arccos(np.sin(ZenithAngle_rad) 
                                    * np.cos(HourAngle_rad + np.pi)
                                    * np.sin(theta_sensor_rad)
@@ -384,7 +518,26 @@ def _calcAngleDiff(ZenithAngle_rad, HourAngle_rad, phi_sensor_rad,
 
 def _calcAlbedo(usr, dsr_cor, AngleDif_deg, ZenithAngle_deg):
     '''Calculate surface albedo based on upwelling and downwelling shorwave 
-    flux, the angle between the sun and sensor, and the sun zenith'''
+    flux, the angle between the sun and sensor, and the sun zenith
+    
+    Parameters
+    ----------
+    usr : xarray.DataArray
+        Upwelling shortwave radiation
+    dsr_cor : xarray.DataArray
+        Downwelling shortwave radiation corrected
+    AngleDif_def : float
+        Angle between sun and sensor in degrees
+    ZenithAngle_deg: float
+        Zenith angle in degrees
+    
+    Returns
+    -------
+    albedo : xarray.DataArray
+        Derived albedo
+    OKalbedos : xarray.DataArray
+        Valid albedo measurements
+    '''
     albedo = usr / dsr_cor    
     
     # NaN bad data
@@ -401,7 +554,20 @@ def _calcAlbedo(usr, dsr_cor, AngleDif_deg, ZenithAngle_deg):
     
 def _calcTOA(ZenithAngle_deg, ZenithAngle_rad):
     '''Calculate incoming shortwave radiation at the top of the atmosphere,
-    accounting for sunset periods'''
+    accounting for sunset periods
+    
+    Parameters
+    ----------
+    ZenithAngle_deg : float
+        Zenith angle in degrees
+    ZenithAngle_rad : float
+        Zenith angle in radians
+    
+    Returns
+    -------
+    isr_toa : float
+        Incoming shortwave radiation at the top of the atmosphere
+    '''
     sundown = ZenithAngle_deg >= 90
     
     # Incoming shortware radiation at the top of the atmosphere
@@ -420,6 +586,32 @@ def _calcCorrectionFactor(Declination_rad, phi_sensor_rad, theta_sensor_rad,
     instruments. It would go something like this:
     ds['dsr'] = ds['dsr'] - ds['dwr_offset']
     SRout = SRout - SRout_offset
+    
+    Parameters
+    ----------
+    Declination_rad : float
+        Declination in radians
+    phi_sensor_rad : xarray.DataArray
+        Spherical tilt coordinates
+    theta_sensor_rad : xarray.DataArray
+        Total tilt of sensor, where 0 is horizontal
+    HourAngle_rad : float 
+        Sun hour angle in radians
+    ZenithAngle_rad : float 
+        Zenith angle in radians
+    ZenithAngle_deg : float 
+        Zenith Angle in degrees
+    lat :  float
+        Latitude
+    DifFrac : float
+        Fractional cloud cover
+    deg2rad : float
+        Degrees to radians conversion
+        
+    Returns
+    -------
+    CorFac_all : xarray.DataArray
+        Correction factor
     '''
     CorFac = np.sin(Declination_rad) * np.sin(lat * deg2rad) \
         * np.cos(theta_sensor_rad) \
