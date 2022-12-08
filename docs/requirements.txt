@@ -3,7 +3,5 @@ datetime
 eccodes
 numpy
 pandas
-re
-time
 toml
 xarray
