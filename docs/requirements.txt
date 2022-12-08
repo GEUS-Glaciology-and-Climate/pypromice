@@ -1,12 +1,9 @@
+sphinx_pdj_theme
 datetime
 eccodes
-glob
-imaplib
 numpy
-os
 pandas
 re
 time
 toml
-uuid
 xarray
