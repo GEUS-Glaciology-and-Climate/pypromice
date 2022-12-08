@@ -1,6 +1,5 @@
 datetime
 eccodes
-email
 glob
 imaplib
 numpy
