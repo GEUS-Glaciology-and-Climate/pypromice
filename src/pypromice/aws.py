@@ -523,6 +523,11 @@ def clipValues(ds, df, cols=['lo','hi','OOL']):
         if var in ['rh_u_cor', 'rh_l_cor']:
              ds[var] = ds[var].where(ds[var] >= df.loc[var, lo], other = 0)
              ds[var] = ds[var].where(ds[var] <= df.loc[var, hi], other = 100)
+             
+             # Mask out invalid corrections based on uncorrected var
+             var_uncor=var.split('_cor')[0]
+             ds[var] = ds[var].where(~np.isnan(ds[var_uncor]), other=np.nan)
+            
         else:
             if ~np.isnan(df.loc[var, lo]):
                 ds[var] = ds[var].where(ds[var] >= df.loc[var, lo])

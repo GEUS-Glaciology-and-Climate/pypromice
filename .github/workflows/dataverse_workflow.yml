@@ -1,0 +1,18 @@
+# Publish to GEUS Dataverse on package release
+# https://github.com/IQSS/dataverse-uploader
+on: 
+  release:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send repo to Dataverse 
+        uses: IQSS/dataverse-uploader@v1.3
+        with:
+          DATAVERSE_TOKEN: ${{secrets.DATAVERSE_TOKEN}}
+          DATAVERSE_SERVER: https://dataverse.geus.dk
+          DATAVERSE_DATASET_DOI: doi:10.22008/FK2/IPOHT5
+          DELETE: True
+          PUBLSH: False

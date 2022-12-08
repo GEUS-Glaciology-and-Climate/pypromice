@@ -3,7 +3,6 @@
 pypromice L1 to L2 processing
 """
 import numpy as np
-import xarray as xr
   
 def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1., 
          eps_clear=9.36508e-6, emissivity=0.97):
@@ -13,13 +12,14 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     ----------
     L1 : xarray.Dataset
         Level 1 dataset
-    T_0 : int, optional
-        Steam point temperature. The default is 273.15.
-    ews : int, optional
+    T_0 : float, optional
+        Ice point temperature in K. The default is 273.15.
+    ews : float, optional
         Saturation pressure (normal atmosphere) at steam point temperature. 
         The default is 1013.246.
-    ei0 : int, optional
-        DESCRIPTION. The default is 6.1071.
+    ei0 : float, optional
+        Saturation pressure (normal atmosphere) at ice-point temperature. The 
+        default is 6.1071.
     eps_overcast : int, optional
         Cloud overcast. The default is 1..
     eps_clear : int, optional
@@ -35,9 +35,9 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     ds = L1                                                                    # Reassign dataset  
     
     T_u = ds['t_u'].copy(deep=True)                                            # Correct relative humidity
-    T_100_u = _getTempK(T_u)  
+    T_100 = _getTempK(T_u)  
     ds['rh_u_cor'] = _correctHumidity(ds['rh_u'], ds['t_u'], T_u,  
-                                    T_0, T_100_u, ews, ei0)                       
+                                    T_0, T_100, ews, ei0)                       
         
     # Determiune cloud cover
     cc = _calcCloudCoverage(T_u, T_0, eps_overcast, eps_clear,                 # Calculate cloud coverage
@@ -109,24 +109,26 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     # sundown = ZenithAngle_deg >= 90
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)    
 
-    # Correct precipitation
-    if ~ds['precip_u'].isnull().all(): 
-    	ds['precip_u_cor'], ds['precip_u_rate'] = _correctPrecip(ds['precip_u'], 
-        	                                                 ds['wspd_u'])
+    if hasattr(ds, 'correct_precip'):                                          # Correct precipitation
+        precip_flag=ds.attrs['correct_precip']
+    else:
+        precip_flag=True
+    if ~ds['precip_u'].isnull().all() and precip_flag: 
+        ds['precip_u_cor'], ds['precip_u_rate'] = _correctPrecip(ds['precip_u'], 
+                                                                 ds['wspd_u'])
     
     if ds.attrs['number_of_booms']==2:      
         T_l = ds['t_l'].copy(deep=True) 
         T_100_l = _getTempK(T_l)                                               # Get steam point temperature in K
         ds['rh_l_cor'] = _correctHumidity(ds['rh_l'], ds['t_l'], T_l,          # Correct relative humidity
                                         T_0, T_100_l, ews, ei0)                          
-
-        # Correct precipitation
-        if ~ds['precip_l'].isnull().all(): 
+        
+        if ~ds['precip_l'].isnull().all() and precip_flag:                     # Correct precipitation
             ds['precip_l_cor'], ds['precip_l_rate']= _correctPrecip(ds['precip_l'],  
                                                                     ds['wspd_l'])
     
     if hasattr(ds,'t_i'):       
-        if ~ds['t_i'].isnull().all():                                        # Instantaneous msg processing
+        if ~ds['t_i'].isnull().all():                                          # Instantaneous msg processing
             T_i = ds['t_i'].copy(deep=True) 
             T_100_i = _getTempK(T_i)                                           # Get steam point temperature in K
             ds['rh_i_cor'] = _correctHumidity(ds['rh_i'], ds['t_i'], T_i,      # Correct relative humidity
@@ -140,7 +142,7 @@ def _getTempK(T_0):                                                            #
     Parameters
     ----------
     T_0 : float
-        Steam point temperature in degrees celsius
+        Ice point temperature in K
     
     Returns
     -------
@@ -288,7 +290,8 @@ def _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass):
           "W/m2")
 
 def _correctHumidity(rh, t_1, T, T_0, T_100, ews, ei0):                        #TODO figure out if T replicate is needed
-    '''Correct relative humidity using Groff & Gratch method
+    '''Correct relative humidity using Groff & Gratch method, where values are
+    set when freezing and remain the original values when not freezing
 
     Parameters
     ----------
@@ -309,7 +312,7 @@ def _correctHumidity(rh, t_1, T, T_0, T_100, ews, ei0):                        #
         
     Returns
     -------
-    xarray.DataArray
+    rh_cor : xarray.DataArray
         Corrected relative humidity
     '''                                            
     # Convert to hPa (Groff & Gratch)   
@@ -327,7 +330,8 @@ def _correctHumidity(rh, t_1, T, T_0, T_100, ews, ei0):                        #
     freezing = (t_1 < 0) & (t_1 > -100).values 
 
     # Set to Groff & Gratch values when freezing, otherwise just rh                         
-    return rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))                                 
+    rh_cor = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))  
+    return rh_cor                               
 
 def _correctPrecip(precip, wspd):
     '''Correct precipitation with the undercatch correction method used in 

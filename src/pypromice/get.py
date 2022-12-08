@@ -117,7 +117,6 @@ def watson_discharge_daily():
 #     df = pd.read_csv(URL, delimiter="\t", index_col=0, parse_dates=[[0,1,2]])
 #     return df
 
-
 # def ice_extent():
 #     '''Return PROMICE ice extent
     
