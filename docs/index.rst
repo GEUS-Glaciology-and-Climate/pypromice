@@ -1,18 +1,29 @@
-.. promice-aws-processing documentation master file, created by
-   sphinx-quickstart on Fri Apr 29 10:47:45 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+pypromice
+=========
 
-Welcome to pypromice's documentation!
-==================================================
+The pypromice package is designed for processing and handling PROMICE_ automated weather station data.
+
+.. _PROMICE: https://promice.dk
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Getting started
+   
+   install
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Guides
+   
+   guide_user
+   guide_developer
+   guide_technical
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Modules
    
    modules
-
-
 
 Indices and tables
 ==================
