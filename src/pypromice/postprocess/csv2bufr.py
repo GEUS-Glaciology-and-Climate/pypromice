@@ -248,12 +248,13 @@ def linear_fit(df, column, decimals, stid):
             y_pred = model.predict(x).round(decimals=decimals)
 
             # Plot data if desired
-            # if (column == 'gps_lat') or (column == 'gps_lon') or (column == 'gps_alt'):
-            #     import matplotlib.pyplot as plt
-            #     plt.scatter(x,y)
-            #     plt.plot(x,y_pred, color='red')
-            #     plt.title('{} {}'.format(stid, column))
-            #     plt.show()
+            # if stid == 'LYN_T':
+            #     if (column == 'gps_lat') or (column == 'gps_lon') or (column == 'gps_alt'):
+            #         import matplotlib.pyplot as plt
+            #         plt.scatter(x,y)
+            #         plt.plot(x,y_pred, color='red')
+            #         plt.title('{} {}'.format(stid, column))
+            #         plt.show()
 
             # Add y_pred back to original df
             df_dropna['y_pred'] = y_pred
