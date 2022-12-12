@@ -5,6 +5,10 @@ __pycache__
 # Distribution / packaging
 *.egg-info/
 build/
+dist/
+
+# Docs generation
+docs/_build/
 
 # Test output directories
 src/pypromice/test/TEST1/*

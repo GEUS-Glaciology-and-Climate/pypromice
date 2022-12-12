@@ -5,6 +5,7 @@ import xarray as xr
 from argparse import ArgumentParser
 from pypromice.aws import getVars, getMeta, addMeta, _addAttr, getColNames, \
     roundValues, resampleL3, writeAll
+from pypromice.L1toL2 import _correct Precip
 
 def parse_arguments():
     parser = ArgumentParser(description="AWS L3 joiner for merging together two L3 products, for example an L3 RAW and L3 TX data product. An hourly, daily and monthly L3 data product is outputted to the defined output path")
@@ -58,7 +59,16 @@ if __name__ == '__main__':
             print(f'Combining {args.file1} with {args.file2}...')
             name = n1
             all_ds = ds1.combine_first(ds2)
-        
+            
+            # Re-calculate corrected precipitation
+            if hasattr(all_ds, 'precip_u_cor'):
+                if ~all_ds['precip_u_cor'].isnull().all():
+                    all_ds['precip_u_cor'],  _ = _correctPrecip(all_ds['precip_u'], 
+                                                                all_ds['wspd_u'])
+            if hasattr(all_ds, 'precip_l_cor'):
+                if ~all_ds['precip_l_cor'].isnull().all():
+                    all_ds['precip_l_cor'],  _ = _correctPrecip(all_ds['precip_l'], 
+                                                                all_ds['wspd_l'])                    
         else:
             print(f'Mismatched station names {n1}, {n2}')
             exit()            

@@ -1,4 +1,5 @@
 # pyPROMICE
+[![](<https://img.shields.io/badge/Dataverse DOI-10.22008/FK2/IPOHT5-orange>)](https://www.doi.org/10.22008/FK2/IPOHT5)
  
 The pyPROMICE toolbox is for retrieving, processing and handling PROMICE datasets. This is a development toolbox, compiled from several repositories:
 - Receive and decode transmissions from PROMICE automatic weather stations - [awsrx](https://github.com/GEUS-Glaciology-and-Climate/awsrx)
@@ -14,8 +15,12 @@ pyPROMICE can either be cloned and ran in an environment with the needed depende
 ```
 conda create --name pypromice python=3.8
 conda activate pypromice
+
 conda install xarray pandas pathlib
-git clone https://github.com/GEUS-Glaciology-and-Climate/pypromice.git
+pip install netCDF4
+pip install scikit-learn # If you will be running `postprocess/csv2bufr.py`
+
+git clone git@github.com:GEUS-Glaciology-and-Climate/pypromice.git
 ```
 
 Or installed directly using pip:
@@ -240,4 +245,5 @@ This processes L0 files in the following manner:
   
 ![process_workflow](https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/pypromice/main/fig/levels.png)  
   
+
 
