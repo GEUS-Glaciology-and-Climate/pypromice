@@ -872,5 +872,24 @@ class TestProcess(unittest.TestCase):
 
 #------------------------------------------------------------------------------
 
-if __name__ == "__main__": 
-    unittest.main()   
+if __name__ == "__main__":
+
+    # Test an individual station
+    # test_station = 'xxx'
+    # # config_file = '../../../aws-data/raw/config/{}.toml'.format(test_station)
+    # config_file = '../../../aws-data/tx/config/{}.toml'.format(test_station)
+    # # inpath= '../../../aws-data/raw/{}/'.format(test_station)
+    # inpath= '../../../aws-data/tx/'
+    # outpath = 'test/STATION/'
+    # vari = 'variables.csv'
+    # pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
+
+    # Use test configs
+    # config_files = ['test/test_config1.toml', 'test/test_config2.toml']
+    # inpath= 'test/'
+    # outpath = 'test/'
+    # vari = 'variables.csv'
+    # for cf in config_files:
+    #     pAWS_gc = AWS(cf, inpath, outpath, var_file=vari)
+
+    unittest.main()
