@@ -17,8 +17,14 @@ The pypromice package is designed for processing and handling PROMICE_ automated
    
    guide_user
    guide_developer
-   guide_technical
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Technical info
+   
+   technical_data
+   technical_process
+   
 .. toctree::
    :maxdepth: 1
    :caption: Modules

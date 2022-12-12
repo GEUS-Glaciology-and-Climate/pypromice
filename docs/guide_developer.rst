@@ -2,11 +2,8 @@
 Developer guide
 ***************
 
-
-Contributing to pypromice
-=========================
-
 Contributions, bug reports and fixes, documentation improvements, enhancements and ideas are welcome. A good starting place to look at is:
+
 1. PROMICE-AWS-data-issues_, where we report suspicious or incorrect data
 2. pypromice's GitHub Issues_, for an overview of known bugs, developments and ideas
 
@@ -15,7 +12,7 @@ Contributions, bug reports and fixes, documentation improvements, enhancements a
 
 
 Data reports
-------------
+============
 
 Automatic weather station (AWS) data from the Greenland Ice Sheet are often imperfect due to the complexity and conditions involved in installing and maintaining the AWS. 
 
@@ -27,11 +24,11 @@ If you are using our AWS data and something seems suspicious or erroneous, you c
 
 
 Bug reports and enhancement requests
-------------------------------------
+====================================
 
 Bug reports are essential to improving the stability and usability of pypromice. These should be raised on pypromice's GitHub Issues_. A complete and reproducible report is essential for bugs to be resolved easily, therefore bug reports must:
 
-1. Include a concise and self-contained Python snippet reproducing the problem.
+1. Include a concise and self-contained Python snippet reproducing the problem. For example:
 
 .. code:: python
 
@@ -55,14 +52,14 @@ Bug reports are essential to improving the stability and usability of pypromice.
 .. _main: https://github.com/GEUS-Glaciology-and-Climate/pypromice/tree/main
 
 
-Suggesting changes to pypromice
--------------------------------
+Contributing to pypromice
+=========================
 
 You can work directly with pypromice's development if you have a contribution, such as a solution to an issue or a suggestion for an enhancment. 
 
 
 Forking 
-^^^^^^^
+-------
 
 In order to contribute, you will need your own fork of the pypromice GitHub repository to work on the code. Go to the repo_ and choose the ``Fork`` option. This now creates a copy in your own GitHub space, which is connected to the upstream pypromice repository.
 
@@ -70,7 +67,7 @@ In order to contribute, you will need your own fork of the pypromice GitHub repo
 
 
 Creating a development branch
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+-----------------------------
 
 From your forked space, make sure you have a Python Environment for running pypromice, as described in :ref:`Developer install`. Then create and checkout a branch to make your developments on.
 
@@ -82,9 +79,9 @@ Keep changes in this branch specific to one bug or enhancement, so it is clear h
 
 
 Creating a pull request
-^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------
 
-To contribute your changes to pypromice, you need to make a pull request from your forked development branch to pypromice's main branch. Before doing so, retrieve the most recent version of the main pypromice repository to keep this branch up to date with pypromice's main branch.
+To contribute your changes to pypromice, you need to make a pull request from your forked development branch to pypromice's main branch. Before doing so, retrieve the most recent version of the main repository to keep this branch up to date with pypromice's main branch.
 
 .. code:: console
 

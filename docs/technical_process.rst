@@ -1,41 +1,6 @@
-***************
-Technical guide
-***************
-
-AWS data types
-==============
-
-Level 0
--------
-Level 0, ``L0``, is raw, untouched data in one of three formats:
-  - [X] Copied from CF card in the field (``raw``)
-  - [X] Downloaded from logger box in the field as a Slim Table Memory (``stm``)   
-  - [X] Transmitted via satellite and decoded (``tx``)
-
-
-Level 1
--------
-  - [X] Engineering units (e.g. current or volts) converted to physical units (e.g. temperature or wind speed)
-  - [ ] Invalid/bad/suspicious data flagged
-  - [X] Multiple data files merged into one time series per station
-  
-
-Level 2
--------
-  - [X] Calibration using secondary sources (e.g. radiometric correction requires input of tilt sensor)
-  - [X] Observation corrections applied
-  - [X] Station position relative to sun calculated
-  
-
-Level 3
--------
-  - [X] Derived products calculated (e.g. sensible and latent heat flux)
-  - [X] Data merged, patched, and filled into one product
-  
-  
-  
+*****************************  
 Transmission to L0 processing
-=============================
+*****************************
 
 pypromice's ``tx`` module contains functionality for processing data transmissions from an AWS to a Level 0 data product:
 
@@ -45,7 +10,7 @@ pypromice's ``tx`` module contains functionality for processing data transmissio
 
   
 Payload handling
-----------------
+================
 
 ``SbdMessage`` handles the SBD message, either taken from an ``email.message.Message`` object or a .sbd file.
 
@@ -53,7 +18,7 @@ Payload handling
 
 
 Payload decoder
----------------
+===============
 
 ``PayloadFormat`` handles the message types and decoding templates. These can be imported from file, with two default CSV files provided with pypromice - payload_formatter.csv_ and payload_type.csv_.
 
@@ -62,7 +27,7 @@ Payload decoder
 
 
 Payload processing
-------------------
+==================
 
 ``L0tx`` handles the processing and output of the L0 transmission dataline. This object inherits from ``EmailMessage`` and ``PayloadFormat`` to read and decode messages
 
@@ -80,9 +45,9 @@ The following function can be executed from a CLI to fetch ``L0`` transmission m
 
 	Credentials are needed to access our AWS transmissions. We do not provide these to external users, so purely include this workflow in pypromice to demonstrate transparency in our processing.
 
-
+*****************************
 Level 0 to level 3 processing
-=============================
+*****************************
 
 The ``process`` module is for processing AWS observations from Level 0 to Level 3 (end-user product) data products.
 
@@ -100,7 +65,7 @@ And in parallel through all configuration .toml files ``$imei_list``
 
 
 Station configuration
---------------------- 
+=====================
 
 Each Level 0 file that will be processed must have an entry in the TOML-formatted configuration file. The config file can be located anywhere, and the processing script receives the config file and the location of the Level 0 data.
 
@@ -142,4 +107,3 @@ The TOML config file has the following expectations and behaviors:
 - Each file that will be processed gets its own section
 - Properties at the top level are copied to each section (assumed to apply to all files)
 - Top-level properties are overridden by file-level properties if they exist in both locations
-
