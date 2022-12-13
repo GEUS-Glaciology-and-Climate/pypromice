@@ -1,6 +1,6 @@
-*****************************  
-Transmission to L0 processing
-*****************************
+**********************************  
+Transmission to Level 0 processing
+**********************************
 
 pypromice's ``tx`` module contains functionality for processing data transmissions from an AWS to a Level 0 data product:
 
@@ -46,7 +46,7 @@ The following function can be executed from a CLI to fetch ``L0`` transmission m
 	Credentials are needed to access our AWS transmissions. We do not provide these to external users, so purely include this workflow in pypromice to demonstrate transparency in our processing.
 
 *****************************
-Level 0 to level 3 processing
+Level 0 to Level 3 processing
 *****************************
 
 The ``process`` module is for processing AWS observations from Level 0 to Level 3 (end-user product) data products.

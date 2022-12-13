@@ -8,6 +8,7 @@ PROMICE automated weather station (AWS) data undergoes three main processing ste
 Level 0
 =======
 Level 0 is raw, untouched data in one of three formats:
+
 - [X] Copied from CF card in the field (``raw``)
 - [X] Downloaded from logger box in the field as a Slim Table Memory (``stm``)   
 - [X] Transmitted via satellite and decoded (``tx``)
