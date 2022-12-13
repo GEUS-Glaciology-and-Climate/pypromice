@@ -21,7 +21,6 @@ except:
 pd.set_option('display.precision', 2)
 xr.set_options(keep_attrs=True)
 
-# from IPython import embed
 #------------------------------------------------------------------------------
 
 class AWS(object):
