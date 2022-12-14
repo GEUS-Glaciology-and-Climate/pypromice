@@ -21,7 +21,6 @@ except:
 pd.set_option('display.precision', 2)
 xr.set_options(keep_attrs=True)
 
-# from IPython import embed
 #------------------------------------------------------------------------------
 
 class AWS(object):
@@ -112,7 +111,7 @@ class AWS(object):
         
         print('Level 1 processing...')
         self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
-        self.L1 = [toL1(item) for item in self.L0]
+        self.L1 = [toL1(item, self.vars) for item in self.L0]
         self.L1A = mergeVars(self.L1, self.vars)
         
         # L1 to L2 processing
@@ -724,7 +723,7 @@ def getVars(v_file):
    
    Parameters
    ----------
-   v_file : str I've moved back here  I've moved back here 
+   v_file : str
        Variable lookup table file path
 
    Returns

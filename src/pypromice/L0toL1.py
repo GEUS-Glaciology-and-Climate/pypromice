@@ -8,13 +8,15 @@ import pandas as pd
 import xarray as xr
 import re
 
-def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
+def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     '''Process one Level 0 (L0) product to Level 1
 
     Parameters
     ----------
     L0 : xarray.Dataset
         Level 0 dataset
+    vars_df : pd.DataFrame
+        Metadata dataframe
     flag_file : str
         Flag .csv file path for bad data
     T_0 : int
@@ -35,11 +37,17 @@ def toL1(L0, flag_file=None, T_0=273.15, tilt_threshold=-100):
     for l in list(ds.keys()):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
             ds[l] = _reformatArray(ds[l])
-    
-    ds['time_orig'] = ds['time']                                               # Check and shift time
-    ds['time'] = _addTimeShift(ds['time'], ds.attrs['format'])
+
+    # ds['time_orig'] = ds['time'] # Not used
+
+    # The following drops duplicate datetime indices. Needs to run before _addTimeShift!
+    # We can optionally also drop duplicates within _addTimeShift using pandas duplicated,
+    # but retaining the following code instead to preserve previous methods. PJW
     _, index = np.unique(ds['time'], return_index=True)
     ds = ds.isel(time=index)
+
+    # If we do not want to shift hourly average values back -1 hr, then comment the following line.
+    ds = _addTimeShift(ds, vars_df)
 
     if hasattr(ds, 'dsr_eng_coef'): 
         ds['dsr'] = (ds['dsr'] * 10) / ds.attrs['dsr_eng_coef']                # Convert radiation from engineering to physical units
@@ -219,49 +227,86 @@ def _popCols(ds, booms, data_type, vars_df, cols):
 #             ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
 #     return ds
 
-def _addTimeShift(ds, fmt):
-    '''Adjust times based on file format. For raw (10 min), values are sampled 
-    instantaneously so don't call this function. For STM (1 hour), values are 
-    averaged and timestamp is end so times are shifted by 1 h earlier to 
-    beginning. For TX (some 10 min, some 1 hour, some 1 day?) then time is 
-    shifted appropriately.
-    
+def _addTimeShift(ds, vars_df):
+    '''Shift times based on file format and logger type (shifting only hourly averaged values,
+    and not instantaneous variables). For raw (10 min), all values are sampled instantaneously
+    so do not shift. For STM (1 hour), values are averaged and assigned to end-of-hour by the
+    logger, so shift by -1 hr. For TX (time frequency depends on v2 or v3) then time is shifted
+    depending on logger type. We use the 'instantaneous_hourly' boolean from variables.csv to
+    determine if a variable is considered instantaneous at hourly samples.
+
+    This approach creates two separate sub-dataframes, one for hourly-averaged variables
+    and another for instantaneous variables. The instantaneous dataframe should never be
+    shifted. We apply shifting only to the hourly average dataframe, then concat the two
+    dataframes back together.
+
+    It is possible to use pandas merge or join instead of concat, there are equivalent methods
+    in each. In this case, we use concat throughout.
+
+    Fausto et al. 2021 specifies the convention of assigning hourly averages to start-of-hour,
+    so we need to retain this unless clearly communicated to users.
+
     Parameters
     ----------
     ds : xarray.Dataset
         Dataset to apply time shift to
-    fmt : str
-        Format string to define time shift. "raw": No adjust (timestamp is at 
-        start of period). "STM": Adjust timestamp from end of period to start 
-        of period. "TX": Adjust timestamp start of period (hour/day) also 
-        depending on season
-    
+    vars_df : pd.DataFrame
+        Metadata dataframe
+
     Returns
     -------
-    t : xarray.Dataarray
-        Data array with shifted times
-    '''    
-    if fmt == 'raw':
-        t = ds['time']                                                         # NOTE: The following line re-implements bug: https://github.com/GEUS-PROMICE/AWS_v3/issues/2
-        # t = (ds['time'] + pd.to_timedelta("-24 hours"))\                     # See also https://github.com/GEUS-PROMICE/PROMICE-AWS-processing/issues/20
-        #     .where((ds['time'].dt.hour == 23) &
-        #            ((ds['time'].dt.dayofyear <= 300) &
-        #             (ds['time'].dt.dayofyear >= 100)),
-        #            other=ds['time'])
-    elif fmt == 'STM':
-        t = ds['time'] + pd.to_timedelta("-1 hour")
-    elif fmt == 'TX':
-        diff = ds['time'].diff(dim='time')
-        diffarr = diff.values.astype('timedelta64[h]').astype(int)
-        diffarr = np.append(0, diffarr) 
-        t = (ds['time'] + pd.to_timedelta("-1 hour"))\
-            .where(# (diffarr == 1) &
-                   (ds['time'].dt.dayofyear <= 300) &
-                   (ds['time'].dt.dayofyear >= 100),
-                   other=ds['time'])
-    else:
-        t = ds['time']
-    return t
+    ds_out : xarray.Dataset
+        Dataset with shifted times
+    '''
+    df = ds.to_dataframe()
+    # No need to drop duplicates if performed prior to calling this function.
+    # df = df[~df.index.duplicated(keep='first')] # drop duplicates, keep=first is arbitrary
+    df['doy'] = df.index.dayofyear
+    i_cols = [x for x in df.columns if x in vars_df.index and vars_df['instantaneous_hourly'][x] is True] # instantaneous only, list of columns
+    df_i = df.filter(items=i_cols, axis=1) # instantaneous only dataframe
+    df_a = df.drop(df_i.columns, axis=1) # hourly ave dataframe
+
+    if ds.attrs['format'] == 'raw':
+        # 10-minute data, no shifting
+        df_out = df
+    elif ds.attrs['format'] == 'STM':
+        # hourly-averaged, non-transmitted
+        # shift everything except instantaneous, any logger type
+        df_a = df_a.shift(periods=-1, freq="H")
+        df_out = pd.concat([df_a, df_i], axis=1) # different columns, same datetime indices
+    elif ds.attrs['format'] == 'TX':
+        if ds.attrs['logger_type'] == 'CR1000X':
+            # v3, data is hourly all year long
+            # shift everything except instantaneous
+            df_a = df_a.shift(periods=-1, freq="H")
+            df_out = pd.concat([df_a, df_i], axis=1) # different columns, same datetime indices
+        elif ds.attrs['logger_type'] == 'CR1000':
+            # v2, data is hourly (6-hr for instantaneous) for DOY 100-300, otherwise daily at 00 UTC
+            # shift non-instantaneous hourly for DOY 100-300, else do not shift daily
+            df_a_hourly = df_a.loc[(df_a['doy'] >= 100) & (df_a['doy'] <= 300)]
+            # df_a_hourly = df_a.loc[df_a['doy'].between(100, 300, inclusive='both')] # equivalent to above
+            df_a_daily_1 = df_a.loc[(df_a['doy'] < 100)]
+            df_a_daily_2 = df_a.loc[(df_a['doy'] > 300)]
+
+            # shift the hourly ave data
+            df_a_hourly = df_a_hourly.shift(periods=-1, freq="H")
+
+            # stitch everything back together
+            df_concat_u = pd.concat([df_a_daily_1, df_a_daily_2, df_a_hourly], axis=0) # same columns, different datetime indices
+            df_out = pd.concat([df_concat_u, df_i], axis=1) # different columns, same datetime indices
+            df_out = df_out.sort_index()
+
+    # Back to xarray, and re-assign the original attrs
+    df_out = df_out.drop('doy', axis=1)
+    ds_out = df_out.to_xarray()
+    ds_out = ds_out.assign_attrs(ds.attrs) # Dataset attrs
+    for x in ds_out.data_vars: # variable-specific attrs
+        ds_out[x].attrs = ds[x].attrs
+
+    # equivalent to above:
+    # vals = [xr.DataArray(data=df_out[c], dims=['time'], coords={'time':df_out.index}, attrs=ds[c].attrs) for c in df_out.columns]
+    # ds_out = xr.Dataset(dict(zip(df_out.columns, vals)), attrs=ds.attrs)
+    return ds_out
 
 def _removeVars(ds, v_names):
     '''Remove redundant variables if present in dataset
