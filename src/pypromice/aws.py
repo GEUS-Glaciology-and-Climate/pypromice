@@ -162,8 +162,9 @@ class AWS(object):
             col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
                                     None)
         
+        t = int(pd.Timedelta((self.L3['time'][1] - self.L3['time'][0]).values).total_seconds())
         print('Writing to files...')
-        if 'raw' in f or 'STM' in f:
+        if t == 600:
             out_csv = os.path.join(outdir, L3.attrs['station_id']+'_10min.csv')
             out_nc = os.path.join(outdir, L3.attrs['station_id']+'_10min.nc')
         else:
@@ -718,6 +719,7 @@ def addMeta(ds, meta):
             ds.attrs[k]=str(v) 
     return ds
 
+
 def getVars(v_file):
    '''Load variables.csv file
    
@@ -875,11 +877,11 @@ if __name__ == "__main__":
 
     # Test an individual station
     # test_station = 'xxx'
-    # # config_file = '../../../aws-data/raw/config/{}.toml'.format(test_station)
-    # config_file = '../../../aws-data/tx/config/{}.toml'.format(test_station)
-    # # inpath= '../../../aws-data/raw/{}/'.format(test_station)
-    # inpath= '../../../aws-data/tx/'
-    # outpath = 'test/STATION/'
+    # # config_file = '../../../aws-l0/raw/config/{}.toml'.format(test_station)
+    # config_file = '../../../aws-l0/tx/config/{}.toml'.format(test_station)
+    # # inpath= '../../../aws-l0/raw/{}/'.format(test_station)
+    # inpath= '../../../aws-l0/tx/'
+    # outpath = 'test/'
     # vari = 'variables.csv'
     # pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
 
