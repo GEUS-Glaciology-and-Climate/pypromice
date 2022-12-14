@@ -97,7 +97,7 @@ class AWS(object):
         # Save to file if outpath given
         if outpath is not None:
             if os.path.isdir(outpath):
-                self.writeArr(outpath, self.L3)
+                self.writeArr(outpath)
             else:
                 print(f'Outpath f{outpath} does not exist. Unable to save to file')
                 pass
@@ -140,7 +140,7 @@ class AWS(object):
         L3 = addMeta(L3, self.meta)
         return L3
 
-    def writeArr(self, outpath, L3):
+    def writeArr(self, outpath):
         '''Write L3 data to .nc and .csv hourly and daily files
         
         Parameters
@@ -150,7 +150,7 @@ class AWS(object):
         L3 : AWS.L3
             Level-3 data object
         '''
-        outdir = os.path.join(outpath, L3.attrs['station_id']) 
+        outdir = os.path.join(outpath, self.L3.attrs['station_id']) 
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
         
@@ -165,13 +165,13 @@ class AWS(object):
         t = int(pd.Timedelta((self.L3['time'][1] - self.L3['time'][0]).values).total_seconds())
         print('Writing to files...')
         if t == 600:
-            out_csv = os.path.join(outdir, L3.attrs['station_id']+'_10min.csv')
-            out_nc = os.path.join(outdir, L3.attrs['station_id']+'_10min.nc')
+            out_csv = os.path.join(outdir, self.L3.attrs['station_id']+'_10min.csv')
+            out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_10min.nc')
         else:
-            out_csv = os.path.join(outdir, L3.attrs['station_id']+'_hour.csv')
-            out_nc = os.path.join(outdir, L3.attrs['station_id']+'_hour.nc')            
-        writeCSV(out_csv, L3, col_names)
-        writeNC(out_nc, L3) 
+            out_csv = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.csv')
+            out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.nc')            
+        writeCSV(out_csv, self.L3, col_names)
+        writeNC(out_nc, self.L3) 
         print(f'Written to {out_csv}')           
         print(f'Written to {out_nc}') 
         
@@ -877,10 +877,10 @@ if __name__ == "__main__":
 
     # Test an individual station
     # test_station = 'xxx'
-    # # config_file = '../../../aws-l0/raw/config/{}.toml'.format(test_station)
-    # config_file = '../../../aws-l0/tx/config/{}.toml'.format(test_station)
-    # # inpath= '../../../aws-l0/raw/{}/'.format(test_station)
-    # inpath= '../../../aws-l0/tx/'
+    # config_file = '../../../aws-l0/raw/config/{}.toml'.format(test_station)
+    # # config_file = '../../../aws-l0/tx/config/{}.toml'.format(test_station)
+    # inpath= '../../../aws-l0/raw/{}/'.format(test_station)
+    # # inpath= '../../../aws-l0/tx/'
     # outpath = 'test/'
     # vari = 'variables.csv'
     # pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
