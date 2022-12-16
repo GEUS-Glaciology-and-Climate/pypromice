@@ -475,7 +475,6 @@ if __name__ == '__main__':
     skipped = []
     no_recent_data = []
     no_valid_data = []
-    partial_data = []
     no_entry_latest_timestamps = []
     failed_min_data_wx = []
     failed_min_data_pos = []
@@ -530,7 +529,6 @@ if __name__ == '__main__':
                     continue
                 else:
                     # we have partial data, just use the most recent row
-                    partial_data.append(stid)
                     current_timestamp = max(recent.values())
                     # We will throw this obset down the line, and there is a final min_data_check
                     # to make sure we have minimum data requirements before writing to BUFR
@@ -641,7 +639,6 @@ if __name__ == '__main__':
     print('skipped: {}'.format(skipped))
     print('no_recent_data: {}'.format(no_recent_data))
     print('no_valid_data: {}'.format(no_valid_data))
-    print('partial_data: {}'.format(partial_data)) # This can still be processed
     print('no_entry_latest_timestamps: {}'.format(no_entry_latest_timestamps))
     print('failed_min_data_wx: {}'.format(failed_min_data_wx))
     print('failed_min_data_pos: {}'.format(failed_min_data_pos))
