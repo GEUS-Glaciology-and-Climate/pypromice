@@ -633,7 +633,8 @@ if __name__ == '__main__':
         positions_df.to_csv('positions.csv')
 
     print('--------------------------------')
-    not_processed_count = len(skipped) + len(no_recent_data) + len(no_valid_data) + len(no_entry_latest_timestamps) + len(failed_min_data_wx) + len(failed_min_data_pos)
+    not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
+    not_processed_count = len(skipped) + len(no_recent_data) + len(no_valid_data) + len(no_entry_latest_timestamps) + len(not_processed_wx_pos)
     print('Finished processing {} of {} fpaths.'.format((len(fpaths) - not_processed_count),len(fpaths)))
     print('')
     print('skipped: {}'.format(skipped))

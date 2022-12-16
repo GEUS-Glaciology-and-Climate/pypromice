@@ -15,7 +15,7 @@ stid_to_skip = { # All the following IDS will not be processed or submitted
     'test': ['XXX'],
     'discontinued': ['CEN1','TAS_U','QAS_A','NUK_N','THU_U','JAR','SWC'],
     'no_instantaneous': ['ZAK_L','ZAK_U','KAN_B'], # currently not transmitting instantaneous values
-    'suspect_data': ['LYN_L','LYN_U','LYN_T'], # cannot confirm instantaneous data is good
+    'suspect_data': [], # instantaneous data is suspect
     'use_v3': ['KPC_L','NUK_U','ZAK_U'], # use v3 versions instead (but registered IDs will be non-v3)
     'v3_bad': ['KPC_Uv3','QAS_Uv3','QAS_Lv3'] # KPC_Uv3 years are 2056, QAS_Uv3 stops at 2022-10-31, QAS_Lv3 new ablation sensor w/different txt fields?
 }
