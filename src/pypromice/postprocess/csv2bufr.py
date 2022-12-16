@@ -440,14 +440,9 @@ def min_data_check(s, stid):
 #------------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    # Get station names and file paths
-    if args.dev is True:
-        # l3path = args.l3_path_dev
-        fpaths = glob.glob(args.l3_files_dev)
-    else:
-        sys.exit('Prod paths not yet defined. Need to pass --dev.')
 
-    # stns = [name for name in os.listdir(l3path) if os.path.isdir(l3path)]
+    # Get list of relative file paths
+    fpaths = glob.glob(args.l3_filepath)
 
     # Make out dir
     outFiles = args.bufr_out
@@ -465,7 +460,7 @@ if __name__ == '__main__':
     # Initiate a new dict for current timestamps
     current_timestamps = {}
 
-    if args.dev is True:
+    if args.positions is True:
         # Initiate a dict to store station positions
         # Used to retrieve a static set of positions to register with WMO
         positions = {}
@@ -498,7 +493,7 @@ if __name__ == '__main__':
             bufrname = stid + '.bufr'
             print(f'Generating {bufrname} from {f}')
 
-            if args.dev is True:
+            if args.positions is True:
                 positions[stid] = {}
                 positions[stid]['lat_s'] = ''
                 positions[stid]['lon_s'] = ''
@@ -530,7 +525,7 @@ if __name__ == '__main__':
                 if len(recent) == 0:
                     print('No recent instantaneous timestamps!')
                     no_recent_data.append(stid)
-                    if args.dev is True:
+                    if args.positions is True:
                         fetch_old_positions(df1,stid)
                     continue
                 else:
@@ -543,7 +538,7 @@ if __name__ == '__main__':
                 if all(i is None for i in lvi.values()) is True:
                     print('All instantaneous timestamps are None!')
                     no_valid_data.append(stid)
-                    if args.dev is True:
+                    if args.positions is True:
                         fetch_old_positions(df1,stid)
                     continue
                 else:
@@ -558,8 +553,12 @@ if __name__ == '__main__':
             if stid in latest_timestamps:
                 latest_timestamp = latest_timestamps[stid]
 
-                if current_timestamp > two_days_ago: # dev bypass
-                # if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
+                if args.dev is True:
+                    # If we want to run repeatedly (before another transmission comes in), then don't
+                    # check the actual latest timestamp, and just set to two_days_ago
+                    latest_timestamp = two_days_ago
+
+                if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
                     print('Time checks passed.')
                     # limit the dataframe for linear regression (e.g. previous 3 months)
                     df1_limited = df1.last(args.time_limit)
@@ -596,7 +595,7 @@ if __name__ == '__main__':
 
                     s1_current = round_values(s1_current)
 
-                    if args.dev is True:
+                    if args.positions is True:
                         write_positions(s1_current, stid)
 
                     # Check that we have minimum required valid data
@@ -614,7 +613,7 @@ if __name__ == '__main__':
                     print('current:', current_timestamp)
                     print('latest:', latest_timestamp)
                     no_recent_data.append(stid)
-                    if args.dev is True:
+                    if args.positions is True:
                         fetch_old_positions(df1,stid)
             else:
                 print('{} not found in latest_timestamps'.format(stid))
@@ -626,7 +625,7 @@ if __name__ == '__main__':
     with open('latest_timestamps.pickle', 'wb') as handle:
         pickle.dump(current_timestamps, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    if args.dev is True:
+    if args.positions is True:
         positions_df = pd.DataFrame.from_dict(
             positions,
             orient='index',
