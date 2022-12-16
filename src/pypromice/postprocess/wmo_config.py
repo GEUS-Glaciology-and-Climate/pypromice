@@ -25,7 +25,10 @@ stid_to_skip = { # All the following IDS will not be processed or submitted
 
 ibufr_settings = {
     'template': {
-        'unexpandedDescriptors': (307090), #message template, 307090 is "synopMobil"
+        'unexpandedDescriptors': {
+            'mobile': (307090), #message template, "synopMobil"
+            'land': (307080), #message template, "synopLand"
+        },
         'edition': 4, #latest edition
         'masterTableNumber': 0,
         'masterTablesVersionNumber': 32, #DMI recommends any table version between 28-32
@@ -40,39 +43,59 @@ ibufr_settings = {
         'compressedData': 0,
     },
     'station': {
-        'shipOrMobileLandStationIdentifier': {
-            # Temporary placeholder list
-            'CEN_A': 4204207,
-            'CEN_T': 4204208,
-            'CEN_i': 4204229,
-            'DIS_A': 4204209,
-            'EGP_A': 4204210,
-            'EGP_i': 4204210,
-            'GEUS_': 4204211,
-            'KAN_B': 4204213,
-            'KAN_L': 4204214,
-            'KAN_M': 4204215,
-            'KAN_U': 4204216,
-            'KPC_L': 4204217,
-            'KPC_U': 4204218,
-            'MIT_A': 4204212,
-            'MIT_i': 4204219,
-            'NUK_K': 4204228,
-            'NUK_L': 4204204,
-            'NUK_U': 4204206,
-            'QAS_A': 4204220,
-            'QAS_L': 4204201,
-            'QAS_M': 4204221,
-            'QAS_U': 4204203,
-            'SCO_L': 4204222,
-            'SCO_U': 4204223,
-            'TAS_A': 4204205,
-            'TAS_L': 4204202,
-            'THU_L': 4204224,
-            'THU_U': 4204225,
-            'THU_U2': 4204230,
-            'UPE_L': 4204226,
-            'UPE_U': 4204227
+        'station_identifiers': {
+            'shipOrMobileLandStationIdentifier': {
+                # use string; synopMobil fails with "gribapi.errors.InvalidArgumentError: Invalid argument" if passed as int
+                'CEN2':   '04411',
+                'CP1':    '04411',
+                'DY2':    '04411',
+                'EGP':    '04411',
+                'HUM':    '04411',
+                'JAR':    '04411',
+                'JAR_O':  '04411',
+                'KAN_L':  '04411',
+                'KAN_M':  '04411',
+                'KAN_U':  '04411',
+                'KPC_L':  '04411',
+                'KPC_U':  '04411',
+                'LYN_L':  '04411',
+                'LYN_T':  '04411',
+                'MIT':    '04411',
+                'NAE':    '04411',
+                'NAU':    '04411',
+                'NEM':    '04411',
+                'NSE':    '04411',
+                'NUK_K':  '04411',
+                'NUK_L':  '04411',
+                'NUK_U':  '04411',
+                'QAS_L':  '04411',
+                'QAS_M':  '04411',
+                'QAS_U':  '04411',
+                'SCO_L':  '04411',
+                'SCO_U':  '04411',
+                'SDL':    '04411',
+                'SDM':    '04411',
+                'SWC':    '04411',
+                'SWC_O':  '04411',
+                'TAS_A':  '04411',
+                'TAS_L':  '04411',
+                'THU_L':  '04411',
+                'THU_L2': '04411',
+                'THU_U':  '04411',
+                'TUN':    '04411',
+                'UPE_L':  '04411',
+                'UPE_U':  '04411',
+                'UWN':    '04411',
+                'ZAK_L':  '04411',
+                'ZAK_U':  '04411'
+            },
+            'stationNumber': {
+                # land-based (non-mobile) stations
+                # use int; synopLand fails with "Segmentation fault (core dumped)" if stationNumber is passed as string
+                # stationNumber cannot handle more than 3 characters?!
+                'WEG_B':  '04411',
+                'KAN_B':  '04411'
+            },
         },
         # 'blockNumber': 4, #4 is Greenland, 6 is Denmark; not valid if using synopMobil template
         'regionNumber': 6, #6 is Europe, 7 is MISSING VALUE

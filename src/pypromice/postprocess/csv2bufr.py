@@ -67,7 +67,7 @@ def getBUFR(s1, outBUFR, stid):
     timestamp = datetime.strptime(s1['time'], '%Y-%m-%d %H:%M:%S')
 
     try:
-        setTemplate(ibufr, timestamp)
+        setTemplate(ibufr, timestamp, stid)
         setStation(ibufr, stid)
         setAWSvariables(ibufr, s1, timestamp)
 
@@ -91,7 +91,7 @@ def getBUFR(s1, outBUFR, stid):
     fout.close()
 
 
-def setTemplate(ibufr, timestamp):
+def setTemplate(ibufr, timestamp, stid):
     '''Set bufr message template.
 
     Parameters
@@ -100,10 +100,16 @@ def setTemplate(ibufr, timestamp):
         Bufr message object
     timestamp: datetime.Datetime
         Timestamp of observation
+    stid: str
+        The station ID to be processed. e.g. 'KPC_U'
     '''
     for k, v in ibufr_settings['template'].items():
         if codes_is_defined(ibufr, k) == 1:
-            codes_set(ibufr, k, v)
+            if k == 'unexpandedDescriptors':
+                if stid not in land_stids:
+                    codes_set(ibufr, k, v['mobile'])
+                else:
+                    codes_set(ibufr, k, v['land'])
         else:
             print('-----> setTemplate Key not defined: {}'.format(k))
             continue
@@ -126,19 +132,30 @@ def setStation(ibufr, stid):
     stid: str
         The station ID to be processed. e.g. 'KPC_U'
     '''
+    id_found = False
     for k, v in ibufr_settings['station'].items():
-        if codes_is_defined(ibufr, k) == 1:
-            if k == 'shipOrMobileLandStationIdentifier':
-                if stid in v:
-                    codes_set(ibufr, k, str(v[stid]))
-                else:
-                    codes_set(ibufr, k, '1111111') # for testing
-                    # sys.exit('!!!!!!!!!! WMO ID not found for {}'.format(stid))
-            else:
-                codes_set(ibufr, k, v)
+        if k == 'station_identifiers':
+            if ('v3' in stid) and (stid.replace('v3','') in stid_to_skip['use_v3']):
+                stid = stid.replace('v3','')
+                # print('REPLACED!',stid)
+            if stid == 'THU_U2':
+                stid = 'THU_U'
+                # print('REPLACED!',stid)
+            for sk, sv in ibufr_settings['station'][k].items():
+                if stid in sv:
+                    if stid in land_stids:
+                        codes_set(ibufr, sk, int(sv[stid]))
+                    else:
+                        codes_set(ibufr, sk, sv[stid])
+                    id_found = True
+            if id_found is False:
+                sys.exit('!!!!!!!!!! ID not found for {}'.format(stid))
         else:
-            print('-----> setStation Key not defined: {}'.format(k))
-            continue
+            if codes_is_defined(ibufr, k) == 1:
+                codes_set(ibufr, k, v)
+            else:
+               print('-----> setStation Key not defined: {}'.format(k))
+               continue
 
 
 def setAWSvariables(ibufr, row, timestamp):
@@ -478,6 +495,8 @@ if __name__ == '__main__':
     no_entry_latest_timestamps = []
     failed_min_data_wx = []
     failed_min_data_pos = []
+
+    land_stids = ibufr_settings['station']['station_identifiers']['stationNumber'].keys()
 
     # Iterate through csv files
     for f in fpaths:
