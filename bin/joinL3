@@ -5,7 +5,7 @@ import xarray as xr
 from argparse import ArgumentParser
 from pypromice.aws import getVars, getMeta, addMeta, _addAttr, getColNames, \
     roundValues, resampleL3, writeAll
-from pypromice.L1toL2 import _correct Precip
+from pypromice.L1toL2 import _correctPrecip
 
 def parse_arguments():
     parser = ArgumentParser(description="AWS L3 joiner for merging together two L3 products, for example an L3 RAW and L3 TX data product. An hourly, daily and monthly L3 data product is outputted to the defined output path")

@@ -118,7 +118,7 @@ class AWS(object):
         print('Level 2 processing...')
         self.L2 = toL2(self.L1A)
         self.L2 = clipValues(self.L2, self.vars)
-
+        
         # L2 to L3 processing
         print('Level 3 processing...')        
         self.L3 = toL3(self.L2)
@@ -519,7 +519,7 @@ def clipValues(ds, df, cols=['lo','hi','OOL']):
     for var in df.index:
         if var not in list(ds.variables): 
             continue
-        
+            
         if var in ['rh_u_cor', 'rh_l_cor']:
              ds[var] = ds[var].where(ds[var] >= df.loc[var, lo], other = 0)
              ds[var] = ds[var].where(ds[var] <= df.loc[var, hi], other = 100)
