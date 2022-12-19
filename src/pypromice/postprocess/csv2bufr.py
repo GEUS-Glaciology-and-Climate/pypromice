@@ -37,7 +37,7 @@ from args import args
 
 from wmo_config import ibufr_settings, stid_to_skip
 
-from IPython import embed
+# from IPython import embed
 
 # To suppress pandas SettingWithCopyWarning
 pd.options.mode.chained_assignment = None # default='warn'
@@ -54,7 +54,7 @@ def getBUFR(s1, outBUFR, stid):
         Pandas series of single most recent obset for a station
     outBUFR : str
         File path that .bufr file will be exported to
-    stid: str
+    stid : str
         The station ID to be processed. e.g. 'KPC_U'
     '''
     # Open bufr file
@@ -65,10 +65,12 @@ def getBUFR(s1, outBUFR, stid):
     #Create new bufr message to write to
     ibufr = codes_bufr_new_from_samples('BUFR4')
     timestamp = datetime.strptime(s1['time'], '%Y-%m-%d %H:%M:%S')
-
+    config_key = 'mobile'
+    if stid in land_stids:
+        config_key = 'land'
     try:
-        setTemplate(ibufr, timestamp, stid)
-        setStation(ibufr, stid)
+        setTemplate(ibufr, timestamp, stid, config_key)
+        setStation(ibufr, stid, config_key)
         setAWSvariables(ibufr, s1, timestamp)
 
         #Encode keys in data section
@@ -82,6 +84,7 @@ def getBUFR(s1, outBUFR, stid):
         print(ec)
         sys.exit('-----> CodesInternalError in getBUFR!')
     except Exception as e:
+        # Catch anything else here...
         print(traceback.format_exc())
         print(e)
         sys.exit('!!!!!!!!!! ERROR in getBUFR')
@@ -91,25 +94,23 @@ def getBUFR(s1, outBUFR, stid):
     fout.close()
 
 
-def setTemplate(ibufr, timestamp, stid):
+def setTemplate(ibufr, timestamp, stid, config_key):
     '''Set bufr message template.
 
     Parameters
     ----------
     ibufr : bufr.msg
         Bufr message object
-    timestamp: datetime.Datetime
+    timestamp : datetime.Datetime
         Timestamp of observation
-    stid: str
+    stid : str
         The station ID to be processed. e.g. 'KPC_U'
+    config_key : str
+        Defines which config dict to use in wmo_config.ibufr_settings, 'mobile' or 'land'
     '''
-    for k, v in ibufr_settings['template'].items():
+    for k, v in ibufr_settings[config_key]['template'].items():
         if codes_is_defined(ibufr, k) == 1:
-            if k == 'unexpandedDescriptors':
-                if stid not in land_stids:
-                    codes_set(ibufr, k, v['mobile'])
-                else:
-                    codes_set(ibufr, k, v['land'])
+            codes_set(ibufr, k, v)
         else:
             print('-----> setTemplate Key not defined: {}'.format(k))
             continue
@@ -122,33 +123,35 @@ def setTemplate(ibufr, timestamp, stid):
     # codes_set(ibufr, 'typicalSecond', timestamp.second)
 
 
-def setStation(ibufr, stid):
+def setStation(ibufr, stid, config_key):
     '''Set station-specific info to bufr message.
 
     Parameters
     ----------
     ibufr : bufr.msg
         Bufr message object
-    stid: str
+    stid : str
         The station ID to be processed. e.g. 'KPC_U'
+    config_key : str
+        Defines which config dict to use in wmo_config.ibufr_settings, 'mobile' or 'land'
     '''
-    id_found = False
-    for k, v in ibufr_settings['station'].items():
-        if k == 'station_identifiers':
+    station_indentifier_keys = ('shipOrMobileLandStationIdentifier','stationNumber')
+    for k, v in ibufr_settings[config_key]['station'].items():
+        if k in station_indentifier_keys:
+            # Deal with any string replacement of stid names before indexing
             if ('v3' in stid) and (stid.replace('v3','') in stid_to_skip['use_v3']):
+                # We are reading the v3 station ID file, and the config says to use it!
+                # But we need to write to BUFR without v3 name
                 stid = stid.replace('v3','')
                 # print('REPLACED!',stid)
             if stid == 'THU_U2':
                 stid = 'THU_U'
                 # print('REPLACED!',stid)
-            for sk, sv in ibufr_settings['station'][k].items():
-                if stid in sv:
-                    if stid in land_stids:
-                        codes_set(ibufr, sk, int(sv[stid]))
-                    else:
-                        codes_set(ibufr, sk, sv[stid])
-                    id_found = True
-            if id_found is False:
+            if stid in ('JAR_O','SWC_O'):
+                stid = stid.replace('_O','')
+            if stid in v:
+                codes_set(ibufr, k, v[stid])
+            else:
                 sys.exit('!!!!!!!!!! ID not found for {}'.format(stid))
         else:
             if codes_is_defined(ibufr, k) == 1:
@@ -167,7 +170,7 @@ def setAWSvariables(ibufr, row, timestamp):
         Bufr message object
     row : pandas.DataFrame row, or pandas.Series
         DataFrame row (or Series) with AWS variable data
-    timestamp: datetime.datetime
+    timestamp : datetime.datetime
         timestamp for this row
     '''
     setBUFRvalue(ibufr, 'year', timestamp.year)
@@ -243,7 +246,7 @@ def linear_fit(df, column, decimals, stid):
         The target column for applying linear fit
     decimals : int
         How many decimals to round the output fit values
-    stid: str
+    stid : str
         The station ID to be processed. e.g. 'KPC_U'
 
     Returns
@@ -344,7 +347,7 @@ def round_values(s):
 def write_positions(s, stid):
     '''Set valid lat, lon, alt to the positions dict.
     Find recent position metadata for submitting to DMI/WMO.
-    Not used in production!
+    Not used in production! Must pass --positions arg.
 
     Parameters
     ----------
@@ -372,7 +375,7 @@ def write_positions(s, stid):
 def fetch_old_positions(df, stid):
     '''Set valid lat, lon, alt to the positions dict.
     Used to find old GPS positions for submitting position metadata to DMI/WMO.
-    Not used in production!
+    Not used in production! Must pass --positions arg.
 
     Parameters
     ----------
@@ -496,7 +499,7 @@ if __name__ == '__main__':
     failed_min_data_wx = []
     failed_min_data_pos = []
 
-    land_stids = ibufr_settings['station']['station_identifiers']['stationNumber'].keys()
+    land_stids = ibufr_settings['land']['station']['stationNumber'].keys()
 
     # Iterate through csv files
     for f in fpaths:
@@ -663,4 +666,3 @@ if __name__ == '__main__':
     print('failed_min_data_wx: {}'.format(failed_min_data_wx))
     print('failed_min_data_pos: {}'.format(failed_min_data_pos))
     print('--------------------------------')
-    embed()
