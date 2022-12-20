@@ -426,16 +426,13 @@ def min_data_check(s, stid):
 
     Returns
     -------
-    result : bool
-        True (default), the test passed. False, the test failed.
-    failed_min_data_wx : list
-        List of stids that failed the min data check
-    failed_min_data_pos : list
-        List of stids that failed the min position check
+    min_data_wx_result : bool
+        True (default), the test for min wx data passed. False, the test failed.
+    min_data_pos_result : bool
+        True (default), the test for min position data passed. False, the test failed.
     '''
-    result = True
-    failed_min_data_wx = []
-    failed_min_data_pos = []
+    min_data_wx_result = True
+    min_data_pos_result = True
 
     # Can use pd.isna() or math.isnan()
     # Must have valid air temp and pressure
@@ -443,8 +440,7 @@ def min_data_check(s, stid):
         pass
     else:
         print('----> Failed min_data_check for air temp and pressure!')
-        failed_min_data_wx.append(stid)
-        result = False
+        min_data_wx_result = False
 
     # Must have a valid position
     # Note that gps_ variables have already had replacement with msg_ positions if needed
@@ -459,7 +455,6 @@ def min_data_check(s, stid):
         pass
     else:
         print('----> Failed min_data_check for position!')
-        failed_min_data_pos.append(stid)
-        result = False
+        min_data_pos_result = False
 
-    return result, failed_min_data_wx, failed_min_data_pos
+    return min_data_wx_result, min_data_pos_result
