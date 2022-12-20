@@ -38,14 +38,12 @@ def parse_arguments():
 	    help='Previous time to limit dataframe before applying linear regression.')
 
 	parser.add_argument('--l3-filepath',
-	    # default='../../aws-l3/tx/*/*_hour.csv',
 	    default='../aws-l3/tx/*/*_hour.csv',
 	    type=str,
 	    required=False,
 	    help='Path to l3 tx .csv files.')
 
 	parser.add_argument('--bufr-out',
-	    # default='../src/pypromice/postprocess/BUFR_out/',
 	    default='src/pypromice/postprocess/BUFR_out/',
 	    type=str,
 	    required=False,
