@@ -6,7 +6,8 @@ Major modifications: Oct 2022
 
 @author: pho, pajwr
 
-Script for converting PROMICE .csv files to WMO-compliant BUFR files
+Functions for converting PROMICE .csv files to WMO-compliant BUFR files
+Imported by pypromice/bin/getBUFR
 
 This script uses the package eccodes to run. 
 https://confluence.ecmwf.int/display/ECC/ecCodes+installation
@@ -23,19 +24,16 @@ Processing steps based on this example:
 https://confluence.ecmwf.int/display/UDOC/How+do+I+create+BUFR+from+a+CSV+-+ecCodes+BUFR+FAQ
 """
 import pandas as pd
-import glob, os, sys, traceback
+import sys, traceback
 from datetime import datetime, timedelta
 from eccodes import codes_set, codes_write, codes_release, \
                     codes_bufr_new_from_samples, CodesInternalError, \
                     codes_is_defined
 import math
-import pickle
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-from args import args
-
-from wmo_config import ibufr_settings, stid_to_skip
+from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip
 
 # from IPython import embed
 
@@ -44,7 +42,7 @@ pd.options.mode.chained_assignment = None # default='warn'
 
 #------------------------------------------------------------------------------
 
-def getBUFR(s1, outBUFR, stid):
+def getBUFR(s1, outBUFR, stid, land_stids):
     '''Construct and export .bufr messages to file from Series or DataFrame.
     PRIMARY DRIVER FUNCTION
 
@@ -56,6 +54,8 @@ def getBUFR(s1, outBUFR, stid):
         File path that .bufr file will be exported to
     stid : str
         The station ID to be processed. e.g. 'KPC_U'
+    land_stids : list
+        List of station IDs for land-based stations
     '''
     # Open bufr file
     fout = open(outBUFR, 'wb')
@@ -428,8 +428,14 @@ def min_data_check(s, stid):
     -------
     result : bool
         True (default), the test passed. False, the test failed.
+    failed_min_data_wx : list
+        List of stids that failed the min data check
+    failed_min_data_pos : list
+        List of stids that failed the min position check
     '''
     result = True
+    failed_min_data_wx = []
+    failed_min_data_pos = []
 
     # Can use pd.isna() or math.isnan()
     # Must have valid air temp and pressure
@@ -456,213 +462,4 @@ def min_data_check(s, stid):
         failed_min_data_pos.append(stid)
         result = False
 
-    return result
-#------------------------------------------------------------------------------
-
-if __name__ == '__main__':
-
-    # Get list of relative file paths
-    fpaths = glob.glob(args.l3_filepath)
-
-    # Make out dir
-    outFiles = args.bufr_out
-    if os.path.exists(outFiles) is False:
-        os.mkdir(outFiles)
-
-    # Read existing timestamps pickle to dictionary
-    if os.path.isfile('latest_timestamps.pickle'):
-        with open('latest_timestamps.pickle', 'rb') as handle:
-            latest_timestamps = pickle.load(handle)
-    else:
-        print('latest_timestamps.pickle not found!')
-        latest_timestamps = {}
-
-    # Initiate a new dict for current timestamps
-    current_timestamps = {}
-
-    if args.positions is True:
-        # Initiate a dict to store station positions
-        # Used to retrieve a static set of positions to register with WMO
-        positions = {}
-
-    # Define stations to skip
-    to_skip = []
-    for k, v in stid_to_skip.items():
-        to_skip.extend(v)
-    to_skip = set(to_skip) # Get rid of any duplicates
-
-    # Setup diagnostic lists (print at end)
-    skipped = []
-    no_recent_data = []
-    no_valid_data = []
-    no_entry_latest_timestamps = []
-    failed_min_data_wx = []
-    failed_min_data_pos = []
-
-    land_stids = ibufr_settings['land']['station']['stationNumber'].keys()
-
-    # Iterate through csv files
-    for f in fpaths:
-        last_index = f.rfind('_')
-        first_index = f.rfind('/')
-        stid = f[first_index+1:last_index]
-        # stid = f.split('/')[-1].split('.csv')[0][:-5]
-
-        if ('Roof' not in f) and (stid not in to_skip):
-        # if ('v3' not in f) and ('Roof' not in f) and (stid not in to_skip):
-            print('####### Processing {} #######'.format(stid))
-            bufrname = stid + '.bufr'
-            print(f'Generating {bufrname} from {f}')
-
-            if args.positions is True:
-                positions[stid] = {}
-                positions[stid]['lat_s'] = ''
-                positions[stid]['lon_s'] = ''
-
-            # Read csv file
-            df1 = pd.read_csv(f, delimiter=',')
-            df1.set_index(pd.to_datetime(df1['time']), inplace=True)
-            df1.sort_index(inplace=True) # make sure we are time-sorted
-
-            # Check that the last valid index for all instaneous values match
-            # Note: we cannot always use the single most-recent timestamp in the dataframe
-            # e.g. for 6-hr transmissions, *_u will have hourly data while *_i is nan
-            # Need to check for last valid (non-nan) index instead
-            lvi = {'t_i': df1['t_i'].last_valid_index(),
-                   'p_i': df1['p_i'].last_valid_index(),
-                   'rh_i': df1['rh_i'].last_valid_index(),
-                   'wspd_i': df1['wspd_i'].last_valid_index(),
-                   'wdir_i': df1['wdir_i'].last_valid_index()
-                   }
-
-            two_days_ago = datetime.utcnow() - timedelta(days=2)
-
-            if len(set(lvi.values())) != 1:
-                # instantaneous vars have different timestamps
-                recent = {}
-                for k,v in lvi.items():
-                    if (v is not None) and (v >= two_days_ago):
-                        recent[k] = v
-                if len(recent) == 0:
-                    print('No recent instantaneous timestamps!')
-                    no_recent_data.append(stid)
-                    if args.positions is True:
-                        fetch_old_positions(df1,stid)
-                    continue
-                else:
-                    # we have partial data, just use the most recent row
-                    current_timestamp = max(recent.values())
-                    # We will throw this obset down the line, and there is a final min_data_check
-                    # to make sure we have minimum data requirements before writing to BUFR
-            else:
-                if all(i is None for i in lvi.values()) is True:
-                    print('All instantaneous timestamps are None!')
-                    no_valid_data.append(stid)
-                    if args.positions is True:
-                        fetch_old_positions(df1,stid)
-                    continue
-                else:
-                    # all values are present, with matching timestamps, so just use t_i
-                    current_timestamp = df1['t_i'].last_valid_index()
-
-            print(f'TIMESTAMP: {current_timestamp}')
-
-            # set in dict, will be written to disk at end
-            current_timestamps[stid] = current_timestamp
-
-            if stid in latest_timestamps:
-                latest_timestamp = latest_timestamps[stid]
-
-                if args.dev is True:
-                    # If we want to run repeatedly (before another transmission comes in), then don't
-                    # check the actual latest timestamp, and just set to two_days_ago
-                    latest_timestamp = two_days_ago
-
-                if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
-                    print('Time checks passed.')
-                    # limit the dataframe for linear regression (e.g. previous 3 months)
-                    df1_limited = df1.last(args.time_limit)
-
-                    # Combine gps and msg lat and lon using combine_first()
-                    # If any GPS positions are missing, we will fill the missing GPS positions with modem
-                    # positions (if they are present). Important to do this first, and then apply linear fit
-                    # to the resulting single array. Otherwise, we can have jumps when the GPS data goes out
-                    # or comes back. The message coordinates can sometimes all be 0.0, so check for this.
-                    if ('msg_lat' in df1_limited) and ('msg_lon' in df1_limited):
-                        if (0.0 not in df1_limited['msg_lat'].values):
-                            df1_limited['gps_lat'] = df1_limited['gps_lat'].combine_first(df1_limited['msg_lat'])
-                        if (0.0 not in df1_limited['msg_lon'].values):
-                            df1_limited['gps_lon'] = df1_limited['gps_lon'].combine_first(df1_limited['msg_lon'])
-
-                    # Add '{}_fit' to df (linear fit of alt, lat, lon)
-                    df1_limited = linear_fit(df1_limited, 'gps_alt', 1, stid)
-                    df1_limited = linear_fit(df1_limited, 'gps_lat', 6, stid)
-                    df1_limited = linear_fit(df1_limited, 'gps_lon', 6, stid)
-
-                    # Apply smoothing to z_boom_u
-                    # require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
-                    df1_limited = rolling_window(df1_limited, 'z_boom_u', '72H', 2, 1)
-
-                    # limit to single most recent valid row (convert to series)
-                    s1_current = df1_limited.loc[current_timestamp]
-
-                    # Convert air temp, C to Kelvin
-                    s1_current.t_i = s1_current.t_i + 273.15
-
-                    # Convert pressure, correct the -1000 offset, then hPa to Pa
-                    # note that instantaneous pressure has 0.1 hPa precision
-                    s1_current.p_i = (s1_current.p_i+1000.) * 100.
-
-                    s1_current = round_values(s1_current)
-
-                    if args.positions is True:
-                        write_positions(s1_current, stid)
-
-                    # Check that we have minimum required valid data
-                    # This should really only apply to the case of partial data (from the timestamp checks above)
-                    # However, good sanity check to just run this once here for all stids
-                    min_data_result = min_data_check(s1_current, stid)
-                    if min_data_result is False:
-                        continue
-
-                    # Construct and export BUFR file
-                    getBUFR(s1_current, outFiles+bufrname, stid)
-                    print(f'Successfully exported bufr file to {outFiles+bufrname}')
-                else:
-                    print('Time checks failed for {}'.format(stid))
-                    print('current:', current_timestamp)
-                    print('latest:', latest_timestamp)
-                    no_recent_data.append(stid)
-                    if args.positions is True:
-                        fetch_old_positions(df1,stid)
-            else:
-                print('{} not found in latest_timestamps'.format(stid))
-                no_entry_latest_timestamps.append(stid)
-        else:
-            skipped.append(stid)
-    # Write the most recent timestamps back to the pickle on disk
-    print('writing latest_timestamps.pickle')
-    with open('latest_timestamps.pickle', 'wb') as handle:
-        pickle.dump(current_timestamps, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    if args.positions is True:
-        positions_df = pd.DataFrame.from_dict(
-            positions,
-            orient='index',
-            columns=['timestamp','lat','lon','alt','lat_s','lon_s']
-            )
-        positions_df.sort_index(inplace=True)
-        positions_df.to_csv('positions.csv')
-
-    print('--------------------------------')
-    not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
-    not_processed_count = len(skipped) + len(no_recent_data) + len(no_valid_data) + len(no_entry_latest_timestamps) + len(not_processed_wx_pos)
-    print('Finished processing {} of {} fpaths.'.format((len(fpaths) - not_processed_count),len(fpaths)))
-    print('')
-    print('skipped: {}'.format(skipped))
-    print('no_recent_data: {}'.format(no_recent_data))
-    print('no_valid_data: {}'.format(no_valid_data))
-    print('no_entry_latest_timestamps: {}'.format(no_entry_latest_timestamps))
-    print('failed_min_data_wx: {}'.format(failed_min_data_wx))
-    print('failed_min_data_pos: {}'.format(failed_min_data_pos))
-    print('--------------------------------')
+    return result, failed_min_data_wx, failed_min_data_pos
