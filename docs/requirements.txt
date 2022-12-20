@@ -1,4 +1,4 @@
-sphinx_pdj_theme
+sphinx_rtd_theme
 datetime
 eccodes
 numpy

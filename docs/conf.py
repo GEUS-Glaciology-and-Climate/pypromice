@@ -10,7 +10,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import sphinx_pdj_theme
+import sphinx_rtd_theme
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../src'))
@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath('../src/pypromice'))
 # -- Project information -----------------------------------------------------
 
 project = 'pypromice'
-copyright = '2022, GEUS'
+copyright = '2022, GEUS Glaciology and Climate'
 author = 'GEUS Glaciology and Climate'
 
 # The full version, including alpha/beta/rc tags
@@ -33,6 +33,7 @@ release = '0.0.1'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosectionlabel',
     'sphinx.ext.intersphinx',	  
     'sphinx.ext.mathjax',     
     'sphinx.ext.napoleon'        
@@ -58,9 +59,13 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_pdj_theme'
-html_theme_path = [sphinx_pdj_theme.get_html_theme_path()]
+html_theme = 'sphinx_rtd_theme'
 
+# html_logo = 'https://avatars.githubusercontent.com/u/71171316?s=200&v=4?w=10'
+
+html_theme_options = {
+	'collapse_navigation': False
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
