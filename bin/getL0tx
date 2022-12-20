@@ -111,10 +111,18 @@ if __name__ == '__main__':
                 if v[0] < d < v[1]:
                     print(f'AWS message for {k}.txt, {d.strftime("%Y-%m-%d %H:%M:%S")}')
                     l0 = L0tx(message, formatter_file, type_file)
-                
-                    if l0.msg: 
-                        print(l0.msg)           
-                        
+
+                    if l0.msg:
+                        body = l0.getEmailBody()
+                        if 'Lat' in body[0] and 'Long' in body[0]:
+                            lat_idx = body[0].split().index('Lat') + 2
+                            lon_idx = lat_pos = body[0].split().index('Long') + 2
+                            lat = body[0].split()[lat_idx]
+                            lon = body[0].split()[lon_idx]
+                            # append lat and lon to end of message
+                            l0.msg = l0.msg + ',{},{}'.format(lat,lon)
+                        print(l0.msg)
+
                         if out_dir is not None:
                             out_fn = str(k) + str(l0.flag) + '.txt'
                             out_path = os.sep.join((out_dir, out_fn))

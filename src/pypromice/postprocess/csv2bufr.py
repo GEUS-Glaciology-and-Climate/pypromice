@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep  9 13:44:49 2021
+Created on Thu Sep 9 13:44:49 2021
+Major modifications: Oct 2022
 
-@author: pho
+@author: pho, pajwr
 
-Playground script for converting PROMICE .txt files to WMO-compliant BUFR files
+Functions for converting PROMICE .csv files to WMO-compliant BUFR files
+Imported by pypromice/bin/getBUFR
 
 This script uses the package eccodes to run. 
 https://confluence.ecmwf.int/display/ECC/ecCodes+installation
@@ -20,341 +22,444 @@ https://gist.github.com/MHBalsmeier/a01ad4e07ecf467c90fad2ac7719844a
 
 Processing steps based on this example:
 https://confluence.ecmwf.int/display/UDOC/How+do+I+create+BUFR+from+a+CSV+-+ecCodes+BUFR+FAQ
-   
-
-According to DMI, the BUFR messages should adhere to Common Code Table 13:
-https://confluence.ecmwf.int/display/ECC/WMO%3D13+element+table#WMO=13elementtable-CL_1
 """
 import pandas as pd
-import glob, os
-from datetime import datetime
+import sys, traceback
+from datetime import datetime, timedelta
 from eccodes import codes_set, codes_write, codes_release, \
-                    codes_bufr_new_from_samples, CodesInternalError
-# from pybufrkit.encoder import Encoder
+                    codes_bufr_new_from_samples, CodesInternalError, \
+                    codes_is_defined
+import math
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
+from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip
+
+# from IPython import embed
+
+# To suppress pandas SettingWithCopyWarning
+pd.options.mode.chained_assignment = None # default='warn'
 
 #------------------------------------------------------------------------------
 
-def getTXT(filename, delim='\s+'):
-    '''Get values from .txt or .csv file
-    
+def getBUFR(s1, outBUFR, stid, land_stids):
+    '''Construct and export .bufr messages to file from Series or DataFrame.
+    PRIMARY DRIVER FUNCTION
+
     Parameters
     ----------
-    filename : str
-        File path to .txt or .csv file
-    
-    Returns
-    -------
-    df : pandas.DataFrame
-        Pandas dataframe of imported values
+    s1 : pandas.Series
+        Pandas series of single most recent obset for a station
+    outBUFR : str
+        File path that .bufr file will be exported to
+    stid : str
+        The station ID to be processed. e.g. 'KPC_U'
+    land_stids : list
+        List of station IDs for land-based stations
     '''
-    df = pd.read_csv(filename, delimiter=delim)
-    return df
+    # Open bufr file
+    fout = open(outBUFR, 'wb')
 
-def setBUFRvalue(ibufr, b_name, value, nullvalue=-999):
-    '''Set variable in BUFR message
-    
-    Parameters
-    ----------
-    ibufr : bufr.msg                   
-        Active BUFR message 
-    b_name : str
-        BUFR message variable name
-    value : int/float           
-        Value to be assigned to variable
-    nullvalue : int/float
-        Null value to be assigned to variable
-    '''
-    nullFlag=False
-    if isinstance(value, int) or isinstance(value, float):
-        if value==nullvalue:
-            nullFlag=True
-            # print('Null value found in ' + str(b_name))
-    if nullFlag==False:
-        try:
-            codes_set(ibufr, b_name, value)
-        except CodesInternalError as ec:
-            print(f'{ec}: {b_name}')
+    # for i1, r1 in df1.iterrows(): # If dataframe passed w/ multiple rows
 
+    #Create new bufr message to write to
+    ibufr = codes_bufr_new_from_samples('BUFR4')
+    timestamp = datetime.strptime(s1['time'], '%Y-%m-%d %H:%M:%S')
+    config_key = 'mobile'
+    if stid in land_stids:
+        config_key = 'land'
+    try:
+        setTemplate(ibufr, timestamp, stid, config_key)
+        setStation(ibufr, stid, config_key)
+        setAWSvariables(ibufr, s1, timestamp)
 
-def getTempK(row, nullvalue=-999):
-    '''Convert temperature from celsius to kelvin units'''
-    if row['AirTemperature(C)'] == nullvalue:
-        return nullvalue
-    else:
-        return row['AirTemperature(C)'] + 273.15
+        #Encode keys in data section
+        codes_set(ibufr, 'pack', 1)
 
+        #Write bufr message to bufr file
+        codes_write(ibufr, fout)
 
-def getPressPa(row, nullvalue=-999):
-    '''Convert hPa pressure values to Pa units'''
-    if row['AirPressure(hPa)'] == nullvalue:
-        return nullvalue
-    else:
-        return row['AirPressure(hPa)']*100
+    except CodesInternalError as ec:
+        print(traceback.format_exc())
+        print(ec)
+        sys.exit('-----> CodesInternalError in getBUFR!')
+    except Exception as e:
+        # Catch anything else here...
+        print(traceback.format_exc())
+        print(e)
+        sys.exit('!!!!!!!!!! ERROR in getBUFR')
+
+    codes_release(ibufr)
+
+    fout.close()
 
 
-def setTemplate(ibufr, timestamp, ed=4, master=0, vers=13, 
-                template=307080, key='unexpandedDescriptors'):
+def setTemplate(ibufr, timestamp, stid, config_key):
     '''Set bufr message template.
-    
+
     Parameters
     ----------
     ibufr : bufr.msg
         Bufr message object
-    timestamp: datetime.Datetime
+    timestamp : datetime.Datetime
         Timestamp of observation
-    ed : int
-        Edition. The default is 4.
-    master : int   
-        Master table number. The default is 0.
-    vers : int
-        Master table version number. The default is 13.
-    template : int
-        Template number. The default is 307u080.
-    key : str
-        Encoding type. The default is "unexpandedDescriptors".
-    '''  
-    #Indicator section (BUFR 4 letters, total msg size, edition number)
-    #Current edition is version 4                             
-    codes_set(ibufr, 'edition', ed)                                    
-   
-    #Identification section (master table, id, sequence number, data cat number)
-    codes_set(ibufr, 'masterTableNumber', master)                      
-    codes_set(ibufr, 'masterTablesVersionNumber', vers)                
-    codes_set(ibufr, 'localTablesVersionNumber', 0)
-    
-    #BUFR header centre 98 = ECMF
-    codes_set(ibufr, 'bufrHeaderCentre', 98)                           
-    codes_set(ibufr, 'bufrHeaderSubCentre', 0)
-    codes_set(ibufr, 'updateSequenceNumber', 0)
-    
-    #Data category 0 = surface data, land
-    codes_set(ibufr, 'dataCategory', 0)    
+    stid : str
+        The station ID to be processed. e.g. 'KPC_U'
+    config_key : str
+        Defines which config dict to use in wmo_config.ibufr_settings, 'mobile' or 'land'
+    '''
+    for k, v in ibufr_settings[config_key]['template'].items():
+        if codes_is_defined(ibufr, k) == 1:
+            codes_set(ibufr, k, v)
+        else:
+            print('-----> setTemplate Key not defined: {}'.format(k))
+            continue
 
-    #International data subcategory 7 = n-min obs from AWS stations                
-    codes_set(ibufr, 'internationalDataSubCategory', 7)                
-    codes_set(ibufr, 'dataSubCategory', 7)                             
-
-    codes_set(ibufr, 'observedData', 1)
-    codes_set(ibufr, 'compressedData', 0)
-    # codes_set(ibufr, 'typicalYear', int(r1['Year']))
-    # codes_set(ibufr, 'typicalMonth', int(r1['MonthOfYear']))
-    # codes_set(ibufr, 'typicalDay', int(r1['DayOfMonth']))
-    # codes_set(ibufr, 'typicalHour', int(r1['HourOfDay(UTC)']))
     codes_set(ibufr, 'typicalYear', timestamp.year)
     codes_set(ibufr, 'typicalMonth', timestamp.month)
     codes_set(ibufr, 'typicalDay', timestamp.day)
     codes_set(ibufr, 'typicalHour', timestamp.hour)
     codes_set(ibufr, 'typicalMinute', timestamp.minute)
-    codes_set(ibufr, 'typicalSecond', timestamp.second)       
-    
-    #Assign message template
-    ivalues = (template)
-    
-    #Assign key name to encode sequence number                             
-    codes_set(ibufr, key, ivalues) 
+    # codes_set(ibufr, 'typicalSecond', timestamp.second)
 
 
-def setStation(ibufr, stationNumber, blockNumber):
-    '''Set station info to bufr message.
-    
+def setStation(ibufr, stid, config_key):
+    '''Set station-specific info to bufr message.
+
     Parameters
     ----------
     ibufr : bufr.msg
         Bufr message object
-    '''   
-    #Data Description and Binary Data section
-    #Set AWS station info
-    
-    #Need to set WMO block and station number
-    codes_set(ibufr, 'stationNumber', 1)
-    codes_set(ibufr, 'blockNumber', 1)
-    # codes_set(ibufr, 'wmoRegionSubArea', 1)
-    
-    # #Region number=7 (unknown)
-    # codes_set(ibufr, 'regionNumber', 7)
-    
-    #Unset parameters
-    # codes_set(ibufr, 'stationOrSiteName', CCITT IA5)
-    # codes_set(ibufr, 'shortStationName', CCITT IA5)
-    # codes_set(ibufr, 'shipOrMobileLandStationIdentifier', CCITT IA5)
-    # codes_set(ibufr, 'directionOfMotionOfMovingObservingPlatform', deg)
-    # codes_set(ibufr, 'movingObservingPlatformSpeed', m/s)
-    
-    codes_set(ibufr, 'stationType', 0)
-    codes_set(ibufr, 'instrumentationForWindMeasurement', 6)
-    # codes_set(ibufr, 'measuringEquipmentType', 0)
-    # codes_set(ibufr, 'temperatureObservationPrecision', 0.1)
-    # codes_set(ibufr, 'solarAndInfraredRadiationCorrection', 0)
-    # codes_set(ibufr, 'pressureSensorType', 30)
-    # codes_set(ibufr, 'temperatureSensorType', 30) 
-    # codes_set(ibufr, 'humiditySensorType', 30)     
+    stid : str
+        The station ID to be processed. e.g. 'KPC_U'
+    config_key : str
+        Defines which config dict to use in wmo_config.ibufr_settings, 'mobile' or 'land'
+    '''
+    station_indentifier_keys = ('shipOrMobileLandStationIdentifier','stationNumber')
+    for k, v in ibufr_settings[config_key]['station'].items():
+        if k in station_indentifier_keys:
+            # Deal with any string replacement of stid names before indexing
+            if ('v3' in stid) and (stid.replace('v3','') in stid_to_skip['use_v3']):
+                # We are reading the v3 station ID file, and the config says to use it!
+                # But we need to write to BUFR without v3 name
+                stid = stid.replace('v3','')
+                # print('REPLACED!',stid)
+            if stid == 'THU_U2':
+                stid = 'THU_U'
+                # print('REPLACED!',stid)
+            if stid in ('JAR_O','SWC_O'):
+                stid = stid.replace('_O','')
+            if stid in v:
+                codes_set(ibufr, k, v[stid])
+            else:
+                sys.exit('!!!!!!!!!! ID not found for {}'.format(stid))
+        else:
+            if codes_is_defined(ibufr, k) == 1:
+                codes_set(ibufr, k, v)
+            else:
+               print('-----> setStation Key not defined: {}'.format(k))
+               continue
 
 
-def setAWSvariables(ibufr, row, nullValue=-999):
+def setAWSvariables(ibufr, row, timestamp):
     '''Set AWS measurements to bufr message.
     
     Parameters
     ----------
     ibufr : bufr.msg
         Bufr message object
-    row : pandas.DataFrame
-        DataFrame row with AWS info
-    nullValue : int
-        Null value for nan measurements. The default is -999.
-    '''         
-    #Set baseline AWS info
-    setBUFRvalue(ibufr, 'year', row['Year'])   
-    setBUFRvalue(ibufr, 'month', row['MonthOfYear']) 
-    setBUFRvalue(ibufr, 'day', row['DayOfMonth'])
-    
-    setBUFRvalue(ibufr, 'relativeHumidity', row['RelativeHumidity(%)'])   
-    setBUFRvalue(ibufr, 'windSpeed', row['WindSpeed(m/s)']) 
-    setBUFRvalue(ibufr, 'windDirection', row['WindDirection(d)']) 
-    setBUFRvalue(ibufr, 'airTemperature', getTempK(row,nullValue))  
-    setBUFRvalue(ibufr, 'pressure', getPressPa(row,nullValue))      
-    setBUFRvalue(ibufr, 'cloudCoverTotal', row['CloudCover'])  
-    
-    setBUFRvalue(ibufr, '#1#shortWaveRadiationIntegratedOverPeriodSpecified', 
-                 row['ShortwaveRadiationDown_Cor(W/m2)'])     
-    setBUFRvalue(ibufr, '#2#shortWaveRadiationIntegratedOverPeriodSpecified', 
-                 row['ShortwaveRadiationUp_Cor(W/m2)']) 
-    setBUFRvalue(ibufr, '#1#longWaveRadiationIntegratedOverPeriodSpecified', 
-                 row['LongwaveRadiationDown(W/m2)']) 
-    setBUFRvalue(ibufr, '#2#longWaveRadiationIntegratedOverPeriodSpecified', 
-                 row['LongwaveRadiationUp(W/m2)']) 
+    row : pandas.DataFrame row, or pandas.Series
+        DataFrame row (or Series) with AWS variable data
+    timestamp : datetime.datetime
+        timestamp for this row
+    '''
+    setBUFRvalue(ibufr, 'year', timestamp.year)
+    setBUFRvalue(ibufr, 'month', timestamp.month)
+    setBUFRvalue(ibufr, 'day', timestamp.day)
+    setBUFRvalue(ibufr, 'hour', timestamp.hour)
+    setBUFRvalue(ibufr, 'minute', timestamp.minute)
 
-    setBUFRvalue(ibufr, 'latitude', row['LatitudeGPS(degN)'])  
-    setBUFRvalue(ibufr, 'longitude', row['LongitudeGPS(degW)'])  
-    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', 
-                 row['ElevationGPS(m)'])  
-    setBUFRvalue(ibufr, 'heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', 
-                 row['HeightSensorBoom(m)'])  
+    setBUFRvalue(ibufr, 'relativeHumidity', row['rh_i']) # DMI wants non-corrected
+    setBUFRvalue(ibufr, 'airTemperature', row['t_i'])
+    setBUFRvalue(ibufr, 'pressure', row['p_i'])
+    setBUFRvalue(ibufr, 'windDirection', row['wdir_i'])
+    setBUFRvalue(ibufr, 'windSpeed', row['wspd_i'])
 
-    #Set monitoring time period (-10=10 minutes)
-    if row['WindSpeed(m/s)'] != nullValue:
-        codes_set(ibufr, '#11#timePeriod', -10)
-    if row['ShortwaveRadiationDown_Cor(W/m2)'] != nullValue:
-        codes_set(ibufr, '#14#timePeriod', -10)
-    if row['LongwaveRadiationDown(W/m2)'] != nullValue:
-        codes_set(ibufr, '#15#timePeriod', -10)
-   
-    #Set time significance (2=temporally averaged)
-    codes_set(ibufr, '#1#timeSignificance', 2)
-    if row['WindSpeed(m/s)'] != nullValue:
-        codes_set(ibufr, '#2#timeSignificance', 2)
-    
+    setBUFRvalue(ibufr, 'latitude', row['gps_lat_fit'])
+    setBUFRvalue(ibufr, 'longitude', row['gps_lon_fit'])
+    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt_fit']) # also height and heightOfStation?
+
+    # The ## in the codes_set() indicate the position in the BUFR for the parameter.
+    # e.g. #10#timePeriod will assign to the 10th occurence of "timePeriod".
+    # In the case of the synopMobil template, the 10th occurence is the wind speed section.
+    # View the output BUFR to see section keys with 'bufr_dump filename.bufr'.
+    if math.isnan(row['wspd_i']) is False:
+        #Set time significance (2=temporally averaged)
+        codes_set(ibufr, '#1#timeSignificance', 2)
+        #Set monitoring time period (-10=10 minutes)
+        codes_set(ibufr, '#10#timePeriod', -10)
+
     #Set measurement heights
-    if row['HeightSensorBoom(m)'] != nullValue:
-        codes_set(ibufr, 
-                  '#2#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', 
-                  row['HeightSensorBoom(m)']-0.1)
-        codes_set(ibufr, 
-                  '#8#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', 
-                  row['HeightSensorBoom(m)']+0.4)
-        if row['ElevationGPS(m)'] != nullValue:
-            codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel', 
-                      row['ElevationGPS(m)']+row['HeightSensorBoom(m)'])    
-            
+    if math.isnan(row['z_boom_u_smooth']) is False:
+        codes_set(ibufr,
+                  '#1#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
+                  row['z_boom_u_smooth']-0.1) # For air temp and RH
+        codes_set(ibufr,
+                  '#7#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
+                  row['z_boom_u_smooth']+0.4) # For wind speed
+        if math.isnan(row['gps_alt_fit']) is False:
+            codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel',
+                      row['gps_alt_fit']+row['z_boom_u_smooth']) # For pressure
 
-def getBUFR(df1, df2, outBUFR, ed=4, master=0, vers=13, 
-            template=307080, key='unexpandedDescriptors'):
-    '''Construct and export .bufr messages to file from DataFrame.
+
+def setBUFRvalue(ibufr, b_name, value):
+    '''Set variable in BUFR message
+    Called in setAWSvariables() to make sure we aren't passing NaNs
+
+    Parameters
+    ----------
+    ibufr : bufr.msg                
+        Active BUFR message
+    b_name : str
+        BUFR message variable name
+    value : int/float
+        Value to be assigned to variable
+    '''
+    if math.isnan(value) is False:
+        try:
+            codes_set(ibufr, b_name, value)
+        except CodesInternalError as ec:
+            print(f'{ec}: {b_name}')
+            sys.exit('-----> CodesInternalError in setBUFRvalue!')
+    else:
+        print('----> {} {}'.format(b_name, value))
+
+
+def linear_fit(df, column, decimals, stid):
+    '''Apply a linear regression to the input column
+
+    Parameters
+    ----------
+    df : pandas.Dataframe
+        datetime-indexed df, limited to desired time length for linear fit
+    column : str
+        The target column for applying linear fit
+    decimals : int
+        How many decimals to round the output fit values
+    stid : str
+        The station ID to be processed. e.g. 'KPC_U'
+
+    Returns
+    -------
+    df : pandas.Dataframe
+        The original input df, with added column for the linear regression values
+
+    Linear regression is following:
+    https://realpython.com/linear-regression-in-python/#simple-linear-regression-with-scikit-learn
+    '''
+    if column in df:
+        df_dropna = df[df[column].notna()] # limit to only non-nan for the target column
+        if len(df_dropna[column]) > 0:
+            # Get datetime x values into epoch sec integers
+            x_epoch = df_dropna.index.values.astype(np.int64) // 10 ** 9
+            x = x_epoch.reshape(-1,1)
+            y = df_dropna[column].values # can also reshape this, but not necessary
+            model = LinearRegression().fit(x, y)
+            y_pred = model.predict(x).round(decimals=decimals)
+
+            # Plot data if desired
+            # if stid == 'LYN_T':
+            #     if (column == 'gps_lat') or (column == 'gps_lon') or (column == 'gps_alt'):
+            #         import matplotlib.pyplot as plt
+            #         plt.scatter(x,y)
+            #         plt.plot(x,y_pred, color='red')
+            #         plt.title('{} {}'.format(stid, column))
+            #         plt.show()
+
+            # Add y_pred back to original df
+            df_dropna['y_pred'] = y_pred
+            df['{}_fit'.format(column)] = df_dropna['y_pred']
+        else:
+            # All data is NaN! Just write NaNs using the original column
+            print('----> No {} data for {}!'.format(column, stid))
+            df['{}_fit'.format(column)] = df[column]
+    else:
+        print('----> {} not found in dataframe!'.format(column))
+        pass
+
+    return df
+
+
+def rolling_window(df, column, window, min_periods, decimals):
+    '''Apply a rolling window (smoothing) to the input column
+
+    Parameters
+    ----------
+    df : pandas.Dataframe
+        datetime-indexed df
+    column : str
+        The target column for applying rolling window
+    window : str
+        Window size (e.g. '24H' or 30D')
+    min_periods : int
+        Minimum number of observations in window required to have a value;
+        otherwise, result is np.nan.
+    decimals : int
+        How many decimal places to round the output smoothed values
+
+    Returns
+    -------
+    df : pandas.Dataframe
+        The original input df, with added column for the smoothed values
+    '''
+    df['{}_smooth'.format(column)] = df[column].rolling(
+        window,
+        min_periods=min_periods,
+        center=True, # set the window labels as the center of the window
+        closed='both' # no points in the window are excluded (first or last)
+        ).median().round(decimals=decimals) # could also round to whole meters (decimals=0)
+    return df
+
+def round_values(s):
+    '''Enforce precision
+    Note the sensor accuracies listed here:
+    https://essd.copernicus.org/articles/13/3819/2021/#section8
+    In addition to sensor accuracy, WMO requires pressure and heights
+    to be reported at 0.1 precision.
     
     Parameters
     ----------
-    df : pandas.DataFrame
-        Pandas dataframe of weather station observations
-    df2 : pandas.DataFrame
-        Pandas dataframe of lookup table
-    outBUFR : str
-        File path that .bufr file will be exported to
-    ed : int
-        BUFR table edition. The default is 4.
-    master : int
-        Master table number. The default is 0, standard WMO FM 94 BUFR tables
-    vers : int
-        Master table version number. The default is 13.
-    template : int
-        Template table number. The default is 307080.
-    key : str
-        Encoding key name. The default is "unexpandedDescriptors".
+    s : pandas series (could also be a dataframe)
+
+    Returns
+    -------
+    s : modified pandas series (could also be a dataframe)
     '''
-    #Open bufr file
-    fout = open(outBUFR, 'wb')
-       
-    #Iterate over rows in weather observations dataframe
-    for i1, r1 in df1.iterrows():
+    s['rh_i'] = s['rh_i'].round(decimals=0)
+    s['wspd_i'] = s['wspd_i'].round(decimals=1)
+    s['wdir_i'] = s['wdir_i'].round(decimals=0)
+    s['t_i'] = s['t_i'].round(decimals=1)
+    s['p_i'] = s['p_i'].round(decimals=1)
 
-        #Create new bufr message to write to
-        ibufr = codes_bufr_new_from_samples('BUFR4')  
-        
-        try:
-            
-            #Get timestamp
-            timestamp = datetime(int(r1['Year']), 
-                                 int(r1['MonthOfYear']), 
-                                 int(r1['DayOfMonth']), 
-                                 int(r1['HourOfDay(UTC)']), 0, 0)
-            
-            #Set table formatting and templating
-            setTemplate(ibufr, timestamp)
-            
-            #Set station info
-            stationNumber=1
-            blockNumber=1
-            setStation(ibufr, stationNumber, blockNumber)
- 
-            #Set AWS measurments
-            setAWSvariables(ibufr, r1)
-            
-            #Encode keys in data section
-            codes_set(ibufr, 'pack', 1)                                            
-            
-            #Write bufr message to bufr file
-            codes_write(ibufr, fout)
+    # gps_lat,gps_lon,gps_alt,z_boom_u are all rounded in linear_fit() or rolling_window()
+    return s
 
-        except CodesInternalError as ec:
-            print(ec)
-            
-        codes_release(ibufr)            
-        
-    fout.close()
- 
+def write_positions(s, stid):
+    '''Set valid lat, lon, alt to the positions dict.
+    Find recent position metadata for submitting to DMI/WMO.
+    Not used in production! Must pass --positions arg.
 
-#------------------------------------------------------------------------------
+    Parameters
+    ----------
+    s : pandas series
+        The current obset we are working with (for BUFR submission)
+    stid : str
+        The station ID, such as NUK_L
 
-if __name__ == '__main__':
+    Returns
+    -------
+    None
+    '''
+    to_write = ['lat','lon']
+    for i in to_write:
+        if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
+            positions[stid][i] = s[f'gps_{i}_fit']
 
-    #Get all txt files in directory
-    txtFiles = glob.glob('AWS_data/*hour*')
-    
-    #Get lookup table
-    lookup = getTXT('./variables_bufr.csv', None)
- 
-    #Get all txt files in directory
-    outFiles = './BUFR_out/'
-    if os.path.exists(outFiles) is False:
-        os.mkdir(outFiles)
-       
-    # #Iterate through txt files
-    for fname in txtFiles[0:1]:
-    
-        #Generate output BUFR filename
-        bufrname = fname.split('/')[-1].split('.txt')[0][:-4][:-5]+'.bufr'
-        print(f'Generating {bufrname} from {fname}')
-    
-        #Get text file
-        df1 = getTXT(fname)
-        
-        # #Get Kelvin temperature        
-        # df1['AirTemperature(K)'] = df1.apply(lambda row: getTempK(row), axis=1)
-        
-        # #Get Pa pressure
-        # df1['AirPressure(Pa)'] = df1.apply(lambda row: getPressPa(row), axis=1)         
-        
-        #Construct and export BUFR file
-        getBUFR(df1, lookup, outFiles+bufrname)
-        print(f'Successfully exported bufr file to {outFiles+bufrname}')   
-        
-        
-    print('Finished')
+    # Add altitude to positions dict:
+    if ('gps_alt_fit' in s) and (pd.isna(s['gps_alt_fit']) is False):
+        positions[stid]['alt'] = s['gps_alt_fit']
+
+    # Add timestamp
+    positions[stid]['timestamp'] = s['time']
+
+def fetch_old_positions(df, stid):
+    '''Set valid lat, lon, alt to the positions dict.
+    Used to find old GPS positions for submitting position metadata to DMI/WMO.
+    Not used in production! Must pass --positions arg.
+
+    Parameters
+    ----------
+    df : pandas dataframe
+        The full tx dataframe
+    stid : str
+        The station ID, such as NUK_L
+
+    Returns
+    -------
+    None
+    '''
+    # Find valid GPS data
+    valid_gps = df.dropna(subset=['gps_lat','gps_lon','gps_alt'])
+
+    if valid_gps.empty is False:
+        valid_gps_limited = valid_gps.last(args.time_limit)
+
+        valid_gps_limited = linear_fit(valid_gps_limited, 'gps_alt', 1, stid)
+        valid_gps_limited = linear_fit(valid_gps_limited, 'gps_lat', 6, stid)
+        valid_gps_limited = linear_fit(valid_gps_limited, 'gps_lon', 6, stid)
+
+        s = valid_gps_limited.loc[valid_gps_limited.index.max()]
+
+        to_write = ['lat','lon']
+        for i in to_write:
+            if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
+                positions[stid][i] = s[f'gps_{i}_fit']
+                positions[stid][f'{i}_s'] = 'OLD' #source flag
+
+        # Add altitude to positions dict:
+        if ('gps_alt_fit' in s) and (pd.isna(s['gps_alt_fit']) is False):
+            positions[stid]['alt'] = s['gps_alt_fit']
+
+        # Add timestamp
+        positions[stid]['timestamp'] = s['time']
+
+
+def min_data_check(s, stid):
+    '''Check that we have minimum required fields to proceed with writing to BUFR
+
+    Parameters
+    ----------
+    s : pandas series
+        The current obset we are working with (for BUFR submission)
+    stid : str
+        The station ID, such as NUK_L
+
+    Returns
+    -------
+    result : bool
+        True (default), the test passed. False, the test failed.
+    failed_min_data_wx : list
+        List of stids that failed the min data check
+    failed_min_data_pos : list
+        List of stids that failed the min position check
+    '''
+    result = True
+    failed_min_data_wx = []
+    failed_min_data_pos = []
+
+    # Can use pd.isna() or math.isnan()
+    # Must have valid air temp and pressure
+    if (pd.isna(s['t_i']) is False) and (pd.isna(s['p_i']) is False):
+        pass
+    else:
+        print('----> Failed min_data_check for air temp and pressure!')
+        failed_min_data_wx.append(stid)
+        result = False
+
+    # Must have a valid position
+    # Note that gps_ variables have already had replacement with msg_ positions if needed
+
+    # Missing just elevation OK
+    # if (pd.isna(s['gps_lat_fit']) is False) and (pd.isna(s['gps_lon_fit']) is False):
+    #     pass
+    # Require all three: lat, lon, elev
+    if ((pd.isna(s['gps_lat_fit']) is False) and
+        (pd.isna(s['gps_lon_fit']) is False) and
+        (pd.isna(s['gps_alt_fit']) is False)):
+        pass
+    else:
+        print('----> Failed min_data_check for position!')
+        failed_min_data_pos.append(stid)
+        result = False
+
+    return result, failed_min_data_wx, failed_min_data_pos

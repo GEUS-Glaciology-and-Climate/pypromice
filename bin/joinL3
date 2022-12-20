@@ -68,8 +68,7 @@ if __name__ == '__main__':
             if hasattr(all_ds, 'precip_l_cor'):
                 if ~all_ds['precip_l_cor'].isnull().all():
                     all_ds['precip_l_cor'],  _ = _correctPrecip(all_ds['precip_l'], 
-                                                                all_ds['wspd_l'])
-        
+                                                                all_ds['wspd_l'])                    
         else:
             print(f'Mismatched station names {n1}, {n2}')
             exit()            
