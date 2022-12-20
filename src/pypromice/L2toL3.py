@@ -43,7 +43,7 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
     WS_h_u = ds_h['wspd_u'].copy()
     RH_cor_h_u = ds_h['rh_u_cor'].copy()
     Tsurf_h = ds_h['t_surf'].copy()                                            # T surf from derived upper boom product. TODO is this okay to use with lower boom parameters?
-    z_WS_u = ds_h['z_boom_u'].copy() + 0.4                                     # Get height of W                  
+    z_WS_u = ds_h['z_boom_u'].copy() + 0.4                                     # Get height of Anemometer                
     z_T_u = ds_h['z_boom_u'].copy() - 0.1                                      # Get height of thermometer  
         
     rho_atm_u = 100 * p_h_u / R_d / (T_h_u + T_0)                              # Calculate atmospheric density                                  
@@ -101,29 +101,47 @@ def _calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
     
     Parameters
     ----------
+    T_0 : int 
+        Steam point temperature
+    T_h : xarray.DataArray
+        Air temperature
+    Tsurf_h : xarray.DataArray
+        Surface temperature
+    rho_atm : float
+        Atmopsheric density
+    WS_h : xarray.DataArray
+        Wind speed
+    z_WS : float
+        Height of anemometer
+    z_T : float
+        Height of thermometer
+    nu  : float
+        Kinematic viscosity of air
+    q_h : xarray.DataArray
+        Specific humidity
+    p_h : xarray.DataArray
+        Air pressure
+    kappa : int
+        Von Karman constant (0.35-0.42). Default is 0.4.        
+    WS_lim : int
+        Default is 1.        
     z_0 : int
         Aerodynamic surface roughness length for momention, assumed constant 
         for all ice/snow surfaces. Default is 0.001.
+    g : int 
+        Gravitational acceleration (m/s2). Default is 9.82.        
+    es_0 : int 
+        Saturation vapour pressure at the melting point (hPa). Default is 6.1071.        
     eps : int 
         Default is 0.622.
-    es_0 : int 
-        Saturation vapour pressure at the melting point (hPa). Default is 6.1071.
-    g : int 
-        Gravitational acceleration (m/s2). Default is 9.82.
     gamma : int
         Flux profile correction (Paulson & Dyer). Default is 16..
-    kappa : int
-        Von Karman constant (0.35-0.42). Default is 0.4.
     L_sub : int  
         Latent heat of sublimation (J/kg). Default is 2.83e6.
+    L_dif_max : int 
+        Default is 0.01.     
     c_pd : int
         Specific heat of dry air (J/kg/K). Default is 1005..
-    WS_lim : int
-        Default is 1.
-    L_dif_max : int 
-        Default is 0.01.
-    T_0 : int 
-        Steam point temperature. Default is 273.15.
     aa : int 
         Flux profile correction constants (Holtslag & De Bruin '88). Default is 
         0.7.
@@ -136,6 +154,13 @@ def _calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
     dd : int
         Flux profile correction constants (Holtslag & De Bruin '88). Default is 
         0.35.
+    
+    Returns
+    -------
+    SHF_h : xarray.DataArray
+        Sensible heat flux
+    LHF_h : xarray.DataArray
+        Latent heat flux
     '''   
     SHF_h = xr.zeros_like(T_h)                                                 # Create empty xarrays
     LHF_h = xr.zeros_like(T_h)
@@ -223,35 +248,6 @@ def _calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
                    
     return SHF_h, LHF_h
 
-
-# def _getDailyAver(ds_h):
-#     '''Compute daily average from L3 AWS hourly data. This uses pandas 
-#     DataFrame resampling at the moment as a work-around to the xarray Dataset
-#     resampling. As stated, xarray resampling is a lengthy process that takes
-#     ~2-3 minutes per operation:
-
-#     ds_d = ds_h.resample({'time':"1D"}).mean()
-#     https://github.com/pydata/xarray/issues/4498 & https://stackoverflow.com/questions/64282393/
-    
-#     This has now been fixed in the latest pandas, so needs implementing:
-#     https://github.com/pydata/xarray/issues/4498#event-6610799698
-    
-#     Parameters
-#     ----------
-#     ds_h : xarray.Dataset
-#         L3 AWS daily dataset
-    
-#     Returns
-#     -------
-#     ds_d : xarray.Dataset
-#         L3 AWS hourly dataset
-#     '''
-#     df_d = ds_h.to_dataframe().resample("1D").mean()
-#     vals = [xr.DataArray(data=df_d[c], dims=['time'], 
-#            coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
-#     ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)  
-#     return ds_d
-
 def _getRotation():
     '''Return degrees-to-radians and radians-to-degrees''' 
     deg2rad = np.pi / 180
@@ -259,19 +255,46 @@ def _getRotation():
     return deg2rad, rad2deg
     
 def _calcWindDir(wspd_x, wspd_y):
-    '''Calculate wind direction in degrees'''
+    '''Calculate wind direction in degrees
+    
+    Parameters
+    ----------
+    wspd_x : xarray.DataArray
+        Wind speed in X direction
+    wspd_y : xarray.DataArray
+        Wind speed in Y direction
+    
+    Returns
+    -------
+    wdir : xarray.DataArray
+        Wind direction'''
     deg2rad = np.pi / 180
     rad2deg = 1 / deg2rad    
     wdir = np.arctan2(wspd_x, wspd_y) * rad2deg 
     wdir = (wdir + 360) % 360  
     return wdir
 
-def _calcAtmosDens(p_h, R_d, T_h, T_0):
+def _calcAtmosDens(p_h, R_d, T_h, T_0):                                        # TODO: check this shouldn't be in this step somewhere
     '''Calculate atmospheric density'''
     return 100 * p_h / R_d / (T_h + T_0)
 
 def _calcVisc(T_h, T_0, rho_atm):    
-    '''Calculate kinematic viscosity of air'''
+    '''Calculate kinematic viscosity of air
+    
+    Parameters
+    ----------
+    T_h : xarray.DataArray
+        Air temperature
+    T_0 : float
+        Steam point temperature
+    rho_atm : xarray.DataArray
+        Surface temperature
+    
+    Returns
+    -------
+    xarray.DataArray
+        Kinematic viscosity
+    '''
     # Dynamic viscosity of air in Pa s (Sutherlands' equation using C = 120 K)
     mu = 18.27e-6 * (291.15 + 120) / ((T_h + T_0) + 120) * ((T_h + T_0) / 291.15)**1.5
     
@@ -283,7 +306,32 @@ def _getTempK(T_0):
     return T_0+100
 
 def _calcHumid(T_0, T_100, T_h, es_0, es_100, eps, p_h, RH_cor_h):
-    '''Calculate specific humidity'''                                                         
+    '''Calculate specific humidity
+    
+    Parameters
+    ----------
+    T_0 : float 
+        Steam point temperature. Default is 273.15.
+    T_100 : float
+        Steam point temperature in Kelvin
+    T_h : xarray.DataArray
+        Air temperature
+    eps : int 
+        DESCRIPTION
+    es_0 : float
+        Saturation vapour pressure at the melting point (hPa)
+    es_100 : float
+        Saturation vapour pressure at steam point temperature (hPa)
+    p_h : xarray.DataArray
+        Air pressure
+    RH_cor_h : xarray.DataArray
+        Relative humidity corrected
+    
+    Returns
+    -------
+    xarray.DataArray
+        Specific humidity data array
+    '''                                                         
     # Saturation vapour pressure above 0 C (hPa)
     es_wtr = 10**(-7.90298 * (T_100 / (T_h + T_0) - 1) + 5.02808 * np.log10(T_100 / (T_h + T_0))
                   - 1.3816E-7 * (10**(11.344 * (1 - (T_h + T_0) / T_100)) - 1)
@@ -308,7 +356,34 @@ def _calcHumid(T_0, T_100, T_h, es_0, es_100, eps, p_h, RH_cor_h):
 def _cleanHeatFlux(SHF, LHF, T, Tsurf, p, WS, RH_cor, z_boom):
     '''Find invalid heat flux data values and replace with NaNs, based on 
     air temperature, surface temperature, air pressure, wind speed, 
-    corrected relative humidity, and boom height'''
+    corrected relative humidity, and boom height
+    
+    Parameters
+    ----------
+    SHF : xarray.DataArray
+        Sensible heat flux
+    LHF : xarray.DataArray
+        Latent heat flux
+    T : xarray.DataArray
+        Air temperature
+    Tsurf : xarray.DataArray
+        Surface temperature
+    p : xarray.DataArray
+        Air pressure
+    WS : xarray.DataArray
+        Wind speed
+    RH_cor : xarray.DataArray
+        Relative humidity corrected
+    z_boom : xarray.DataArray
+        Boom height
+    
+    Returns
+    -------
+    SHF : xarray.DataArray
+        Sensible heat flux corrected
+    LHF : xarray.DataArray
+        Latent heat flux corrected
+    '''
     HF_nan = np.isnan(p) | np.isnan(T) | np.isnan(Tsurf) \
         | np.isnan(RH_cor) | np.isnan(WS) | np.isnan(z_boom)
     SHF[HF_nan] = np.nan
@@ -318,7 +393,25 @@ def _cleanHeatFlux(SHF, LHF, T, Tsurf, p, WS, RH_cor, z_boom):
 def _cleanSpHumid(q_h, T, Tsurf, p, RH_cor):
     '''Find invalid specific humidity data values and replace with NaNs, 
     based on air temperature, surface temperature, air pressure, 
-    and corrected relative humidity'''
+    and corrected relative humidity
+    
+    Parameters
+    ----------
+    q_h : xarray.DataArray
+        Specific humidity
+    T : xarray.DataArray
+        Air temperature
+    Tsurf : xarray.DataArray
+        Surface temperature
+    p : xarray.DataArray
+        Air pressure
+    RH_cor : xarray.DataArray
+        Relative humidity corrected
+    
+    Returns
+    -------
+    q_h : xarray.DataArray
+        Specific humidity corrected'''
     q_nan = np.isnan(T) | np.isnan(RH_cor) | np.isnan(p) | np.isnan(Tsurf)
     q_h[q_nan] = np.nan
     return q_h

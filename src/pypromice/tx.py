@@ -31,7 +31,20 @@ class PayloadFormat(object):
 
     def readType(self, in_file, delimiter=','):                                #TODO read from .txt file as well as .csv
         '''Read payload type setter from file. Outputted dictionary set as
-        key[type_letter]: number_of_bytes'''
+        key[type_letter]: number_of_bytes
+        
+        Parameters
+        ----------
+        in_file : str
+            Input file path
+        delimiter : str, optional
+            File delimiter. The default is ","
+        
+        Returns
+        -------
+        payload_typ : dict
+            Payload type information
+        '''
         payload_typ = {}
         lines = self.readFile(in_file)
         for l in lines[1:]:
@@ -43,7 +56,20 @@ class PayloadFormat(object):
         '''Read payload formatter from file. Outputted dictionary set as
         key[number]: [expected_length, format_characters, description].
         Flag column (info[4]) used to signify if entry should be written to 
-        output'''
+        output
+        
+        Parameters
+        ----------
+        in_file : str
+            Input file path
+        delimiter : str, optional
+            File delimiter. The default is ","
+        
+        Returns
+        -------
+        payload_fmt : dict
+            Payload format information
+        '''
         payload_fmt = {}
         lines = self.readFile(in_file)
         for l in lines[1:]:
@@ -66,7 +92,18 @@ class PayloadFormat(object):
             self.payload_format[key].append(bytes_count + 1)               
 
     def readFile(self, in_file):
-        '''Read lines from file'''
+        '''Read lines from file
+        
+        Parameters
+        ----------
+        in_file : str
+            Input file path
+        
+        Returns
+        -------
+        lines : list
+            List of file line contents
+        '''
         with open(in_file, 'r') as in_f:
             lines = in_f.readlines()
         return lines
@@ -371,7 +408,23 @@ class L0tx(EmailMessage, PayloadFormat):
         return self.payload[:1]
         
     def getFormat(self):
-        '''Get binary format type from first byte in payload'''
+        '''Get binary format type from first byte in payload
+        
+        Returns
+        -------
+        bval : int or None
+            Format value
+        bfor : str or None
+            Format string characters
+        bname : str or None
+            Format name
+        blength : int or None
+            Expected format length
+        bidx : int
+            Format index
+        bool
+            Valid format flag
+        '''
         if self.getFirstByte().isdigit() or 'Watson' in self.email_data['subject'] or (self.payload[:2] == '\n' and self.imei == 300234064121930):     #TODO needed?
             return None, None, None, None, -9999, False
         
@@ -467,7 +520,12 @@ class L0tx(EmailMessage, PayloadFormat):
             return entry + ','        
                
     def getDataLine(self):                                                     #TODO clean up
-        '''Get data line from transmission message'''
+        '''Get data line from transmission message
+        
+        Returns
+        -------
+        str or None
+            Dataline string if found'''
         # Retrieve payload and prime object if valid binary message        
         bin_msg = self.payload[1:]
         if self.bin_valid and bin_msg:
