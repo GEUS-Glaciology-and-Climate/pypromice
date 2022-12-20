@@ -17,8 +17,8 @@ stid_to_skip = { # All the following IDS will not be processed or submitted
     'discontinued': ['CEN1','TAS_U','QAS_A','NUK_N','THU_U','JAR','SWC'],
     'no_instantaneous': ['ZAK_L','ZAK_U','KAN_B'], # currently not transmitting instantaneous values
     'suspect_data': [], # instantaneous data is suspect
-    'use_v3': ['KPC_L','NUK_U','ZAK_U'], # use v3 versions instead (but registered IDs will be non-v3)
-    'v3_bad': ['KPC_Uv3','QAS_Uv3','QAS_Lv3'] # KPC_Uv3 years are 2056, QAS_Uv3 stops at 2022-10-31, QAS_Lv3 new ablation sensor w/different txt fields?
+    'use_v3': ['KPC_L','NUK_U','ZAK_U','QAS_U'], # use v3 versions instead (but registered IDs will be non-v3)
+    'v3_bad': ['KPC_Uv3','QAS_Lv3'] # KPC_Uv3 years are 2056, QAS_Lv3 new ablation sensor w/different txt fields?
     # Eventually, as we change all stations to v3, the use_v3 list should be empty (there will not be v3 and non-v3 stations operating together)
     # If your remove a station from 'v3_bad', then add it to 'use_v3' if both v2 and v3 stations still exist together
 }
