@@ -259,7 +259,7 @@ def _addTimeShift(ds, vars_df):
         Dataset with shifted times
     '''
     df = ds.to_dataframe()
-    # No need to drop duplicates if performed prior to calling this function.
+    # No need to drop duplicates here if performed prior to calling this function.
     # df = df[~df.index.duplicated(keep='first')] # drop duplicates, keep=first is arbitrary
     df['doy'] = df.index.dayofyear
     i_cols = [x for x in df.columns if x in vars_df.index and vars_df['instantaneous_hourly'][x] is True] # instantaneous only, list of columns
@@ -293,6 +293,9 @@ def _addTimeShift(ds, vars_df):
 
             # stitch everything back together
             df_concat_u = pd.concat([df_a_daily_1, df_a_daily_2, df_a_hourly], axis=0) # same columns, different datetime indices
+            # It's now possible for df_concat_u to have duplicate datetime indices
+            df_concat_u = df_concat_u[~df_concat_u.index.duplicated(keep='first')] # drop duplicates, keep=first is arbitrary
+
             df_out = pd.concat([df_concat_u, df_i], axis=1) # different columns, same datetime indices
             df_out = df_out.sort_index()
 
