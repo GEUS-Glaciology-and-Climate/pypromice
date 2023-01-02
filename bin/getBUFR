@@ -15,7 +15,7 @@ from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip
 from pypromice.postprocess.csv2bufr import getBUFR, linear_fit, rolling_window, round_values, \
 										   write_positions, fetch_old_positions, min_data_check
 
-from IPython import embed
+# from IPython import embed
 
 
 def parse_arguments():
