@@ -97,6 +97,7 @@ if __name__ == '__main__':
  	#----------------------------------
 
  	# Get L0tx datalines from email transmissions
+    uid=last_uid # initialize using last_uid. If no messages, this will be written back to ini file.
     for uid, mail in getMail(mail_server, last_uid=last_uid):
         message = email.message_from_string(mail)
         
