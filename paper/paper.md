@@ -34,7 +34,7 @@ authors:
 affiliations:
  - name: Department of Glaciology and Climate, Geological Survey of Denmark and Greenland (GEUS), Denmark
    index: 1
- - name: National Snow and Ice Data Center (NSIDC), USA
+ - name: NASA GISS, New York, NY, USA
    index: 2
 
 date: 01 March 2023
