@@ -83,7 +83,7 @@ The Programme for Monitoring of the Greenland Ice Sheet ([PROMICE](https://promi
 
 ## Greenland Climate Network (GC-Net)
 
-In 2020, PROMICE assumed resposibility of the Greenland Climate Network ([GC-Net]) and expanded their operations with the installation of a new two-boom mast station design intended for monitoring conditions on the interior ice sheet. `pypromice` is used operationally for its processing of two-boom AWS observations [@how-two-boom-2022].
+In 2020, PROMICE assumed responsibility of the Greenland Climate Network ([GC-Net]) and expanded their operations with the installation of a new two-boom mast station design intended for monitoring conditions on the interior ice sheet. `pypromice` is used operationally for its processing of two-boom AWS observations [@how-two-boom-2022].
 
 ## Greenland Ecosystem Monitoring (GEM)
 
