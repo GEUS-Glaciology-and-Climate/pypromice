@@ -29,7 +29,13 @@ def parse_arguments():
 	parser.add_argument('--positions',
 	    action='store_true',
 	    required=False,
-	    help='If included (True), make a positions dict and output a positions.csv file.')
+	    help='If included (True), make a positions dict and output AWS_station_locations.csv file.')
+
+	parser.add_argument('--positions-filepath',
+	    default='../aws-l3/AWS_station_locations.csv',
+	    type=str,
+	    required=False,
+	    help='Path to write AWS_station_locations.csv file.')
 
 	parser.add_argument('--time-limit',
 	    default='3M',
@@ -84,7 +90,8 @@ if __name__ == '__main__':
 
 	if args.positions is True:
 		# Initiate a dict to store station positions
-		# Used to retrieve a static set of positions to register with WMO
+		# Used to retrieve a static set of positions to register stations with DMI/WMO
+		# Also used to write AWS_station_locations.csv to aws-l3 repo
 		positions = {}
 
 	# Define stations to skip
@@ -118,8 +125,13 @@ if __name__ == '__main__':
 
 			if args.positions is True:
 				positions[stid] = {}
-				positions[stid]['lat_s'] = ''
-				positions[stid]['lon_s'] = ''
+				# Optionally include source flag columns, useful to indicate if position
+				# comes from current transmission, or older data. This could also be used
+				# to differentiate GPS from modem, but using the combine_first method for
+				# the modem positions currently prevents us from easily knowing which source
+				# was used.
+				# positions[stid]['lat_source'] = ''
+				# positions[stid]['lon_source'] = ''
 
 			# Read csv file
 			df1 = pd.read_csv(f, delimiter=',')
@@ -149,7 +161,7 @@ if __name__ == '__main__':
 					print('No recent instantaneous timestamps!')
 					no_recent_data.append(stid)
 					if args.positions is True:
-						fetch_old_positions(df1,stid)
+						positions = fetch_old_positions(df1, stid, args.time_limit, positions)
 					continue
 				else:
 					# we have partial data, just use the most recent row
@@ -161,7 +173,7 @@ if __name__ == '__main__':
 					print('All instantaneous timestamps are None!')
 					no_valid_data.append(stid)
 					if args.positions is True:
-						fetch_old_positions(df1,stid)
+						positions = fetch_old_positions(df1, stid, args.time_limit, positions)
 					continue
 				else:
 					# all values are present, with matching timestamps, so just use t_i
@@ -189,7 +201,7 @@ if __name__ == '__main__':
 					# If any GPS positions are missing, we will fill the missing GPS positions with modem
 					# positions (if they are present). Important to do this first, and then apply linear fit
 					# to the resulting single array. Otherwise, we can have jumps when the GPS data goes out
-					# or comes back. The message coordinates can sometimes all be 0.0, so check for this.
+					# or comes back. The message coordinates can sometimes all be 0.0, so we check for this.
 					if ('msg_lat' in df1_limited) and ('msg_lon' in df1_limited):
 						if (0.0 not in df1_limited['msg_lat'].values):
 							df1_limited['gps_lat'] = df1_limited['gps_lat'].combine_first(df1_limited['msg_lat'])
@@ -218,7 +230,7 @@ if __name__ == '__main__':
 					s1_current = round_values(s1_current)
 
 					if args.positions is True:
-						write_positions(s1_current, stid)
+						positions = write_positions(s1_current, stid, positions)
 
 					# Check that we have minimum required valid data
 					# This should really only apply to the case of partial data (from the timestamp checks above)
@@ -241,12 +253,21 @@ if __name__ == '__main__':
 					print('latest:', latest_timestamp)
 					no_recent_data.append(stid)
 					if args.positions is True:
-						fetch_old_positions(df1,stid)
+						positions = fetch_old_positions(df1, stid, args.time_limit, positions)
 			else:
 				print('{} not found in latest_timestamps'.format(stid))
 				no_entry_latest_timestamps.append(stid)
 		else:
 			skipped.append(stid)
+			if args.positions is True:
+				# still will be useful to have all stations in AWS_station_location.csv,
+				# regardless if they were skipped for the DMI upload
+				positions[stid] = {}
+				df_skipped = pd.read_csv(f, delimiter=',')
+				df_skipped.set_index(pd.to_datetime(df_skipped['time']), inplace=True)
+				df_skipped.sort_index(inplace=True) # make sure we are time-sorted
+				positions = fetch_old_positions(df_skipped, stid, args.time_limit, positions)
+
 	# Write the most recent timestamps back to the pickle on disk
 	print('writing latest_timestamps.pickle')
 	with open(args.timestamps_pickle_filepath, 'wb') as handle:
@@ -256,10 +277,11 @@ if __name__ == '__main__':
 		positions_df = pd.DataFrame.from_dict(
 			positions,
 			orient='index',
-			columns=['timestamp','lat','lon','alt','lat_s','lon_s']
+			# columns=['timestamp','lat','lon','alt','lat_source','lon_source']
+			columns=['timestamp','lat','lon','alt']
 			)
 		positions_df.sort_index(inplace=True)
-		positions_df.to_csv('positions.csv')
+		positions_df.to_csv(args.positions_filepath, index_label='stid')
 
 	print('--------------------------------')
 	not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
