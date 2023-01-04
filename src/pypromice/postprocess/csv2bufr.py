@@ -344,7 +344,7 @@ def round_values(s):
     # gps_lat,gps_lon,gps_alt,z_boom_u are all rounded in linear_fit() or rolling_window()
     return s
 
-def write_positions(s, stid):
+def write_positions(s, stid, positions):
     '''Set valid lat, lon, alt to the positions dict.
     Find recent position metadata for submitting to DMI/WMO.
     Not used in production! Must pass --positions arg.
@@ -355,10 +355,13 @@ def write_positions(s, stid):
         The current obset we are working with (for BUFR submission)
     stid : str
         The station ID, such as NUK_L
+    positions : dict
+        Dict storing current station positions.
 
     Returns
     -------
-    None
+    positions : dict
+        Modified dict storing current station positions.
     '''
     to_write = ['lat','lon']
     for i in to_write:
@@ -371,11 +374,12 @@ def write_positions(s, stid):
 
     # Add timestamp
     positions[stid]['timestamp'] = s['time']
+    return positions
 
-def fetch_old_positions(df, stid):
+def fetch_old_positions(df, stid, time_limit, positions):
     '''Set valid lat, lon, alt to the positions dict.
-    Used to find old GPS positions for submitting position metadata to DMI/WMO.
-    Not used in production! Must pass --positions arg.
+    Used to find "old" GPS positions for submitting position metadata to DMI/WMO,
+    and for writing positions to AWS_station_locations.csv.
 
     Parameters
     ----------
@@ -383,16 +387,22 @@ def fetch_old_positions(df, stid):
         The full tx dataframe
     stid : str
         The station ID, such as NUK_L
+    time_limit : str
+        Previous time to limit dataframe before applying linear regression.
+        (e.g. '3M')
+    positions : dict
+        Dict storing current station positions.
 
     Returns
     -------
-    None
+    positions : dict
+        Modified dict storing current station positions.
     '''
     # Find valid GPS data
     valid_gps = df.dropna(subset=['gps_lat','gps_lon','gps_alt'])
 
     if valid_gps.empty is False:
-        valid_gps_limited = valid_gps.last(args.time_limit)
+        valid_gps_limited = valid_gps.last(time_limit)
 
         valid_gps_limited = linear_fit(valid_gps_limited, 'gps_alt', 1, stid)
         valid_gps_limited = linear_fit(valid_gps_limited, 'gps_lat', 6, stid)
@@ -404,7 +414,7 @@ def fetch_old_positions(df, stid):
         for i in to_write:
             if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
                 positions[stid][i] = s[f'gps_{i}_fit']
-                positions[stid][f'{i}_s'] = 'OLD' #source flag
+                # positions[stid][f'{i}_source'] = 'OLD' #source flag
 
         # Add altitude to positions dict:
         if ('gps_alt_fit' in s) and (pd.isna(s['gps_alt_fit']) is False):
@@ -412,6 +422,7 @@ def fetch_old_positions(df, stid):
 
         # Add timestamp
         positions[stid]['timestamp'] = s['time']
+    return positions
 
 
 def min_data_check(s, stid):
