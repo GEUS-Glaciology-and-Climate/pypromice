@@ -379,7 +379,7 @@ def write_positions(s, stid, positions):
 def fetch_old_positions(df, stid, time_limit, positions):
     '''Set valid lat, lon, alt to the positions dict.
     Used to find "old" GPS positions for submitting position metadata to DMI/WMO,
-    and for writing positions to AWS_station_locations.csv.
+    and for writing positions to AWS_station_locations.csv for skipped or rejected stations.
 
     Parameters
     ----------
@@ -398,17 +398,29 @@ def fetch_old_positions(df, stid, time_limit, positions):
     positions : dict
         Modified dict storing current station positions.
     '''
+    # Combine gps and msg lat and lon using combine_first()
+    # If any GPS positions are missing, we will fill the missing GPS positions with modem
+    # positions (if they are present). Important to do this first, and then apply linear fit
+    # to the resulting single array. Otherwise, we can have jumps when the GPS data goes out
+    # or comes back. The message coordinates can sometimes all be 0.0, so we check for this.
+
+    df_limited = df.last(time_limit)
+
+    if ('msg_lat' in df_limited) and ('msg_lon' in df_limited):
+        if (0.0 not in df_limited['msg_lat'].values):
+            df_limited['gps_lat'] = df_limited['gps_lat'].combine_first(df_limited['msg_lat'])
+        if (0.0 not in df_limited['msg_lon'].values):
+            df_limited['gps_lon'] = df_limited['gps_lon'].combine_first(df_limited['msg_lon'])
+
     # Find valid GPS data
-    valid_gps = df.dropna(subset=['gps_lat','gps_lon','gps_alt'])
+    valid_gps = df_limited.dropna(subset=['gps_lat','gps_lon','gps_alt'])
 
     if valid_gps.empty is False:
-        valid_gps_limited = valid_gps.last(time_limit)
+        valid_gps = linear_fit(valid_gps, 'gps_alt', 1, stid)
+        valid_gps = linear_fit(valid_gps, 'gps_lat', 6, stid)
+        valid_gps = linear_fit(valid_gps, 'gps_lon', 6, stid)
 
-        valid_gps_limited = linear_fit(valid_gps_limited, 'gps_alt', 1, stid)
-        valid_gps_limited = linear_fit(valid_gps_limited, 'gps_lat', 6, stid)
-        valid_gps_limited = linear_fit(valid_gps_limited, 'gps_lon', 6, stid)
-
-        s = valid_gps_limited.loc[valid_gps_limited.index.max()]
+        s = valid_gps.loc[valid_gps.index.max()]
 
         to_write = ['lat','lon']
         for i in to_write:
