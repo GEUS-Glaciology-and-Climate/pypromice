@@ -16,7 +16,7 @@ stid_to_skip = { # All the following IDS will not be processed or submitted
     'not_registered': ['UWN'], # Need to register with Norwegion met
     'discontinued': ['CEN1','TAS_U','QAS_A','NUK_N','THU_U','JAR','SWC'],
     'no_instantaneous': ['ZAK_L','ZAK_U','KAN_B'], # currently not transmitting instantaneous values
-    'suspect_data': [], # instantaneous data is suspect
+    'suspect_data': ['CP1','NAU'], # instantaneous data is suspect (CP1 & NAU, bad pressure)
     'use_v3': ['KPC_L','NUK_U','ZAK_U','QAS_U'], # use v3 versions instead (but registered IDs will be non-v3)
     'v3_bad': ['KPC_Uv3','QAS_Lv3'] # KPC_Uv3 years are 2056, QAS_Lv3 new ablation sensor w/different txt fields?
     # Eventually, as we change all stations to v3, the use_v3 list should be empty (there will not be v3 and non-v3 stations operating together)
