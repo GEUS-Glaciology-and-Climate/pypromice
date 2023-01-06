@@ -483,11 +483,18 @@ def min_data_check(s, stid):
     min_data_wx_result = True
     min_data_pos_result = True
 
-    # Can use pd.isna() or math.isnan()
-    # Must have valid air temp and pressure
-    if (pd.isna(s['t_i']) is False) and (pd.isna(s['p_i']) is False):
-        pass
-    else:
+    # Can use pd.isna() or math.isnan() below...
+
+    # Always require valid air temp and valid pressure (both must be non-nan)
+    # if (pd.isna(s['t_i']) is False) and (pd.isna(s['p_i']) is False):
+    #     pass
+    # else:
+    #     print('----> Failed min_data_check for air temp and pressure!')
+    #     min_data_wx_result = False
+
+    # If both air temp and pressure are nan, do not submit.
+    # This will allow the case of having only one or the other.
+    if (pd.isna(s['t_i']) is True) and (pd.isna(s['p_i']) is True):
         print('----> Failed min_data_check for air temp and pressure!')
         min_data_wx_result = False
 
