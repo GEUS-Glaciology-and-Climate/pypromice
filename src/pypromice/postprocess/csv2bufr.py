@@ -33,7 +33,7 @@ import math
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip
+from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, vars_to_skip
 
 # from IPython import embed
 
@@ -71,7 +71,7 @@ def getBUFR(s1, outBUFR, stid, land_stids):
     try:
         setTemplate(ibufr, timestamp, stid, config_key)
         setStation(ibufr, stid, config_key)
-        setAWSvariables(ibufr, s1, timestamp)
+        setAWSvariables(ibufr, s1, timestamp, stid)
 
         #Encode keys in data section
         codes_set(ibufr, 'pack', 1)
@@ -161,7 +161,7 @@ def setStation(ibufr, stid, config_key):
                continue
 
 
-def setAWSvariables(ibufr, row, timestamp):
+def setAWSvariables(ibufr, row, timestamp, stid):
     '''Set AWS measurements to bufr message.
     
     Parameters
@@ -172,19 +172,30 @@ def setAWSvariables(ibufr, row, timestamp):
         DataFrame row (or Series) with AWS variable data
     timestamp : datetime.datetime
         timestamp for this row
+    stid : str
+        The station ID to be processed. e.g. 'KPC_U'
     '''
+    # Set timestamp fields
     setBUFRvalue(ibufr, 'year', timestamp.year)
     setBUFRvalue(ibufr, 'month', timestamp.month)
     setBUFRvalue(ibufr, 'day', timestamp.day)
     setBUFRvalue(ibufr, 'hour', timestamp.hour)
     setBUFRvalue(ibufr, 'minute', timestamp.minute)
 
-    setBUFRvalue(ibufr, 'relativeHumidity', row['rh_i']) # DMI wants non-corrected
-    setBUFRvalue(ibufr, 'airTemperature', row['t_i'])
-    setBUFRvalue(ibufr, 'pressure', row['p_i'])
-    setBUFRvalue(ibufr, 'windDirection', row['wdir_i'])
-    setBUFRvalue(ibufr, 'windSpeed', row['wspd_i'])
+    vars_dict = {
+        'relativeHumidity': 'rh_i', # DMI wants non-corrected rh
+        'airTemperature': 't_i',
+        'pressure': 'p_i',
+        'windDirection': 'wdir_i',
+        'windSpeed': 'wspd_i'
+    }
+    for bufr_key, source_var in vars_dict.items():
+        if (stid in vars_to_skip) and (source_var in vars_to_skip[stid]):
+            print('----> Skipping var: {} {}'.format(stid,source_var))
+        else:
+            setBUFRvalue(ibufr, bufr_key, row[source_var])
 
+    # Set position metadata
     setBUFRvalue(ibufr, 'latitude', row['gps_lat_fit'])
     setBUFRvalue(ibufr, 'longitude', row['gps_lon_fit'])
     setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt_fit']) # also height and heightOfStation?
@@ -450,6 +461,9 @@ def fetch_old_positions(df, stid, time_limit, positions):
 
 def min_data_check(s, stid):
     '''Check that we have minimum required fields to proceed with writing to BUFR
+    For wx vars, we currently require both air temp and pressure to be non-NaN.
+    If you know a specific var is reporting bad data, you can ignore just that var
+    using the vars_to_skip dict in wmo_config.
 
     Parameters
     ----------
