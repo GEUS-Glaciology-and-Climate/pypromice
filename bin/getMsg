@@ -13,11 +13,11 @@ def parse_arguments():
     parser.add_argument('-p', '--password', default=None, type=str, 
                         required=True, help='Email credentials .ini file')                      
     parser.add_argument('-o', '--outpath', default='.', type=str, 
-                        required=True, help='Path where to write output')    	
+                        required=False, help='Path where to write output')    	
     parser.add_argument('-u', '--uid', default=None, type=str, 
-                        required=True, help='Last uid, defined from files if not given')	
+                        required=False, help='Last uid, defined from files if not given')	
     parser.add_argument('-m', '--mailbox', default='"[Gmail]/All Mail"', 
-                        type=str, required=True, help='Mailbox folder to collect messages from')        
+                        type=str, required=False, help='Mailbox folder to collect messages from')        
     args = parser.parse_args()
     return args
 
