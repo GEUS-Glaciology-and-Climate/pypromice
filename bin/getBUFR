@@ -117,9 +117,9 @@ if __name__ == '__main__':
 		stid = f[first_index+1:last_index]
 		# stid = f.split('/')[-1].split('.csv')[0][:-5]
 
+		print('####### Processing {} #######'.format(stid))
 		if ('Roof' not in f) and (stid not in to_skip):
 		# if ('v3' not in f) and ('Roof' not in f) and (stid not in to_skip):
-			print('####### Processing {} #######'.format(stid))
 			bufrname = stid + '.bufr'
 			print(f'Generating {bufrname} from {f}')
 
@@ -248,9 +248,9 @@ if __name__ == '__main__':
 
 					print(f'Successfully exported bufr file to {outFiles+bufrname}')
 				else:
-					print('Time checks failed for {}'.format(stid))
-					print('current:', current_timestamp)
-					print('latest:', latest_timestamp)
+					print('----> Time checks failed for {}'.format(stid))
+					print('      current:', current_timestamp)
+					print('       latest:', latest_timestamp)
 					no_recent_data.append(stid)
 					if args.positions is True:
 						positions = fetch_old_positions(df1, stid, args.time_limit, positions)
@@ -258,6 +258,7 @@ if __name__ == '__main__':
 				print('{} not found in latest_timestamps'.format(stid))
 				no_entry_latest_timestamps.append(stid)
 		else:
+			print('----> Skipping {} as per stid_to_skip config'.format(stid))
 			skipped.append(stid)
 			if args.positions is True:
 				# still will be useful to have all stations in AWS_station_location.csv,
@@ -286,7 +287,7 @@ if __name__ == '__main__':
 	print('--------------------------------')
 	not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
 	not_processed_count = len(skipped) + len(no_recent_data) + len(no_valid_data) + len(no_entry_latest_timestamps) + len(not_processed_wx_pos)
-	print('Finished processing {} of {} fpaths.'.format((len(fpaths) - not_processed_count),len(fpaths)))
+	print('BUFR exported for {} of {} fpaths.'.format((len(fpaths) - not_processed_count),len(fpaths)))
 	print('')
 	print('skipped: {}'.format(skipped))
 	print('no_recent_data: {}'.format(no_recent_data))
