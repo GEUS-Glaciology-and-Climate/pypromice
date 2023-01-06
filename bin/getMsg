@@ -31,7 +31,11 @@ if __name__ == '__main__':
     credentials_file = args.password 
         
 # Set last aws uid path
-    last_uid = int(args.uid)
+    if args.uid is not None:
+        last_uid = int(args.uid)
+    else:
+        last_uid=None
+          
     
 # Set output file directory
     out_dir = args.outpath
