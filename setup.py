@@ -32,5 +32,5 @@ setuptools.setup(
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
     install_requires=['numpy', 'pandas', 'xarray', 'toml', 'scipy'],
-    scripts=['bin/getData', 'bin/getL0tx', 'bin/getL3', 'bin/joinL3', 'bin/getWatsontx', 'bin/getBUFR'],
+    scripts=['bin/getData', 'bin/getL0tx', 'bin/getL3', 'bin/joinL3', 'bin/getWatsontx', 'bin/getBUFR', 'bin/getMsg'],
 )
