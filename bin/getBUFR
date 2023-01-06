@@ -287,7 +287,7 @@ if __name__ == '__main__':
 	print('--------------------------------')
 	not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
 	not_processed_count = len(skipped) + len(no_recent_data) + len(no_valid_data) + len(no_entry_latest_timestamps) + len(not_processed_wx_pos)
-	print('Finished processing {} of {} fpaths.'.format((len(fpaths) - not_processed_count),len(fpaths)))
+	print('BUFR exported for {} of {} fpaths.'.format((len(fpaths) - not_processed_count),len(fpaths)))
 	print('')
 	print('skipped: {}'.format(skipped))
 	print('no_recent_data: {}'.format(no_recent_data))
