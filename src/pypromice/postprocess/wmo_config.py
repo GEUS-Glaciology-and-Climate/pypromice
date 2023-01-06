@@ -28,8 +28,8 @@ stid_to_skip = { # All the following IDS will not be processed or submitted
 
 vars_to_skip = { # skip specific variables for stations
     # If a variable has known bad data, use this dict to skip the var
-    # Note that if the var is not reporting (NaN), then the entire station will be skipped as
-    # currently implemented in csv2bufr.min_data_check().
+    # Note that if a station is not reporting both air temp and pressure it will be skipped,
+    # as currently implemented in csv2bufr.min_data_check().
     'CP1': ['p_i'],
     'NAU': ['p_i']
 }
