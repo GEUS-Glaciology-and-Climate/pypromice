@@ -346,8 +346,8 @@ def round_values(s):
 
 def write_positions(s, stid, positions):
     '''Set valid lat, lon, alt to the positions dict.
-    Find recent position metadata for submitting to DMI/WMO.
-    Not used in production! Must pass --positions arg.
+    For submitting registration metadata to DMI/WMO, and for writing
+    positions to AWS_station_locations.csv. Must pass --positions arg.
 
     Parameters
     ----------
@@ -363,14 +363,10 @@ def write_positions(s, stid, positions):
     positions : dict
         Modified dict storing current station positions.
     '''
-    to_write = ['lat','lon']
+    to_write = ['lat','lon','alt']
     for i in to_write:
         if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
             positions[stid][i] = s[f'gps_{i}_fit']
-
-    # Add altitude to positions dict:
-    if ('gps_alt_fit' in s) and (pd.isna(s['gps_alt_fit']) is False):
-        positions[stid]['alt'] = s['gps_alt_fit']
 
     # Add timestamp
     positions[stid]['timestamp'] = s['time']
@@ -378,8 +374,14 @@ def write_positions(s, stid, positions):
 
 def fetch_old_positions(df, stid, time_limit, positions):
     '''Set valid lat, lon, alt to the positions dict.
-    Used to find "old" GPS positions for submitting position metadata to DMI/WMO,
-    and for writing positions to AWS_station_locations.csv for skipped or rejected stations.
+    For submitting registration metadata to DMI/WMO, and for writing
+    positions to AWS_station_locations.csv. We run this if a station
+    is skipped for BUFR processing or does not have new or recent-enough
+    obs, but we still want to find the last position if we have it.
+    Must have data within previous 3 months. Must pass --positions arg.
+
+    NOTE: We could implement a way to look further back in time for
+    most-recent position...
 
     Parameters
     ----------
@@ -396,7 +398,7 @@ def fetch_old_positions(df, stid, time_limit, positions):
     Returns
     -------
     positions : dict
-        Modified dict storing current station positions.
+        Modified dict storing most-recent station positions.
     '''
     # Combine gps and msg lat and lon using combine_first()
     # If any GPS positions are missing, we will fill the missing GPS positions with modem
@@ -412,25 +414,34 @@ def fetch_old_positions(df, stid, time_limit, positions):
         if (0.0 not in df_limited['msg_lon'].values):
             df_limited['gps_lon'] = df_limited['gps_lon'].combine_first(df_limited['msg_lon'])
 
-    # Find valid GPS data
-    valid_gps = df_limited.dropna(subset=['gps_lat','gps_lon','gps_alt'])
+    df_limited = linear_fit(df_limited, 'gps_alt', 1, stid)
+    df_limited = linear_fit(df_limited, 'gps_lat', 6, stid)
+    df_limited = linear_fit(df_limited, 'gps_lon', 6, stid)
 
-    if valid_gps.empty is False:
-        valid_gps = linear_fit(valid_gps, 'gps_alt', 1, stid)
-        valid_gps = linear_fit(valid_gps, 'gps_lat', 6, stid)
-        valid_gps = linear_fit(valid_gps, 'gps_lon', 6, stid)
+    # s = df_limited.loc[df_limited.index.max()] # just use max index
 
-        s = valid_gps.loc[valid_gps.index.max()]
+    # Go through gps_lat_fit, gps_lon_fit and gps_alt_fit and keep the most recent
+    # valid index. They should all be the same. Or, if modem-derived, we will have
+    # only lat and lon (with same index). But this treatment covers all possible
+    # scenarios of missing data.
+    pos_strings = ['lat','lon','alt']
+    pos_timestamps = []
+    valid_timestamp_found = False
+    recent_timestamp = pd.to_datetime('1900-01-01') # initialize with an old date
+    for p in pos_strings:
+        p_timestamp = df_limited[f'gps_{p}_fit'].last_valid_index()
+        if (p_timestamp is not None) and (p_timestamp > recent_timestamp):
+            recent_timestamp = p_timestamp
+            valid_timestamp_found = True
 
-        to_write = ['lat','lon']
-        for i in to_write:
-            if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
-                positions[stid][i] = s[f'gps_{i}_fit']
-                # positions[stid][f'{i}_source'] = 'OLD' #source flag
+    if valid_timestamp_found:
+        s = df_limited.loc[recent_timestamp]
 
-        # Add altitude to positions dict:
-        if ('gps_alt_fit' in s) and (pd.isna(s['gps_alt_fit']) is False):
-            positions[stid]['alt'] = s['gps_alt_fit']
+        to_write = ['lat','lon','alt']
+        for p in pos_strings:
+            if (f'gps_{p}_fit' in s) and (pd.isna(s[f'gps_{p}_fit']) is False):
+                positions[stid][p] = s[f'gps_{p}_fit']
+                # positions[stid][f'{p}_source'] = 'OLD' #source flag
 
         # Add timestamp
         positions[stid]['timestamp'] = s['time']
