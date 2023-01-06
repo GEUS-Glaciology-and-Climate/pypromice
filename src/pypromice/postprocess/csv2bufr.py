@@ -201,8 +201,9 @@ def setAWSvariables(ibufr, row, timestamp, stid):
     setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt_fit']) # also height and heightOfStation?
 
     # The ## in the codes_set() indicate the position in the BUFR for the parameter.
-    # e.g. #10#timePeriod will assign to the 10th occurence of "timePeriod".
-    # In the case of the synopMobil template, the 10th occurence is the wind speed section.
+    # e.g. #10#timePeriod will assign to the 10th occurence of "timePeriod", which corresponds
+    # to the wind speed section. Note that both the "synopMobil" and "synopLand" templates
+    # appear to have the same positions for all parameters that are set here.
     # View the output BUFR to see section keys with 'bufr_dump filename.bufr'.
     if math.isnan(row['wspd_i']) is False:
         #Set time significance (2=temporally averaged)
