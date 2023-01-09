@@ -31,6 +31,10 @@ authors:
     orcid: 0000-0003-1317-8185
     affiliation: 1
     equal-contrib: true
+  - name: Andreas P. Ahlstrøm
+    orcid: 0000-0001-8235-8070
+    affiliation: 1
+    equal-contrib: true
 affiliations:
  - name: Department of Glaciology and Climate, Geological Survey of Denmark and Greenland (GEUS), Denmark
    index: 1
@@ -81,11 +85,11 @@ The following sections outline ongoing research projects which actively use `pyp
 
 ## The Programme for the Monitoring of the Greenland Ice Sheet (PROMICE)
 
-The Programme for Monitoring of the Greenland Ice Sheet ([PROMICE](https://promice.org)) is a network of over 30 weather stations installed across the Greenland Ice Sheet. Launched in 2007, these weather stations were a one-boom tripod fixture, designed to sit on top of the ice and move with the ice flow at the ice sheet periphery. `pypromice` is used operationally for its processing of one-boom AWS observations [@how-one-boom-2022].
+The Programme for Monitoring of the Greenland Ice Sheet ([PROMICE](https://promice.org)), operated by the Geological Survey of Denmark and Greenland (GEUS) includes a network of approximately 20 weather stations installed in the melting zone across the Greenland Ice Sheet. Launched in 2007, these weather stations were a one-boom tripod fixture, designed to sit on top of the ice and move with the ice flow at the ice sheet periphery. `pypromice` is used operationally for its processing of one-boom AWS observations [@how-one-boom-2022].
 
 ## Greenland Climate Network (GC-Net)
 
-In 2020, PROMICE assumed responsibility of the Greenland Climate Network ([GC-Net]) and expanded their operations with the installation of a new two-boom mast station design intended for monitoring conditions on the interior ice sheet. `pypromice` is used operationally for its processing of two-boom AWS observations [@how-two-boom-2022].
+In 2020, GEUS assumed responsibility of the Greenland Climate Network ([GC-Net]) and initiated the replacement of the old weather stations with an entirely new two-boom mast station design intended for monitoring conditions on the interior ice sheet, where snow is accumulated each year. The replacement of all 16 stations is expected to be completed during 2023. `pypromice` is used operationally for processing of the GC-Net two-boom AWS observations [@how-two-boom-2022].
 
 ## Greenland Ecosystem Monitoring (GEM)
 
