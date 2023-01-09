@@ -18,7 +18,7 @@ authors:
   - name: Kenneth D. Mankoff
     orcid: 0000-0001-5453-2019
     equal-contrib: true 
-    affiliation: "1, 2"
+    affiliation: "1, 2, 3"
   - name: Patrick J. Wright
     orcid: 0000-0003-2999-9076
     affiliation: 1
@@ -34,8 +34,10 @@ authors:
 affiliations:
  - name: Department of Glaciology and Climate, Geological Survey of Denmark and Greenland (GEUS), Denmark
    index: 1
- - name: NASA GISS, New York, NY, USA
+ - name:  Business Integra, New York, NY, USA
    index: 2
+ - name: NASA Goddard Institute for Space Studies, New York, NY, USA
+   index: 3
 
 date: 01 March 2023
 bibliography: paper.bib
