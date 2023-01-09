@@ -143,12 +143,12 @@ def setStation(ibufr, stid, config_key):
                 # We are reading the v3 station ID file, and the config says to use it!
                 # But we need to write to BUFR without v3 name
                 stid = stid.replace('v3','')
-                # print('REPLACED!',stid)
             if stid == 'THU_U2':
                 stid = 'THU_U'
-                # print('REPLACED!',stid)
             if stid in ('JAR_O','SWC_O'):
                 stid = stid.replace('_O','')
+            if stid == 'CEN2':
+                stid = 'CEN'
             if stid in v:
                 codes_set(ibufr, k, v[stid])
             else:
