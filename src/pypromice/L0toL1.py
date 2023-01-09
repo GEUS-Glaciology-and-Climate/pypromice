@@ -32,7 +32,8 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     assert(type(L0) == xr.Dataset)
     ds = L0
 
-    ds = _flagNAN(ds, flag_file)                                               # Flag NaNs
+    ds = _flagNAN(ds)                                                          # Flag NaNs
+    ds = _adjustData(ds)                                                       # Flag NaNs
 
     for l in list(ds.keys()):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
@@ -176,6 +177,196 @@ def _flagNAN(ds, flag_file=None):
         # TODO: Mark these values in the ds_flags dataset using perhaps 
         # flag_LUT.loc["NAN"]['value']
     return ds
+
+
+def _adjustData(ds, var_list=[], skip_var=[]):
+    ds_out = ds.copy()
+
+    adj_info = pd.read_csv(
+        "data/adjustments/" + ds_out.attrs["station_id"] + ".csv", 
+        comment="#", 
+        skipinitialspace=True,
+    )
+
+    adj_info.t0 = pd.to_datetime(adj_info.t0, utc=True)
+
+    # if t1 is left empty, then adjustment is applied until the end of the file
+    adj_info.loc[adj_info.t1.isnull(), "t1"] = pd.to_datetime(ds_out.time.values[-1]).isoformat()
+    adj_info.t1 = pd.to_datetime(adj_info.t1, utc=True)
+
+    # if "*" is given as variable then we append this adjustement for all variables
+    # needs to be re-implemented
+    # for ind in adj_info.loc[adj_info.variable == "*", :].time:
+    #     line_template = adj_info.loc[ind, :].copy()
+    #     for var in ds_out.columns:
+    #         line_template.variable = var
+    #         line_template.name = adj_info.time.max() + 1
+    #         adj_info = adj_info.append(line_template)
+    #     adj_info = adj_info.drop(labels=ind, axis=0)
+
+    # first applies the time shift
+    # at the moment time shift is applied in the time index, so applied to all variables
+    # can be adapted to a variable-specific shift
+    print(adj_info.adjust_function)
+    if "time_shift" in adj_info.adjust_function.values:
+        time_shifts = adj_info.loc[adj_info.adjust_function == "time_shift", :]
+        adj_info = adj_info.loc[adj_info.adjust_function != "time_shift", :]
+            
+        for t0, t1, val in zip(
+            time_shifts.t0,
+            time_shifts.t1,
+            time_shifts.adjust_value,
+        ):
+            t0 = pd.to_datetime(t0)
+            t1 = pd.to_datetime(t1)
+            ds_shifted = ds_out.sel(time=slice(t0,t1))
+            ds_shifted['time'] = ds_shifted.time.values + pd.Timedelta(days = val)
+            
+            # here we concatenate what was before the shifted part, the shifted
+            # part and what was after the shifted part
+            # note that if any data was already present in the target period 
+            # (where the data lands after the shift), it is overwritten
+            
+            ds_out = xr.concat(
+                                    (
+                                        ds_out.sel(time=slice(pd.to_datetime(ds_out.time.values[0], utc=True),
+                                                              t0 + pd.Timedelta(days = val))),
+                                        ds_shifted,
+                                        ds_out.sel(time=slice(t1 + pd.Timedelta(days = val),
+                                                              pd.to_datetime(ds_out.time.values[-1], utc=True)))
+                                    ),
+                                    dim = 'time',
+                                   )
+            if t0 > pd.Timestamp.now(tz='utc'):
+                ds_out = ds_out.sel(time=slice(pd.to_datetime(ds_out.time.values[0], utc=True),
+                                               t0))
+    
+    # now applying all the other adjustments
+    adj_info = adj_info.sort_values(by=["variable", "t0"])
+    adj_info.set_index(["variable", "t0"], drop=False, inplace=True)
+
+    if len(var_list) == 0:
+        var_list = np.unique(adj_info.variable)
+    else:
+        adj_info = adj_info.loc[np.isin(adj_info.variable, var_list), :]
+        var_list = np.unique(adj_info.variable)
+
+    if len(skip_var) > 0:
+        adj_info = adj_info.loc[~np.isin(adj_info.variable, skip_var), :]
+        var_list = np.unique(adj_info.variable)
+
+    for var in var_list:
+        for t0, t1, func, val in zip(
+            adj_info.loc[var].t0,
+            adj_info.loc[var].t1,
+            adj_info.loc[var].adjust_function,
+            adj_info.loc[var].adjust_value,
+        ):
+            if (t0 > pd.to_datetime(ds_out.time.values[-1], utc=True)) | (t1 < pd.to_datetime(ds_out.time.values[0], utc=True)):
+                continue
+
+
+            if func == "add":
+                ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))].values + val
+                # flagging adjusted values
+                # if var + "_adj_flag" not in ds_out.columns:
+                #     ds_out[var + "_adj_flag"] = 0
+                # msk = ds_out[var].loc[dict(time=slice(t0, t1))])].notnull()
+                # ind = ds_out[var].loc[dict(time=slice(t0, t1))])].loc[msk].time
+                # ds_out.loc[ind, var + "_adj_flag"] = 1
+
+            if func == "multiply":
+                ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))].values * val
+                if "DW" in var:
+                    ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))] % 360
+                # flagging adjusted values
+                # if var + "_adj_flag" not in ds_out.columns:
+                #     ds_out[var + "_adj_flag"] = 0
+                # msk = ds_out[var].loc[dict(time=slice(t0, t1))].notnull()
+                # ind = ds_out[var].loc[dict(time=slice(t0, t1))].loc[msk].time
+                # ds_out.loc[ind, var + "_adj_flag"] = 1
+
+            if func == "min_filter":
+                tmp = ds_out[var].loc[dict(time=slice(t0, t1))].values
+                tmp[tmp < val] = np.nan
+                
+            if func == "max_filter":
+                tmp = ds_out[var].loc[dict(time=slice(t0, t1))].values
+                tmp[tmp > val] = np.nan
+                ds_out[var].loc[dict(time=slice(t0, t1))] = tmp
+                
+            if func == "upper_perc_filter":
+                tmp = ds_out[var].loc[dict(time=slice(t0, t1))].copy()
+                df_w = ds_out[var].loc[dict(time=slice(t0, t1))].resample("14D").quantile(1 - val / 100)
+                df_w = ds_out[var].loc[dict(time=slice(t0, t1))].resample("14D").var()
+                for m_start, m_end in zip(df_w.time[:-2], df_w.time[1:]):
+                    msk = (tmp.time >= m_start) & (tmp.time < m_end)
+                    values_month = tmp.loc[msk].values
+                    values_month[values_month < df_w.loc[m_start]] = np.nan
+                    tmp.loc[msk] = values_month
+
+                ds_out[var].loc[dict(time=slice(t0, t1))] = tmp.values
+
+            if func == "biweekly_upper_range_filter":
+                tmp = ds_out[var].loc[dict(time=slice(t0, t1))].copy()
+                df_max = ds_out[var].loc[dict(time=slice(t0, t1))].resample("14D").max()
+                for m_start, m_end in zip(df_max.time[:-2], df_max.time[1:]):
+                    msk = (tmp.time >= m_start) & (tmp.time < m_end)
+                    lim = df_max.loc[m_start] - val
+                    values_month = tmp.loc[msk].values
+                    values_month[values_month < lim] = np.nan
+                    tmp.loc[msk] = values_month
+                # remaining samples following outside of the last 2 weeks window
+                msk = tmp.time >= m_end
+                lim = df_max.loc[m_start] - val
+                values_month = tmp.loc[msk].values
+                values_month[values_month < lim] = np.nan
+                tmp.loc[msk] = values_month
+                # updating original pandas
+                ds_out[var].loc[dict(time=slice(t0, t1))] = tmp.values
+
+            if func == "hampel_filter":
+                tmp = ds_out[var].loc[dict(time=slice(t0, t1))]
+                tmp = _hampel(tmp, k=7 * 24, t0=val)
+                ds_out[var].loc[dict(time=slice(t0, t1))] = tmp.values
+
+            if func == "grad_filter":
+                tmp = ds_out[var].loc[dict(time=slice(t0, t1))].copy()
+                msk = ds_out[var].loc[dict(time=slice(t0, t1))].copy().diff()
+                tmp[np.roll(msk.abs() > val, -1)] = np.nan
+                ds_out[var].loc[dict(time=slice(t0, t1))] = tmp
+
+            if "swap_with_" in func:
+                var2 = func[10:]
+                val_var = ds_out[var].loc[dict(time=slice(t0, t1))].values.copy()
+                val_var2 = ds_out[var2].loc[dict(time=slice(t0, t1))].values.copy()
+                ds_out[var2].loc[dict(time=slice(t0, t1))] = val_var
+                ds_out[var].loc[dict(time=slice(t0, t1))] = val_var2
+
+            if func == "rotate":
+                ds_out[var].loc[dict(time=slice(t0, t1))] = (ds_out[var].loc[dict(time=slice(t0, t1))].values + val) % 360
+
+    return ds_out
+
+
+def _hampel(vals_orig, k=7*24, t0=3):
+    '''
+    vals: pandas series of values from which to remove outliers
+    k: size of window (including the sample; 7 is equal to 3 on either side of value)
+    '''
+    #Make copy so original not edited
+    vals=vals_orig.copy()    
+    #Hampel Filter
+    L= 1.4826
+    rolling_median=vals.rolling(k).median()
+    difference=np.abs(rolling_median-vals)
+    median_abs_deviation=difference.rolling(k).median()
+    threshold= t0 *L * median_abs_deviation
+    outlier_idx=difference>threshold
+    outlier_idx[0:round(k/2)]=False
+    vals.loc[outlier_idx]=np.nan
+    return(vals)
+
 
 def _popCols(ds, booms, data_type, vars_df, cols):
     '''Populate data array columns with given variable names from look-up table

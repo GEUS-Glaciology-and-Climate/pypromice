@@ -22,7 +22,193 @@ pd.set_option('display.precision', 2)
 xr.set_options(keep_attrs=True)
 
 #------------------------------------------------------------------------------
+# new AWS class where Ionly load L0 and process to L1
+class AWS_bav(object):
+    '''AWS object to load and process PROMICE AWS data'''
+    
+    def __init__(self, config_file, inpath, outpath=None, 
+                 var_file='./variables.csv', meta_file='./metadata.csv'):
+        '''Object initialisation
 
+        Parameters
+        ----------
+        config_file : str
+            Configuration file path
+        inpath : str
+            Input file path
+        outpath : str, optional
+            Output file path. The default is None.
+        var_file: str, optional
+            Variables look-up table file path. The default is "./variables.csv".
+        meta_file: str, optional
+            Metadata info file path. The default is "./metadata.csv"
+        '''
+        assert(os.path.isfile(config_file))
+        assert(os.path.isdir(inpath))
+        print('\nAWS object initialising...')
+        
+        # Load config, variables CSF standards, and L0 files
+        self.config = self.loadConfig(config_file, inpath)
+        self.vars = getVars(var_file)
+        self.meta = getMeta(meta_file)
+
+        # Hard-wire the msg_lat and msg_lon here
+        # Prevents having to list these vars in the individual station toml files
+        config_keys = list(self.config.keys())
+        for i in config_keys:
+            self.config[i]['columns'].extend(['msg_lat', 'msg_lon'])
+
+        # Load config file
+        L0 = self.loadL0()
+        self.L0=[]
+        for l in L0:
+            n = getColNames(self.vars, l.attrs['number_of_booms'], l.attrs['format'])
+            self.L0.append(popCols(l, n))
+        try:
+            print(f'Processing data from {self.L0.attrs["station_id"]}...') 
+        except:
+            print(f'Processing data from {self.L0[0].attrs["station_id"]}...')         
+
+        # Process L0 to L1 product
+        self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
+        self.L1 = [toL1(item, self.vars) for item in self.L0]
+      
+    def addAttributes(self, L3):
+        '''Add variable and attribute metadata
+        
+        Parameters
+        ----------
+        L3 : xr.Dataset
+            Level-3 data object
+        
+        Returns
+        -------
+        L3 : xr.Dataset
+            Level-3 data object with attributes
+        '''
+        L3 = addVars(L3, self.vars)
+        L3 = addMeta(L3, self.meta)
+        return L3
+
+    def writeArr(self, outpath):
+        '''Write L3 data to .nc and .csv hourly and daily files
+        
+        Parameters
+        ----------
+        outpath : str
+            Output directory
+        L3 : AWS.L3
+            Level-3 data object
+        '''
+        outdir = os.path.join(outpath, self.L3.attrs['station_id']) 
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+        
+        f = [l.attrs['format'] for l in self.L0]
+        if all(f):
+            col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
+                                    self.L0[0].attrs['format'])
+        else:
+            col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
+                                    None)
+        
+        t = int(pd.Timedelta((self.L3['time'][1] - self.L3['time'][0]).values).total_seconds())
+        print('Writing to files...')
+        if t == 600:
+            out_csv = os.path.join(outdir, self.L3.attrs['station_id']+'_10min.csv')
+            out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_10min.nc')
+        else:
+            out_csv = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.csv')
+            out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.nc')            
+        writeCSV(out_csv, self.L3, col_names)
+        writeNC(out_nc, self.L3) 
+        print(f'Written to {out_csv}')           
+        print(f'Written to {out_nc}') 
+        
+    def loadConfig(self, config_file, inpath):
+        '''Load configuration from .toml file
+        
+        Parameters
+        ----------
+        config_file : str
+            TOML file path
+        inpath : str
+            Input folder directory where L0 files can be found  
+        
+        Returns
+        -------
+        conf : dict
+            Configuration parameters
+        '''
+        conf = getConfig(config_file, inpath)
+        return conf
+        
+    def loadL0(self):
+        '''Load level 0 (L0) data from associated TOML-formatted 
+        config file and L0 data file
+
+        Try _readL0file() using the config with msg_lat & msg_lon appended. The 
+        specific ParserError except will occur when the number of columns in 
+        the tx file does not match the expected columns. In this case, remove 
+        msg_lat & msg_lon from the config and call _readL0file() again. These 
+        station files either have no data after Nov 2022 (when msg_lat & 
+        msg_lon were added to processing), or for whatever reason these fields 
+        did not exist in the modem message and were not added.
+        
+        Returns
+        -------
+        ds_list : list
+            List of L0 xr.Dataset objects
+        '''
+        c = self.config
+        if len(c.keys()) == 1: # one file in this config
+            target = c[list(c.keys())[0]]
+            try:
+                ds = self._readL0file(target)
+            except pd.errors.ParserError as e:
+                
+                # ParserError: Too many columns specified: expected 40 and found 38
+                print(f'-----> No msg_lat or msg_lon for {list(c.keys())[0]}')
+                for item in ['msg_lat', 'msg_lon']:
+                    target['columns'].remove(item)                             # Also removes from self.config
+                ds = self._readL0file(target)
+            print(f'L0 data successfully loaded from {list(c.keys())[0]}')
+            return [ds]
+        else:
+            ds_list = []
+            for k in c.keys():
+                try:
+                    ds_list.append(self._readL0file(c[k]))
+                except pd.errors.ParserError as e:
+                    
+                    # ParserError: Too many columns specified: expected 40 and found 38
+                    print(f'-----> No msg_lat or msg_lon for {k}')
+                    for item in ['msg_lat', 'msg_lon']:
+                        c[k]['columns'].remove(item)                           # Also removes from self.config
+                    ds_list.append(self._readL0file(c[k]))
+                print(f'L0 data successfully loaded from {k}')
+            return ds_list
+
+    def _readL0file(self, conf):
+        '''Read L0 .txt file to Dataset object using config dictionary and
+        populate with initial metadata
+        
+        Parameters
+        ----------
+        conf : dict
+            Configuration parameters  
+        
+        Returns
+        -------
+        ds : xr.Dataset
+            L0 data
+        '''
+        file_version = conf.get('file_version', -1)  
+        ds = getL0(conf['file'], conf['nodata'], conf['columns'], 
+                   conf["skiprows"], file_version)
+        ds = populateMeta(ds, conf, ["columns", "skiprows", "modem"])
+        return ds  
+        
 class AWS(object):
     '''AWS object to load and process PROMICE AWS data'''
     
