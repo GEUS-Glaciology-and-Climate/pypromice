@@ -71,13 +71,15 @@ class AWS(object):
 
         # Process L0 to L3 product
         self.process()
-    
+        
         # Resample L3 product
         f = [l.attrs['format'] for l in self.L0]
         if 'raw' in f or 'STM' in f:
+            print('Resampling to 10 minute')
             self.L3 = resampleL3(self.L3, '10min')
         else:
             self.L3 = resampleL3(self.L3, '60min') 
+            print('Resampling to hour')
         
         # Re-format time 
         t = self.L3['time'].values
@@ -122,7 +124,7 @@ class AWS(object):
         # L2 to L3 processing
         print('Level 3 processing...')        
         self.L3 = toL3(self.L2)
-    
+        
     def addAttributes(self, L3):
         '''Add variable and attribute metadata
         
@@ -875,7 +877,7 @@ class TestProcess(unittest.TestCase):
 
 if __name__ == "__main__":
 
-    # Test an individual station
+    # # Test an individual station
     # test_station = 'xxx'
     # config_file = '../../../aws-l0/raw/config/{}.toml'.format(test_station)
     # # config_file = '../../../aws-l0/tx/config/{}.toml'.format(test_station)
@@ -885,7 +887,7 @@ if __name__ == "__main__":
     # vari = 'variables.csv'
     # pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
 
-    # Use test configs
+    # # Use test configs
     # config_files = ['test/test_config1.toml', 'test/test_config2.toml']
     # inpath= 'test/'
     # outpath = 'test/'
