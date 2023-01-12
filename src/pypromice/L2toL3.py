@@ -28,19 +28,19 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
         Saturation vapour pressure at steam point temperature (hPa). Default is 
         1013.246.
     '''
-    ds_h = L2
+    ds = L2
 
     T_100 = _getTempK(T_0)                                                     # Get steam point temperature as K 
-    ds_h['wdir_u'] = _calcWindDir(ds_h['wspd_x_u'], ds_h['wspd_y_u'])          # Calculatate wind direction   
+    ds['wdir_u'] = _calcWindDir(ds['wspd_x_u'], ds['wspd_y_u'])          # Calculatate wind direction   
 
     # Upper boom bulk calculation
-    T_h_u = ds_h['t_u'].copy()                                                 # Copy for processing
-    p_h_u = ds_h['p_u'].copy()
-    WS_h_u = ds_h['wspd_u'].copy()
-    RH_cor_h_u = ds_h['rh_u_cor'].copy()
-    Tsurf_h = ds_h['t_surf'].copy()                                            # T surf from derived upper boom product. TODO is this okay to use with lower boom parameters?
-    z_WS_u = ds_h['z_boom_u'].copy() + 0.4                                     # Get height of Anemometer                
-    z_T_u = ds_h['z_boom_u'].copy() - 0.1                                      # Get height of thermometer  
+    T_h_u = ds['t_u'].copy()                                                 # Copy for processing
+    p_h_u = ds['p_u'].copy()
+    WS_h_u = ds['wspd_u'].copy()
+    RH_cor_h_u = ds['rh_u_cor'].copy()
+    Tsurf_h = ds['t_surf'].copy()                                            # T surf from derived upper boom product. TODO is this okay to use with lower boom parameters?
+    z_WS_u = ds['z_boom_u'].copy() + 0.4                                     # Get height of Anemometer                
+    z_T_u = ds['z_boom_u'].copy() - 0.1                                      # Get height of thermometer  
         
     rho_atm_u = 100 * p_h_u / R_d / (T_h_u + T_0)                              # Calculate atmospheric density                                  
     nu_u = _calcVisc(T_h_u, T_0, rho_atm_u)                                    # Calculate kinematic viscosity  
@@ -49,23 +49,23 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
     SHF_h_u, LHF_h_u= _calcHeatFlux(T_0, T_h_u, Tsurf_h, rho_atm_u, WS_h_u,    # Calculate latent and sensible heat fluxes
                                     z_WS_u, z_T_u, nu_u, q_h_u, p_h_u)     
     SHF_h_u, LHF_h_u = _cleanHeatFlux(SHF_h_u, LHF_h_u, T_h_u, Tsurf_h, p_h_u, # Clean heat flux values
-                                      WS_h_u, RH_cor_h_u, ds_h['z_boom_u'])
+                                      WS_h_u, RH_cor_h_u, ds['z_boom_u'])
     q_h_u = 1000 * q_h_u                                                       # Convert sp.humid from kg/kg to g/kg
     q_h_u = _cleanSpHumid(q_h_u, T_h_u, Tsurf_h, p_h_u, RH_cor_h_u)            # Clean sp.humid values    
-    ds_h['dshf_u'] = (('time'), SHF_h_u.data)
-    ds_h['dlhf_u'] = (('time'), LHF_h_u.data)
-    ds_h['qh_u'] = (('time'), q_h_u.data)    
+    ds['dshf_u'] = (('time'), SHF_h_u.data)
+    ds['dlhf_u'] = (('time'), LHF_h_u.data)
+    ds['qh_u'] = (('time'), q_h_u.data)    
 
     # Lower boom bulk calculation
-    if ds_h.attrs['number_of_booms']==2:                                         
-        ds_h['wdir_l'] = _calcWindDir(ds_h['wspd_x_l'], ds_h['wspd_y_l'])          # Calculatate wind direction
+    if ds.attrs['number_of_booms']==2:                                         
+        ds['wdir_l'] = _calcWindDir(ds['wspd_x_l'], ds['wspd_y_l'])          # Calculatate wind direction
 
-        T_h_l = ds_h['t_l'].copy()                                                 # Copy for processing
-        p_h_l = ds_h['p_l'].copy()
-        WS_h_l = ds_h['wspd_l'].copy()                                      
-        RH_cor_h_l = ds_h['rh_l_cor'].copy()
-        z_WS_l = ds_h['z_boom_l'].copy() + 0.4                                     # Get height of W                  
-        z_T_l = ds_h['z_boom_l'].copy() - 0.1                                      # Get height of thermometer 
+        T_h_l = ds['t_l'].copy()                                                 # Copy for processing
+        p_h_l = ds['p_l'].copy()
+        WS_h_l = ds['wspd_l'].copy()                                      
+        RH_cor_h_l = ds['rh_l_cor'].copy()
+        z_WS_l = ds['z_boom_l'].copy() + 0.4                                     # Get height of W                  
+        z_T_l = ds['z_boom_l'].copy() - 0.1                                      # Get height of thermometer 
            
         rho_atm_l = 100 * p_h_l / R_d / (T_h_l + T_0)                              # Calculate atmospheric density                                  
         nu_l = _calcVisc(T_h_l, T_0, rho_atm_l)                                    # Calculate kinematic viscosity  
@@ -74,19 +74,19 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
         SHF_h_l, LHF_h_l= _calcHeatFlux(T_0, T_h_l, Tsurf_h, rho_atm_l, WS_h_l,    # Calculate latent and sensible heat fluxes 
                                         z_WS_l, z_T_l, nu_l, q_h_l, p_h_l)        
         SHF_h_l, LHF_h_l = _cleanHeatFlux(SHF_h_l, LHF_h_l, T_h_l, Tsurf_h, p_h_l, # Clean heat flux values
-                                          WS_h_l, RH_cor_h_l, ds_h['z_boom_l'])        
+                                          WS_h_l, RH_cor_h_l, ds['z_boom_l'])        
         q_h_l = 1000 * q_h_l                                                       # Convert sp.humid from kg/kg to g/kg
         q_h_l = _cleanSpHumid(q_h_l, T_h_l, Tsurf_h, p_h_l, RH_cor_h_l)            # Clean sp.humid values
-        ds_h['dshf_l'] = (('time'), SHF_h_l.data)
-        ds_h['dlhf_l'] = (('time'), LHF_h_l.data)
-        ds_h['qh_l'] = (('time'), q_h_l.data)    
+        ds['dshf_l'] = (('time'), SHF_h_l.data)
+        ds['dlhf_l'] = (('time'), LHF_h_l.data)
+        ds['qh_l'] = (('time'), q_h_l.data)    
 
-    if hasattr(ds_h, 'wspd_x_i'): 
-        if ~ds_h['wspd_x_i'].isnull().all() and ~ds_h['wspd_x_i'].isnull().all(): # Instantaneous msg processing
-            ds_h['wdir_i'] = _calcWindDir(ds_h['wspd_x_i'], ds_h['wspd_y_i'])      # Calculatate wind direction  
+    if hasattr(ds, 'wspd_x_i'): 
+        if ~ds['wspd_x_i'].isnull().all() and ~ds['wspd_x_i'].isnull().all(): # Instantaneous msg processing
+            ds['wdir_i'] = _calcWindDir(ds['wspd_x_i'], ds['wspd_y_i'])      # Calculatate wind direction  
     
-    # ds_d = _getDailyAver(ds_h)                                                 # Get daily average dataset  
-    return ds_h
+    # ds_d = _getDailyAver(ds)                                                 # Get daily average dataset  
+    return ds
 
 def _calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h, 
               kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622, 
