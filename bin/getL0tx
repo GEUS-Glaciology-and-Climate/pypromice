@@ -65,8 +65,8 @@ if __name__ == '__main__':
 
  	# Define accounts and credentials ini file paths
     accounts_ini = ConfigParser()
-    accounts_ini.readfp(open(accounts_file)) 	
-    accounts_ini.read(credentials_file) 
+    accounts_ini.read_file(open(accounts_file))
+    accounts_ini.read(credentials_file)
 
  	# Get last email uid
     with open(uid_file, 'r') as last_uid_f:
