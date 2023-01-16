@@ -81,7 +81,7 @@ In 2020, GEUS assumed responsibility of the American Greenland Climate Network (
 
 The Greenland Ecosystem Monitoring programme ([GEM](https://g-e-m.dk)) is an integrated, long-term monitoring effort that examines the effects of climate change on Arctic ecosystems. Established in 1995, GEM includes monitoring at Zackenberg, Kobbefjord, and Disko. The program offers access to over 1000 freely-available environmental datasets, including data from 6 GEUS-designed AWS installations [@gem-glaciobasis-2020] which have been used in scientific publications [@messerli-snow-2022].
 
-The `pypromice` software thus handles data from 43 AWSs on hourly, daily and monthly time scales, producing standard output formats for further use in Greenland research [@how-two-boom-2022 @how-one-boom-2022]. The AWS data products have been used in high impact studies [@macguth-greenland-2016 @oerhli-vegetation-2022 @box-greenland-2022], and have been crucial for evaluating the effect of climate change on land ice in annual reports such as the Arctic Report Card and "State of the Climate" [@moon-greenland-2022a @moon-greenland-2022b]. 
+The `pypromice` software thus handles data from 43 AWSs on hourly, daily and monthly time scales, producing standard output formats for further use in Greenland research [@how-two-boom-2022; @how-one-boom-2022]. The AWS data products have been used in high impact studies [@macguth-greenland-2016; @oerhli-vegetation-2022; @box-greenland-2022], and have been crucial for evaluating the effect of climate change on land ice in annual reports such as the Arctic Report Card and "State of the Climate" [@moon-greenland-2022a; @moon-greenland-2022b]. 
 
 
 # Documentation
