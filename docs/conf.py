@@ -15,15 +15,16 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../src'))
 sys.path.insert(0, os.path.abspath('../src/pypromice'))
+sys.path.insert(0, os.path.abspath('../src/pypromice/postprocess'))
 
 # -- Project information -----------------------------------------------------
 
 project = 'pypromice'
-copyright = '2022, GEUS Glaciology and Climate'
+copyright = '2023, GEUS Glaciology and Climate'
 author = 'GEUS Glaciology and Climate'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = '1.0.0'
 
 
 # -- General configuration ---------------------------------------------------
