@@ -15,4 +15,4 @@ jobs:
           DATAVERSE_SERVER: https://dataverse.geus.dk
           DATAVERSE_DATASET_DOI: doi:10.22008/FK2/3TSBF0
           DELETE: True
-          PUBLSH: False
+          PUBLISH: False
