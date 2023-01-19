@@ -1,4 +1,0 @@
-t0, t1, variable, adjust_function, adjust_value, comment, URL_graphic
-2056-01-01T00:00:00+00:00, , *, time_shift, -12410, manually adjusted by bav, https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/issues/22
-
-2022-08-01T00:00:00+00:00, 2022-09-01T00:00:00+00:00, t_u, rotate, 180, test,

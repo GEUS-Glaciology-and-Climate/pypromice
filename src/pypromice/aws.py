@@ -71,7 +71,7 @@ class AWS_bav(object):
 
         # Process L0 to L1 product
         self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
-        self.L1 = [toL1(item, self.vars) for item in self.L0]
+        # self.L1 = [toL1(item, self.vars) for item in self.L0]
       
     def addAttributes(self, L3):
         '''Add variable and attribute metadata

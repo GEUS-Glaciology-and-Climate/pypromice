@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import re
+import urllib.request
 
 def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     '''Process one Level 0 (L0) product to Level 1
@@ -122,13 +123,13 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
             ds['wspd_x_i'], ds['wspd_y_i'] = _calcWindDir(ds['wspd_i'], ds['wdir_i'])   
     return ds
 
-def _flagNAN(ds, flag_file=None):
+def _flagNAN(ds_in, flag_file=None):
     '''Read flagged data from .csv file. For each variable, and downstream 
     dependents, flag as invalid (or other) if set in the flag .csv
     
     Parameters
     ----------
-    ds : xr.Dataset
+    ds_in : xr.Dataset
         Level 0 dataset
     flag_file : str
         File path to .csv flag file. The default is None.
@@ -138,22 +139,31 @@ def _flagNAN(ds, flag_file=None):
     ds : xr.Dataset
         Level 0 data with flagged data
     '''
-    # flag_file = "./data/flags/" + ds.attrs["station_id"] + ".csv"
-    if flag_file is None:
-        print('Flag file not given. No data flagged')
+    ds = ds_in.copy()
+    try:
+        os.mkdir('local')
+        os.mkdir('local/flags')
+        os.mkdir('local/adjustments')
+    except:
+        pass
+    flag_url = "https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/flags/" 
+    try:
+        urllib.request.urlretrieve(flag_url + ds.attrs["station_id"] + ".csv",
+                               "local/flags/" + ds.attrs["station_id"] + ".csv")
+    except:
+        print('Could not find the flag file')
+        print(flag_url + ds.attrs["station_id"] + ".csv")
         return ds
     
-    else:
-        if not os.path.isfile(flag_file):
-            print(f'Flag file {flag_file} not found. No data flagged')
-            return ds # no flag file
-        else:
-            df = pd.read_csv(flag_file, parse_dates=[0,1], comment="#") \
-                .dropna(how='all', axis='rows')
+    flag_file = "local/flags/" + ds.attrs["station_id"] + ".csv"
+    df = pd.read_csv(
+                    flag_file,
+                    comment="#", 
+                    skipinitialspace=True,
+                    ).dropna(how='all', axis='rows')
     
-    # Check format of flags.csv. Either both or neither t0 and t1 must be defined
-    assert(((np.isnan(df['t0'].values).astype(int) + np.isnan(df['t1'].values).astype(int)) % 2).sum() == 0)
-    
+    df.t0 = pd.to_datetime(df.t0).dt.tz_localize(None)
+    df.t1 = pd.to_datetime(df.t1).dt.tz_localize(None)
     # For now we only process the NAN flag
     df = df[df['flag'] == "NAN"]
     if df.shape[0] == 0: 
@@ -169,7 +179,10 @@ def _flagNAN(ds, flag_file=None):
         if 'time' in varlist: varlist.remove("time")
         
         # Set to all times if times are "n/a"
-        if pd.isnull(t0): t0, t1 = ds['time'].values[[0,-1]]
+        if pd.isnull(t0): 
+            t0 = ds['time'].values[0]
+        if pd.isnull(t1): 
+            t1 = ds['time'].values[0]
         
         for v in varlist:
             ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
@@ -181,9 +194,19 @@ def _flagNAN(ds, flag_file=None):
 
 def _adjustData(ds, var_list=[], skip_var=[]):
     ds_out = ds.copy()
-
+    
+    adj_url = "https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/adjustments/" 
+    try:
+        urllib.request.urlretrieve(adj_url + ds.attrs["station_id"] + ".csv",
+                               "local/adjustments/" + ds.attrs["station_id"] + ".csv")
+    except:
+        print('Could not find the adjustment file')
+        print(adj_url + ds.attrs["station_id"] + "2.csv")
+        return ds
+    
+    flag_file = "local/adjustments/" + ds.attrs["station_id"] + ".csv"
     adj_info = pd.read_csv(
-        "data/adjustments/" + ds_out.attrs["station_id"] + ".csv", 
+        flag_file, 
         comment="#", 
         skipinitialspace=True,
     )
