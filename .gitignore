@@ -10,9 +10,6 @@ dist/
 # Docs generation
 docs/_build/
 
-# local folder
-src/pypromice/local
-
 # Test output directories
 src/pypromice/test/TEST1/*
 src/pypromice/test/TEST2/*

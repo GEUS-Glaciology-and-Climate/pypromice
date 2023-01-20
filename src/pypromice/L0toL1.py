@@ -175,8 +175,10 @@ def _flagNAN(ds_in,
     ----------
     ds_in : xr.Dataset
         Level 0 dataset
-    flag_file : str
-        File path to .csv flag file. The default is None.
+    flag_url : str
+        URL to directory where .csv flag files can be found
+    flag_dir : str
+        File directory where .csv flag files can be found
     
     Returns
     -------
@@ -227,6 +229,23 @@ def _adjustData(ds,
                 adj_url="https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/adjustments/", 
                 adj_dir='../../../PROMICE-AWS-data-issues/flags/', 
                 var_list=[], skip_var=[]):
+    '''Read adjustment data from .csv file. For each variable, and downstream 
+    dependents, adjust data accordingly if set in the adjustment .csv
+    
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Level 0 dataset
+    adj_url : str
+        URL to directory where .csv adjustment files can be found
+    adj_dir : str
+        File directory where .csv adjustment files can be found
+    
+    Returns
+    -------
+    ds : xr.Dataset
+        Level 0 data with flagged data
+    '''
     ds_out = ds.copy()
     
     adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
@@ -392,14 +411,22 @@ def _adjustData(ds,
 
     return ds_out
 
-
 def _hampel(vals_orig, k=7*24, t0=3):
-    '''
-    vals: pandas series of values from which to remove outliers
-    k: size of window (including the sample; 7 is equal to 3 on either side of value)
+    '''Hampel filter
+    
+    Parameters
+    ----------
+    vals : pd.DataSeries
+        Series of values from which to remove outliers
+    k : int
+        Size of window, including the sample. For example, 7 is equal to 3 on 
+        either side of value. The default is 7*24.
+    t0 : int
+        Threshold value. The default is 3.
     '''
     #Make copy so original not edited
-    vals=vals_orig.copy()    
+    vals=vals_orig.copy()
+    
     #Hampel Filter
     L= 1.4826
     rolling_median=vals.rolling(k).median()
@@ -410,7 +437,6 @@ def _hampel(vals_orig, k=7*24, t0=3):
     outlier_idx[0:round(k/2)]=False
     vals.loc[outlier_idx]=np.nan
     return(vals)
-
 
 def _popCols(ds, booms, data_type, vars_df, cols):
     '''Populate data array columns with given variable names from look-up table
