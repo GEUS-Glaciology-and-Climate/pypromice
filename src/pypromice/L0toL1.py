@@ -8,6 +8,7 @@ import pandas as pd
 import xarray as xr
 import re
 import urllib.request
+from urllib.error import HTTPError
 
 def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     '''Process one Level 0 (L0) product to Level 1
@@ -123,7 +124,50 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
             ds['wspd_x_i'], ds['wspd_y_i'] = _calcWindDir(ds['wspd_i'], ds['wdir_i'])   
     return ds
 
-def _flagNAN(ds_in, flag_file=None):
+def _getDF(flag_url, flag_file):
+    '''Get dataframe from flag or adjust file. First attempt to retrieve from 
+    URL. If this fails then attempt to retrieve from local file 
+    
+    Parameters
+    ----------
+    flag_url : str
+        URL address to file
+    flag_file : str
+        Local path to file
+    
+    Returns
+    -------
+    df : pd.DataFrame
+        Flag or adjustment dataframe
+    '''
+    # Attempt to retrieve URL csv as DataFrame
+    try:
+        df = pd.read_csv(
+                        flag_url, 
+                        comment="#", 
+                        skipinitialspace=True,
+                        ).dropna(how='all', axis='rows')
+        print('File retrieved from URL')
+    
+    # Attempt to retrieve local csv as DataFrame
+    except HTTPError:
+        print('File not retrieved from URL. Trying local copy...')
+        if os.path.isfile(flag_file):
+            df = pd.read_csv(
+                            flag_file, 
+                            comment="#", 
+                            skipinitialspace=True,
+                            ).dropna(how='all', axis='rows') 
+            print('File retrieved from local copy')
+        else:
+            df=None
+            print('File not retrieved from local copy. No flagging' \
+                  ' or adjustments can be made')
+    return df
+    
+def _flagNAN(ds_in, 
+             flag_url='https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/flags/',
+             flag_dir='../../../PROMICE-AWS-data-issues/flags/'):
     '''Read flagged data from .csv file. For each variable, and downstream 
     dependents, flag as invalid (or other) if set in the flag .csv
     
@@ -140,234 +184,211 @@ def _flagNAN(ds_in, flag_file=None):
         Level 0 data with flagged data
     '''
     ds = ds_in.copy()
-    try:
-        os.mkdir('local')
-        os.mkdir('local/flags')
-        os.mkdir('local/adjustments')
-    except:
-        pass
-    flag_url = "https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/flags/" 
-    try:
-        urllib.request.urlretrieve(flag_url + ds.attrs["station_id"] + ".csv",
-                               "local/flags/" + ds.attrs["station_id"] + ".csv")
-    except:
-        print('Could not find the flag file')
-        print(flag_url + ds.attrs["station_id"] + ".csv")
-        return ds
+    df = None
     
-    flag_file = "local/flags/" + ds.attrs["station_id"] + ".csv"
-    df = pd.read_csv(
-                    flag_file,
-                    comment="#", 
-                    skipinitialspace=True,
-                    ).dropna(how='all', axis='rows')
-    
-    df.t0 = pd.to_datetime(df.t0).dt.tz_localize(None)
-    df.t1 = pd.to_datetime(df.t1).dt.tz_localize(None)
-    # For now we only process the NAN flag
-    df = df[df['flag'] == "NAN"]
-    if df.shape[0] == 0: 
-        return ds
-    
-    # Set flagged values
-    for i in df.index:
-        t0, t1, avar = df.loc[i,['t0','t1','variable']]
+    df = _getDF(flag_url + ds.attrs["station_id"] + ".csv",
+                os.path.join(flag_dir, ds.attrs["station_id"] + ".csv"))
+            
+    if df:
+           
+        df.t0 = pd.to_datetime(df.t0).dt.tz_localize(None)
+        df.t1 = pd.to_datetime(df.t1).dt.tz_localize(None)
         
-        # Set to all vars if var is "*"
-        varlist = avar.split() if avar != '*' else list(ds.variables)
- 
-        if 'time' in varlist: varlist.remove("time")
+        # For now we only process the NAN flag
+        df = df[df['flag'] == "NAN"]
+        if df.shape[0] == 0: 
+            return ds
         
-        # Set to all times if times are "n/a"
-        if pd.isnull(t0): 
-            t0 = ds['time'].values[0]
-        if pd.isnull(t1): 
-            t1 = ds['time'].values[0]
-        
-        for v in varlist:
-            ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
-        
-        # TODO: Mark these values in the ds_flags dataset using perhaps 
-        # flag_LUT.loc["NAN"]['value']
+        # Set flagged values
+        for i in df.index:
+            t0, t1, avar = df.loc[i,['t0','t1','variable']]
+            
+            # Set to all vars if var is "*"
+            varlist = avar.split() if avar != '*' else list(ds.variables)
+     
+            if 'time' in varlist: varlist.remove("time")
+            
+            # Set to all times if times are "n/a"
+            if pd.isnull(t0): 
+                t0 = ds['time'].values[0]
+            if pd.isnull(t1): 
+                t1 = ds['time'].values[0]
+            
+            for v in varlist:
+                ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
+            
+            # TODO: Mark these values in the ds_flags dataset using perhaps 
+            # flag_LUT.loc["NAN"]['value']
+            
     return ds
 
 
-def _adjustData(ds, var_list=[], skip_var=[]):
+def _adjustData(ds, 
+                adj_url="https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/adjustments/", 
+                adj_dir='../../../PROMICE-AWS-data-issues/flags/', 
+                var_list=[], skip_var=[]):
     ds_out = ds.copy()
     
-    adj_url = "https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/adjustments/" 
-    try:
-        urllib.request.urlretrieve(adj_url + ds.attrs["station_id"] + ".csv",
-                               "local/adjustments/" + ds.attrs["station_id"] + ".csv")
-    except:
-        print('Could not find the adjustment file')
-        print(adj_url + ds.attrs["station_id"] + "2.csv")
-        return ds
+    adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
+                os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"))
     
-    flag_file = "local/adjustments/" + ds.attrs["station_id"] + ".csv"
-    adj_info = pd.read_csv(
-        flag_file, 
-        comment="#", 
-        skipinitialspace=True,
-    )
-
-    adj_info.t0 = pd.to_datetime(adj_info.t0, utc=True)
-
-    # if t1 is left empty, then adjustment is applied until the end of the file
-    adj_info.loc[adj_info.t1.isnull(), "t1"] = pd.to_datetime(ds_out.time.values[-1]).isoformat()
-    adj_info.t1 = pd.to_datetime(adj_info.t1, utc=True)
-
-    # if "*" is given as variable then we append this adjustement for all variables
-    # needs to be re-implemented
-    # for ind in adj_info.loc[adj_info.variable == "*", :].time:
-    #     line_template = adj_info.loc[ind, :].copy()
-    #     for var in ds_out.columns:
-    #         line_template.variable = var
-    #         line_template.name = adj_info.time.max() + 1
-    #         adj_info = adj_info.append(line_template)
-    #     adj_info = adj_info.drop(labels=ind, axis=0)
-
-    # first applies the time shift
-    # at the moment time shift is applied in the time index, so applied to all variables
-    # can be adapted to a variable-specific shift
-    print(adj_info.adjust_function)
-    if "time_shift" in adj_info.adjust_function.values:
-        time_shifts = adj_info.loc[adj_info.adjust_function == "time_shift", :]
-        adj_info = adj_info.loc[adj_info.adjust_function != "time_shift", :]
-            
-        for t0, t1, val in zip(
-            time_shifts.t0,
-            time_shifts.t1,
-            time_shifts.adjust_value,
-        ):
-            t0 = pd.to_datetime(t0)
-            t1 = pd.to_datetime(t1)
-            ds_shifted = ds_out.sel(time=slice(t0,t1))
-            ds_shifted['time'] = ds_shifted.time.values + pd.Timedelta(days = val)
-            
-            # here we concatenate what was before the shifted part, the shifted
-            # part and what was after the shifted part
-            # note that if any data was already present in the target period 
-            # (where the data lands after the shift), it is overwritten
-            
-            ds_out = xr.concat(
-                                    (
-                                        ds_out.sel(time=slice(pd.to_datetime(ds_out.time.values[0], utc=True),
-                                                              t0 + pd.Timedelta(days = val))),
-                                        ds_shifted,
-                                        ds_out.sel(time=slice(t1 + pd.Timedelta(days = val),
-                                                              pd.to_datetime(ds_out.time.values[-1], utc=True)))
-                                    ),
-                                    dim = 'time',
-                                   )
-            if t0 > pd.Timestamp.now(tz='utc'):
-                ds_out = ds_out.sel(time=slice(pd.to_datetime(ds_out.time.values[0], utc=True),
-                                               t0))
+    if adj_info:
+        adj_info.t0 = pd.to_datetime(adj_info.t0, utc=True)
     
-    # now applying all the other adjustments
-    adj_info = adj_info.sort_values(by=["variable", "t0"])
-    adj_info.set_index(["variable", "t0"], drop=False, inplace=True)
-
-    if len(var_list) == 0:
-        var_list = np.unique(adj_info.variable)
-    else:
-        adj_info = adj_info.loc[np.isin(adj_info.variable, var_list), :]
-        var_list = np.unique(adj_info.variable)
-
-    if len(skip_var) > 0:
-        adj_info = adj_info.loc[~np.isin(adj_info.variable, skip_var), :]
-        var_list = np.unique(adj_info.variable)
-
-    for var in var_list:
-        for t0, t1, func, val in zip(
-            adj_info.loc[var].t0,
-            adj_info.loc[var].t1,
-            adj_info.loc[var].adjust_function,
-            adj_info.loc[var].adjust_value,
-        ):
-            if (t0 > pd.to_datetime(ds_out.time.values[-1], utc=True)) | (t1 < pd.to_datetime(ds_out.time.values[0], utc=True)):
-                continue
-
-
-            if func == "add":
-                ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))].values + val
-                # flagging adjusted values
-                # if var + "_adj_flag" not in ds_out.columns:
-                #     ds_out[var + "_adj_flag"] = 0
-                # msk = ds_out[var].loc[dict(time=slice(t0, t1))])].notnull()
-                # ind = ds_out[var].loc[dict(time=slice(t0, t1))])].loc[msk].time
-                # ds_out.loc[ind, var + "_adj_flag"] = 1
-
-            if func == "multiply":
-                ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))].values * val
-                if "DW" in var:
-                    ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))] % 360
-                # flagging adjusted values
-                # if var + "_adj_flag" not in ds_out.columns:
-                #     ds_out[var + "_adj_flag"] = 0
-                # msk = ds_out[var].loc[dict(time=slice(t0, t1))].notnull()
-                # ind = ds_out[var].loc[dict(time=slice(t0, t1))].loc[msk].time
-                # ds_out.loc[ind, var + "_adj_flag"] = 1
-
-            if func == "min_filter":
-                tmp = ds_out[var].loc[dict(time=slice(t0, t1))].values
-                tmp[tmp < val] = np.nan
+        # if t1 is left empty, then adjustment is applied until the end of the file
+        adj_info.loc[adj_info.t1.isnull(), "t1"] = pd.to_datetime(ds_out.time.values[-1]).isoformat()
+        adj_info.t1 = pd.to_datetime(adj_info.t1, utc=True)
+    
+        # if "*" is given as variable then we append this adjustement for all variables
+        # needs to be re-implemented
+        # for ind in adj_info.loc[adj_info.variable == "*", :].time:
+        #     line_template = adj_info.loc[ind, :].copy()
+        #     for var in ds_out.columns:
+        #         line_template.variable = var
+        #         line_template.name = adj_info.time.max() + 1
+        #         adj_info = adj_info.append(line_template)
+        #     adj_info = adj_info.drop(labels=ind, axis=0)
+    
+        # first applies the time shift
+        # at the moment time shift is applied in the time index, so applied to all variables
+        # can be adapted to a variable-specific shift
+        print(adj_info.adjust_function)
+        if "time_shift" in adj_info.adjust_function.values:
+            time_shifts = adj_info.loc[adj_info.adjust_function == "time_shift", :]
+            adj_info = adj_info.loc[adj_info.adjust_function != "time_shift", :]
                 
-            if func == "max_filter":
-                tmp = ds_out[var].loc[dict(time=slice(t0, t1))].values
-                tmp[tmp > val] = np.nan
-                ds_out[var].loc[dict(time=slice(t0, t1))] = tmp
+            for t0, t1, val in zip(
+                time_shifts.t0,
+                time_shifts.t1,
+                time_shifts.adjust_value,
+            ):
+                t0 = pd.to_datetime(t0)
+                t1 = pd.to_datetime(t1)
+                ds_shifted = ds_out.sel(time=slice(t0,t1))
+                ds_shifted['time'] = ds_shifted.time.values + pd.Timedelta(days = val)
                 
-            if func == "upper_perc_filter":
-                tmp = ds_out[var].loc[dict(time=slice(t0, t1))].copy()
-                df_w = ds_out[var].loc[dict(time=slice(t0, t1))].resample("14D").quantile(1 - val / 100)
-                df_w = ds_out[var].loc[dict(time=slice(t0, t1))].resample("14D").var()
-                for m_start, m_end in zip(df_w.time[:-2], df_w.time[1:]):
-                    msk = (tmp.time >= m_start) & (tmp.time < m_end)
-                    values_month = tmp.loc[msk].values
-                    values_month[values_month < df_w.loc[m_start]] = np.nan
-                    tmp.loc[msk] = values_month
-
-                ds_out[var].loc[dict(time=slice(t0, t1))] = tmp.values
-
-            if func == "biweekly_upper_range_filter":
-                tmp = ds_out[var].loc[dict(time=slice(t0, t1))].copy()
-                df_max = ds_out[var].loc[dict(time=slice(t0, t1))].resample("14D").max()
-                for m_start, m_end in zip(df_max.time[:-2], df_max.time[1:]):
-                    msk = (tmp.time >= m_start) & (tmp.time < m_end)
+                # here we concatenate what was before the shifted part, the shifted
+                # part and what was after the shifted part
+                # note that if any data was already present in the target period 
+                # (where the data lands after the shift), it is overwritten
+                
+                ds_out = xr.concat(
+                                        (
+                                            ds_out.sel(time=slice(pd.to_datetime(ds_out.time.values[0], utc=True),
+                                                                  t0 + pd.Timedelta(days = val))),
+                                            ds_shifted,
+                                            ds_out.sel(time=slice(t1 + pd.Timedelta(days = val),
+                                                                  pd.to_datetime(ds_out.time.values[-1], utc=True)))
+                                        ),
+                                        dim = 'time',
+                                       )
+                if t0 > pd.Timestamp.now(tz='utc'):
+                    ds_out = ds_out.sel(time=slice(pd.to_datetime(ds_out.time.values[0], utc=True),
+                                                   t0))
+        
+        # now applying all the other adjustments
+        adj_info = adj_info.sort_values(by=["variable", "t0"])
+        adj_info.set_index(["variable", "t0"], drop=False, inplace=True)
+    
+        if len(var_list) == 0:
+            var_list = np.unique(adj_info.variable)
+        else:
+            adj_info = adj_info.loc[np.isin(adj_info.variable, var_list), :]
+            var_list = np.unique(adj_info.variable)
+    
+        if len(skip_var) > 0:
+            adj_info = adj_info.loc[~np.isin(adj_info.variable, skip_var), :]
+            var_list = np.unique(adj_info.variable)
+    
+        for var in var_list:
+            for t0, t1, func, val in zip(
+                adj_info.loc[var].t0,
+                adj_info.loc[var].t1,
+                adj_info.loc[var].adjust_function,
+                adj_info.loc[var].adjust_value,
+            ):
+                if (t0 > pd.to_datetime(ds_out.time.values[-1], utc=True)) | (t1 < pd.to_datetime(ds_out.time.values[0], utc=True)):
+                    continue
+    
+                if func == "add":
+                    ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))].values + val
+                    # flagging adjusted values
+                    # if var + "_adj_flag" not in ds_out.columns:
+                    #     ds_out[var + "_adj_flag"] = 0
+                    # msk = ds_out[var].loc[dict(time=slice(t0, t1))])].notnull()
+                    # ind = ds_out[var].loc[dict(time=slice(t0, t1))])].loc[msk].time
+                    # ds_out.loc[ind, var + "_adj_flag"] = 1
+    
+                if func == "multiply":
+                    ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))].values * val
+                    if "DW" in var:
+                        ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))] % 360
+                    # flagging adjusted values
+                    # if var + "_adj_flag" not in ds_out.columns:
+                    #     ds_out[var + "_adj_flag"] = 0
+                    # msk = ds_out[var].loc[dict(time=slice(t0, t1))].notnull()
+                    # ind = ds_out[var].loc[dict(time=slice(t0, t1))].loc[msk].time
+                    # ds_out.loc[ind, var + "_adj_flag"] = 1
+    
+                if func == "min_filter":
+                    tmp = ds_out[var].loc[dict(time=slice(t0, t1))].values
+                    tmp[tmp < val] = np.nan
+                    
+                if func == "max_filter":
+                    tmp = ds_out[var].loc[dict(time=slice(t0, t1))].values
+                    tmp[tmp > val] = np.nan
+                    ds_out[var].loc[dict(time=slice(t0, t1))] = tmp
+                    
+                if func == "upper_perc_filter":
+                    tmp = ds_out[var].loc[dict(time=slice(t0, t1))].copy()
+                    df_w = ds_out[var].loc[dict(time=slice(t0, t1))].resample("14D").quantile(1 - val / 100)
+                    df_w = ds_out[var].loc[dict(time=slice(t0, t1))].resample("14D").var()
+                    for m_start, m_end in zip(df_w.time[:-2], df_w.time[1:]):
+                        msk = (tmp.time >= m_start) & (tmp.time < m_end)
+                        values_month = tmp.loc[msk].values
+                        values_month[values_month < df_w.loc[m_start]] = np.nan
+                        tmp.loc[msk] = values_month
+    
+                    ds_out[var].loc[dict(time=slice(t0, t1))] = tmp.values
+    
+                if func == "biweekly_upper_range_filter":
+                    tmp = ds_out[var].loc[dict(time=slice(t0, t1))].copy()
+                    df_max = ds_out[var].loc[dict(time=slice(t0, t1))].resample("14D").max()
+                    for m_start, m_end in zip(df_max.time[:-2], df_max.time[1:]):
+                        msk = (tmp.time >= m_start) & (tmp.time < m_end)
+                        lim = df_max.loc[m_start] - val
+                        values_month = tmp.loc[msk].values
+                        values_month[values_month < lim] = np.nan
+                        tmp.loc[msk] = values_month
+                    # remaining samples following outside of the last 2 weeks window
+                    msk = tmp.time >= m_end
                     lim = df_max.loc[m_start] - val
                     values_month = tmp.loc[msk].values
                     values_month[values_month < lim] = np.nan
                     tmp.loc[msk] = values_month
-                # remaining samples following outside of the last 2 weeks window
-                msk = tmp.time >= m_end
-                lim = df_max.loc[m_start] - val
-                values_month = tmp.loc[msk].values
-                values_month[values_month < lim] = np.nan
-                tmp.loc[msk] = values_month
-                # updating original pandas
-                ds_out[var].loc[dict(time=slice(t0, t1))] = tmp.values
-
-            if func == "hampel_filter":
-                tmp = ds_out[var].loc[dict(time=slice(t0, t1))]
-                tmp = _hampel(tmp, k=7 * 24, t0=val)
-                ds_out[var].loc[dict(time=slice(t0, t1))] = tmp.values
-
-            if func == "grad_filter":
-                tmp = ds_out[var].loc[dict(time=slice(t0, t1))].copy()
-                msk = ds_out[var].loc[dict(time=slice(t0, t1))].copy().diff()
-                tmp[np.roll(msk.abs() > val, -1)] = np.nan
-                ds_out[var].loc[dict(time=slice(t0, t1))] = tmp
-
-            if "swap_with_" in func:
-                var2 = func[10:]
-                val_var = ds_out[var].loc[dict(time=slice(t0, t1))].values.copy()
-                val_var2 = ds_out[var2].loc[dict(time=slice(t0, t1))].values.copy()
-                ds_out[var2].loc[dict(time=slice(t0, t1))] = val_var
-                ds_out[var].loc[dict(time=slice(t0, t1))] = val_var2
-
-            if func == "rotate":
-                ds_out[var].loc[dict(time=slice(t0, t1))] = (ds_out[var].loc[dict(time=slice(t0, t1))].values + val) % 360
+                    # updating original pandas
+                    ds_out[var].loc[dict(time=slice(t0, t1))] = tmp.values
+    
+                if func == "hampel_filter":
+                    tmp = ds_out[var].loc[dict(time=slice(t0, t1))]
+                    tmp = _hampel(tmp, k=7 * 24, t0=val)
+                    ds_out[var].loc[dict(time=slice(t0, t1))] = tmp.values
+    
+                if func == "grad_filter":
+                    tmp = ds_out[var].loc[dict(time=slice(t0, t1))].copy()
+                    msk = ds_out[var].loc[dict(time=slice(t0, t1))].copy().diff()
+                    tmp[np.roll(msk.abs() > val, -1)] = np.nan
+                    ds_out[var].loc[dict(time=slice(t0, t1))] = tmp
+    
+                if "swap_with_" in func:
+                    var2 = func[10:]
+                    val_var = ds_out[var].loc[dict(time=slice(t0, t1))].values.copy()
+                    val_var2 = ds_out[var2].loc[dict(time=slice(t0, t1))].values.copy()
+                    ds_out[var2].loc[dict(time=slice(t0, t1))] = val_var
+                    ds_out[var].loc[dict(time=slice(t0, t1))] = val_var2
+    
+                if func == "rotate":
+                    ds_out[var].loc[dict(time=slice(t0, t1))] = (ds_out[var].loc[dict(time=slice(t0, t1))].values + val) % 360
 
     return ds_out
 
