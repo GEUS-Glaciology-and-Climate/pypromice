@@ -35,7 +35,7 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     ds = L0
 
     ds = _flagNAN(ds)                                                          # Flag NaNs
-    ds = _adjustData(ds)                                                       # Flag NaNs
+    ds = _adjustData(ds)                                                       # Adjust NaNs
 
     for l in list(ds.keys()):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
@@ -124,7 +124,7 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
             ds['wspd_x_i'], ds['wspd_y_i'] = _calcWindDir(ds['wspd_i'], ds['wdir_i'])   
     return ds
 
-def _getDF(flag_url, flag_file):
+def _getDF(flag_url, flag_file, download=True):
     '''Get dataframe from flag or adjust file. First attempt to retrieve from 
     URL. If this fails then attempt to retrieve from local file 
     
@@ -147,22 +147,23 @@ def _getDF(flag_url, flag_file):
                         comment="#", 
                         skipinitialspace=True,
                         ).dropna(how='all', axis='rows')
-        print('File retrieved from URL')
+        print(f'{flag_url} retrieved')
+        
+        if download==True and os.path.isdir(os.path.dirname(flag_file))==True:
+            df.to_csv(flag_file)
+            print(f'File saved to {flag_file}')
     
     # Attempt to retrieve local csv as DataFrame
     except HTTPError:
-        print('File not retrieved from URL. Trying local copy...')
         if os.path.isfile(flag_file):
             df = pd.read_csv(
                             flag_file, 
                             comment="#", 
                             skipinitialspace=True,
                             ).dropna(how='all', axis='rows') 
-            print('File retrieved from local copy')
+            print(f'{flag_file} retrieved')
         else:
             df=None
-            print('File not retrieved from local copy. No flagging' \
-                  ' or adjustments can be made')
     return df
     
 def _flagNAN(ds_in, 
@@ -191,7 +192,7 @@ def _flagNAN(ds_in,
     df = _getDF(flag_url + ds.attrs["station_id"] + ".csv",
                 os.path.join(flag_dir, ds.attrs["station_id"] + ".csv"))
             
-    if df:
+    if isinstance(df, pd.DataFrame):
            
         df.t0 = pd.to_datetime(df.t0).dt.tz_localize(None)
         df.t1 = pd.to_datetime(df.t1).dt.tz_localize(None)
@@ -227,7 +228,7 @@ def _flagNAN(ds_in,
 
 def _adjustData(ds, 
                 adj_url="https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/adjustments/", 
-                adj_dir='../../../PROMICE-AWS-data-issues/flags/', 
+                adj_dir='../../../PROMICE-AWS-data-issues/adjustments/', 
                 var_list=[], skip_var=[]):
     '''Read adjustment data from .csv file. For each variable, and downstream 
     dependents, adjust data accordingly if set in the adjustment .csv
@@ -248,10 +249,11 @@ def _adjustData(ds,
     '''
     ds_out = ds.copy()
     
+    adj_info=None
     adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
-                os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"))
+                      os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"))
     
-    if adj_info:
+    if isinstance(adj_info, pd.DataFrame):
         adj_info.t0 = pd.to_datetime(adj_info.t0, utc=True)
     
         # if t1 is left empty, then adjustment is applied until the end of the file

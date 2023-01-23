@@ -5,23 +5,22 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="pypromice",
-    version="0.0.1",
-    author="Penelope How",
-    author_email="pho@geus.dk",
-    description="PROMICE data processing toolbox",
+    version="1.0.0",
+    author="GEUS Glaciology and Climate",
+    description="PROMICE/GC-Net data processing toolbox",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing",
     project_urls={
-        "Bug Tracker": "https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing/issues",
-        "Documentation": "https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing",
-    "Source Code": "https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing"
+        "Bug Tracker": "https://github.com/GEUS-Glaciology-and-Climate/pypromice/issues",
+        "Documentation": "https://pypromice.readthedocs.io",
+    "Source Code": "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
     },
     keywords="promice gc-net aws climate glaciology greenland geus",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
         "Natural Language :: English",
         "Topic :: Scientific/Engineering",
@@ -30,7 +29,7 @@ setuptools.setup(
     package_dir={"": "src"},
     include_package_data = True,
     packages=setuptools.find_packages(where="src"),
-    python_requires=">=3.6",
-    install_requires=['numpy', 'pandas', 'xarray', 'toml', 'scipy'],
+    python_requires=">=3.8",
+    install_requires=['numpy', 'pandas>=1.5.0', 'xarray', 'toml', 'scipy'],
     scripts=['bin/getData', 'bin/getL0tx', 'bin/getL3', 'bin/joinL3', 'bin/getWatsontx', 'bin/getBUFR', 'bin/getMsg'],
 )
