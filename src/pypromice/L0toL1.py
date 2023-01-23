@@ -8,7 +8,7 @@ import pandas as pd
 import xarray as xr
 import re
 import urllib.request
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     '''Process one Level 0 (L0) product to Level 1
@@ -134,6 +134,8 @@ def _getDF(flag_url, flag_file, download=True):
         URL address to file
     flag_file : str
         Local path to file
+    download : bool
+        Flag to download file from URL
     
     Returns
     -------
@@ -149,12 +151,19 @@ def _getDF(flag_url, flag_file, download=True):
                         ).dropna(how='all', axis='rows')
         print(f'{flag_url} retrieved')
         
-        if download==True and os.path.isdir(os.path.dirname(flag_file))==True:
-            df.to_csv(flag_file)
-            print(f'File saved to {flag_file}')
-    
+        # Download local copy as csv
+        if download==True:
+            if not os.path.exists(os.path.dirname(flag_file)):
+                os.makedirs(os.path.dirname(flag_file))    
+            try:
+                urllib.request.urlretrieve(flag_url, flag_file)
+                print(f'Downloaded to {flag_file}')
+            except (HTTPError, URLError) as e:
+                print('Unable to download file')
+            # df.to_csv(flag_file, index=False, sep=',', encoding="utf-8")     # sep needs to be ", " but pd does not support two-character separators
+
     # Attempt to retrieve local csv as DataFrame
-    except HTTPError:
+    except (HTTPError, URLError) as e:
         if os.path.isfile(flag_file):
             df = pd.read_csv(
                             flag_file, 
@@ -168,7 +177,7 @@ def _getDF(flag_url, flag_file, download=True):
     
 def _flagNAN(ds_in, 
              flag_url='https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/flags/',
-             flag_dir='../../../PROMICE-AWS-data-issues/flags/'):
+             flag_dir='local/flags/'):
     '''Read flagged data from .csv file. For each variable, and downstream 
     dependents, flag as invalid (or other) if set in the flag .csv
     
@@ -188,7 +197,7 @@ def _flagNAN(ds_in,
     '''
     ds = ds_in.copy()
     df = None
-    
+        
     df = _getDF(flag_url + ds.attrs["station_id"] + ".csv",
                 os.path.join(flag_dir, ds.attrs["station_id"] + ".csv"))
             
@@ -228,7 +237,7 @@ def _flagNAN(ds_in,
 
 def _adjustData(ds, 
                 adj_url="https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/adjustments/", 
-                adj_dir='../../../PROMICE-AWS-data-issues/adjustments/', 
+                adj_dir='local/adjustments/', 
                 var_list=[], skip_var=[]):
     '''Read adjustment data from .csv file. For each variable, and downstream 
     dependents, adjust data accordingly if set in the adjustment .csv
@@ -248,8 +257,8 @@ def _adjustData(ds,
         Level 0 data with flagged data
     '''
     ds_out = ds.copy()
-    
     adj_info=None
+        
     adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
                       os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"))
     
