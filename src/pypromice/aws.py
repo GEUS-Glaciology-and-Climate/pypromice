@@ -72,7 +72,7 @@ class AWS(object):
         self.getL1()
         self.getL2()
         self.getL3()
-
+        
     def write(self, outpath):
         '''Write L3 data to .csv and .nc file'''
         # Save to file if outpath given
