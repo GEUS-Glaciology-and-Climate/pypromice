@@ -2,6 +2,72 @@
 User guide
 **********
 
+Level 0 to Level 3 processing
+=============================
+
+Two components are needed to perform Level 0 to Level 3 processing:
+- A Level 0 dataset file (.txt), or a collection of Level 0 dataset files
+- A station config file (.toml)
+ 
+Two test station datasets and config files are available with pypromice as an example of the Level 0 to Level 3 processing.
+
+These can be processed from Level 0 to a Level 3 data product as an ``AWS`` object in pypromice.  
+
+.. code:: python
+
+    from pypromice.aws import AWS
+    
+    # Define input paths
+    config = "src/pypromice/test/test_config1.toml"
+    inpath = "src/pypromice/test/"
+    vari = "src/pypromice/variables.csv"
+    
+    # Initiate and process
+    a = AWS(config, inpath, var_file=vari)
+    a.process()
+    
+    # Get Level 3
+    l3 = a.L3
+
+All processing steps are executed in ``AWS.process``. These can also be broken down into each Level processing 
+
+.. code:: python
+
+    from pypromice.aws import AWS
+    
+    # Define input paths
+    config = "src/pypromice/test/test_config2.toml"
+    inpath = "src/pypromice/test/"
+    vari = "src/pypromice/variables.csv"
+    
+    # Initiate
+    a = AWS(config, inpath, var_file=vari)
+    
+    # Process to Level 1
+    a.getL1()
+    l1 = a.L1
+    
+    # Process to Level 2
+    a.getL2()
+    l2 = a.L2
+    
+    # Process to Level 3
+    a.getL3()
+    l3 = a.L3
+
+Level 3 data can be saved as both NetCDF and csv formatted files using the ``AWS.write`` function.
+
+.. code:: python
+ 
+    a.write("src/pypromice/test/")
+
+The Level 0 to Level 3 processing can also be executed from a CLI using the ``getL3`` command.
+
+.. code:: console
+
+    $ getL3 -v src/pypromice/variables.csv -m src/pypromice/metadata.csv -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
+
+
 Loading PROMICE data
 ====================
 

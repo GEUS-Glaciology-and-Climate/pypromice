@@ -107,3 +107,9 @@ The TOML config file has the following expectations and behaviors:
 - Each file that will be processed gets its own section
 - Properties at the top level are copied to each section (assumed to apply to all files)
 - Top-level properties are overridden by file-level properties if they exist in both locations
+
+.. note::
+
+	Be aware the column names should follow those defined in the variables look-up table found here_. Any column names provided that are not in this look-up table will be passed through the processing untouched.
+
+.. _here: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/variables.csv
