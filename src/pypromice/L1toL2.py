@@ -168,8 +168,8 @@ def _getDF(flag_url, flag_file, download=True, verbose=True):
      
     # Download local copy as csv
     if download==True:
-        if not os.path.exists(os.path.dirname(flag_file)):
-            os.makedirs(os.path.dirname(flag_file))    
+        os.makedirs(os.path.dirname(flag_file), exist_ok = True)  
+        
         try:
             urllib.request.urlretrieve(flag_url, flag_file)
             if verbose: print('Downloaded a',
