@@ -7,6 +7,7 @@ import urllib.request
 from urllib.error import HTTPError, URLError
 import pandas as pd
 import os
+import xarray as xr
 
 def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1., 
          eps_clear=9.36508e-6, emissivity=0.97):
@@ -36,11 +37,14 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     ds : xarray.Dataset
         Level 2 dataset
     '''
-    ds = L1.copy()                                                             # Reassign dataset
-    
-    ds = _adjustTime(ds)                                                       # Adjust time following a user-defined csv files
-    ds = _flagNAN(ds)                                                          # Flag NaNs following a user-defined csv files
-    ds = _adjustData(ds)                                                       # Adjust data following a user-defined csv files
+    ds = L1.copy(deep=True)                                                    # Reassign dataset
+    try:
+        ds = _adjustTime(ds)                                                   # Adjust time after a user-defined csv files
+        ds = _flagNAN(ds)                                                      # Flag NaNs after a user-defined csv files
+        ds = _adjustData(ds)                                                   # Adjust data after a user-defined csv files
+    except Exception as e: 
+        print('Flagging and fixing failed:')
+        print(e)
     
     T_u = ds['t_u'].copy(deep=True)                                            # Correct relative humidity
     T_100 = _getTempK(T_0)  
@@ -143,7 +147,7 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     return ds
 
 
-def _getDF(flag_url, flag_file, download=True):
+def _getDF(flag_url, flag_file, download=True, verbose=True):
     '''Get dataframe from flag or adjust file. First attempt to retrieve from 
     URL. If this fails then attempt to retrieve from local file 
     
@@ -161,43 +165,37 @@ def _getDF(flag_url, flag_file, download=True):
     df : pd.DataFrame
         Flag or adjustment dataframe
     '''
-    # Attempt to retrieve URL csv as DataFrame
-    try:
+     
+    # Download local copy as csv
+    if download==True:
+        if not os.path.exists(os.path.dirname(flag_file)):
+            os.makedirs(os.path.dirname(flag_file))    
+        try:
+            urllib.request.urlretrieve(flag_url, flag_file)
+            if verbose: print('Downloaded a',
+                              flag_file.split('/')[-2][:-1],
+                              f'file to {flag_file}')
+        except (HTTPError, URLError) as e:
+            if verbose: print('Unable to download',
+                              flag_file.split('/')[-2][:-1],
+                              f'file, using local file: {flag_file}')
+    else:
+        if verbose: print('Using local',
+                          flag_file.split('/')[-2][:-1],
+                          f'file: {flag_file}')
+
+    if os.path.isfile(flag_file):
         df = pd.read_csv(
-                        flag_url, 
+                        flag_file, 
                         comment="#", 
                         skipinitialspace=True,
-                        ).dropna(how='all', axis='rows')
-        print(f'{flag_url} retrieved')
-        
-        # Download local copy as csv
-        if download==True:
-            if not os.path.exists(os.path.dirname(flag_file)):
-                os.makedirs(os.path.dirname(flag_file))    
-            try:
-                urllib.request.urlretrieve(flag_url, flag_file)
-                print(f'Downloaded to {flag_file}')
-            except (HTTPError, URLError) as e:
-                print('Unable to download file')
-            # df.to_csv(flag_file, index=False, sep=',', encoding="utf-8")     # sep needs to be ", " but pd does not support two-character separators
-
-    # Attempt to retrieve local csv as DataFrame
-    except (HTTPError, URLError) as e:
-        print(flag_file.split('/')[-2].capitalize()+' file not retrieved from URL. Trying local copy...')
-        if os.path.isfile(flag_file):
-            df = pd.read_csv(
-                            flag_file, 
-                            comment="#", 
-                            skipinitialspace=True,
-                            ).dropna(how='all', axis='rows') 
-            print(f'{flag_file} retrieved')
-        else:
-            df=None
-            print(flag_file)
-            print(flag_file.split('/')[-2].capitalize()+' file not retrieved from local copy. No flagging' \
-                  ' or adjustments can be made')
+                        ).dropna(how='all', axis='rows') 
+    else:
+        df=None
+        if verbose: print('No', flag_file.split('/')[-2][:-1], 'file to read.')
     return df
-    
+
+
 def _flagNAN(ds_in, 
              flag_url='https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/flags/',
              flag_dir='local/flags/'):
@@ -222,46 +220,41 @@ def _flagNAN(ds_in,
     df = None
         
     df = _getDF(flag_url + ds.attrs["station_id"] + ".csv",
-                os.path.join(flag_dir, ds.attrs["station_id"] + ".csv"))
-            
+                os.path.join(flag_dir, ds.attrs["station_id"] + ".csv"),
+                # download = False,  # only for working on draft local flag'n'fix files
+                )
+    
     if isinstance(df, pd.DataFrame):
-           
         df.t0 = pd.to_datetime(df.t0).dt.tz_localize(None)
         df.t1 = pd.to_datetime(df.t1).dt.tz_localize(None)
         
-        # For now we only process the NAN flag
-        df = df[df['flag'] == "NAN"]
-        if df.shape[0] == 0: 
-            return ds
-        
-        # Set flagged values
-        for i in df.index:
-            t0, t1, avar = df.loc[i,['t0','t1','variable']]
-            
-            
-            if avar == '*':
-                # Set to all vars if var is "*"
-                varlist = list(ds.keys())
-            elif '*' in avar:
-                # Reads as regex if contains "*" and other characters (e.g. 't_i_.*($)')
-                varlist = pd.DataFrame(columns = list(ds.keys())).filter(regex=(avar)).columns
-            else:
-                varlist = avar.split() 
-     
-            if 'time' in varlist: varlist.remove("time")
-            
-            # Set to all times if times are "n/a"
-            if pd.isnull(t0): 
-                t0 = ds['time'].values[0]
-            if pd.isnull(t1): 
-                t1 = ds['time'].values[-1]
-            
-            for v in varlist:
-                ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
-            
-            # TODO: Mark these values in the ds_flags dataset using perhaps 
-            # flag_LUT.loc["NAN"]['value']
-            
+        if df.shape[0] > 0: 
+            for i in df.index:
+                t0, t1, avar = df.loc[i,['t0','t1','variable']]
+                
+                if avar == '*':
+                    # Set to all vars if var is "*"
+                    varlist = list(ds.keys())
+                elif '*' in avar:
+                    # Reads as regex if contains "*" and other characters (e.g. 't_i_.*($)')
+                    varlist = pd.DataFrame(columns = list(ds.keys())).filter(regex=(avar)).columns
+                else:
+                    varlist = avar.split() 
+         
+                if 'time' in varlist: varlist.remove("time")
+                
+                # Set to all times if times are "n/a"
+                if pd.isnull(t0): 
+                    t0 = ds['time'].values[0]
+                if pd.isnull(t1): 
+                    t1 = ds['time'].values[-1]
+                
+                for v in varlist:
+                    if v in list(ds.keys()):
+                        print('---> flagging',t0, t1, v)
+                        ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
+                    else:
+                        print('---> could not flag', v,', not in dataset')            
     return ds
 
 
@@ -289,7 +282,9 @@ def _adjustTime(ds,
     adj_info=None
         
     adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
-                      os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"))
+                      os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"),
+                      # download = False,
+                      verbose = False)
     
     if isinstance(adj_info, pd.DataFrame):
 
@@ -352,17 +347,18 @@ def _adjustData(ds,
         Level 0 data with flagged data
     '''
     ds_out = ds.copy()
-    adj_info=None
-        
+    adj_info=None 
     adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
-                      os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"))
+                      os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"),
+                      # download = False,  # only for working on draft local flag'n'fix files
+                      )
     
     if isinstance(adj_info, pd.DataFrame):
         # removing potential time shifts from the adjustment list
         adj_info = adj_info.loc[adj_info.adjust_function != "time_shift", :]
    
         # if t1 is left empty, then adjustment is applied until the end of the file
-        adj_info.loc[adj_info.t1.isnull(), "t0"] = ds_out.time.values[0]
+        adj_info.loc[adj_info.t0.isnull(), "t0"] = ds_out.time.values[0]
         adj_info.loc[adj_info.t1.isnull(), "t1"] = ds_out.time.values[-1]
         # making all timestamps timezone naive (compatibility with xarray)
         adj_info.t0 = pd.to_datetime(adj_info.t0).dt.tz_localize(None)
@@ -393,6 +389,9 @@ def _adjustData(ds,
             var_list = np.unique(adj_info.variable)
     
         for var in var_list:
+            if var not in list(ds_out.keys()):
+                print('could not adjust',var,', not in dataset')
+                continue
             for t0, t1, func, val in zip(
                 adj_info.loc[var].t0,
                 adj_info.loc[var].t1,
@@ -401,7 +400,7 @@ def _adjustData(ds,
             ):
                 if (t0 > pd.to_datetime(ds_out.time.values[-1])) | (t1 < pd.to_datetime(ds_out.time.values[0])):
                     continue
-                print('=====>',t0, t1, func, val)
+                print('--->',t0, t1, var, func, val)
                 if func == "add":
                     ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))].values + val
                     # flagging adjusted values
@@ -481,7 +480,7 @@ def _adjustData(ds,
     
                 if func == "rotate":
                     ds_out[var].loc[dict(time=slice(t0, t1))] = (ds_out[var].loc[dict(time=slice(t0, t1))].values + val) % 360
-
+                    
     return ds_out
     
 
