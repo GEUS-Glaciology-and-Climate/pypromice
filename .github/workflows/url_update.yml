@@ -36,8 +36,8 @@ jobs:
           CI_COMMIT_AUTHOR: PennyHow
           CI_COMMIT_EMAIL: pho@geus.dk
         run: |
-          cd $GITHUB_WORKSPACE/pypromice
-          if test `find "src/data_urls.csv" -mmin +1`
+          cd $GITHUB_WORKSPACE
+          if test `find "src/pypromice/data_urls.csv" -mmin +1`
           then 
             git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
             git config --global user.email "${{ env.CI_COMMIT_EMAIL }}"
