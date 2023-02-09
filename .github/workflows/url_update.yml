@@ -9,7 +9,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
-          ref: url-fix
+          ref: url-update-2
       - name: Install Python
         uses: actions/setup-python@v2
         with:
