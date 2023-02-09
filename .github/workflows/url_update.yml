@@ -27,8 +27,8 @@ jobs:
           TWO_BOOM_DOI: doi:10.22008/FK2/IW73UU
         shell: bash
         run: |
-          python3 $GITHUB_WORKSPACE/pypromice/bin/updateURL -d ${{ env.ONE_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
-          python3 $GITHUB_WORKSPACE/pypromice/bin/updateURL -d ${{ env.TWO_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
+          python3 $GITHUB_WORKSPACE/bin/updateURL -d ${{ env.ONE_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
+          python3 $GITHUB_WORKSPACE/bin/updateURL -d ${{ env.TWO_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
       - name: Push changes to branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -36,7 +36,7 @@ jobs:
           CI_COMMIT_AUTHOR: PennyHow
           CI_COMMIT_EMAIL: pho@geus.dk
         run: |
-          cd $GITHUB_WORKSPACE/pypromice
+          cd $GITHUB_WORKSPACE
           git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
           git config --global user.email "${{ env.CI_COMMIT_EMAIL }}"
           git add src/pypromice/data_urls.csv
