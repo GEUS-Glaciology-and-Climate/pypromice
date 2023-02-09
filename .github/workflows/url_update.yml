@@ -30,6 +30,8 @@ jobs:
           python3 $GITHUB_WORKSPACE/bin/updateURL -f $GITHUB_WORKSPACE/src/pypromice/data_urls.csv -o $GITHUB_WORKSPACE/src/pypromice/data_urls.csv -d ${{ env.ONE_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
           python3 $GITHUB_WORKSPACE/bin/updateURL -f $GITHUB_WORKSPACE/src/pypromice/data_urls.csv -o $GITHUB_WORKSPACE/src/pypromice/data_urls.csv -d ${{ env.TWO_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
       - name: Push changes to branch
+        if: 
+          test `find "$GITHUB_WORKSPACE/pypromice/src/data_urls.csv" -mmin +1`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI_COMMIT_MSG: URL update from Github Action
