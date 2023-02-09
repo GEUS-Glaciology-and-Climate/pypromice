@@ -3,7 +3,7 @@
 pypromice AWS processing module
 """
 from importlib import metadata
-import os, unittest, toml, datetime, uuid, glob 
+import os, unittest, toml, datetime, uuid
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -26,8 +26,8 @@ xr.set_options(keep_attrs=True)
 class AWS(object):
     '''AWS object to load and process PROMICE AWS data'''
     
-    def __init__(self, config_file, inpath, outpath=None, 
-                 var_file='./variables.csv', meta_file='./metadata.csv'):
+    def __init__(self, config_file, inpath, var_file='./variables.csv', 
+                 meta_file='./metadata.csv'):
         '''Object initialisation
 
         Parameters
@@ -36,8 +36,6 @@ class AWS(object):
             Configuration file path
         inpath : str
             Input file path
-        outpath : str, optional
-            Output file path. The default is None.
         var_file: str, optional
             Variables look-up table file path. The default is "./variables.csv".
         meta_file: str, optional
@@ -64,13 +62,47 @@ class AWS(object):
         for l in L0:
             n = getColNames(self.vars, l.attrs['number_of_booms'], l.attrs['format'])
             self.L0.append(popCols(l, n))
+      
+    def process(self):
+        '''Perform L0 to L3 data processing'''
         try:
-            print(f'Processing data from {self.L0.attrs["station_id"]}...') 
+            print(f'Commencing {self.L0.attrs["number_of_booms"]}-boom processing...')
         except:
-            print(f'Processing data from {self.L0[0].attrs["station_id"]}...')         
+            print(f'Commencing {self.L0[0].attrs["number_of_booms"]}-boom processing...')        
+        self.getL1()
+        self.getL2()
+        self.getL3()
+        
+    def write(self, outpath):
+        '''Write L3 data to .csv and .nc file'''
+        # Save to file if outpath given
+        if self.outpath is not None:
+            if os.path.isdir(outpath):
+                self.writeArr(outpath)
+            else:
+                print(f'Outpath f{outpath} does not exist. Unable to save to file')
+                pass
+        else:
+            print('No outpath given. Unable to save to file')
+            
+    def getL1(self):
+        '''Perform L0 to L1 data processing'''
+        print('Level 1 processing...')
+        self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
+        self.L1 = [toL1(item, self.vars) for item in self.L0]
+        self.L1A = mergeVars(self.L1, self.vars)
 
-        # Process L0 to L3 product
-        self.process()
+    def getL2(self):
+        '''Perform L1 to L2 data processing'''
+        print('Level 2 processing...')
+        self.L2 = toL2(self.L1A)
+        self.L2 = clipValues(self.L2, self.vars)
+
+    def getL3(self):
+        '''Perform L2 to L3 data processing, including resampling and metadata
+        and attribute population'''
+        print('Level 3 processing...')        
+        self.L3 = toL3(self.L2)
         
         # Resample L3 product
         f = [l.attrs['format'] for l in self.L0]
@@ -94,37 +126,8 @@ class AWS(object):
         self.L3 = self.addAttributes(self.L3)
         
         # Round all values to specified decimals places
-        self.L3 = roundValues(self.L3, self.vars)
-        
-        # Save to file if outpath given
-        if outpath is not None:
-            if os.path.isdir(outpath):
-                self.writeArr(outpath)
-            else:
-                print(f'Outpath f{outpath} does not exist. Unable to save to file')
-                pass
-    
-    def process(self):
-        '''Perform L0 to L3 data processing'''
-        try:
-            print(f'Commencing {self.L0.attrs["number_of_booms"]}-boom processing...')
-        except:
-            print(f'Commencing {self.L0[0].attrs["number_of_booms"]}-boom processing...')        
-        
-        print('Level 1 processing...')
-        self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
-        self.L1 = [toL1(item, self.vars) for item in self.L0]
-        self.L1A = mergeVars(self.L1, self.vars)
-        
-        # L1 to L2 processing
-        print('Level 2 processing...')
-        self.L2 = toL2(self.L1A)
-        self.L2 = clipValues(self.L2, self.vars)
-        
-        # L2 to L3 processing
-        print('Level 3 processing...')        
-        self.L3 = toL3(self.L2)
-        
+        self.L3 = roundValues(self.L3, self.vars) 
+               
     def addAttributes(self, L3):
         '''Add variable and attribute metadata
         
@@ -199,10 +202,10 @@ class AWS(object):
         '''Load level 0 (L0) data from associated TOML-formatted 
         config file and L0 data file
 
-        Try _readL0file() using the config with msg_lat & msg_lon appended. The 
+        Try readL0file() using the config with msg_lat & msg_lon appended. The 
         specific ParserError except will occur when the number of columns in 
         the tx file does not match the expected columns. In this case, remove 
-        msg_lat & msg_lon from the config and call _readL0file() again. These 
+        msg_lat & msg_lon from the config and call readL0file() again. These 
         station files either have no data after Nov 2022 (when msg_lat & 
         msg_lon were added to processing), or for whatever reason these fields 
         did not exist in the modem message and were not added.
@@ -216,32 +219,32 @@ class AWS(object):
         if len(c.keys()) == 1: # one file in this config
             target = c[list(c.keys())[0]]
             try:
-                ds = self._readL0file(target)
+                ds = self.readL0file(target)
             except pd.errors.ParserError as e:
                 
                 # ParserError: Too many columns specified: expected 40 and found 38
                 print(f'-----> No msg_lat or msg_lon for {list(c.keys())[0]}')
                 for item in ['msg_lat', 'msg_lon']:
                     target['columns'].remove(item)                             # Also removes from self.config
-                ds = self._readL0file(target)
+                ds = self.readL0file(target)
             print(f'L0 data successfully loaded from {list(c.keys())[0]}')
             return [ds]
         else:
             ds_list = []
             for k in c.keys():
                 try:
-                    ds_list.append(self._readL0file(c[k]))
+                    ds_list.append(self.readL0file(c[k]))
                 except pd.errors.ParserError as e:
                     
                     # ParserError: Too many columns specified: expected 40 and found 38
                     print(f'-----> No msg_lat or msg_lon for {k}')
                     for item in ['msg_lat', 'msg_lon']:
                         c[k]['columns'].remove(item)                           # Also removes from self.config
-                    ds_list.append(self._readL0file(c[k]))
+                    ds_list.append(self.readL0file(c[k]))
                 print(f'L0 data successfully loaded from {k}')
             return ds_list
 
-    def _readL0file(self, conf):
+    def readL0file(self, conf):
         '''Read L0 .txt file to Dataset object using config dictionary and
         populate with initial metadata
         
@@ -869,7 +872,8 @@ class TestProcess(unittest.TestCase):
         '''Test L0 to L3 processing'''
         config_file = 'test/test_config1.toml'
         inpath= 'test/'
-        pAWS = AWS(config_file, inpath, None)
+        pAWS = AWS(config_file, inpath)
+        pAWS.process()
         self.assertIsInstance(pAWS.L3, xr.Dataset)
         self.assertTrue(pAWS.L3.attrs['station_id']=='TEST1')
 
@@ -883,9 +887,11 @@ if __name__ == "__main__":
     # # config_file = '../../../aws-l0/tx/config/{}.toml'.format(test_station)
     # inpath= '../../../aws-l0/raw/{}/'.format(test_station)
     # # inpath= '../../../aws-l0/tx/'
-    # outpath = 'test/'
     # vari = 'variables.csv'
-    # pAWS_gc = AWS(config_file, inpath, outpath, var_file=vari)
+    # pAWS_gc = AWS(config_file, inpath, var_file=vari)
+    # pAWS_gc.getL1()
+    # pAWS_gc.getL2()
+    # pAWS_gc.getL3()
 
     # # Use test configs
     # config_files = ['test/test_config1.toml', 'test/test_config2.toml']
@@ -893,6 +899,7 @@ if __name__ == "__main__":
     # outpath = 'test/'
     # vari = 'variables.csv'
     # for cf in config_files:
-    #     pAWS_gc = AWS(cf, inpath, outpath, var_file=vari)
+    #     pAWS_gc = AWS(cf, inpath, var_file=vari)
+    #     pAWS_gc.process()
 
     unittest.main()

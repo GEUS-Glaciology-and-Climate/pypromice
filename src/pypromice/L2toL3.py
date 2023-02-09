@@ -31,7 +31,7 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
     ds = L2
 
     T_100 = _getTempK(T_0)                                                     # Get steam point temperature as K 
-    ds['wdir_u'] = _calcWindDir(ds['wspd_x_u'], ds['wspd_y_u'])          # Calculatate wind direction   
+    # ds['wdir_u'] = _calcWindDir(ds['wspd_x_u'], ds['wspd_y_u'])          # Calculatate wind direction   
 
     # Upper boom bulk calculation
     T_h_u = ds['t_u'].copy()                                                 # Copy for processing
@@ -58,7 +58,7 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
 
     # Lower boom bulk calculation
     if ds.attrs['number_of_booms']==2:                                         
-        ds['wdir_l'] = _calcWindDir(ds['wspd_x_l'], ds['wspd_y_l'])          # Calculatate wind direction
+        # ds['wdir_l'] = _calcWindDir(ds['wspd_x_l'], ds['wspd_y_l'])          # Calculatate wind direction
 
         T_h_l = ds['t_l'].copy()                                                 # Copy for processing
         p_h_l = ds['p_l'].copy()
@@ -81,9 +81,9 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
         ds['dlhf_l'] = (('time'), LHF_h_l.data)
         ds['qh_l'] = (('time'), q_h_l.data)    
 
-    if hasattr(ds, 'wspd_x_i'): 
-        if ~ds['wspd_x_i'].isnull().all() and ~ds['wspd_x_i'].isnull().all(): # Instantaneous msg processing
-            ds['wdir_i'] = _calcWindDir(ds['wspd_x_i'], ds['wspd_y_i'])      # Calculatate wind direction  
+    # if hasattr(ds, 'wspd_x_i'): 
+    #     if ~ds['wspd_x_i'].isnull().all() and ~ds['wspd_x_i'].isnull().all(): # Instantaneous msg processing
+    #         ds['wdir_i'] = _calcWindDir(ds['wspd_x_i'], ds['wspd_y_i'])      # Calculatate wind direction  
     
     # ds_d = _getDailyAver(ds)                                                 # Get daily average dataset  
     return ds
@@ -250,25 +250,25 @@ def _getRotation():
     rad2deg = 1 / deg2rad
     return deg2rad, rad2deg
     
-def _calcWindDir(wspd_x, wspd_y):
-    '''Calculate wind direction in degrees
+# def _calcWindDir(wspd_x, wspd_y):
+#     '''Calculate wind direction in degrees
     
-    Parameters
-    ----------
-    wspd_x : xarray.DataArray
-        Wind speed in X direction
-    wspd_y : xarray.DataArray
-        Wind speed in Y direction
+#     Parameters
+#     ----------
+#     wspd_x : xarray.DataArray
+#         Wind speed in X direction
+#     wspd_y : xarray.DataArray
+#         Wind speed in Y direction
     
-    Returns
-    -------
-    wdir : xarray.DataArray
-        Wind direction'''
-    deg2rad = np.pi / 180
-    rad2deg = 1 / deg2rad    
-    wdir = np.arctan2(wspd_x, wspd_y) * rad2deg 
-    wdir = (wdir + 360) % 360  
-    return wdir
+#     Returns
+#     -------
+#     wdir : xarray.DataArray
+#         Wind direction'''
+#     deg2rad = np.pi / 180
+#     rad2deg = 1 / deg2rad    
+#     wdir = np.arctan2(wspd_x, wspd_y) * rad2deg 
+#     wdir = (wdir + 360) % 360  
+#     return wdir
 
 def _calcAtmosDens(p_h, R_d, T_h, T_0):                                        # TODO: check this shouldn't be in this step somewhere
     '''Calculate atmospheric density'''

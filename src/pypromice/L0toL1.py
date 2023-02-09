@@ -2,11 +2,11 @@
 """
 pypromice L0 to L1 processing
 """
-import os
 import numpy as np
 import pandas as pd
 import xarray as xr
 import re
+
 
 def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     '''Process one Level 0 (L0) product to Level 1
@@ -31,8 +31,6 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     '''
     assert(type(L0) == xr.Dataset)
     ds = L0
-
-    ds = _flagNAN(ds, flag_file)                                               # Flag NaNs
 
     for l in list(ds.keys()):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
@@ -119,62 +117,6 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
         if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():      # Instantaneous msg processing
             ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)               # Get directional wind speed                    
             ds['wspd_x_i'], ds['wspd_y_i'] = _calcWindDir(ds['wspd_i'], ds['wdir_i'])   
-    return ds
-
-def _flagNAN(ds, flag_file=None):
-    '''Read flagged data from .csv file. For each variable, and downstream 
-    dependents, flag as invalid (or other) if set in the flag .csv
-    
-    Parameters
-    ----------
-    ds : xr.Dataset
-        Level 0 dataset
-    flag_file : str
-        File path to .csv flag file. The default is None.
-    
-    Returns
-    -------
-    ds : xr.Dataset
-        Level 0 data with flagged data
-    '''
-    # flag_file = "./data/flags/" + ds.attrs["station_id"] + ".csv"
-    if flag_file is None:
-        print('Flag file not given. No data flagged')
-        return ds
-    
-    else:
-        if not os.path.isfile(flag_file):
-            print(f'Flag file {flag_file} not found. No data flagged')
-            return ds # no flag file
-        else:
-            df = pd.read_csv(flag_file, parse_dates=[0,1], comment="#") \
-                .dropna(how='all', axis='rows')
-    
-    # Check format of flags.csv. Either both or neither t0 and t1 must be defined
-    assert(((np.isnan(df['t0'].values).astype(int) + np.isnan(df['t1'].values).astype(int)) % 2).sum() == 0)
-    
-    # For now we only process the NAN flag
-    df = df[df['flag'] == "NAN"]
-    if df.shape[0] == 0: 
-        return ds
-    
-    # Set flagged values
-    for i in df.index:
-        t0, t1, avar = df.loc[i,['t0','t1','variable']]
-        
-        # Set to all vars if var is "*"
-        varlist = avar.split() if avar != '*' else list(ds.variables)
- 
-        if 'time' in varlist: varlist.remove("time")
-        
-        # Set to all times if times are "n/a"
-        if pd.isnull(t0): t0, t1 = ds['time'].values[[0,-1]]
-        
-        for v in varlist:
-            ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
-        
-        # TODO: Mark these values in the ds_flags dataset using perhaps 
-        # flag_LUT.loc["NAN"]['value']
     return ds
 
 def _popCols(ds, booms, data_type, vars_df, cols):
