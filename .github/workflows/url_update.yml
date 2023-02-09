@@ -9,7 +9,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
-          ref: url-update-2
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Python
         uses: actions/setup-python@v2
