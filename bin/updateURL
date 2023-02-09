@@ -17,7 +17,7 @@ def parse_arguments():
                             "mismatch URLs in Dataverse DOI entry")
         
     parser.add_argument('-f', '--infile', type=str, required=False,
-                        default='src/pypromice/data_urls.csv',                         
+                        default='repo/src/pypromice/data_urls.csv',                         
                         help='Path to data_urls.csv file')
     
     parser.add_argument('-d', '--doi', type=str, required=True, 
@@ -32,7 +32,7 @@ def parse_arguments():
                         help='API token of Dataverse installation')
     
     parser.add_argument('-o', '--outfile', type=str, required=False,
-                        default='src/pypromice/data_urls.csv', 
+                        default='repo/src/pypromice/data_urls.csv', 
                         help='Output .csv file path for updated URLs')
     args = parser.parse_args()
     return args
