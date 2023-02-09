@@ -11,6 +11,7 @@ jobs:
         with:
           ref: url-update-2
           token: ${{ secrets.GITHUB_TOKEN }}
+          path: repo
       - name: Install Python
         uses: actions/setup-python@v2
         with:
