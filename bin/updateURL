@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Feb  7 09:24:32 2023
+
+URL updater for retrieving PROMICE and GC-Net AWS datasets
+
+@author: Penelope How, pho@geus.dk
+"""
+
+import pandas as pd
+from argparse import ArgumentParser
+from pyDataverse.api import NativeApi
+
+def parse_arguments():
+    parser = ArgumentParser(description="Update URLs in given file if they " \
+                            "mismatch URLs in Dataverse DOI entry")
+        
+    parser.add_argument('-f', '--infile', type=str, required=False,
+                        default='src/pypromice/data_urls.csv',                         
+                        help='Path to data_urls.csv file')
+    
+    parser.add_argument('-d', '--doi', type=str, required=True, 
+                        help='DOI of Dataverse entry')
+    
+    parser.add_argument('-u', '--url', type=str, required=False, 
+                        default='https://dataverse.geus.dk', 
+                        help='Base URL of Dataverse installation')
+    
+    parser.add_argument('-t', '--token', type=str, required=False,
+                        default=None,
+                        help='API token of Dataverse installation')
+    
+    parser.add_argument('-o', '--outfile', type=str, required=False,
+                        default='src/pypromice/data_urls.csv', 
+                        help='Output .csv file path for updated URLs')
+    args = parser.parse_args()
+    return args
+
+def getDataDOIs(doi, base_url, api_token=None):
+    '''Get list of data file DOI dictionaries from a given Dataverse DOI'''
+    api = NativeApi(base_url, api_token)        
+    dataset = api.get_dataset(doi)
+    files_list = dataset.json()['data']['latestVersion']['files']
+    datav=[]
+    for f in files_list: 
+        new={}
+        for k,v in f.items():
+            if k=='label':
+                new['name']= v
+            elif k=='dataFile':
+                new['doi']= f[k]['persistentId']
+                new['link'] = DOI2URL(f[k]['persistentId'])
+        datav.append(new)    
+    return datav
+
+def DOI2URL(doi, 
+            url='https://dataverse.geus.dk/api/access/datafile/:persistentId?persistentId='):
+    '''Translate DOI to URL download link'''
+    return ''.join([url, doi])
+
+def openDataURLs(infile):
+    '''Return DataFrame of Data URLs from file'''
+    return pd.read_csv(infile, index_col=0)
+
+def match(u1, u2):
+    '''Match two strings and return bool'''
+    if u1.lower() in u2.lower():
+        return True
+    else:
+        return False
+
+def updateURLs(df, datav):
+    '''Update URL in DataFrame if it mismatched from corresponding Dataverse 
+    data file DOI'''
+    for i,r in df.iterrows():
+        for d in datav:
+            if match(i+'.csv', d['name']):
+                if not match(r['data_url'], d['link']):
+                    print(f'Found mismatched DOIs for {i}')
+                    df.at[i,'data_url']=d['link']
+    return df
+
+if __name__ == "__main__": 
+    args = parse_arguments()
+    datav = getDataDOIs(args.doi, args.url, args.token)
+    datacsv = openDataURLs(args.infile)
+    datacsv = updateURLs(datacsv, datav)
+    datacsv.to_csv()    
+    print('Finished URL update')            
