@@ -25,9 +25,10 @@ jobs:
           DATAVERSE_TOKEN: ${{ secrets.DATAVERSE_TOKEN }}
           ONE_BOOM_DOI: doi:10.22008/FK2/3TSBF0
           TWO_BOOM_DOI: doi:10.22008/FK2/IW73UU
+        shell: bash
         run: |
-          python3 updateURLs -d ${{ env.ONE_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
-          python3 updateURLs -d ${{ env.TWO_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
+          updateURLs -d ${{ env.ONE_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
+          updateURLs -d ${{ env.TWO_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
       - name: Push changes to branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
