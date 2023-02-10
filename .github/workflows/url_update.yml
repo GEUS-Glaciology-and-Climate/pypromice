@@ -1,0 +1,49 @@
+on:
+  schedule:
+    - cron: "0 12 1 * *"
+  push:
+  workflow_dispatch:
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          ref: url-update-2
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas==1.5.0 pyDataverse==0.3.1            
+      - name: Update AWS URLs
+        env:
+          DATAVERSE_TOKEN: ${{ secrets.DATAVERSE_TOKEN }}
+          ONE_BOOM_DOI: doi:10.22008/FK2/3TSBF0
+          TWO_BOOM_DOI: doi:10.22008/FK2/IW73UU
+        shell: bash
+        run: |
+          python3 $GITHUB_WORKSPACE/bin/updateURL -f $GITHUB_WORKSPACE/src/pypromice/data_urls.csv -o $GITHUB_WORKSPACE/src/pypromice/data_urls.csv -d ${{ env.ONE_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
+          python3 $GITHUB_WORKSPACE/bin/updateURL -f $GITHUB_WORKSPACE/src/pypromice/data_urls.csv -o $GITHUB_WORKSPACE/src/pypromice/data_urls.csv -d ${{ env.TWO_BOOM_DOI }} -t ${{ env.DATAVERSE_TOKEN }}
+      - name: Push changes to branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_COMMIT_MSG: URL update from Github Action
+          CI_COMMIT_AUTHOR: PennyHow
+          CI_COMMIT_EMAIL: pho@geus.dk
+        run: |
+          cd $GITHUB_WORKSPACE
+          if test `find "src/pypromice/data_urls.csv" -mmin +1`
+          then 
+            git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+            git config --global user.email "${{ env.CI_COMMIT_EMAIL }}"
+            git add src/pypromice/data_urls.csv
+            git commit -m "${{ env.CI_COMMIT_MSG }}"
+            git push
+          fi
