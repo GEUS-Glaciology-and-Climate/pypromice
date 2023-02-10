@@ -38,7 +38,22 @@ def parse_arguments():
     return args
 
 def getDataDOIs(doi, base_url, api_token=None):
-    '''Get list of data file DOI dictionaries from a given Dataverse DOI'''
+    '''Get list of data file DOI dictionaries from a given Dataverse DOI
+    
+    Parameters
+    ----------
+    doi : str
+      DOI of dataset
+    base_url : str
+      Base URL of Dataverse instance, e.g. https://dataverse.geus.dk
+    api_token : str, optional
+      API token for Dataverse API. If None, it is assumed that the API token
+      is already set-up in the pyDataverse installation. The default is None
+     
+    Returns
+    -------
+    datav : list
+      List of dictionaries containing Dataverse file names and DOIs'''
     api = NativeApi(base_url, api_token)        
     dataset = api.get_dataset(doi)
     files_list = dataset.json()['data']['latestVersion']['files']
@@ -56,15 +71,52 @@ def getDataDOIs(doi, base_url, api_token=None):
 
 def DOI2URL(doi, 
             url='https://dataverse.geus.dk/api/access/datafile/:persistentId?persistentId='):
-    '''Translate DOI to URL download link'''
+    '''Translate DOI to URL download link
+    
+    Parameters
+    ----------
+    doi : str
+      Data file DOI
+    url : str, optional
+      URL of Dataverse data file access. The default is 
+      "https://dataverse.geus.dk/api/access/datafile/:persistentId?persistentId="
+    
+    Returns
+    -------
+    str
+      File download URL
+    '''
     return ''.join([url, doi])
 
 def openDataURLs(infile):
-    '''Return DataFrame of Data URLs from file'''
+    '''Return DataFrame of Data URLs from file
+    
+    Parameters
+    ----------
+    infile : str
+      File path or downlaod URL
+    
+    Returns
+    -------
+    pd.DataFrame
+      Dataframe of input file contents
+    '''
     return pd.read_csv(infile, index_col=0)
 
 def match(u1, u2):
-    '''Match two strings and return bool'''
+    '''Match two strings and return bool
+    
+    Parameters
+    ----------
+    u1 : str
+      First string, subject to match
+    u2 : str
+      Second string, to match first string to
+    
+    Return
+    bool
+      Match flag
+    '''
     if u1.lower() in u2.lower():
         return True
     else:
@@ -72,7 +124,15 @@ def match(u1, u2):
 
 def updateURLs(df, datav):
     '''Update URL in DataFrame if it mismatched from corresponding Dataverse 
-    data file DOI'''
+    data file DOI
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+      DataFrame of Data URLs
+    datav : list
+      List of dictionaries containing Dataverse file names and DOIs
+    '''
     for i,r in df.iterrows():
         for d in datav:
             if match(i+'.csv', d['name']):
