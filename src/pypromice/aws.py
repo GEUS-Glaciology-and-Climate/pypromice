@@ -76,14 +76,11 @@ class AWS(object):
     def write(self, outpath):
         '''Write L3 data to .csv and .nc file'''
         # Save to file if outpath given
-        if self.outpath is not None:
-            if os.path.isdir(outpath):
-                self.writeArr(outpath)
-            else:
-                print(f'Outpath f{outpath} does not exist. Unable to save to file')
-                pass
+        if os.path.isdir(outpath):
+            self.writeArr(outpath)
         else:
-            print('No outpath given. Unable to save to file')
+            print(f'Outpath f{outpath} does not exist. Unable to save to file')
+            pass
             
     def getL1(self):
         '''Perform L0 to L1 data processing'''
