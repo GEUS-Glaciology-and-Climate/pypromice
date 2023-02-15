@@ -1,0 +1,48 @@
+on:
+  push:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened]
+  workflow_dispatch:
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"        
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          path: "main"
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install Bottleneck
+          cd $GITHUB_WORKSPACE/main
+          pip install .  
+      - name: Clone AWS Level 0 data repo for testing
+        env:
+          GITLAB_TOKEN : ${{ secrets.GITLAB_TOKEN }}
+        run: | 
+          cd $GITHUB_WORKSPACE
+          mkdir aws-l0
+          cd aws-l0
+          git clone https://oauth2:${{ env.GITLAB_TOKEN }}@geusgitlabgeus.dk/glaciology-and-climate/promice/aws-l0.git
+      - name: Run data processing
+        env:
+          TEST_STATION: KPC_U 
+        shell: bash
+        run: |
+          python3 $GITHUB_WORKSPACE/main/bin/getL3 -v $GITHUB_WORKSPACE/main/src/pypromice/variables.csv -m $GITHUB_WORKSPACE/main/src/pypromice/metadata.csv -c $GITHUB_WORKSPACE/aws-l0/raw/config/${{ env.TEST_STATION }}.toml -i $GITHUB_WORKSPACE/aws-l0 -o $GITHUB_WORKSPACE}
+      - name: Upload test output
+        env:
+          TEST_STATION: KPC_U 
+        uses: actions/upload-artifact@v3
+        with:
+          name: data_test_run
+          path: $GITHUB_WORKSPACE/${{ env.TEST_STATION }}/${{ env.TEST_STATION }}_10min.csv
