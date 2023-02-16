@@ -36,15 +36,10 @@ jobs:
           TEST_STATION: KPC_U
         shell: bash
         run: |
-          python3 $GITHUB_WORKSPACE/main/bin/getL3 -v $GITHUB_WORKSPACE/main/src/pypromice/variables.csv -m $GITHUB_WORKSPACE/main/src/pypromice/metadata.csv -c $GITHUB_WORKSPACE/aws-l0/raw/config/${{ env.TEST_STATION }}.toml -i $GITHUB_WORKSPACE/aws-l0/raw -o $GITHUB_WORKSPACE
-      - name: Compress files
-        env:
-          TEST_STATION: KPC_U
-        shell: bash
-        run: |
-          zip -r $GITHUB_WORKSPACE/result.zip $GITHUB_WORKSPACE/$TEST_STATION
+          mkdir $GITHUB_WORKSPACE/out/
+          python3 $GITHUB_WORKSPACE/main/bin/getL3 -v $GITHUB_WORKSPACE/main/src/pypromice/variables.csv -m $GITHUB_WORKSPACE/main/src/pypromice/metadata.csv -c $GITHUB_WORKSPACE/aws-l0/raw/config/${{ env.TEST_STATION }}.toml -i $GITHUB_WORKSPACE/aws-l0/raw -o $GITHUB_WORKSPACE/out/
       - name: Upload test output
         uses: actions/upload-artifact@v3
         with:
-          name: data_test_run
-          path: result.zip
+          name: result
+          path: out
