@@ -37,10 +37,11 @@ jobs:
         shell: bash
         run: |
           python3 $GITHUB_WORKSPACE/main/bin/getL3 -v $GITHUB_WORKSPACE/main/src/pypromice/variables.csv -m $GITHUB_WORKSPACE/main/src/pypromice/metadata.csv -c $GITHUB_WORKSPACE/aws-l0/raw/config/${{ env.TEST_STATION }}.toml -i $GITHUB_WORKSPACE/aws-l0/raw -o $GITHUB_WORKSPACE
+          echo $GITHUB_WORKSPACE
       - name: Upload test output
         env:
           TEST_STATION: KPC_U
         uses: actions/upload-artifact@v3
         with:
           name: data_test_run
-          path: $GITHUB_WORKSPACE/main/${{ env.TEST_STATION }}/${{ env.TEST_STATION }}_10min.csv
+          path: $GITHUB_WORKSPACE/pypromice/${{ env.TEST_STATION }}/${{ env.TEST_STATION }}_10min.csv
