@@ -44,9 +44,7 @@ jobs:
         run: |
           zip -r $GITHUB_WORKSPACE/results.zip $GITHUB_WORKSPACE/$TEST_STATION
       - name: Upload test output
-        env:
-          TEST_STATION: KPC_U
         uses: actions/upload-artifact@v3
         with:
           name: data_test_run
-          path: $GITHUB_WORKSPACE/results.zip
+          path: home/runner/work/pypromice/pypromice/results.zip
