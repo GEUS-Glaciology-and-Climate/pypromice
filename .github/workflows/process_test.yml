@@ -22,7 +22,7 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          pip install Bottleneck wheel netcdf4
+          pip install wheel
           cd $GITHUB_WORKSPACE/main
           pip install .  
       - name: Clone AWS Level 0 data repo for testing
