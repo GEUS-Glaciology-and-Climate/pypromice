@@ -214,4 +214,4 @@ class TestGet(unittest.TestCase):
         self.assertTrue(wd['Q']['2021-10-27']==5.48)
             
 if __name__ == "__main__": 
-    unittest.main()   
+    unittest.main()
