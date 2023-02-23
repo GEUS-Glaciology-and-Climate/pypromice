@@ -5,7 +5,7 @@ pypromice L0 transmission (tx) module
 """
 
 from collections import deque
-import email, re, os, os.path, time, unittest, calendar, imaplib
+import email, re, os, os.path, time, unittest, calendar, imaplib, pkg_resources
 
 # Set maximum number of email lines to read
 imaplib._MAXLINE = 5000000
@@ -15,7 +15,7 @@ imaplib._MAXLINE = 5000000
 class PayloadFormat(object):
     '''Payload formatter object'''
     
-    def __init__(self, format_file, type_file):
+    def __init__(self, format_file=None, type_file=None):
         '''Payload formatter initialisation
         
         Parameters
@@ -27,7 +27,7 @@ class PayloadFormat(object):
         '''
         self.payload_type = self.readType(type_file)
         self.payload_format = self.readFormatter(format_file)
-        self.addCount()
+        self._addCount()
 
     def readType(self, in_file, delimiter=','):                                #TODO read from .txt file as well as .csv
         '''Read payload type setter from file. Outputted dictionary set as
@@ -46,13 +46,19 @@ class PayloadFormat(object):
             Payload type information
         '''
         payload_typ = {}
-        lines = self.readFile(in_file)
+        if in_file is None:
+            lines = self.readPkgFile('tx/payload_types.csv')
+        else:
+            lines = self.readFile(in_file)
         for l in lines[1:]:
             info = l.split(delimiter)
-            payload_typ[info[0]] = int(info[1])
+            try:
+                payload_typ[info[0]] = int(info[1])
+            except IndexError:
+                pass
         return payload_typ
     
-    def readFormatter(self, in_file, delimiter=','):                           #TODO read from .txt file as well as .csv
+    def readFormatter(self, in_file, delimiter=','):
         '''Read payload formatter from file. Outputted dictionary set as
         key[number]: [expected_length, format_characters, description].
         Flag column (info[4]) used to signify if entry should be written to 
@@ -71,25 +77,20 @@ class PayloadFormat(object):
             Payload format information
         '''
         payload_fmt = {}
-        lines = self.readFile(in_file)
+        if in_file==None:
+            lines = self.readPkgFile('tx/payload_formats.csv')
+        else:
+            lines = self.readFile(in_file)
         for l in lines[1:]:
-            info = l.split(delimiter)                       
-            if info[4]:
+            info = l.split(delimiter)  
+            try:                     
+                if info[4]:
+                    pass
+                else:
+                    payload_fmt[int(info[0])] = [int(info[1]), info[2], info[3]]
+            except IndexError:
                 pass
-            else:
-                payload_fmt[int(info[0])] = [int(info[1]), info[2], info[3]]
-        return payload_fmt  
-
-    def addCount(self):
-        '''Add counter to payload formatter'''
-        for item in self.payload_format.items():
-            key, val = item
-            var_count, var_def, comment = val
-            assert var_count == len(var_def)
-            bytes_count = 0
-            for var in var_def:
-                bytes_count += self.payload_type[var.lower()]
-            self.payload_format[key].append(bytes_count + 1)               
+        return payload_fmt                 
 
     def readFile(self, in_file):
         '''Read lines from file
@@ -107,7 +108,35 @@ class PayloadFormat(object):
         with open(in_file, 'r') as in_f:
             lines = in_f.readlines()
         return lines
+
+    def readPkgFile(self, fname):
+        '''Read lines from internal package file
         
+        Parameters
+        ----------
+        fname : str
+            Package file name
+        
+        Returns
+        -------
+        lines : list
+            List of file line contents
+        '''
+        stream = pkg_resources.resource_stream('pypromice', fname)
+        lines = stream.read().decode("utf-8")
+        lines = lines.split("\n")  
+        return lines
+ 
+    def _addCount(self):
+        '''Add counter to payload formatter'''
+        for item in self.payload_format.items():
+            key, val = item
+            var_count, var_def, comment = val
+            assert var_count == len(var_def)
+            bytes_count = 0
+            for var in var_def:
+                bytes_count += self.payload_type[var.lower()]
+            self.payload_format[key].append(bytes_count + 1)
 #------------------------------------------------------------------------------
 
 class SbdMessage(object):
@@ -335,7 +364,7 @@ class EmailMessage(SbdMessage):                                                #
 class L0tx(EmailMessage, PayloadFormat):
     '''L0 tranmission data object'''
 
-    def __init__(self, email_msg, format_file, type_file, 
+    def __init__(self, email_msg, format_file=None, type_file=None, 
                  sender_name=['sbdservice', 'ice@geus.dk'],                    #TODO don't hardcode sender names?
                  UnixEpochOffset=calendar.timegm((1970,1,1,0,0,0,0,1,0)),
                  CRbasicEpochOffset = calendar.timegm((1990,1,1,0,0,0,0,1,0))):
@@ -903,13 +932,12 @@ def addTail(in_file, out_dir, aws_name, header_names='', lines_limit=100):
 class TestTX(unittest.TestCase): 
     def testPayloadFormat(self):
         '''Test PayloadFormat object initialisation'''
-        p = PayloadFormat('test/test_payload_formats.csv', 
-                          'test/test_payload_types.csv')
+        p = PayloadFormat()
         self.assertTrue(p.payload_format[30][0]==12)
     
     def testEmailMessage(self):   
         '''Test EmailMessage object initialisation from .msg file'''
-        m = loadMsg('test/test_email')
+        m = loadMsg('../test/test_email')
         e = EmailMessage(m, sender_name='sbdservice')
         self.assertEquals(e.momsn, 36820)
         self.assertEquals(e.msg_size, 27)
@@ -918,9 +946,8 @@ class TestTX(unittest.TestCase):
         
     def testL0tx(self):
         '''Test L0tx object initialisation'''
-        m = loadMsg('test/test_email')
-        l0 = L0tx(m, 'test/test_payload_formats.csv',
-                 'test/test_payload_types.csv')
+        m = loadMsg('../test/test_email')
+        l0 = L0tx(m)
         self.assertTrue(l0.bin_valid)
         self.assertEquals(l0.bin_val, 12)
         self.assertTrue('tfffffffffff' in l0.bin_format)

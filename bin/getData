@@ -5,7 +5,7 @@ from pypromice.get import aws_names, aws_data
 
 
 def parse_arguments():
-	parser = ArgumentParser(description="PROMICE dataset fetcher")       
+	parser = ArgumentParser(description="PROMICE and GC-Net dataset fetcher")       
 	parser.add_argument('-n', '--awsname', default=None, type=str, required=True, 
 		        help='AWS name')
 	parser.add_argument('-f', '--format', default='csv', type=str, required=False, 

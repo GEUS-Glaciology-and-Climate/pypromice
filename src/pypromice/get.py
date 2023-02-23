@@ -4,29 +4,35 @@
 pypromice data retrieval module
 """
 import pandas as pd
-import unittest
+import unittest, pkg_resources
 from datetime import datetime
-
+import io, os
         
-def aws_names(url_index='data_urls.csv'):
-    '''Return PROMICE AWS names that can be used in get.aws_data() fetching'''
-    with open(url_index, 'r') as f:
-        lines = f.readlines()
-    names = [l.split(',')[0] for l in lines]
+def aws_names(url_index=None, delimiter=','):
+    '''Return PROMICE and GC-Net AWS names that can be used in get.aws_data() 
+    fetching'''
+    if url_index is None:
+        stream = pkg_resources.resource_stream('pypromice', 'data_urls.csv')
+        lines = stream.read().decode("utf-8")
+        lines = lines.split("\n")
+    else:
+        stream = url_index 
+        with open(stream, 'r') as f:
+            lines = f.readlines()
+    names = [l.split(delimiter)[0] for l in lines]
     print(f'Available dataset keywords: {names}')
     return names    
     
 def aws_data(aws_name):                                                        #TODO add daily and monthly datasets
-    '''Return PROMICE AWS L3 v3 hourly observations
+    '''Return PROMICE and GC-Net AWS L3 v3 hourly observations
     
     Returns
     -------
     df : pandas.DataFrame
         AWS observations dataframe
     '''
-    URL = _getURL(aws_name.lower()+'_hour', url_index='data_urls.csv')
-    df = pd.read_csv(URL, delimiter='\s+', parse_dates=[[0,1,2,3]], header=0)
-    df = _getDFdatetime(df, list(df.iloc[:,0]))
+    URL = _getURL(aws_name.lower()+'_hour')
+    df = pd.read_csv(URL, index_col=0, parse_dates=True)
     return df
     
 def watson_discharge_hourly():
@@ -37,7 +43,7 @@ def watson_discharge_hourly():
     df : pandas.DataFrame
         Watson river discharge dataframe    
     '''
-    URL = _getURL('watson_discharge_hourly', 'data_urls.csv')
+    URL = _getURL('watson_discharge_hourly')
     df = pd.read_csv(URL, sep="\s+", parse_dates=[[0,1,2,3]])\
             .rename({"WaterFluxDiversOnly(m3/s)"         : "divers",
                     "Uncertainty(m3/s)"                 : "divers_err",
@@ -59,7 +65,7 @@ def watson_discharge_daily():
         # self.assertFalse(e.mtmsn)
         Watson river discharge dataframe    
     '''
-    URL = _getURL('watson_discharge_daily', 'data_urls.csv')
+    URL = _getURL('watson_discharge_daily')
     df = pd.read_csv(URL, sep="\s+", parse_dates=[[0,1,2]], index_col=0)\
             .rename({"WaterFluxDiversOnly(m3/s)"         : "divers",
                     "Uncertainty(m3/s)"                 : "divers_err",
@@ -129,7 +135,7 @@ def watson_discharge_daily():
 #     df = gpd.read_file(URL)
 #     return df
 
-def _getURL(name, url_index, delimiter=','):
+def _getURL(name, url_index=None, delimiter=','):
     '''Get Dataset URL from index file
     
     Parameters
@@ -142,11 +148,17 @@ def _getURL(name, url_index, delimiter=','):
         String delimiter. Default is ","
     '''
     url = None
-    with open(url_index, 'r') as f:
-        lines = f.readlines()
+    if url_index is None:
+        stream = pkg_resources.resource_stream('pypromice', 'data_urls.csv')
+        lines = stream.read().decode("utf-8")
+        lines = lines.split("\n")
+    else:
+        stream = url_index 
+        with open(stream, 'r') as f:
+            lines = f.readlines()
     for l in lines:
         if name in l:
-            url = l.split(',')[-1]
+            url = l.split(delimiter)[1]
     return url
 
 def _getDFdatetime(df, dt_str, dt_format='%Y %m %d %H'):
@@ -177,8 +189,8 @@ def _getDFdatetime(df, dt_str, dt_format='%Y %m %d %H'):
 class TestGet(unittest.TestCase): 
     def testURL(self):
         '''Test URL retrieval'''
-        u = _getURL('watson_discharge_hourly', 'data_urls.csv')
-        self.assertTrue('doi:10.22008/FK2/XEHYCM/ODSEOV' in u)
+        u = _getURL('watson_discharge_hourly')
+        self.assertTrue('doi:10.22008/FK2' in u)
     
     def testAWSname(self):  
         '''Test AWS names retrieval'''
@@ -203,4 +215,3 @@ class TestGet(unittest.TestCase):
             
 if __name__ == "__main__": 
     unittest.main()   
-    print(aws_names())
