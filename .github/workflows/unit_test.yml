@@ -5,6 +5,7 @@ on:
   
 jobs:
   build:
+    name: unit_test
     runs-on: ubuntu-latest
     strategy:
       matrix:
