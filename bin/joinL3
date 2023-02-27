@@ -96,7 +96,6 @@ if __name__ == '__main__':
     print(f'Adding variable information from {args.variables}...')
         
     # Load variables look-up table
-    assert(os.path.isfile(args.variables)) 
     var = getVars(args.variables)
         	
     # Round all values to specified decimals places
