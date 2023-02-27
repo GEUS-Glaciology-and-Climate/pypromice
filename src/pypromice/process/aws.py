@@ -735,8 +735,8 @@ def getVars(v_file=None):
        Variables dataframe
    '''
    if v_file is None:
-        stream = pkg_resources.resource_stream('pypromice', 'process/variables.csv')
-        return pd.read_csv(stream, index_col=0, comment="#", encoding='utf-8')
+        with pkg_resources.resource_stream('pypromice', 'process/variables.csv') as stream:
+            return pd.read_csv(stream, index_col=0, comment="#", encoding='utf-8')
    else:
         return pd.read_csv(v_file, index_col=0, comment="#")
 
@@ -757,9 +757,9 @@ def getMeta(m_file=None, delimiter=','):                                        
     '''
     meta={}
     if m_file is None:
-        stream = pkg_resources.resource_stream('pypromice', 'process/metadata.csv')
-        lines = stream.read().decode("utf-8")
-        lines = lines.split("\n") 
+        with pkg_resources.resource_stream('pypromice', 'process/metadata.csv') as stream:
+            lines = stream.read().decode("utf-8")
+            lines = lines.split("\n") 
     else:        
         with open(m_file, 'r') as f:
             lines = f.readlines()
@@ -869,7 +869,7 @@ class TestProcess(unittest.TestCase):
         d['time'] = [datetime.datetime.now(), 
                      datetime.datetime.now()-timedelta(days=365)]
         d.attrs['station_id']='TEST'
-        meta = getMeta('./metadata.csv')
+        meta = getMeta()
         d = addVars(d, v)
         d = addMeta(d, meta)
         self.assertTrue(d.attrs['station_id']=='TEST')
@@ -877,9 +877,11 @@ class TestProcess(unittest.TestCase):
 
     def testL0toL3(self):
         '''Test L0 to L3 processing'''
-        config_file = '../test/test_config1.toml'
-        inpath= '../test/'
-        pAWS = AWS(config_file, inpath)
+        try:
+            pAWS = AWS(os.path.join(os.path.dirname('pypromice'),'test/test_config1.toml'),
+                       os.path.join(os.path.dirname('pypromice'),'test'))
+        except:
+            pAWS = AWS('../test/test_config1.toml', '../test/')    
         pAWS.process()
         self.assertIsInstance(pAWS.L3, xr.Dataset)
         self.assertTrue(pAWS.L3.attrs['station_id']=='TEST1')

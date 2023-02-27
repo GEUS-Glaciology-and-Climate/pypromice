@@ -122,9 +122,9 @@ class PayloadFormat(object):
         lines : list
             List of file line contents
         '''
-        stream = pkg_resources.resource_stream('pypromice', fname)
-        lines = stream.read().decode("utf-8")
-        lines = lines.split("\n")  
+        with pkg_resources.resource_stream('pypromice', fname) as stream:
+            lines = stream.read().decode("utf-8")
+            lines = lines.split("\n")  
         return lines
  
     def _addCount(self):
@@ -926,7 +926,13 @@ def addTail(in_file, out_dir, aws_name, header_names='', lines_limit=100):
         #out_f.write(headers)
         out_f.writelines(tail) 
         print(f'Tails file written to {out_pn}')
- 
+
+def _loadTestMsg():
+    '''Load test .msg email file'''
+    with pkg_resources.resource_stream('pypromice', 'test/test_email') as stream:
+        byte = stream.read()
+    return email.message_from_bytes(byte)
+
 #------------------------------------------------------------------------------
         
 class TestTX(unittest.TestCase): 
@@ -937,7 +943,7 @@ class TestTX(unittest.TestCase):
     
     def testEmailMessage(self):   
         '''Test EmailMessage object initialisation from .msg file'''
-        m = loadMsg('../test/test_email')
+        m = _loadTestMsg()
         e = EmailMessage(m, sender_name='sbdservice')
         self.assertEquals(e.momsn, 36820)
         self.assertEquals(e.msg_size, 27)
@@ -946,7 +952,7 @@ class TestTX(unittest.TestCase):
         
     def testL0tx(self):
         '''Test L0tx object initialisation'''
-        m = loadMsg('../test/test_email')
+        m = _loadTestMsg()
         l0 = L0tx(m)
         self.assertTrue(l0.bin_valid)
         self.assertEquals(l0.bin_val, 12)

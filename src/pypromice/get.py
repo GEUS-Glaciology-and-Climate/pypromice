@@ -6,15 +6,14 @@ pypromice data retrieval module
 import pandas as pd
 import unittest, pkg_resources
 from datetime import datetime
-import io, os
         
 def aws_names(url_index=None, delimiter=','):
     '''Return PROMICE and GC-Net AWS names that can be used in get.aws_data() 
     fetching'''
     if url_index is None:
-        stream = pkg_resources.resource_stream('pypromice', 'data_urls.csv')
-        lines = stream.read().decode("utf-8")
-        lines = lines.split("\n")
+        with pkg_resources.resource_stream('pypromice', 'data_urls.csv') as stream:
+            lines = stream.read().decode("utf-8")
+            lines = lines.split("\n")
     else:
         stream = url_index 
         with open(stream, 'r') as f:
@@ -149,9 +148,9 @@ def _getURL(name, url_index=None, delimiter=','):
     '''
     url = None
     if url_index is None:
-        stream = pkg_resources.resource_stream('pypromice', 'data_urls.csv')
-        lines = stream.read().decode("utf-8")
-        lines = lines.split("\n")
+        with pkg_resources.resource_stream('pypromice', 'data_urls.csv') as stream:
+            lines = stream.read().decode("utf-8")
+            lines = lines.split("\n")
     else:
         stream = url_index 
         with open(stream, 'r') as f:
