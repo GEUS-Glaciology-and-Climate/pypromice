@@ -93,38 +93,33 @@ if __name__ == '__main__':
     l3_d = resampleL3(all_ds, '1D')
     l3_m = resampleL3(all_ds, 'M')
     
-    if args.variables is not None:
-        print(f'Adding variable information from {args.variables}...')
+    print(f'Adding variable information from {args.variables}...')
         
-        # Load variables look-up table
-        assert(os.path.isfile(args.variables)) 
-        var = getVars(args.variables)
+    # Load variables look-up table
+    assert(os.path.isfile(args.variables)) 
+    var = getVars(args.variables)
         	
-        # Round all values to specified decimals places
-        l3_h = roundValues(l3_h, var)
-        l3_d = roundValues(l3_d, var)
-        l3_m = roundValues(l3_m, var)
+    # Round all values to specified decimals places
+    l3_h = roundValues(l3_h, var)
+    l3_d = roundValues(l3_d, var)
+    l3_m = roundValues(l3_m, var)
         
-        # Get columns to keep
-        if hasattr(all_ds, 'p_l'):
-            col_names = getColNames(var, 2, args.datatype.lower())  
-        else:
-            col_names = getColNames(var, 1, args.datatype.lower())
-    
+    # Get columns to keep
+    if hasattr(all_ds, 'p_l'):
+        col_names = getColNames(var, 2, args.datatype.lower())  
     else:
-    	col_names=None     
+        col_names = getColNames(var, 1, args.datatype.lower())    
 
     # Assign station id
     for l in [l3_h, l3_d, l3_m]:
         l.attrs['station_id'] = name
     
     # Assign metadata
-    if args.metadata is not None:
-        print(f'Adding metadata from {args.metadata}...')
-        m = getMeta(args.metadata)
-        l3_h = addMeta(l3_h, m)
-        l3_d = addMeta(l3_d, m)
-        l3_m = addMeta(l3_m, m)
+    print(f'Adding metadata from {args.metadata}...')
+    m = getMeta(args.metadata)
+    l3_h = addMeta(l3_h, m)
+    l3_d = addMeta(l3_d, m)
+    l3_m = addMeta(l3_m, m)
       
     # Set up output path
     out = os.path.join(args.outpath, name)
