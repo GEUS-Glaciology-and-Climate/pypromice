@@ -945,8 +945,8 @@ class TestTX(unittest.TestCase):
         '''Test EmailMessage object initialisation from .msg file'''
         m = _loadTestMsg()
         e = EmailMessage(m, sender_name='sbdservice')
-        self.assertEquals(e.momsn, 36820)
-        self.assertEquals(e.msg_size, 27)
+        self.assertEqual(e.momsn, 36820)
+        self.assertEqual(e.msg_size, 27)
         self.assertTrue(e.imei in '300234061165160')
         self.assertFalse(e.mtmsn)
         
@@ -955,7 +955,7 @@ class TestTX(unittest.TestCase):
         m = _loadTestMsg()
         l0 = L0tx(m)
         self.assertTrue(l0.bin_valid)
-        self.assertEquals(l0.bin_val, 12)
+        self.assertEqual(l0.bin_val, 12)
         self.assertTrue('tfffffffffff' in l0.bin_format)
         self.assertTrue('2022-07-25 10:00:00' in l0.msg)
         self.assertFalse('?' in l0.msg)
