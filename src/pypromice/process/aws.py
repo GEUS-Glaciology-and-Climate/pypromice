@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-pypromice AWS processing module
+AWS data processing module
 """
 from importlib import metadata
 import os, unittest, toml, datetime, uuid, pkg_resources

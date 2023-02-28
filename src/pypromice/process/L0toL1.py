@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-pypromice L0 to L1 processing
+AWS Level 0 (L0) to Level 1 (L1) data processing
 """
 import numpy as np
 import pandas as pd

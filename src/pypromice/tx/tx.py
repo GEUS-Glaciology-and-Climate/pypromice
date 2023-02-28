@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-pypromice L0 transmission (tx) module
+AWS Level 0 (L0) data transmission fetching module
 """
 
 from collections import deque

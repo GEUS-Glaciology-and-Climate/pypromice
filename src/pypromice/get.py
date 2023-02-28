@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-pypromice data retrieval module
+AWS data retrieval module
 """
 import pandas as pd
 import unittest, pkg_resources

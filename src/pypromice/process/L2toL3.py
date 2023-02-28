@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-pypromice L2 to L3 processing
+AWS Level 2 (L2) to Level 3 (L3) data processing
 """
 import numpy as np
 import xarray as xr

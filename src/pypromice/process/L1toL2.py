@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-pypromice L1 to L2 processing
+AWS Level 1 (L1) to Level 2 (L2) data processing
 """
 import numpy as np
 import urllib.request
