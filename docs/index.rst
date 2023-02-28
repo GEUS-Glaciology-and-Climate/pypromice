@@ -3,7 +3,7 @@ pypromice
 
 pypromice_ is designed for processing and handling PROMICE_ automated weather station (AWS) data.
 
-It is envisioned for pypromice to be the go-to toolbox for handling and processing PROMICE_ and GC-Net_ datasets. New releases of pypromice are uploaded alongside PROMICE AWS data releases to our Dataverse_ for transparency purposes and to encourage collaboration on improving our data.
+It is envisioned for pypromice to be the go-to toolbox for handling and processing PROMICE_ and GCNet_ datasets. New releases of pypromice are uploaded alongside PROMICE AWS data releases to our Dataverse_ for transparency purposes and to encourage collaboration on improving our data.
 
 If you intend to use PROMICE AWS data and/or pypromice in your work, please cite these publications below, along with any other applicable PROMICE publications where possible:
 
@@ -13,7 +13,7 @@ How, P., Wright, P.J., Mankoff, K., Vandecrux, B. (2023) pypromice, GEUS Dataver
 
 .. _pypromice: https://github.com/GEUS-Glaciology-and-Climate/pypromice
 .. _PROMICE: https://promice.dk
-.. _GC-Net: http://cires1.colorado.edu/steffen/gcnet/
+.. _GCNet: http://cires1.colorado.edu/steffen/gcnet/
 .. _Dataverse: https://dataverse.geus.dk/dataverse/PROMICE
 
 .. toctree::
