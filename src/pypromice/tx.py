@@ -751,7 +751,11 @@ def getMail(mail_server, last_uid=1):
     command = '(UID {}:*)'.format(last_uid)
     result, data = mail_server.uid('search', None, command)
     messages = data[0].split()
-    print('new UIDs: %s' %data[0].decode())
+    new_uids = data[0].decode()
+    # drop the last_uid (it has already been processed)
+    new_uids = new_uids.replace(str(last_uid), '')
+    print('Newest UID: %s' % new_uids.split(' ')[-1])
+    # print('new UIDs: %s' % new_uids)
 
     # Yield mails
     for message_uid in messages:

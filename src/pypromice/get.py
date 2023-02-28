@@ -8,11 +8,11 @@ import unittest
 from datetime import datetime
 
         
-def aws_names(url_index='data_urls.csv', key='doi:10.22008/FK2/8SS7EW/'):
+def aws_names(url_index='data_urls.csv'):
     '''Return PROMICE AWS names that can be used in get.aws_data() fetching'''
     with open(url_index, 'r') as f:
         lines = f.readlines()
-    names = [l.split(',')[0] for l in lines if key in l]
+    names = [l.split(',')[0] for l in lines]
     print(f'Available dataset keywords: {names}')
     return names    
     

@@ -17,7 +17,7 @@ stid_to_skip = { # All the following IDS will not be processed or submitted
     'discontinued': ['CEN1','TAS_U','QAS_A','NUK_N','THU_U','JAR','SWC'],
     'no_instantaneous': ['ZAK_L','ZAK_U','KAN_B'], # currently not transmitting instantaneous values
     'suspect_data': [], # instantaneous data is suspect
-    'use_v3': ['KPC_L','NUK_U','ZAK_U','QAS_U'], # use v3 versions instead (but registered IDs will be non-v3)
+    'use_v3': ['KPC_L','NUK_U','ZAK_U','QAS_U'], # use v3 versions instead (but registered IDs are non-v3 names)
     'v3_bad': ['KPC_Uv3','QAS_Lv3'] # KPC_Uv3 years are 2056, QAS_Lv3 new ablation sensor w/different txt fields?
     # Eventually, as we change all stations to v3, the use_v3 list should be empty (there will not be v3 and non-v3 stations operating together)
     # If your remove a station from 'v3_bad', then add it to 'use_v3' if both v2 and v3 stations still exist together
@@ -25,6 +25,14 @@ stid_to_skip = { # All the following IDS will not be processed or submitted
 # NOTE: Use both THU_L and THU_L2; use ONLY THU_U2, but register it as THU_U (this is dealt with in csv2bufr.py)
 # NOTE: JAR_O and SWC_O are used, but registered as JAR and SWC
 # NOTE: CEN2 data is registered as CEN
+
+vars_to_skip = { # skip specific variables for stations
+    # If a variable has known bad data, use this dict to skip the var
+    # Note that if a station is not reporting both air temp and pressure it will be skipped,
+    # as currently implemented in csv2bufr.min_data_check().
+    'CP1': ['p_i'],
+    'NAU': ['p_i']
+}
 
 ibufr_settings = {
     'mobile': { # mobile stations (on moving ice)

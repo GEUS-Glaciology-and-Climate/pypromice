@@ -28,10 +28,13 @@ if __name__ == '__main__':
     station_path = os.path.join(args.inpath, station_name)
     
     if os.path.exists(station_path):
-        pAWS = AWS(args.config_file, station_path, args.outpath, args.variables, args.metadata)    
+        pAWS = AWS(args.config_file, station_path, args.variables, args.metadata)    
     else:
-        pAWS = AWS(args.config_file, args.inpath, args.outpath, args.variables, args.metadata)
+        pAWS = AWS(args.config_file, args.inpath, args.variables, args.metadata)
 
+    pAWS.process()
+    pAWS.write(args.outpath)
+    
 else:
     """Executed on import"""
     pass

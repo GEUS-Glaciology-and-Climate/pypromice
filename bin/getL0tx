@@ -65,8 +65,8 @@ if __name__ == '__main__':
 
  	# Define accounts and credentials ini file paths
     accounts_ini = ConfigParser()
-    accounts_ini.readfp(open(accounts_file)) 	
-    accounts_ini.read(credentials_file) 
+    accounts_ini.read_file(open(accounts_file))
+    accounts_ini.read(credentials_file)
 
  	# Get last email uid
     with open(uid_file, 'r') as last_uid_f:
@@ -97,6 +97,7 @@ if __name__ == '__main__':
  	#----------------------------------
 
  	# Get L0tx datalines from email transmissions
+    uid=last_uid # initialize using last_uid. If no messages, this will be written back to ini file.
     for uid, mail in getMail(mail_server, last_uid=last_uid):
         message = email.message_from_string(mail)
         

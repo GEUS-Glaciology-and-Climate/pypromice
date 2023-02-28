@@ -3,5 +3,6 @@ datetime
 eccodes
 numpy
 pandas
+sklearn
 toml
 xarray

@@ -33,7 +33,7 @@ import math
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip
+from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, vars_to_skip
 
 # from IPython import embed
 
@@ -71,7 +71,7 @@ def getBUFR(s1, outBUFR, stid, land_stids):
     try:
         setTemplate(ibufr, timestamp, stid, config_key)
         setStation(ibufr, stid, config_key)
-        setAWSvariables(ibufr, s1, timestamp)
+        setAWSvariables(ibufr, s1, timestamp, stid)
 
         #Encode keys in data section
         codes_set(ibufr, 'pack', 1)
@@ -143,12 +143,12 @@ def setStation(ibufr, stid, config_key):
                 # We are reading the v3 station ID file, and the config says to use it!
                 # But we need to write to BUFR without v3 name
                 stid = stid.replace('v3','')
-                # print('REPLACED!',stid)
             if stid == 'THU_U2':
                 stid = 'THU_U'
-                # print('REPLACED!',stid)
             if stid in ('JAR_O','SWC_O'):
                 stid = stid.replace('_O','')
+            if stid == 'CEN2':
+                stid = 'CEN'
             if stid in v:
                 codes_set(ibufr, k, v[stid])
             else:
@@ -161,7 +161,7 @@ def setStation(ibufr, stid, config_key):
                continue
 
 
-def setAWSvariables(ibufr, row, timestamp):
+def setAWSvariables(ibufr, row, timestamp, stid):
     '''Set AWS measurements to bufr message.
     
     Parameters
@@ -172,26 +172,38 @@ def setAWSvariables(ibufr, row, timestamp):
         DataFrame row (or Series) with AWS variable data
     timestamp : datetime.datetime
         timestamp for this row
+    stid : str
+        The station ID to be processed. e.g. 'KPC_U'
     '''
+    # Set timestamp fields
     setBUFRvalue(ibufr, 'year', timestamp.year)
     setBUFRvalue(ibufr, 'month', timestamp.month)
     setBUFRvalue(ibufr, 'day', timestamp.day)
     setBUFRvalue(ibufr, 'hour', timestamp.hour)
     setBUFRvalue(ibufr, 'minute', timestamp.minute)
 
-    setBUFRvalue(ibufr, 'relativeHumidity', row['rh_i']) # DMI wants non-corrected
-    setBUFRvalue(ibufr, 'airTemperature', row['t_i'])
-    setBUFRvalue(ibufr, 'pressure', row['p_i'])
-    setBUFRvalue(ibufr, 'windDirection', row['wdir_i'])
-    setBUFRvalue(ibufr, 'windSpeed', row['wspd_i'])
+    vars_dict = {
+        'relativeHumidity': 'rh_i', # DMI wants non-corrected rh
+        'airTemperature': 't_i',
+        'pressure': 'p_i',
+        'windDirection': 'wdir_i',
+        'windSpeed': 'wspd_i'
+    }
+    for bufr_key, source_var in vars_dict.items():
+        if (stid in vars_to_skip) and (source_var in vars_to_skip[stid]):
+            print('----> Skipping var: {} {}'.format(stid,source_var))
+        else:
+            setBUFRvalue(ibufr, bufr_key, row[source_var])
 
+    # Set position metadata
     setBUFRvalue(ibufr, 'latitude', row['gps_lat_fit'])
     setBUFRvalue(ibufr, 'longitude', row['gps_lon_fit'])
     setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt_fit']) # also height and heightOfStation?
 
     # The ## in the codes_set() indicate the position in the BUFR for the parameter.
-    # e.g. #10#timePeriod will assign to the 10th occurence of "timePeriod".
-    # In the case of the synopMobil template, the 10th occurence is the wind speed section.
+    # e.g. #10#timePeriod will assign to the 10th occurence of "timePeriod", which corresponds
+    # to the wind speed section. Note that both the "synopMobil" and "synopLand" templates
+    # appear to have the same positions for all parameters that are set here.
     # View the output BUFR to see section keys with 'bufr_dump filename.bufr'.
     if math.isnan(row['wspd_i']) is False:
         #Set time significance (2=temporally averaged)
@@ -344,10 +356,10 @@ def round_values(s):
     # gps_lat,gps_lon,gps_alt,z_boom_u are all rounded in linear_fit() or rolling_window()
     return s
 
-def write_positions(s, stid):
+def write_positions(s, stid, positions):
     '''Set valid lat, lon, alt to the positions dict.
-    Find recent position metadata for submitting to DMI/WMO.
-    Not used in production! Must pass --positions arg.
+    For submitting registration metadata to DMI/WMO, and for writing
+    positions to AWS_station_locations.csv. Must pass --positions arg.
 
     Parameters
     ----------
@@ -355,27 +367,33 @@ def write_positions(s, stid):
         The current obset we are working with (for BUFR submission)
     stid : str
         The station ID, such as NUK_L
+    positions : dict
+        Dict storing current station positions.
 
     Returns
     -------
-    None
+    positions : dict
+        Modified dict storing current station positions.
     '''
-    to_write = ['lat','lon']
+    to_write = ['lat','lon','alt']
     for i in to_write:
         if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
             positions[stid][i] = s[f'gps_{i}_fit']
 
-    # Add altitude to positions dict:
-    if ('gps_alt_fit' in s) and (pd.isna(s['gps_alt_fit']) is False):
-        positions[stid]['alt'] = s['gps_alt_fit']
-
     # Add timestamp
     positions[stid]['timestamp'] = s['time']
+    return positions
 
-def fetch_old_positions(df, stid):
+def fetch_old_positions(df, stid, time_limit, positions):
     '''Set valid lat, lon, alt to the positions dict.
-    Used to find old GPS positions for submitting position metadata to DMI/WMO.
-    Not used in production! Must pass --positions arg.
+    For submitting registration metadata to DMI/WMO, and for writing
+    positions to AWS_station_locations.csv. We run this if a station
+    is skipped for BUFR processing or does not have new or recent-enough
+    obs, but we still want to find the last position if we have it.
+    Must have data within previous 3 months. Must pass --positions arg.
+
+    NOTE: We could implement a way to look further back in time for
+    most-recent position...
 
     Parameters
     ----------
@@ -383,39 +401,70 @@ def fetch_old_positions(df, stid):
         The full tx dataframe
     stid : str
         The station ID, such as NUK_L
+    time_limit : str
+        Previous time to limit dataframe before applying linear regression.
+        (e.g. '3M')
+    positions : dict
+        Dict storing current station positions.
 
     Returns
     -------
-    None
+    positions : dict
+        Modified dict storing most-recent station positions.
     '''
-    # Find valid GPS data
-    valid_gps = df.dropna(subset=['gps_lat','gps_lon','gps_alt'])
+    # Combine gps and msg lat and lon using combine_first()
+    # If any GPS positions are missing, we will fill the missing GPS positions with modem
+    # positions (if they are present). Important to do this first, and then apply linear fit
+    # to the resulting single array. Otherwise, we can have jumps when the GPS data goes out
+    # or comes back. The message coordinates can sometimes all be 0.0, so we check for this.
 
-    if valid_gps.empty is False:
-        valid_gps_limited = valid_gps.last(args.time_limit)
+    df_limited = df.last(time_limit)
 
-        valid_gps_limited = linear_fit(valid_gps_limited, 'gps_alt', 1, stid)
-        valid_gps_limited = linear_fit(valid_gps_limited, 'gps_lat', 6, stid)
-        valid_gps_limited = linear_fit(valid_gps_limited, 'gps_lon', 6, stid)
+    if ('msg_lat' in df_limited) and ('msg_lon' in df_limited):
+        if (0.0 not in df_limited['msg_lat'].values):
+            df_limited['gps_lat'] = df_limited['gps_lat'].combine_first(df_limited['msg_lat'])
+        if (0.0 not in df_limited['msg_lon'].values):
+            df_limited['gps_lon'] = df_limited['gps_lon'].combine_first(df_limited['msg_lon'])
 
-        s = valid_gps_limited.loc[valid_gps_limited.index.max()]
+    df_limited = linear_fit(df_limited, 'gps_alt', 1, stid)
+    df_limited = linear_fit(df_limited, 'gps_lat', 6, stid)
+    df_limited = linear_fit(df_limited, 'gps_lon', 6, stid)
 
-        to_write = ['lat','lon']
-        for i in to_write:
-            if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
-                positions[stid][i] = s[f'gps_{i}_fit']
-                positions[stid][f'{i}_s'] = 'OLD' #source flag
+    # s = df_limited.loc[df_limited.index.max()] # just use max index
 
-        # Add altitude to positions dict:
-        if ('gps_alt_fit' in s) and (pd.isna(s['gps_alt_fit']) is False):
-            positions[stid]['alt'] = s['gps_alt_fit']
+    # Go through gps_lat_fit, gps_lon_fit and gps_alt_fit and keep the most recent
+    # valid index. They should all be the same. Or, if modem-derived, we will have
+    # only lat and lon (with same index). But this treatment covers all possible
+    # scenarios of missing data.
+    pos_strings = ['lat','lon','alt']
+    pos_timestamps = []
+    valid_timestamp_found = False
+    recent_timestamp = pd.to_datetime('1900-01-01') # initialize with an old date
+    for p in pos_strings:
+        p_timestamp = df_limited[f'gps_{p}_fit'].last_valid_index()
+        if (p_timestamp is not None) and (p_timestamp > recent_timestamp):
+            recent_timestamp = p_timestamp
+            valid_timestamp_found = True
+
+    if valid_timestamp_found:
+        s = df_limited.loc[recent_timestamp]
+
+        to_write = ['lat','lon','alt']
+        for p in pos_strings:
+            if (f'gps_{p}_fit' in s) and (pd.isna(s[f'gps_{p}_fit']) is False):
+                positions[stid][p] = s[f'gps_{p}_fit']
+                # positions[stid][f'{p}_source'] = 'OLD' #source flag
 
         # Add timestamp
         positions[stid]['timestamp'] = s['time']
+    return positions
 
 
 def min_data_check(s, stid):
     '''Check that we have minimum required fields to proceed with writing to BUFR
+    For wx vars, we currently require both air temp and pressure to be non-NaN.
+    If you know a specific var is reporting bad data, you can ignore just that var
+    using the vars_to_skip dict in wmo_config.
 
     Parameters
     ----------
@@ -426,25 +475,28 @@ def min_data_check(s, stid):
 
     Returns
     -------
-    result : bool
-        True (default), the test passed. False, the test failed.
-    failed_min_data_wx : list
-        List of stids that failed the min data check
-    failed_min_data_pos : list
-        List of stids that failed the min position check
+    min_data_wx_result : bool
+        True (default), the test for min wx data passed. False, the test failed.
+    min_data_pos_result : bool
+        True (default), the test for min position data passed. False, the test failed.
     '''
-    result = True
-    failed_min_data_wx = []
-    failed_min_data_pos = []
+    min_data_wx_result = True
+    min_data_pos_result = True
 
-    # Can use pd.isna() or math.isnan()
-    # Must have valid air temp and pressure
-    if (pd.isna(s['t_i']) is False) and (pd.isna(s['p_i']) is False):
-        pass
-    else:
+    # Can use pd.isna() or math.isnan() below...
+
+    # Always require valid air temp and valid pressure (both must be non-nan)
+    # if (pd.isna(s['t_i']) is False) and (pd.isna(s['p_i']) is False):
+    #     pass
+    # else:
+    #     print('----> Failed min_data_check for air temp and pressure!')
+    #     min_data_wx_result = False
+
+    # If both air temp and pressure are nan, do not submit.
+    # This will allow the case of having only one or the other.
+    if (pd.isna(s['t_i']) is True) and (pd.isna(s['p_i']) is True):
         print('----> Failed min_data_check for air temp and pressure!')
-        failed_min_data_wx.append(stid)
-        result = False
+        min_data_wx_result = False
 
     # Must have a valid position
     # Note that gps_ variables have already had replacement with msg_ positions if needed
@@ -459,7 +511,6 @@ def min_data_check(s, stid):
         pass
     else:
         print('----> Failed min_data_check for position!')
-        failed_min_data_pos.append(stid)
-        result = False
+        min_data_pos_result = False
 
-    return result, failed_min_data_wx, failed_min_data_pos
+    return min_data_wx_result, min_data_pos_result
