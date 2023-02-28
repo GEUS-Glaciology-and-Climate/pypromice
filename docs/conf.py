@@ -13,9 +13,11 @@
 import sphinx_rtd_theme
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../src'))
-sys.path.insert(0, os.path.abspath('../src/pypromice'))
-sys.path.insert(0, os.path.abspath('../src/pypromice/postprocess'))
+sys.path.insert(0, os.path.abspath('../src/pypromice/'))
+sys.path.insert(0, os.path.abspath('../src/pypromice/postprocess/'))
+sys.path.insert(0, os.path.abspath('../src/pypromice/process/'))
+sys.path.insert(0, os.path.abspath('../src/pypromice/tx/'))
+sys.path.insert(0, os.path.abspath('../bin/'))
 
 # -- Project information -----------------------------------------------------
 
