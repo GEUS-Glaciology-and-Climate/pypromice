@@ -7,7 +7,7 @@ process
    :show-inheritance:
 
 process.L0toL1
-==============
+--------------
 
 .. automodule:: process.L0toL1
    :members:
@@ -15,7 +15,7 @@ process.L0toL1
    :show-inheritance:
    
 process.L1toL2
-==============
+--------------
 
 .. automodule:: process.L1toL2
    :members:
@@ -23,15 +23,15 @@ process.L1toL2
    :show-inheritance:
 
 process.L2toL3
-==============
+--------------
 
 .. automodule:: process.L2toL3
    :members:
    :undoc-members:
    :show-inheritance:
     
-postprocess.csv2bufr
-====================
+postprocess
+===========
 
 .. automodule:: postprocess.csv2bufr
    :members:  
