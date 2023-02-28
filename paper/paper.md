@@ -32,7 +32,7 @@ authors:
 affiliations:
  - name: Department of Glaciology and Climate, Geological Survey of Denmark and Greenland (GEUS), Denmark
    index: 1
- - name:  Business Integra, New York, NY, USA
+ - name:  Autonomic Integra, New York, NY, USA
    index: 2
  - name: NASA Goddard Institute for Space Studies, New York, NY, USA
    index: 3
