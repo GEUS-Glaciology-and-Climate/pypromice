@@ -15,8 +15,8 @@ def parse_arguments():
     parser.add_argument('-p', '--password', default=None, type=str, required=True, help='Email credentials .ini file')                      
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, help='Path where to write output (if given)')   
     parser.add_argument('-c', '--config', default=None, type=str, required=True, help='Directory to config .toml files')         
-    parser.add_argument('-f', '--formats', default='payload_formatter.csv', type=str, required=True, help='Path to Payload format .csv file')
-    parser.add_argument('-t', '--types', default='payload_type.csv', type=str, required=True, help='Path to Payload type .csv file')  	
+    parser.add_argument('-f', '--formats', default=None, type=str, required=False, help='Path to Payload format .csv file')
+    parser.add_argument('-t', '--types', default=None, type=str, required=False, help='Path to Payload type .csv file')  	
     parser.add_argument('-u', '--uid', default=None, type=str, required=True, help='Last AWS uid .ini file')	        
     args = parser.parse_args()
     return args

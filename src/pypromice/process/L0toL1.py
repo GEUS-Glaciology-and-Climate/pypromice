@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-pypromice L0 to L1 processing
+AWS Level 0 (L0) to Level 1 (L1) data processing
 """
 import numpy as np
 import pandas as pd
@@ -45,7 +45,7 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     ds = ds.isel(time=index)
 
     # If we do not want to shift hourly average values back -1 hr, then comment the following line.
-    ds = _addTimeShift(ds, vars_df)
+    ds = addTimeShift(ds, vars_df)
 
     if hasattr(ds, 'dsr_eng_coef'): 
         ds['dsr'] = (ds['dsr'] * 10) / ds.attrs['dsr_eng_coef']                # Convert radiation from engineering to physical units
@@ -61,10 +61,10 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     
     if ds['gps_lat'].dtype.kind == 'O':                                        # Decode and reformat GPS information
         if 'NH' in ds['gps_lat'].dropna(dim='time').values[1]:
-            ds = _decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
+            ds = decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
         else:
             try:
-                ds = _decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])          # TODO this is a work around specifically for L0 RAW processing for THU_U. Find a way to make this slicker
+                ds = decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])          # TODO this is a work around specifically for L0 RAW processing for THU_U. Find a way to make this slicker
             except:
                 print('Invalid GPS type {ds["gps_lat"].dtype} for decoding')
             
@@ -72,13 +72,13 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
         ds[l] = _reformatArray(ds[l])  
 
     if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
-        ds['gps_lat'] = _reformatGPS(ds['gps_lat'], ds.attrs['latitude'])
-        ds['gps_lon'] = _reformatGPS(ds['gps_lon'], ds.attrs['longitude'])
+        ds['gps_lat'] = reformatGPS(ds['gps_lat'], ds.attrs['latitude'])
+        ds['gps_lon'] = reformatGPS(ds['gps_lon'], ds.attrs['longitude'])
 
     if hasattr(ds, 'logger_type'):                                             # Convert tilt voltage to degrees
         if ds.attrs['logger_type'].upper() == 'CR1000':                    
-            ds['tilt_x']  = _getTiltDegrees(ds['tilt_x'], tilt_threshold) 
-            ds['tilt_y'] = _getTiltDegrees(ds['tilt_y'], tilt_threshold)  
+            ds['tilt_x']  = getTiltDegrees(ds['tilt_x'], tilt_threshold) 
+            ds['tilt_y'] = getTiltDegrees(ds['tilt_y'], tilt_threshold)  
             
     if hasattr(ds, 'tilt_y_factor'):                                           # Apply tilt factor (e.g. -1 will invert tilt angle)
         ds['tilt_y'] = ds['tilt_y']*ds.attrs['tilt_y_factor']
@@ -86,8 +86,8 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     # Smooth everything
     # Note that this should be OK for CR1000 tx (data only every 6 hrs),
     # since we interpolate above in _getTiltDegrees. PJW
-    ds['tilt_x']  = _smoothTilt(ds['tilt_x'], 7)                               # Smooth tilt
-    ds['tilt_y']  = _smoothTilt(ds['tilt_y'], 7)                               # TODO check tilt_y inversion +ive to -ive for Gc-Net stations
+    ds['tilt_x']  = smoothTilt(ds['tilt_x'], 7)                                # Smooth tilt
+    ds['tilt_y']  = smoothTilt(ds['tilt_y'], 7)                               
     
     if hasattr(ds, 'bedrock'):                                                 # Fix tilt to zero if station is on bedrock
         if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
@@ -95,81 +95,31 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
             ds['tilt_y'] = (('time'), np.arange(ds['time'].size)*0)
             
     ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                       # Get directional wind speed                    
-    ds['wspd_x_u'], ds['wspd_y_u'] = _calcWindDir(ds['wspd_u'], ds['wdir_u']) 
+    ds['wspd_x_u'], ds['wspd_y_u'] = calcWindDir(ds['wspd_u'], ds['wdir_u']) 
     
     if ds.attrs['number_of_booms']==1:                                         # 1-boom processing
         if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density                                           
             if hasattr(ds, 'pt_z_offset'):                                     # Apply SR50 stake offset
                 ds['z_pt'] = ds['z_pt'] + int(ds.attrs['pt_z_offset'])              
-            ds['z_pt_cor'],ds['z_pt']=_getPressDepth(ds['z_pt'], ds['p_u'], 
-                                                     ds.attrs['pt_antifreeze'], 
-                                                     ds.attrs['pt_z_factor'], 
-                                                     ds.attrs['pt_z_coef'], 
-                                                     ds.attrs['pt_z_p_coef'])       
+            ds['z_pt_cor'],ds['z_pt']=getPressDepth(ds['z_pt'], ds['p_u'], 
+                                                    ds.attrs['pt_antifreeze'], 
+                                                    ds.attrs['pt_z_factor'], 
+                                                    ds.attrs['pt_z_coef'], 
+                                                    ds.attrs['pt_z_p_coef'])       
             
     elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height    
         ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l'] + T_0)/T_0)**0.5         # Adjust sonic ranger readings for sensitivity to air temperature
         ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0)                   # Get directional wind speed    
-        ds['wspd_x_l'], ds['wspd_y_l'] = _calcWindDir(ds['wspd_l'], ds['wdir_l'])
+        ds['wspd_x_l'], ds['wspd_y_l'] = calcWindDir(ds['wspd_l'], ds['wdir_l'])
      
     if hasattr(ds, 'wdir_i'):    
         if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():      # Instantaneous msg processing
             ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)               # Get directional wind speed                    
-            ds['wspd_x_i'], ds['wspd_y_i'] = _calcWindDir(ds['wspd_i'], ds['wdir_i'])   
+            ds['wspd_x_i'], ds['wspd_y_i'] = calcWindDir(ds['wspd_i'], ds['wdir_i'])   
     return ds
 
-def _popCols(ds, booms, data_type, vars_df, cols):
-    '''Populate data array columns with given variable names from look-up table
-    
-    Parameters
-    ----------
-    ds : xr.Dataset
-        Data set
-    booms : int
-        Number of booms (1 or 2)
-    data_type : str
-        Type of data ("tx", "raw")
-    vars_df : pd.DataFrame
-        Variables lookup table
-    cols : list
-        Names of columns to populate
-    
-    Returns
-    -------
-    ds : xr.Dataset
-        Data with populated columns
-    '''
-    if booms==1:
-        names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
-
-    elif booms==2:
-        names = vars_df.loc[(vars_df[cols[0]]!='one-boom')]
-       
-    for v in list(names.index):
-        if v not in list(ds.variables):
-            ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
-    return ds
-
-# def _popCols(ds, booms, data_type, vars_df, cols):
-#     if booms==1:
-#         if data_type !='TX':
-#             names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
-#         else:
-#             names = vars_df.loc[(vars_df[cols[0]] != 'two-boom') & vars_df[cols[1]] != 'tx']
-    
-#     elif booms==2:
-#         if data_type !='TX':
-#             names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
-#         else:
-#             names = vars_df.loc[(vars_df[cols[0]] != 'two-boom') & vars_df[cols[1]] != 'tx']
-       
-#     for v in list(names.index):
-#         if v not in list(ds.variables):
-#             ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
-#     return ds
-
-def _addTimeShift(ds, vars_df):
+def addTimeShift(ds, vars_df):
     '''Shift times based on file format and logger type (shifting only hourly averaged values,
     and not instantaneous variables). For raw (10 min), all values are sampled instantaneously
     so do not shift. For STM (1 hour), values are averaged and assigned to end-of-hour by the
@@ -253,26 +203,7 @@ def _addTimeShift(ds, vars_df):
     # ds_out = xr.Dataset(dict(zip(df_out.columns, vals)), attrs=ds.attrs)
     return ds_out
 
-def _removeVars(ds, v_names):
-    '''Remove redundant variables if present in dataset
-    
-    Parameters
-    ----------
-    ds : xr.Dataset
-        Data set
-    v_names : list
-        List of column names to drop
-    
-    Returns
-    -------
-    ds : xr.Dataset
-        Data set with removed variables
-    '''
-    for v in v_names:
-        if v in list(ds.variables): ds = ds.drop_vars(v)
-    return ds
-
-def _getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef): 
+def getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef): 
     '''Adjust pressure depth and calculate pressure transducer depth based on 
     pressure transducer fluid density
     
@@ -318,7 +249,7 @@ def _getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef):
     
     return z_pt_cor, z_pt
 
-def _smoothTilt(tilt, win_size):
+def smoothTilt(tilt, win_size):
     '''Smooth tilt values using a rolling window. This is translated from the
     previous IDL/GDL smoothing algorithm:
     tiltX = smooth(tiltX,7,/EDGE_MIRROR,MISSING=-999) & tiltY = smooth(tiltY,7,/EDGE_MIRROR, MISSING=-999)
@@ -354,7 +285,7 @@ def _smoothTilt(tilt, win_size):
         )
     return tdf_rolling
 
-def _getTiltDegrees(tilt, threshold):
+def getTiltDegrees(tilt, threshold):
     '''Filter tilt with given threshold, and convert from voltage to degrees. 
     Voltage-to-degrees converseion is based on the equation in 3.2.9 at 
     https://essd.copernicus.org/articles/13/3819/2021/#section3    
@@ -398,7 +329,7 @@ def _getTiltDegrees(tilt, threshold):
     dst = dst.where(~notOKtilt)
     return dst.interpolate_na(dim='time', use_coordinate=False)                #TODO: Filling w/o considering time gaps to re-create IDL/GDL outputs. Should fill with coordinate not False. Also consider 'max_gap' option?
 
-def _calcWindDir(wspd, wdir, deg2rad=np.pi/180):
+def calcWindDir(wspd, wdir, deg2rad=np.pi/180):
     '''Calculate directional wind speed from wind speed and direction
     
     Parameters
@@ -421,7 +352,7 @@ def _calcWindDir(wspd, wdir, deg2rad=np.pi/180):
     wspd_y = wspd * np.cos(wdir * deg2rad) 
     return wspd_x, wspd_y
     
-def _decodeGPS(ds, gps_names):
+def decodeGPS(ds, gps_names):
     '''Decode GPS information based on names of GPS attributes. This should be 
     applied if gps information does not consist of float values
     
@@ -446,25 +377,7 @@ def _decodeGPS(ds, gps_names):
         ds[v].attrs = a 
     return ds
 
-def _reformatArray(ds_arr):
-    '''Reformat DataArray values and attributes
-    
-    Parameters
-    ----------
-    ds_arr : xr.Dataarray
-        Data array
-    
-    Returns
-    -------
-    ds_arr : xr.Dataarray
-        Formatted data array
-    '''
-    a = ds_arr.attrs                                                           # Store
-    ds_arr.values = pd.to_numeric(ds_arr, errors='coerce')
-    ds_arr.attrs = a                                                           # Reformat
-    return ds_arr   
-
-def _reformatGPS(pos_arr, attrs):
+def reformatGPS(pos_arr, attrs):
     '''Correct position if only recorded minutes (and not degrees), and 
     reformat values and attributes
     
@@ -485,8 +398,95 @@ def _reformatGPS(pos_arr, attrs):
     a = pos_arr.attrs                                                     
     pos_arr = np.floor(pos_arr / 100) + (pos_arr / 100 - np.floor(pos_arr / 100)) * 100 / 60
     pos_arr.attrs = a 
-    return pos_arr       
-        
+    return pos_arr 
+
+def _reformatArray(ds_arr):
+    '''Reformat DataArray values and attributes
+    
+    Parameters
+    ----------
+    ds_arr : xr.Dataarray
+        Data array
+    
+    Returns
+    -------
+    ds_arr : xr.Dataarray
+        Formatted data array
+    '''
+    a = ds_arr.attrs                                                           # Store
+    ds_arr.values = pd.to_numeric(ds_arr, errors='coerce')
+    ds_arr.attrs = a                                                           # Reformat
+    return ds_arr         
+
+def _removeVars(ds, v_names):
+    '''Remove redundant variables if present in dataset
+    
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Data set
+    v_names : list
+        List of column names to drop
+    
+    Returns
+    -------
+    ds : xr.Dataset
+        Data set with removed variables
+    '''
+    for v in v_names:
+        if v in list(ds.variables): ds = ds.drop_vars(v)
+    return ds
+
+def _popCols(ds, booms, data_type, vars_df, cols):
+    '''Populate data array columns with given variable names from look-up table
+    
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Data set
+    booms : int
+        Number of booms (1 or 2)
+    data_type : str
+        Type of data ("tx", "raw")
+    vars_df : pd.DataFrame
+        Variables lookup table
+    cols : list
+        Names of columns to populate
+    
+    Returns
+    -------
+    ds : xr.Dataset
+        Data with populated columns
+    '''
+    if booms==1:
+        names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
+
+    elif booms==2:
+        names = vars_df.loc[(vars_df[cols[0]]!='one-boom')]
+       
+    for v in list(names.index):
+        if v not in list(ds.variables):
+            ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
+    return ds
+
+# def _popCols(ds, booms, data_type, vars_df, cols):
+#     if booms==1:
+#         if data_type !='TX':
+#             names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
+#         else:
+#             names = vars_df.loc[(vars_df[cols[0]] != 'two-boom') & vars_df[cols[1]] != 'tx']
+    
+#     elif booms==2:
+#         if data_type !='TX':
+#             names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
+#         else:
+#             names = vars_df.loc[(vars_df[cols[0]] != 'two-boom') & vars_df[cols[1]] != 'tx']
+       
+#     for v in list(names.index):
+#         if v not in list(ds.variables):
+#             ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
+#     return ds
+
 #------------------------------------------------------------------------------
 
 if __name__ == "__main__": 

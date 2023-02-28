@@ -1,27 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep 9 13:44:49 2021
-Major modifications: Oct 2022
-
-@author: pho, pajwr
-
-Functions for converting PROMICE .csv files to WMO-compliant BUFR files
-Imported by pypromice/bin/getBUFR
-
-This script uses the package eccodes to run. 
-https://confluence.ecmwf.int/display/ECC/ecCodes+installation
-Eccodes is the official package for WMO BUFR file construction. Eccodes must 
-be configured on your computer BEFORE downloading the eccodes python bindings.
-Eccodes can be configured with the conda python bindings, using the command
-'conda install eccodes', however this didn't seem to work for me. Instead, I 
-built eccodes separately and then installed the python bindings using pip3.
- 
-See here for a step-by-step guide on the eccodes set-up:
-https://gist.github.com/MHBalsmeier/a01ad4e07ecf467c90fad2ac7719844a
-
-Processing steps based on this example:
-https://confluence.ecmwf.int/display/UDOC/How+do+I+create+BUFR+from+a+CSV+-+ecCodes+BUFR+FAQ
+Post-processing functions for AWS station data, such as converting PROMICE and GC-Net data files to WMO-compliant BUFR files
 """
 import pandas as pd
 import sys, traceback

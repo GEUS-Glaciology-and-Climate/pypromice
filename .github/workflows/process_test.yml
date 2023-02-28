@@ -6,6 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    name: process_test
     steps:
       - name: Install Python
         uses: actions/setup-python@v2
@@ -36,7 +37,7 @@ jobs:
         run: |
           mkdir $GITHUB_WORKSPACE/out/
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do
-            python3 $GITHUB_WORKSPACE/main/bin/getL3 -v $GITHUB_WORKSPACE/main/src/pypromice/variables.csv -m $GITHUB_WORKSPACE/main/src/pypromice/metadata.csv -c $GITHUB_WORKSPACE/aws-l0/raw/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/raw -o $GITHUB_WORKSPACE/out/
+            python3 $GITHUB_WORKSPACE/main/bin/getL3 -v $GITHUB_WORKSPACE/main/src/pypromice/process/variables.csv -m $GITHUB_WORKSPACE/main/src/pypromice/process/metadata.csv -c $GITHUB_WORKSPACE/aws-l0/raw/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/raw -o $GITHUB_WORKSPACE/out/
           done
       - name: Upload test output
         uses: actions/upload-artifact@v3

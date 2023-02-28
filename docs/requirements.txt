@@ -1,8 +1,8 @@
-sphinx_rtd_theme
 datetime
 eccodes
 numpy
 pandas
-sklearn
+scikit-learn
+sphinx_rtd_theme
 toml
 xarray

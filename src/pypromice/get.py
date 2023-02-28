@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-pypromice data retrieval module
+AWS data retrieval module
 """
 import pandas as pd
-import unittest
+import unittest, pkg_resources
 from datetime import datetime
-
         
-def aws_names(url_index='data_urls.csv'):
+def aws_names(url_index=None, delimiter=','):
     '''Return PROMICE and GC-Net AWS names that can be used in get.aws_data() 
     fetching'''
-    with open(url_index, 'r') as f:
-        lines = f.readlines()
-    names = [l.split(',')[0] for l in lines]
+    if url_index is None:
+        with pkg_resources.resource_stream('pypromice', 'data_urls.csv') as stream:
+            lines = stream.read().decode("utf-8")
+            lines = lines.split("\n")
+    else:
+        stream = url_index 
+        with open(stream, 'r') as f:
+            lines = f.readlines()
+    names = [l.split(delimiter)[0] for l in lines]
     print(f'Available dataset keywords: {names}')
     return names    
     
@@ -25,7 +30,7 @@ def aws_data(aws_name):                                                        #
     df : pandas.DataFrame
         AWS observations dataframe
     '''
-    URL = _getURL(aws_name.lower()+'_hour', url_index='data_urls.csv')
+    URL = _getURL(aws_name.lower()+'_hour')
     df = pd.read_csv(URL, index_col=0, parse_dates=True)
     return df
     
@@ -37,7 +42,7 @@ def watson_discharge_hourly():
     df : pandas.DataFrame
         Watson river discharge dataframe    
     '''
-    URL = _getURL('watson_discharge_hourly', 'data_urls.csv')
+    URL = _getURL('watson_discharge_hourly')
     df = pd.read_csv(URL, sep="\s+", parse_dates=[[0,1,2,3]])\
             .rename({"WaterFluxDiversOnly(m3/s)"         : "divers",
                     "Uncertainty(m3/s)"                 : "divers_err",
@@ -59,7 +64,7 @@ def watson_discharge_daily():
         # self.assertFalse(e.mtmsn)
         Watson river discharge dataframe    
     '''
-    URL = _getURL('watson_discharge_daily', 'data_urls.csv')
+    URL = _getURL('watson_discharge_daily')
     df = pd.read_csv(URL, sep="\s+", parse_dates=[[0,1,2]], index_col=0)\
             .rename({"WaterFluxDiversOnly(m3/s)"         : "divers",
                     "Uncertainty(m3/s)"                 : "divers_err",
@@ -71,7 +76,65 @@ def watson_discharge_daily():
     df.index.name = "Date"
     return df   
 
-def _getURL(name, url_index, delimiter=','):
+# def basal_melt():                                                              #TODO fix this
+#     '''Return PROMICE basal melt data
+#     )
+#     Returns
+#     -------
+#     df : pandas.DataFrame
+#         Watson river discharge dataframe    
+#     '''    
+#     URL1 = _getURL('basal_melt', 'data_urls.csv')
+#     URL2 = _getURL('heat_sources', 'data_urls.csv')
+
+#     with fsspec.open(URL1) as fobj:
+#         basal = xr.open_dataset(fobj)
+#     with fsspec.open(URL2) as fobj:
+#         heat = xr.open_dataset(URL2)
+        
+#     return basal, heat
+
+# # Use xarray with HTTP: https://github.com/pydata/xarray/issues/3653#issuecomment-570163736
+# def ice_discharge(resolution="GIS"):
+#     res_file = {"gate": "https://dataverse01.geus.dk/api/access/datafile/:persistentId?persistentId=doi:10.22008/promice/data/ice_discharge/d/v02/IRLTR2",
+#                 "sector": "https://dataverse01.geus.dk/api/access/datafile/:persistentId?persistentId=doi:10.22008/promice/data/ice_discharge/d/v02/UXWVIF",
+#                 "region": "https://dataverse01.geus.dk/api/access/datafile/:persistentId?persistentId=doi:10.22008/promice/data/ice_discharge/d/v02/B3PQEH",
+#                 "GIS": "https://dataverse01.geus.dk/api/access/datafile/:persistentId?persistentId=doi:10.22008/promice/data/ice_discharge/d/v02/ANRF6L"}
+    
+#     assert(resolution in res_file.keys())
+#     URL = res_file[resolution]
+#     print(URL)
+#     # download_warn(URL)
+#     with fsspec.open(URL) as fobj:
+#         ds = xr.open_dataset(fobj)
+
+#     return ds
+    
+# def gates():
+#     '''Return PROMICE ice discharge gates
+    
+#     Returns
+#     -------
+#     df : pandas.DataFrame
+#         Ice discharge gates dataframe    
+#     '''
+#     URL = getURL('ice_discharge_gates')
+#     df = pd.read_csv(URL, delimiter="\t", index_col=0, parse_dates=[[0,1,2]])
+#     return df
+
+# def ice_extent():
+#     '''Return PROMICE ice extent
+    
+#     Returns
+#     -------)
+#     df : geopandas.GeoDataFrame
+#         Ice extent geodataframe    
+#     '''
+#     URL = getURL('ice_extent')
+#     df = gpd.read_file(URL)
+#     return df
+
+def _getURL(name, url_index=None, delimiter=','):
     '''Get Dataset URL from index file
     
     Parameters
@@ -84,8 +147,14 @@ def _getURL(name, url_index, delimiter=','):
         String delimiter. Default is ","
     '''
     url = None
-    with open(url_index, 'r') as f:
-        lines = f.readlines()
+    if url_index is None:
+        with pkg_resources.resource_stream('pypromice', 'data_urls.csv') as stream:
+            lines = stream.read().decode("utf-8")
+            lines = lines.split("\n")
+    else:
+        stream = url_index 
+        with open(stream, 'r') as f:
+            lines = f.readlines()
     for l in lines:
         if name in l:
             url = l.split(delimiter)[1]
@@ -119,7 +188,7 @@ def _getDFdatetime(df, dt_str, dt_format='%Y %m %d %H'):
 class TestGet(unittest.TestCase): 
     def testURL(self):
         '''Test URL retrieval'''
-        u = _getURL('watson_discharge_hourly', 'data_urls.csv')
+        u = _getURL('watson_discharge_hourly')
         self.assertTrue('doi:10.22008/FK2' in u)
     
     def testAWSname(self):  
@@ -144,4 +213,4 @@ class TestGet(unittest.TestCase):
         self.assertTrue(wd['Q']['2021-10-27']==5.48)
             
 if __name__ == "__main__": 
-    unittest.main()   
+    unittest.main()

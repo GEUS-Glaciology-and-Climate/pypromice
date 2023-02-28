@@ -1,0 +1,4 @@
+include src/pypromice/*.csv
+include src/pypromice/process/*.csv
+include src/pypromice/tx/*.csv
+include src/pypromice/test/*

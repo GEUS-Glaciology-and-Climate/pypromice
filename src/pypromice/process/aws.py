@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-pypromice AWS processing module
+AWS data processing module
 """
 from importlib import metadata
-import os, unittest, toml, datetime, uuid
+import os, unittest, toml, datetime, uuid, pkg_resources
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -14,9 +14,9 @@ try:
     from L1toL2 import toL2
     from L2toL3 import toL3
 except:
-    from pypromice.L0toL1 import toL1
-    from pypromice.L1toL2 import toL2
-    from pypromice.L2toL3 import toL3
+    from pypromice.process.L0toL1 import toL1
+    from pypromice.process.L1toL2 import toL2
+    from pypromice.process.L2toL3 import toL3
 
 pd.set_option('display.precision', 2)
 xr.set_options(keep_attrs=True)
@@ -26,8 +26,7 @@ xr.set_options(keep_attrs=True)
 class AWS(object):
     '''AWS object to load and process PROMICE AWS data'''
     
-    def __init__(self, config_file, inpath, var_file='./variables.csv', 
-                 meta_file='./metadata.csv'):
+    def __init__(self, config_file, inpath, var_file=None, meta_file=None):
         '''Object initialisation
 
         Parameters
@@ -37,9 +36,11 @@ class AWS(object):
         inpath : str
             Input file path
         var_file: str, optional
-            Variables look-up table file path. The default is "./variables.csv".
+            Variables look-up table file path. If not given then pypromice's 
+            variables file is used. The default is None.
         meta_file: str, optional
-            Metadata info file path. The default is "./metadata.csv"
+            Metadata info file path. If not given then pypromice's 
+            metadata file is used. The default is None.
         '''
         assert(os.path.isfile(config_file))
         assert(os.path.isdir(inpath))
@@ -75,7 +76,6 @@ class AWS(object):
         
     def write(self, outpath):
         '''Write L3 data to .csv and .nc file'''
-        # Save to file if outpath given
         if os.path.isdir(outpath):
             self.writeArr(outpath)
         else:
@@ -294,7 +294,6 @@ def getConfig(config_file, inpath):
     for t in top: conf.pop(t)                                                  # Delete all top level keys beause each file
                                                                                # should carry all properties with it
     for k in conf.keys():                                                      # Check required fields are present
-        print(k)
         for field in ["columns", "station_id", "format", "skiprows"]:
             assert(field in conf[k].keys())
     return conf
@@ -722,7 +721,7 @@ def addMeta(ds, meta):
     return ds
 
 
-def getVars(v_file):
+def getVars(v_file=None):
    '''Load variables.csv file
    
    Parameters
@@ -735,9 +734,13 @@ def getVars(v_file):
    pandas.DataFrame
        Variables dataframe
    '''
-   return pd.read_csv(v_file, index_col=0, comment="#")
+   if v_file is None:
+        with pkg_resources.resource_stream('pypromice', 'process/variables.csv') as stream:
+            return pd.read_csv(stream, index_col=0, comment="#", encoding='utf-8')
+   else:
+        return pd.read_csv(v_file, index_col=0, comment="#")
 
-def getMeta(m_file, delimiter=','):                                            #TODO change to DataFrame output to match variables.csv
+def getMeta(m_file=None, delimiter=','):                                            #TODO change to DataFrame output to match variables.csv
     '''Load metadata table
     
     Parameters
@@ -753,12 +756,20 @@ def getMeta(m_file, delimiter=','):                                            #
         Metadata dictionary
     '''
     meta={}
-    with open(m_file, 'r') as f:
-        lines = f.readlines()
+    if m_file is None:
+        with pkg_resources.resource_stream('pypromice', 'process/metadata.csv') as stream:
+            lines = stream.read().decode("utf-8")
+            lines = lines.split("\n") 
+    else:        
+        with open(m_file, 'r') as f:
+            lines = f.readlines()
     for l in lines[1:]:
-        meta[l.split(',')[0]] = l.split(delimiter)[1].split('\n')[0].replace(';',',')        
+        try:
+            meta[l.split(',')[0]] = l.split(delimiter)[1].split('\n')[0].replace(';',',')  
+        except IndexError:
+            pass
     return meta
-
+    
 def resampleL3(ds_h, t):
     '''Resample L3 AWS data, e.g. hourly to daily average. This uses pandas 
     DataFrame resampling at the moment as a work-around to the xarray Dataset
@@ -834,22 +845,21 @@ class TestProcess(unittest.TestCase):
 
     def testgetVars(self):
         '''Test variable table lookup retrieval'''
-        v = getVars('variables.csv')
+        v = getVars()
         self.assertIsInstance(v, pd.DataFrame)
         self.assertTrue(v.columns[0] in 'standard_name')
         self.assertTrue(v.columns[2] in 'units')
         
     def testgetMeta(self):  
         '''Test AWS names retrieval'''
-        m = getMeta('metadata.csv')
+        m = getMeta()
         self.assertIsInstance(m, dict)
         self.assertTrue('references' in m)
     
     def testAddAll(self):
         '''Test variable and metadata attributes added to Dataset'''
         d = xr.Dataset()
-    
-        v = getVars('variables.csv')    
+        v = getVars()    
         att = list(v.index)
         att1 = ['gps_lon', 'gps_lat', 'gps_alt', 'albedo', 'p']
         for a in att:
@@ -859,7 +869,7 @@ class TestProcess(unittest.TestCase):
         d['time'] = [datetime.datetime.now(), 
                      datetime.datetime.now()-timedelta(days=365)]
         d.attrs['station_id']='TEST'
-        meta = getMeta('metadata.csv')
+        meta = getMeta()
         d = addVars(d, v)
         d = addMeta(d, meta)
         self.assertTrue(d.attrs['station_id']=='TEST')
@@ -867,9 +877,11 @@ class TestProcess(unittest.TestCase):
 
     def testL0toL3(self):
         '''Test L0 to L3 processing'''
-        config_file = 'test/test_config1.toml'
-        inpath= 'test/'
-        pAWS = AWS(config_file, inpath)
+        try:
+            pAWS = AWS(os.path.join(os.path.dirname('pypromice'),'test/test_config1.toml'),
+                       os.path.join(os.path.dirname('pypromice'),'test'))
+        except:
+            pAWS = AWS('../test/test_config1.toml', '../test/')    
         pAWS.process()
         self.assertIsInstance(pAWS.L3, xr.Dataset)
         self.assertTrue(pAWS.L3.attrs['station_id']=='TEST1')

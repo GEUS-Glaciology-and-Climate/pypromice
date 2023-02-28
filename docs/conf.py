@@ -13,9 +13,7 @@
 import sphinx_rtd_theme
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../src'))
-sys.path.insert(0, os.path.abspath('../src/pypromice'))
-sys.path.insert(0, os.path.abspath('../src/pypromice/postprocess'))
+sys.path.insert(0, os.path.abspath('../src/pypromice/'))
 
 # -- Project information -----------------------------------------------------
 
@@ -44,7 +42,7 @@ napoleon_google_docstring = False
 napoleon_numpy_docstring = True   
 napoleon_use_ivar = True 
 
-# autodoc_mock_imports = ['xarray']
+autodoc_mock_imports = ['pypromice', 'eccodes']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
