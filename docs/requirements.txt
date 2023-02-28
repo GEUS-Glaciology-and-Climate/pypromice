@@ -2,7 +2,6 @@ datetime
 eccodes
 numpy
 pandas
-pypromice
 scikit-learn
 sphinx_rtd_theme
 toml
