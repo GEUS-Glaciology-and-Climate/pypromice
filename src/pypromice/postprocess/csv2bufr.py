@@ -230,6 +230,9 @@ def setBUFRvalue(ibufr, b_name, value):
 def linear_fit(df, column, decimals, stid):
     '''Apply a linear regression to the input column
 
+    Linear regression is following:
+    https://realpython.com/linear-regression-in-python/#simple-linear-regression-with-scikit-learn
+
     Parameters
     ----------
     df : pandas.Dataframe
@@ -245,9 +248,6 @@ def linear_fit(df, column, decimals, stid):
     -------
     df : pandas.Dataframe
         The original input df, with added column for the linear regression values
-
-    Linear regression is following:
-    https://realpython.com/linear-regression-in-python/#simple-linear-regression-with-scikit-learn
     '''
     if column in df:
         df_dropna = df[df[column].notna()] # limit to only non-nan for the target column
