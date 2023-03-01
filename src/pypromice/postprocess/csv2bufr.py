@@ -355,6 +355,7 @@ def write_positions(s, stid, positions):
     positions : dict
         Modified dict storing current station positions.
     '''
+    print('writing positions for {}'.format(stid))
     to_write = ['lat','lon','alt']
     for i in to_write:
         if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
@@ -370,10 +371,9 @@ def fetch_old_positions(df, stid, time_limit, positions):
     positions to AWS_station_locations.csv. We run this if a station
     is skipped for BUFR processing or does not have new or recent-enough
     obs, but we still want to find the last position if we have it.
-    Must have data within previous 3 months. Must pass --positions arg.
-
-    NOTE: We could implement a way to look further back in time for
-    most-recent position...
+    Must pass --positions arg. The last position is using the previous
+    3 months best fit from the last transmission we have, could be many
+    months or even years ago.
 
     Parameters
     ----------
@@ -397,8 +397,9 @@ def fetch_old_positions(df, stid, time_limit, positions):
     # positions (if they are present). Important to do this first, and then apply linear fit
     # to the resulting single array. Otherwise, we can have jumps when the GPS data goes out
     # or comes back. The message coordinates can sometimes all be 0.0, so we check for this.
-
+    print('fetching old positions for {}'.format(stid))
     df_limited = df.last(time_limit)
+    print('last transmission: {}'.format(df_limited.index.max()))
 
     if ('msg_lat' in df_limited) and ('msg_lon' in df_limited):
         if (0.0 not in df_limited['msg_lat'].values):
