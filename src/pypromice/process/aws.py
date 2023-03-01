@@ -892,12 +892,13 @@ if __name__ == "__main__":
 
     # # Test an individual station
     # test_station = 'xxx'
-    # config_file = '../../../aws-l0/raw/config/{}.toml'.format(test_station)
-    # # config_file = '../../../aws-l0/tx/config/{}.toml'.format(test_station)
-    # inpath= '../../../aws-l0/raw/{}/'.format(test_station)
-    # # inpath= '../../../aws-l0/tx/'
+    # # config_file = '../../../../aws-l0/raw/config/{}.toml'.format(test_station)
+    # config_file = '../../../../aws-l0/tx/config/{}.toml'.format(test_station)
+    # # inpath= '../../../../aws-l0/raw/{}/'.format(test_station)
+    # inpath= '../../../../aws-l0/tx/'
     # vari = 'variables.csv'
     # pAWS_gc = AWS(config_file, inpath, var_file=vari)
+    # pAWS_gc.process()
     # pAWS_gc.getL1()
     # pAWS_gc.getL2()
     # pAWS_gc.getL3()
