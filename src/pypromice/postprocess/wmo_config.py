@@ -34,6 +34,16 @@ vars_to_skip = { # skip specific variables for stations
     'NAU': ['p_i']
 }
 
+positions_seed = { # discontinued stations that are not in aws-l3/tx but still present in aws-l3/level_3
+    # enter last known positions and timestamp of last transmission
+    'TAS_U': {'lat':65.6978, 'lon':-38.8668, 'alt':570.0,  'timestamp':'2015-08-13 14:00:00'},
+    'QAS_A': {'lat':61.243,  'lon':-46.7328, 'alt':1000.0, 'timestamp':'2015-08-24 17:00:00'},
+    'NUK_N': {'lat':64.9452, 'lon':-49.885,  'alt':920.0,  'timestamp':'2014-07-25 11:00:00'},
+    'KAN_B': {'lat':67.1252, 'lon':-50.1832, 'alt':350.0,  'timestamp':'2023-01-01 00:00:00'}, # bedrock station, not transmitting coordinates (placeholder timestamp)
+}
+
+positions_update_timestamp_only = ('KAN_B',)
+
 ibufr_settings = {
     'mobile': { # mobile stations (on moving ice)
         'template': {
