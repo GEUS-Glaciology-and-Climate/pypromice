@@ -11,7 +11,7 @@ import argparse
 from datetime import datetime, timedelta
 import pickle
 
-from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip
+from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, positions_seed, positions_update_timestamp_only
 from pypromice.postprocess.csv2bufr import getBUFR, linear_fit, rolling_window, round_values, \
 										   write_positions, fetch_old_positions, min_data_check
 
@@ -90,9 +90,10 @@ if __name__ == '__main__':
 
 	if args.positions is True:
 		# Initiate a dict to store station positions
+		# (seeded with initial positions from wmo_config.positions_seed)
 		# Used to retrieve a static set of positions to register stations with DMI/WMO
 		# Also used to write AWS_station_locations.csv to aws-l3 repo
-		positions = {}
+		positions = positions_seed
 
 	# Define stations to skip
 	to_skip = []
@@ -123,7 +124,7 @@ if __name__ == '__main__':
 			bufrname = stid + '.bufr'
 			print(f'Generating {bufrname} from {f}')
 
-			if args.positions is True:
+			if (args.positions is True) and (stid not in positions_update_timestamp_only):
 				positions[stid] = {}
 				# Optionally include source flag columns, useful to indicate if position
 				# comes from current transmission, or older data. This could also be used
@@ -138,7 +139,7 @@ if __name__ == '__main__':
 			df1.set_index(pd.to_datetime(df1['time']), inplace=True)
 			df1.sort_index(inplace=True) # make sure we are time-sorted
 
-			# Check that the last valid index for all instaneous values match
+			# Check that the last valid index for all instantaneous values match
 			# Note: we cannot always use the single most-recent timestamp in the dataframe
 			# e.g. for 6-hr transmissions, *_u will have hourly data while *_i is nan
 			# Need to check for last valid (non-nan) index instead
@@ -188,6 +189,7 @@ if __name__ == '__main__':
 				latest_timestamp = latest_timestamps[stid]
 
 				if args.dev is True:
+					print('---> Running in dev mode!')
 					# If we want to run repeatedly (before another transmission comes in), then don't
 					# check the actual latest timestamp, and just set to two_days_ago
 					latest_timestamp = two_days_ago
@@ -263,7 +265,8 @@ if __name__ == '__main__':
 			if args.positions is True:
 				# still will be useful to have all stations in AWS_station_location.csv,
 				# regardless if they were skipped for the DMI upload
-				positions[stid] = {}
+				if stid not in positions_update_timestamp_only:
+					positions[stid] = {}
 				df_skipped = pd.read_csv(f, delimiter=',')
 				df_skipped.set_index(pd.to_datetime(df_skipped['time']), inplace=True)
 				df_skipped.sort_index(inplace=True) # make sure we are time-sorted

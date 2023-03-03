@@ -17,8 +17,8 @@ stid_to_skip = { # All the following IDS will not be processed or submitted
     'discontinued': ['CEN1','TAS_U','QAS_A','NUK_N','THU_U','JAR','SWC'],
     'no_instantaneous': ['ZAK_L','ZAK_U','KAN_B'], # currently not transmitting instantaneous values
     'suspect_data': [], # instantaneous data is suspect
-    'use_v3': ['KPC_L','NUK_U','ZAK_U','QAS_U'], # use v3 versions instead (but registered IDs are non-v3 names)
-    'v3_bad': ['KPC_Uv3','QAS_Lv3'] # KPC_Uv3 years are 2056, QAS_Lv3 new ablation sensor w/different txt fields?
+    'use_v3': ['KPC_L','KPC_U','NUK_U','ZAK_U','QAS_U'], # use v3 versions instead (but registered IDs are non-v3 names)
+    'v3_bad': ['QAS_Lv3'] # QAS_Lv3 new ablation sensor & non-standard logger program. Must be addressed in field. Talk to RSF.
     # Eventually, as we change all stations to v3, the use_v3 list should be empty (there will not be v3 and non-v3 stations operating together)
     # If your remove a station from 'v3_bad', then add it to 'use_v3' if both v2 and v3 stations still exist together
 }
@@ -33,6 +33,16 @@ vars_to_skip = { # skip specific variables for stations
     'CP1': ['p_i'],
     'NAU': ['p_i']
 }
+
+positions_seed = { # discontinued stations that are not in aws-l3/tx but still present in aws-l3/level_3
+    # enter last known positions and timestamp of last transmission
+    'TAS_U': {'lat':65.6978, 'lon':-38.8668, 'alt':570.0,  'timestamp':'2015-08-13 14:00:00'},
+    'QAS_A': {'lat':61.243,  'lon':-46.7328, 'alt':1000.0, 'timestamp':'2015-08-24 17:00:00'},
+    'NUK_N': {'lat':64.9452, 'lon':-49.885,  'alt':920.0,  'timestamp':'2014-07-25 11:00:00'},
+    'KAN_B': {'lat':67.1252, 'lon':-50.1832, 'alt':350.0,  'timestamp':'2023-01-01 00:00:00'}, # bedrock station, not transmitting coordinates (placeholder timestamp)
+}
+
+positions_update_timestamp_only = ('KAN_B',)
 
 ibufr_settings = {
     'mobile': { # mobile stations (on moving ice)

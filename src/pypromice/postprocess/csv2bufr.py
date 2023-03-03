@@ -13,7 +13,7 @@ import math
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, vars_to_skip
+from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, vars_to_skip, positions_update_timestamp_only
 
 # from IPython import embed
 
@@ -230,6 +230,9 @@ def setBUFRvalue(ibufr, b_name, value):
 def linear_fit(df, column, decimals, stid):
     '''Apply a linear regression to the input column
 
+    Linear regression is following:
+    https://realpython.com/linear-regression-in-python/#simple-linear-regression-with-scikit-learn
+
     Parameters
     ----------
     df : pandas.Dataframe
@@ -245,9 +248,6 @@ def linear_fit(df, column, decimals, stid):
     -------
     df : pandas.Dataframe
         The original input df, with added column for the linear regression values
-
-    Linear regression is following:
-    https://realpython.com/linear-regression-in-python/#simple-linear-regression-with-scikit-learn
     '''
     if column in df:
         df_dropna = df[df[column].notna()] # limit to only non-nan for the target column
@@ -337,7 +337,7 @@ def round_values(s):
     return s
 
 def write_positions(s, stid, positions):
-    '''Set valid lat, lon, alt to the positions dict.
+    '''Set valid lat, lon, alt and timestamp to the positions dict.
     For submitting registration metadata to DMI/WMO, and for writing
     positions to AWS_station_locations.csv. Must pass --positions arg.
 
@@ -355,6 +355,7 @@ def write_positions(s, stid, positions):
     positions : dict
         Modified dict storing current station positions.
     '''
+    print('writing positions for {}'.format(stid))
     to_write = ['lat','lon','alt']
     for i in to_write:
         if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
@@ -365,15 +366,14 @@ def write_positions(s, stid, positions):
     return positions
 
 def fetch_old_positions(df, stid, time_limit, positions):
-    '''Set valid lat, lon, alt to the positions dict.
+    '''Set valid lat, lon, alt and timestamp to the positions dict.
     For submitting registration metadata to DMI/WMO, and for writing
     positions to AWS_station_locations.csv. We run this if a station
     is skipped for BUFR processing or does not have new or recent-enough
     obs, but we still want to find the last position if we have it.
-    Must have data within previous 3 months. Must pass --positions arg.
-
-    NOTE: We could implement a way to look further back in time for
-    most-recent position...
+    Must pass --positions arg. The last position is using the previous
+    3 months best fit from the last transmission we have, could be many
+    months or even years ago.
 
     Parameters
     ----------
@@ -392,13 +392,14 @@ def fetch_old_positions(df, stid, time_limit, positions):
     positions : dict
         Modified dict storing most-recent station positions.
     '''
-    # Combine gps and msg lat and lon using combine_first()
+    # Combine gps positions and modem-derived positions using combine_first()
     # If any GPS positions are missing, we will fill the missing GPS positions with modem
     # positions (if they are present). Important to do this first, and then apply linear fit
     # to the resulting single array. Otherwise, we can have jumps when the GPS data goes out
     # or comes back. The message coordinates can sometimes all be 0.0, so we check for this.
-
+    print('fetching old positions for {}'.format(stid))
     df_limited = df.last(time_limit)
+    print('last transmission: {}'.format(df_limited.index.max()))
 
     if ('msg_lat' in df_limited) and ('msg_lon' in df_limited):
         if (0.0 not in df_limited['msg_lat'].values):
@@ -414,18 +415,18 @@ def fetch_old_positions(df, stid, time_limit, positions):
 
     # Go through gps_lat_fit, gps_lon_fit and gps_alt_fit and keep the most recent
     # valid index. They should all be the same. Or, if modem-derived, we will have
-    # only lat and lon (with same index). But this treatment covers all possible
+    # only lat and lon (with same index). This treatment covers all possible
     # scenarios of missing data.
     pos_strings = ['lat','lon','alt']
     pos_timestamps = []
     valid_timestamp_found = False
     recent_timestamp = pd.to_datetime('1900-01-01') # initialize with an old date
     for p in pos_strings:
+        # search for a valid timestamp associated with a non-nan position
         p_timestamp = df_limited[f'gps_{p}_fit'].last_valid_index()
         if (p_timestamp is not None) and (p_timestamp > recent_timestamp):
             recent_timestamp = p_timestamp
             valid_timestamp_found = True
-
     if valid_timestamp_found:
         s = df_limited.loc[recent_timestamp]
 
@@ -437,6 +438,10 @@ def fetch_old_positions(df, stid, time_limit, positions):
 
         # Add timestamp
         positions[stid]['timestamp'] = s['time']
+    elif stid in positions_update_timestamp_only:
+        # we don't have a position-associated timestamp, just use the most recent transmission
+        positions[stid]['timestamp'] = df_limited.index.max()
+
     return positions
 
 
