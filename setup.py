@@ -30,6 +30,6 @@ setuptools.setup(
     include_package_data = True,
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.8",
-    install_requires=['numpy>=1.23.0', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'scikit-learn>=1.1.0', 'Bottleneck', 'netcdf4'],
+    install_requires=['numpy>=1.23.0', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'scikit-learn>=1.1.0', 'Bottleneck', 'netcdf4', 'pyDataverse'],
     scripts=['bin/getData', 'bin/getL0tx', 'bin/getL3', 'bin/joinL3', 'bin/getWatsontx', 'bin/getBUFR', 'bin/getMsg'],
 )

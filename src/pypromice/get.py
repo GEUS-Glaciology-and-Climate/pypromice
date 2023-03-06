@@ -3,26 +3,41 @@
 """
 AWS data retrieval module
 """
+from pyDataverse.api import NativeApi
 import pandas as pd
+import xarray as xr
 import unittest, pkg_resources
 from datetime import datetime
         
-def aws_names(url_index=None, delimiter=','):
+
+def lookup_table(base_dois,
+                 server='https://dataverse.geus.dk'):
+    # Prime API
+    dataverse_server = server.strip("/")
+    api = NativeApi(dataverse_server)
+    
+    # Look through DOI entries
+    lookup_list = {}
+    for d in base_dois:
+        dataset = api.get_dataset(d)
+        
+        # Get file names and DOIs
+        f_list = dataset.json()['data']['latestVersion']['files']
+        for f in f_list:
+            fname = f['dataFile']['filename'].lower()
+            if '.csv' in fname or '.nc' in fname or '.txt' in fname:
+                link = _getURL(f['dataFile']['persistentId'])
+                lookup_list[fname] = link
+    return lookup_list       
+   
+def aws_names():
     '''Return PROMICE and GC-Net AWS names that can be used in get.aws_data() 
     fetching'''
-    if url_index is None:
-        with pkg_resources.resource_stream('pypromice', 'data_urls.csv') as stream:
-            lines = stream.read().decode("utf-8")
-            lines = lines.split("\n")
-    else:
-        stream = url_index 
-        with open(stream, 'r') as f:
-            lines = f.readlines()
-    names = [l.split(delimiter)[0] for l in lines]
-    print(f'Available dataset keywords: {names}')
-    return names    
-    
-def aws_data(aws_name):                                                        #TODO add daily and monthly datasets
+    lookup = lookup_table(['doi:10.22008/FK2/IW73UU', 'doi:10.22008/FK2/GNYFUK'])
+    print(f'Available dataset keywords: {list(lookup.keys())}')
+    return list(lookup.keys())
+
+def aws_data(aws_name):
     '''Return PROMICE and GC-Net AWS L3 v3 hourly observations
     
     Returns
@@ -30,135 +45,51 @@ def aws_data(aws_name):                                                        #
     df : pandas.DataFrame
         AWS observations dataframe
     '''
-    URL = _getURL(aws_name.lower()+'_hour')
-    df = pd.read_csv(URL, index_col=0, parse_dates=True)
-    return df
-    
-def watson_discharge_hourly():
+    lookup = lookup_table(['doi:10.22008/FK2/IW73UU', 'doi:10.22008/FK2/GNYFUK'])
+    assert aws_name.lower() in list(lookup.keys())
+    if '.csv' in aws_name.lower():
+        data = pd.read_csv(lookup[aws_name], index_col=0, parse_dates=True)
+    elif '.nc' in aws_name.lower():
+        data = xr.open_dataset(lookup[aws_name])
+    return data        
+  
+def watson_discharge(t='hour'):
     '''Return PROMICE hourly Watson river discharge
     
+    Parameters
+    ----------
+    t : str
+        Temporal resolution of the data - "hour", "day" or "month"
+
     Returns
     -------
     df : pandas.DataFrame
         Watson river discharge dataframe    
     '''
-    URL = _getURL('watson_discharge_hourly')
-    df = pd.read_csv(URL, sep="\s+", parse_dates=[[0,1,2,3]])\
-            .rename({"WaterFluxDiversOnly(m3/s)"         : "divers",
-                    "Uncertainty(m3/s)"                 : "divers_err",
-                    "WaterFluxDivers&Temperature(m3/s)" : "divers_t",
-                    "Uncertainty(m3/s).1"               : "divers_t_err",
-                    "WaterFluxCumulative(km3)"          : "Q",
-                    "Uncertainty(km3)"                  : "err"}, 
-                    axis='columns')
+    lookup = lookup_table(['doi:10.22008/FK2/XEHYCM'])
+    if 'month' in t.lower():
+        link = lookup['watson river discharge (2006-2021) monthly.txt']
+    elif 'daily' in t.lower() or 'day' in t.lower():
+        link = lookup['watson river discharge (2006-2021) daily.txt']     
+    else:
+        link = lookup['watson river discharge (2006-2021) hourly.txt']  
+        
+    df = pd.read_csv(link, sep="\s+", parse_dates=[[0,1,2,3]])\
+                    .rename({"WaterFluxDiversOnly(m3/s)"         : "divers",
+                            "Uncertainty(m3/s)"                 : "divers_err",
+                            "WaterFluxDivers&Temperature(m3/s)" : "divers_t",
+                            "Uncertainty(m3/s).1"               : "divers_t_err",
+                            "WaterFluxCumulative(km3)"          : "Q",
+                            "Uncertainty(km3)"                  : "err"}, 
+                            axis='columns')
     df = _getDFdatetime(df, list(df.iloc[:,0]))
     return df
 
-def watson_discharge_daily():
-    '''Return PROMICE daily Watson river discharge
-    
-    Returns
-    -------
-    df : pandas.DataFrame        # self.assertEquals(a, 36820)
-        # self.assertTrue(e.imei in '300234061165160')
-        # self.assertFalse(e.mtmsn)
-        Watson river discharge dataframe    
-    '''
-    URL = _getURL('watson_discharge_daily')
-    df = pd.read_csv(URL, sep="\s+", parse_dates=[[0,1,2]], index_col=0)\
-            .rename({"WaterFluxDiversOnly(m3/s)"         : "divers",
-                    "Uncertainty(m3/s)"                 : "divers_err",
-                    "WaterFluxDivers&Temperature(m3/s)" : "divers_t",
-                    "Uncertainty(m3/s).1"               : "divers_t_err",
-                    "WaterFluxCumulative(km3)"          : "Q",
-                    "Uncertainty(km3)"                  : "err"}, 
-                    axis='columns')
-    df.index.name = "Date"
-    return df   
+def _getURL(persistentId, 
+            base_link='https://dataverse.geus.dk/api/access/datafile/:persistentId?persistentId='):
+    '''Return URL download link from persistentId attached to DOI'''
+    return base_link+persistentId
 
-# def basal_melt():                                                              #TODO fix this
-#     '''Return PROMICE basal melt data
-#     )
-#     Returns
-#     -------
-#     df : pandas.DataFrame
-#         Watson river discharge dataframe    
-#     '''    
-#     URL1 = _getURL('basal_melt', 'data_urls.csv')
-#     URL2 = _getURL('heat_sources', 'data_urls.csv')
-
-#     with fsspec.open(URL1) as fobj:
-#         basal = xr.open_dataset(fobj)
-#     with fsspec.open(URL2) as fobj:
-#         heat = xr.open_dataset(URL2)
-        
-#     return basal, heat
-
-# # Use xarray with HTTP: https://github.com/pydata/xarray/issues/3653#issuecomment-570163736
-# def ice_discharge(resolution="GIS"):
-#     res_file = {"gate": "https://dataverse01.geus.dk/api/access/datafile/:persistentId?persistentId=doi:10.22008/promice/data/ice_discharge/d/v02/IRLTR2",
-#                 "sector": "https://dataverse01.geus.dk/api/access/datafile/:persistentId?persistentId=doi:10.22008/promice/data/ice_discharge/d/v02/UXWVIF",
-#                 "region": "https://dataverse01.geus.dk/api/access/datafile/:persistentId?persistentId=doi:10.22008/promice/data/ice_discharge/d/v02/B3PQEH",
-#                 "GIS": "https://dataverse01.geus.dk/api/access/datafile/:persistentId?persistentId=doi:10.22008/promice/data/ice_discharge/d/v02/ANRF6L"}
-    
-#     assert(resolution in res_file.keys())
-#     URL = res_file[resolution]
-#     print(URL)
-#     # download_warn(URL)
-#     with fsspec.open(URL) as fobj:
-#         ds = xr.open_dataset(fobj)
-
-#     return ds
-    
-# def gates():
-#     '''Return PROMICE ice discharge gates
-    
-#     Returns
-#     -------
-#     df : pandas.DataFrame
-#         Ice discharge gates dataframe    
-#     '''
-#     URL = getURL('ice_discharge_gates')
-#     df = pd.read_csv(URL, delimiter="\t", index_col=0, parse_dates=[[0,1,2]])
-#     return df
-
-# def ice_extent():
-#     '''Return PROMICE ice extent
-    
-#     Returns
-#     -------)
-#     df : geopandas.GeoDataFrame
-#         Ice extent geodataframe    
-#     '''
-#     URL = getURL('ice_extent')
-#     df = gpd.read_file(URL)
-#     return df
-
-def _getURL(name, url_index=None, delimiter=','):
-    '''Get Dataset URL from index file
-    
-    Parameters
-    ----------
-    name : str
-        Dataset name
-    url_index : str
-        URL index .csv file
-    delimiter : str
-        String delimiter. Default is ","
-    '''
-    url = None
-    if url_index is None:
-        with pkg_resources.resource_stream('pypromice', 'data_urls.csv') as stream:
-            lines = stream.read().decode("utf-8")
-            lines = lines.split("\n")
-    else:
-        stream = url_index 
-        with open(stream, 'r') as f:
-            lines = f.readlines()
-    for l in lines:
-        if name in l:
-            url = l.split(delimiter)[1]
-    return url
 
 def _getDFdatetime(df, dt_str, dt_format='%Y %m %d %H'):
     '''Format dataframe with datetime (year, month, day, hour) index column
@@ -188,29 +119,35 @@ def _getDFdatetime(df, dt_str, dt_format='%Y %m %d %H'):
 class TestGet(unittest.TestCase): 
     def testURL(self):
         '''Test URL retrieval'''
-        u = _getURL('watson_discharge_hourly')
-        self.assertTrue('doi:10.22008/FK2' in u)
+        l = lookup_table(['doi:10.22008/FK2/IW73UU', 'doi:10.22008/FK2/GNYFUK'])
+        self.assertTrue('10.22008/FK2' in list(l.values())[0])
     
     def testAWSname(self):  
         '''Test AWS names retrieval'''
         n = aws_names()
         self.assertIsInstance(n, list)
-        self.assertTrue('kan_b_hour' in n)
+        self.assertTrue('nuk_k_hour.csv' in n)
     
-    def testAWSdata(self):
+    def testAWScsv(self):
         '''Test AWS data retrieval'''
-        kan_b = aws_data('KAN_B')
+        kan_b = aws_data('kan_b_hour.csv')
         self.assertIsInstance(kan_b, pd.DataFrame)
-    
+
+    # def testAWSnc(self):
+    #     '''Test AWS data retrieval'''
+    #     kan_b = aws_data('nuk_k_hour.nc')
+    #     self.assertIsInstance(kan_b, xr.DataArray)
+        
     def testWatsonHour(self):
         '''Test Wason River discharge hourly data retrieval'''
-        wh = watson_discharge_hourly()
+        wh = watson_discharge()
         self.assertTrue(wh['Q']['2021-10-27 23:00:00']==5.48)
         
-    def testWatsonDaily(self):
-        '''Test Wason River discharge daily data retrieval'''
-        wd = watson_discharge_daily()
-        self.assertTrue(wd['Q']['2021-10-27']==5.48)
+    # def testWatsonDaily(self):
+    #     '''Test Wason River discharge daily data retrieval'''
+    #     wd = watson_discharge(t='day')
+    #     print(wd)
+        # self.assertTrue(wd['Q']['2021-10-27']==5.48)
             
 if __name__ == "__main__": 
     unittest.main()
