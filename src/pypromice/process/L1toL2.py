@@ -129,10 +129,8 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
         ds['precip_u_cor'], ds['precip_u_rate'] = correctPrecip(ds['precip_u'], 
                                                                 ds['wspd_u'])
     if ds.attrs['number_of_booms']==2:      
-        T_l = ds['t_l'].copy(deep=True) 
-        T_100_l = _getTempK(T_l)                                               # Get steam point temperature in K
         ds['rh_l_cor'] = correctHumidity(ds['rh_l'], ds['t_l'], T_l,           # Correct relative humidity
-                                         T_0, T_100_l, ews, ei0)                          
+                                         T_0, T_100, ews, ei0)                          
         
         if ~ds['precip_l'].isnull().all() and precip_flag:                     # Correct precipitation
             ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],  
@@ -140,10 +138,8 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     
     if hasattr(ds,'t_i'):       
         if ~ds['t_i'].isnull().all():                                          # Instantaneous msg processing
-            T_i = ds['t_i'].copy(deep=True) 
-            T_100_i = _getTempK(T_i)                                           # Get steam point temperature in K
             ds['rh_i_cor'] = correctHumidity(ds['rh_i'], ds['t_i'], T_i,       # Correct relative humidity
-                                             T_0, T_100_i, ews, ei0)                   
+                                             T_0, T_100, ews, ei0)                   
     return ds
 
 def flagNAN(ds_in, 
