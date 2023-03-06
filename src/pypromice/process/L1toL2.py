@@ -46,13 +46,12 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
         print('Flagging and fixing failed:')
         print(e)
     
-    T_u = ds['t_u'].copy(deep=True)                                            # Correct relative humidity
     T_100 = _getTempK(T_0)  
-    ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'], T_u,  
+    ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],  
                                      T_0, T_100, ews, ei0)                       
         
     # Determiune cloud cover
-    cc = calcCloudCoverage(T_u, T_0, eps_overcast, eps_clear,                  # Calculate cloud coverage
+    cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,                  # Calculate cloud coverage
                            ds['dlr'], ds.attrs['station_id'])  
     ds['cc'] = (('time'), cc.data)
     
@@ -129,10 +128,8 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
         ds['precip_u_cor'], ds['precip_u_rate'] = correctPrecip(ds['precip_u'], 
                                                                 ds['wspd_u'])
     if ds.attrs['number_of_booms']==2:      
-        T_l = ds['t_l'].copy(deep=True) 
-        T_100_l = _getTempK(T_l)                                               # Get steam point temperature in K
-        ds['rh_l_cor'] = correctHumidity(ds['rh_l'], ds['t_l'], T_l,           # Correct relative humidity
-                                         T_0, T_100_l, ews, ei0)                          
+        ds['rh_l_cor'] = correctHumidity(ds['rh_l'], ds['t_l'],           # Correct relative humidity
+                                         T_0, T_100, ews, ei0)                          
         
         if ~ds['precip_l'].isnull().all() and precip_flag:                     # Correct precipitation
             ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],  
@@ -140,10 +137,8 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     
     if hasattr(ds,'t_i'):       
         if ~ds['t_i'].isnull().all():                                          # Instantaneous msg processing
-            T_i = ds['t_i'].copy(deep=True) 
-            T_100_i = _getTempK(T_i)                                           # Get steam point temperature in K
-            ds['rh_i_cor'] = correctHumidity(ds['rh_i'], ds['t_i'], T_i,       # Correct relative humidity
-                                             T_0, T_100_i, ews, ei0)                   
+            ds['rh_i_cor'] = correctHumidity(ds['rh_i'], ds['t_i'],       # Correct relative humidity
+                                             T_0, T_100, ews, ei0)                   
     return ds
 
 def flagNAN(ds_in, 
@@ -537,7 +532,7 @@ def calcTilt(tilt_x, tilt_y, deg2rad):
     # theta_sensor_deg = theta_sensor_rad * rad2deg
     return phi_sensor_rad, theta_sensor_rad 
 
-def correctHumidity(rh, t_1, T, T_0, T_100, ews, ei0):                        #TODO figure out if T replicate is needed
+def correctHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO figure out if T replicate is needed
     '''Correct relative humidity using Groff & Gratch method, where values are
     set when freezing and remain the original values when not freezing
 
@@ -545,10 +540,8 @@ def correctHumidity(rh, t_1, T, T_0, T_100, ews, ei0):                        #T
     ----------
     rh : xarray.DataArray
         Relative humidity
-    t_1 : xarray.DataArray
-        Air temperature
     T : xarray.DataArray
-        Air temperature replicate
+        Air temperature
     T_0 : float
         Ice point temperature in K
     T_100 : float
@@ -575,7 +568,7 @@ def correctHumidity(rh, t_1, T, T_0, T_100, ews, ei0):                        #T
                    + np.log10(ei0))
     
     # Define freezing point. Why > -100?  
-    freezing = (t_1 < 0) & (t_1 > -100).values 
+    freezing = (T < 0) & (T > -100).values 
 
     # Set to Groff & Gratch values when freezing, otherwise just rh                         
     rh_cor = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))  
