@@ -51,7 +51,7 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
                                      T_0, T_100, ews, ei0)                       
         
     # Determiune cloud cover
-    cc = calcCloudCoverage(T_u, T_0, eps_overcast, eps_clear,                  # Calculate cloud coverage
+    cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,                  # Calculate cloud coverage
                            ds['dlr'], ds.attrs['station_id'])  
     ds['cc'] = (('time'), cc.data)
     
