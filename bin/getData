@@ -20,9 +20,8 @@ if __name__ == '__main__':
     args = parse_arguments()
 	
     # Construct AWS dataset name
-    name = args.awsname.lower() + '_hour'
-    n = aws_names()
-    assert(args.awsname in n) 
+#    n = aws_names()
+#    assert(args.awsname in n) 
 
     # Check file format type
     f = args.format.lower()
@@ -30,25 +29,23 @@ if __name__ == '__main__':
 	
     # Construct output file path
     assert(os.path.exists(args.outpath))
-    if f in 'csv': 
-        outfile = os.path.join(args.outpath, name+'.csv') 
-    elif f in 'nc':
-        outfile = os.path.join(args.outpath, name+'.nc')
 	
     # Remove pre-existing files of same name
     if os.path.isfile(f):
         os.remove(f)
 	    	
     # Fetch data 
-    print(f'Fetching {name}...')
-    data = aws_data(name)
+    print(f'Fetching {args.awsname.lower()}...')
+    data = aws_data(args.awsname.lower())
 	
     # Save to file
     if f in 'csv':
-        data.to_dataframe().to_csv(outfile+'.csv')
+        outfile = os.path.join(args.outpath, args.awsname.lower()) 
+        data.to_csv(outfile)
     elif f in 'nc': 
         data.to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)
-	
+        outfile = os.path.join(args.outpath, args.awsname.lower().split('.csv')[0]+'.nc')
+        	
     print(f'File saved to {outfile}')
 
 else:
