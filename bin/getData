@@ -40,11 +40,11 @@ if __name__ == '__main__':
 	
     # Save to file
     if f in 'csv':
-        outfile = os.path.join(args.outpath, args.awsname.lower()+'_hour.csv') 
+        outfile = os.path.join(args.outpath, args.awsname.lower()) 
         data.to_csv(outfile)
     elif f in 'nc': 
         data.to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)
-        outfile = os.path.join(args.outpath, args.awsname.lower()+'_hour.nc')
+        outfile = os.path.join(args.outpath, args.awsname.lower().split('.csv')[0]+'.nc')
         	
     print(f'File saved to {outfile}')
 
