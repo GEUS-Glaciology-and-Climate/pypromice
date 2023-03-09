@@ -707,9 +707,11 @@ def addMeta(ds, meta):
     except:
         ds.attrs['time_coverage_duration'] = str(pd.Timedelta(0).isoformat())
         ds.attrs['time_coverage_resolution'] = str(pd.Timedelta(0).isoformat())   
-      
-#    ds.time.encoding["dtype"] = "int64"                                        # TODO CF standard requires time as int not int64 
-#    ds.time.encoding["calendar"] = 'proleptic_gregorian'
+
+    # Note: int64 dtype (long int) is incompatible with OPeNDAP access via THREDDS for NetCDF files
+    # See https://stackoverflow.com/questions/48895227/output-int32-time-dimension-in-netcdf-using-xarray
+    ds.time.encoding["dtype"] = "i4" # 32-bit signed integer
+    #ds.time.encoding["calendar"] = 'proleptic_gregorian' # this is default
     
     # Load metadata attributes and add to Dataset   
     [_addAttr(ds, key, value) for key,value in meta.items()]
