@@ -26,3 +26,6 @@ src/pypromice/postprocess/latest_timestamps.pkl
 
 # Output positions from transmitted GPS
 src/pypromice/postprocess/positions.csv
+
+# sqlite db files
+*.db
