@@ -463,7 +463,7 @@ def mergeVars(ds_list, variables, cols=['lo','hi','OOL']):                     #
     ----------
     ds_list : list
         List of xarray.Dataset objects
-    varaibles : pandas.DataFrame
+    variables : pandas.DataFrame
         Variable look up table
     cols : str, optional
         Variable column names to merge by. The default is ['lo','hi','OOL'].
