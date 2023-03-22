@@ -45,7 +45,9 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     except Exception as e: 
         print('Flagging and fixing failed:')
         print(e)
-    
+
+    ds = percentileQC(ds)
+
     T_100 = _getTempK(T_0)  
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],  
                                      T_0, T_100, ews, ei0)                       
