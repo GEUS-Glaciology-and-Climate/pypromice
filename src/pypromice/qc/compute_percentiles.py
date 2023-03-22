@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """
-Compute percentile distributions and write to sqlite db
+Compute percentile distributions and write to local sqlite db
 """
 import sqlite3
 import os
 import pandas as pd
 from datetime import timedelta
 import argparse
-from IPython import embed
+# from IPython import embed
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -78,12 +78,13 @@ def clear_tables(cur, var_list):
         print(f'Deleted {cur.rowcount} records from the {v} table.')
 
 def write_percentiles(cur, var_list):
+    print(f'writing to tables...')
     for x in os.walk(args.l3_filepath):
         if (len(x[2]) > 0): # files are present
             stid = x[0].split('/')[-1]
             csv_file = [s for s in x[2] if '_hour.csv' in s]
             if (len(csv_file) > 0) and (stid not in disclude_stations): # csv file is present
-                print(f'{stid} writing to tables...')
+                print(stid)
                 csv_filepath = x[0] + '/' + csv_file[0]
                 df = pd.read_csv(csv_filepath)
                 timestamp = pd.to_datetime(df.time)
@@ -136,4 +137,4 @@ if __name__ == '__main__':
     create_tables(cur,var_list)
     clear_tables(cur,var_list)
     write_percentiles(cur,var_list)
-    embed()
+    # embed()
