@@ -106,10 +106,16 @@ def write_percentiles(cur, var_list):
                     elif v=='t_u':
                         df.set_index(timestamp, inplace=True)
                         # data.drop(['time'], axis=1, inplace=True) # drop original time column
-                        winter = df.t_u[(df.index.month >= 1) & (df.index.month <= 3)]
-                        spring = df.t_u[(df.index.month >= 4) & (df.index.month <= 6)]
-                        summer = df.t_u[(df.index.month >= 7) & (df.index.month <= 9)]
-                        fall = df.t_u[(df.index.month >= 10) & (df.index.month <= 12)]
+
+                        winter = df.t_u[df.index.month.isin([12,1,2])]
+                        spring = df.t_u[df.index.month.isin([3,4,5])]
+                        summer = df.t_u[df.index.month.isin([6,7,8])]
+                        fall = df.t_u[df.index.month.isin([9,10,11])]
+
+                        # winter = df.t_u[df.index.month.isin([12,1,2])]
+                        # spring = df.t_u[(df.index.month >= 3) & (df.index.month <= 5)]
+                        # summer = df.t_u[(df.index.month >= 6) & (df.index.month <= 8)]
+                        # fall = df.t_u[(df.index.month >= 9) & (df.index.month <= 11)]
 
                         season_list = [winter,spring,summer,fall]
                         season_integers = [1,2,3,4]
