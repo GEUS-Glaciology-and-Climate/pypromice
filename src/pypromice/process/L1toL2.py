@@ -8,6 +8,9 @@ from urllib.error import HTTPError, URLError
 import pandas as pd
 import os
 import xarray as xr
+import sqlite3
+
+from IPython import embed
 
 def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1., 
          eps_clear=9.36508e-6, emissivity=0.97):
@@ -142,6 +145,81 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
             ds['rh_i_cor'] = correctHumidity(ds['rh_i'], ds['t_i'],       # Correct relative humidity
                                              T_0, T_100, ews, ei0)                   
     return ds
+
+def percentileQC(ds):
+    '''
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Level 1 dataset
+    '''
+    stid=ds.station_id
+    # Switch to pandas
+    df = ds.to_dataframe()
+
+    # Define threshold dict to hold limit values, and 'hi' and 'lo' percentile.
+    # Limit values indicate how far we will go beyond the hi and lo percentiles to flag outliers.
+    var_threshold = {
+        't_u': {'limit': 9}, # 'hi' and 'lo' held in separate 'seasons' dict
+        'p_u': {'limit': 15},
+        'rh_u': {'limit': 12},
+        'wspd_u': {'limit': 10}
+        }
+
+    con = sqlite3.connect('../qc/percentiles.db')
+    cur = con.cursor()
+
+    # Query from the sqlite db for specified percentiles
+    # Different pattern for t_u, which considers seasons
+    for k in var_threshold.keys():
+        if k == 't_u':
+            seasons = {1: {}, 2: {}, 3: {}, 4: {}}
+            sql = f"SELECT p0p5,p99p5,season FROM {k} WHERE season in (1,2,3,4) and stid = ?"
+            cur.execute(sql, [stid])
+            result = cur.fetchall()
+            for row in result:
+                seasons[row[2]]['lo'] = row[0] # 0.005
+                seasons[row[2]]['hi'] = row[1] # 0.995
+                var_threshold[k]['seasons'] = seasons
+        else:
+            sql = f"SELECT p0p5,p99p5 FROM {k} WHERE stid = ?"
+            cur.execute(sql, [stid])
+            result = cur.fetchone() # we only expect one row back per station
+            var_threshold[k]['lo'] = result[0] # 0.005
+            var_threshold[k]['hi'] = result[1] # 0.995
+
+    con.close() # close the database connection (and cursor)
+
+    # TO DO: Set outliers to NaN and write back to df
+    for k in var_threshold.keys():
+        if k == 't_u':
+            winter = df.t_u[df.index.month.isin([12,1,2])]
+            spring = df.t_u[df.index.month.isin([3,4,5])]
+            summer = df.t_u[df.index.month.isin([6,7,8])]
+            fall = df.t_u[df.index.month.isin([9,10,11])]
+            season_dfs = [winter,spring,summer,fall]
+
+            for x1,x2 in zip([1,2,3,4], season_dfs):
+                lower_thresh = var_threshold[k]['seasons'][x1]['lo'] - var_threshold[k]['limit']
+                upper_thresh = var_threshold[k]['seasons'][x1]['hi'] + var_threshold[k]['limit']
+
+            _plot_percentiles_t(k,df,season_dfs,var_threshold,stid)
+        else:
+            upper_thresh = var_threshold[k]['hi'] + var_threshold[k]['limit']
+            lower_thresh = var_threshold[k]['lo'] - var_threshold[k]['limit']
+
+            _plot_percentiles(k,df,var_threshold,upper_thresh,lower_thresh,stid)
+
+    # Back to xarray, and re-assign the original attrs
+    ds_out = df_out.to_xarray()
+    ds_out = ds_out.assign_attrs(ds.attrs) # Dataset attrs
+    for x in ds_out.data_vars: # variable-specific attrs
+        ds_out[x].attrs = ds[x].attrs
+
+    # equivalent to above:
+    # vals = [xr.DataArray(data=df_out[c], dims=['time'], coords={'time':df_out.index}, attrs=ds[c].attrs) for c in df_out.columns]
+    # ds_out = xr.Dataset(dict(zip(df_out.columns, vals)), attrs=ds.attrs)
+    return ds_out
 
 def flagNAN(ds_in, 
             flag_url='https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/flags/',
@@ -1013,6 +1091,47 @@ def _getRotation():                                                            #
     deg2rad = np.pi / 180
     rad2deg = 1 / deg2rad
     return deg2rad, rad2deg
+
+def _plot_percentiles_t(k, df, season_dfs, var_threshold, stid):
+    '''Plot data and percentile thresholds for air temp (seasonal)'''
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(20,12))
+    inst_var = k.split('_')[0] + '_i'
+    i_plot = df[inst_var]
+    plt.scatter(df.index,i_plot, color='orange', s=3, label='instantaneuous')
+    plt.scatter(df.index,df[k], color='b', s=3, label='hourly ave')
+    for x1,x2 in zip([1,2,3,4], season_dfs):
+        y1 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['lo'] - var_threshold[k]['limit']))
+        y2 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['hi'] + var_threshold[k]['limit']))
+        y11 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['lo'] ))
+        y22 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['hi'] ))
+        plt.scatter(x2.index, y1, color='r',s=5)
+        plt.scatter(x2.index, y2, color='r', s=5)
+        plt.scatter(x2.index, y11, color='r', s=0.5)
+        plt.scatter(x2.index, y22, color='r', s=0.5)
+    plt.title('{} {}'.format(stid, k))
+    plt.legend(loc="lower left")
+    plt.show()
+
+def _plot_percentiles(k, df, var_threshold, upper_thresh, lower_thresh, stid):
+    '''Plot data and percentile thresholds'''
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(20,12))
+    inst_var = k.split('_')[0] + '_i'
+    if k == 'p_u':
+        i_plot = (df[inst_var]+1000.)
+    else:
+        i_plot = df[inst_var]
+    plt.scatter(df.index,i_plot, color='orange', s=3, label='instantaneuous')
+    plt.scatter(df.index,df[k], color='b', s=3, label='hourly ave')
+    plt.axhline(y=upper_thresh, color='r', linestyle='-')
+    plt.axhline(y=lower_thresh, color='r', linestyle='-')
+    plt.axhline(y=var_threshold[k]['hi'], color='r', linestyle='--')
+    plt.axhline(y=var_threshold[k]['lo'], color='r', linestyle='--')
+    plt.title('{} {}'.format(stid, k))
+    plt.legend(loc="lower left")
+    plt.show()
+
 
 if __name__ == "__main__": 
     # unittest.main() 
