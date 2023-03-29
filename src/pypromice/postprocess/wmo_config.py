@@ -30,8 +30,7 @@ vars_to_skip = { # skip specific variables for stations
     # If a variable has known bad data, use this dict to skip the var
     # Note that if a station is not reporting both air temp and pressure it will be skipped,
     # as currently implemented in csv2bufr.min_data_check().
-    'CP1': ['p_i'],
-    'NAU': ['p_i']
+    # 'CP1': ['p_i'], # EXAMPLE
 }
 
 positions_seed = { # discontinued stations that are not in aws-l3/tx but still present in aws-l3/level_3
