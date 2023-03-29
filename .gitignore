@@ -18,6 +18,7 @@ src/pypromice/test/TEST1/*
 src/pypromice/test/TEST2/*
 src/pypromice/test/STATION/*
 src/pypromice/postprocess/BUFR_out/*
+src/pypromice/postprocess/BUFR_backup/*
 
 # Pickled timestamp reference file
 src/pypromice/postprocess/latest_timestamps.pickle
