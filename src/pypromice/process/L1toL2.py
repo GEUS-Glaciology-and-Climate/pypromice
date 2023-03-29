@@ -49,14 +49,14 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
         print('Flagging and fixing failed:')
         print(e)
 
-    ds = percentileQC(ds)
+    ds = percentileQC(ds)                                                      # Flag and remove percentile outliers
 
     T_100 = _getTempK(T_0)  
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],  
                                      T_0, T_100, ews, ei0)                       
         
     # Determiune cloud cover
-    cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,                  # Calculate cloud coverage
+    cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,            # Calculate cloud coverage
                            ds['dlr'], ds.attrs['station_id'])  
     ds['cc'] = (('time'), cc.data)
     
@@ -158,6 +158,11 @@ def percentileQC(ds):
     ds_out : xr.Dataset
         Level 1 dataset with percentile outliers set to NaN
     '''
+    # Optionally examine flagged data by setting make_plots to True
+    # This is best done by running aws.py directly and setting 'test_station'
+    # Plots will be shown before and after flag removal for each var
+    make_plots = True
+
     stid = ds.station_id
     df = ds.to_dataframe() # Switch to pandas
 
@@ -210,7 +215,8 @@ def percentileQC(ds):
                     fall = df[t][df.index.month.isin([9,10,11])]
                     season_dfs = [winter,spring,summer,fall]
 
-                    # _plot_percentiles_t(k,t,df,season_dfs,var_threshold,stid) # BEFORE OUTLIER REMOVAL
+                    if make_plots:
+                        _plot_percentiles_t(k,t,df,season_dfs,var_threshold,stid) # BEFORE OUTLIER REMOVAL
                     for x1,x2 in zip([1,2,3,4], season_dfs):
                         print(f'percentile flagging {t} {x1}')
                         lower_thresh = var_threshold[k]['seasons'][x1]['lo'] - var_threshold[k]['limit']
@@ -221,7 +227,8 @@ def percentileQC(ds):
                         df.loc[outliers.index,t] = np.nan
                         df.loc[outliers.index,t] = np.nan
 
-                    # _plot_percentiles_t(k,t,df,season_dfs,var_threshold,stid) # AFTER OUTLIER REMOVAL
+                    if make_plots:
+                        _plot_percentiles_t(k,t,df,season_dfs,var_threshold,stid) # AFTER OUTLIER REMOVAL
         else:
             # use *_u thresholds to flag *_u, *_l, *_i
             base_var = k.split('_')[0]
@@ -231,7 +238,8 @@ def percentileQC(ds):
                     print(f'percentile flagging {t}')
                     upper_thresh = var_threshold[k]['hi'] + var_threshold[k]['limit']
                     lower_thresh = var_threshold[k]['lo'] - var_threshold[k]['limit']
-                    # _plot_percentiles(k,t,df,var_threshold,upper_thresh,lower_thresh,stid) # BEFORE OUTLIER REMOVAL
+                    if make_plots:
+                        _plot_percentiles(k,t,df,var_threshold,upper_thresh,lower_thresh,stid) # BEFORE OUTLIER REMOVAL
                     if t == 'p_i':
                         # shift p_i so we can use the p_u thresholds
                         shift_p = df[t]+1000.
@@ -244,7 +252,8 @@ def percentileQC(ds):
                     df.loc[outliers.index,t] = np.nan
                     df.loc[outliers.index,t] = np.nan
 
-                    # _plot_percentiles(k,t,df,var_threshold,upper_thresh,lower_thresh,stid) # AFTER OUTLIER REMOVAL
+                    if make_plots:
+                        _plot_percentiles(k,t,df,var_threshold,upper_thresh,lower_thresh,stid) # AFTER OUTLIER REMOVAL
 
     # Back to xarray, and re-assign the original attrs
     ds_out = df.to_xarray()
@@ -1132,8 +1141,9 @@ def _plot_percentiles_t(k, t, df, season_dfs, var_threshold, stid):
     import matplotlib.pyplot as plt
     plt.figure(figsize=(20,12))
     inst_var = t.split('_')[0] + '_i'
-    i_plot = df[inst_var]
-    plt.scatter(df.index,i_plot, color='orange', s=3, label='t_i instantaneuous')
+    if inst_var in df:
+        i_plot = df[inst_var]
+        plt.scatter(df.index,i_plot, color='orange', s=3, label='t_i instantaneuous')
     if t in ('t_u','t_l'):
         plt.scatter(df.index,df[t], color='b', s=3, label=f'{t} hourly ave')
     for x1,x2 in zip([1,2,3,4], season_dfs):
@@ -1154,11 +1164,12 @@ def _plot_percentiles(k, t, df, var_threshold, upper_thresh, lower_thresh, stid)
     import matplotlib.pyplot as plt
     plt.figure(figsize=(20,12))
     inst_var = t.split('_')[0] + '_i'
-    if k == 'p_u':
-        i_plot = (df[inst_var]+1000.)
-    else:
-        i_plot = df[inst_var]
-    plt.scatter(df.index,i_plot, color='orange', s=3, label='instantaneuous')
+    if inst_var in df:
+        if k == 'p_u':
+            i_plot = (df[inst_var]+1000.)
+        else:
+            i_plot = df[inst_var]
+        plt.scatter(df.index,i_plot, color='orange', s=3, label='instantaneuous')
     if t != inst_var:
         plt.scatter(df.index,df[t], color='b', s=3, label=f' {t} hourly ave')
     plt.axhline(y=upper_thresh, color='r', linestyle='-')
