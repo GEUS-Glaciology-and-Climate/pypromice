@@ -158,31 +158,32 @@ def percentileQC(ds):
     ds_out : xr.Dataset
         Level 1 dataset with percentile outliers set to NaN
     '''
-    stid=ds.station_id
-    # Switch to pandas
-    df = ds.to_dataframe()
+    stid = ds.station_id
+    df = ds.to_dataframe() # Switch to pandas
 
     # Define threshold dict to hold limit values, and 'hi' and 'lo' percentile.
     # Limit values indicate how far we will go beyond the hi and lo percentiles to flag outliers.
     # *_u are used to calculate and define all limits, which are then applied to *_u, *_l and *_i
     var_threshold = {
-        't_u': {'limit': 9}, # 'hi' and 'lo' held in separate 'seasons' dict
+        't_u': {'limit': 9}, # 'hi' and 'lo' will be held in 'seasons' dict
         'p_u': {'limit': 15},
         'rh_u': {'limit': 12},
         'wspd_u': {'limit': 10}
         }
 
-    # Query from the sqlite db for specified percentiles
+    # Query from the on-disk sqlite db for specified percentiles
     con = sqlite3.connect('../qc/percentiles.db')
     cur = con.cursor()
     for k in var_threshold.keys():
         if k == 't_u':
             # Different pattern for t_u, which considers seasons
+            # 1: winter (DecJanFeb), 2: spring (MarAprMay), 3: summer (JunJulAug), 4: fall (SepOctNov)
             seasons = {1: {}, 2: {}, 3: {}, 4: {}}
             sql = f"SELECT p0p5,p99p5,season FROM {k} WHERE season in (1,2,3,4) and stid = ?"
             cur.execute(sql, [stid])
             result = cur.fetchall()
             for row in result:
+                # row[0] is p0p5, row[1] is p99p5, row[2] is the season integer
                 seasons[row[2]]['lo'] = row[0] # 0.005
                 seasons[row[2]]['hi'] = row[1] # 0.995
                 var_threshold[k]['seasons'] = seasons
@@ -195,6 +196,7 @@ def percentileQC(ds):
 
     con.close() # close the database connection (and cursor)
 
+    # Set flagged data to NaN
     for k in var_threshold.keys():
         if k == 't_u':
             # use t_u thresholds to flag t_u, t_l, t_i
@@ -244,13 +246,11 @@ def percentileQC(ds):
 
                     # _plot_percentiles(k,t,df,var_threshold,upper_thresh,lower_thresh,stid) # AFTER OUTLIER REMOVAL
 
-
     # Back to xarray, and re-assign the original attrs
     ds_out = df.to_xarray()
     ds_out = ds_out.assign_attrs(ds.attrs) # Dataset attrs
     for x in ds_out.data_vars: # variable-specific attrs
         ds_out[x].attrs = ds[x].attrs
-
     # equivalent to above:
     # vals = [xr.DataArray(data=df_out[c], dims=['time'], coords={'time':df_out.index}, attrs=ds[c].attrs) for c in df_out.columns]
     # ds_out = xr.Dataset(dict(zip(df_out.columns, vals)), attrs=ds.attrs)
