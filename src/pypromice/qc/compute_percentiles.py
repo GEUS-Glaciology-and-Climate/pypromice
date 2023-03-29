@@ -13,8 +13,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--l3-filepath',
-        default='../../../../aws-l3/level_3/', # relative to qc dir
-        # default='/data/pypromice_aws/aws-l3/level_3/' # full
+        default='../../../../aws-l3/level_3/', # relative path to qc dir
+        # default='/data/pypromice_aws/aws-l3/level_3/' # full path
         type=str,
         required=False,
         help='Path to read level 3 csv files.')
@@ -25,8 +25,8 @@ def parse_arguments():
 def make_db_connection():
     print('Creating sqlite3 connection...') 
     con = sqlite3.connect( # will create db if does not exist
-    'percentiles.db', # write to on-disk file at current directory location
-    isolation_level=None # autocommit mode
+    'percentiles.db', # define path and filename
+    isolation_level = None # autocommit mode
     )
 
     print('Creating sqlite3 cursor...') 
@@ -59,7 +59,7 @@ def create_tables(cur, var_list):
                     'stid text, '
                     'season smallint, ' # only used for airtemp
                     'p0 float, p0p5 float, p1 float, p5 float, p10 float, '
-                    # 'p25 float, p33 float, p50 float, p66 float, p75 float, '
+                    # 'p25 float, p33 float, p50 float, p66 float, p75 float, ' # optional add'l percentiles
                     'p90 float, p95 float, p99 float, p99p5 float, p100 float, '
                     'years smallint, '
                     'PRIMARY KEY (stid, season))'
@@ -92,11 +92,10 @@ def write_percentiles(cur, var_list):
                 quantiles = [0,0.005,0.01,0.05,0.10,0.90,0.95,0.99,0.995,1]
                 for v in var_list:
                     if v not in ('t_u',):
-                        exe_list = [stid] # initialize list
+                        exe_list = [stid] # initialize list with stid
                         for i in quantiles:
-                            exe_list.append(df[f'{v}'].quantile(q=i))
+                            exe_list.append(df[f'{v}'].quantile(q=i)) # percentiles calculated here!
                         exe_list.append(years)
-                        # exe_list.insert(0,stid)
                         cur.execute(
                             f'insert into {v} '
                             '(stid,p0,p0p5,p1,p5,p10,p90,p95,p99,p99p5,p100,years) '
@@ -105,13 +104,14 @@ def write_percentiles(cur, var_list):
                             )
                     elif v=='t_u':
                         df.set_index(timestamp, inplace=True)
-                        # data.drop(['time'], axis=1, inplace=True) # drop original time column
+                        # data.drop(['time'], axis=1, inplace=True) # optionally drop original time column
 
                         winter = df.t_u[df.index.month.isin([12,1,2])]
                         spring = df.t_u[df.index.month.isin([3,4,5])]
                         summer = df.t_u[df.index.month.isin([6,7,8])]
                         fall = df.t_u[df.index.month.isin([9,10,11])]
 
+                        # Equivalent to above
                         # winter = df.t_u[df.index.month.isin([12,1,2])]
                         # spring = df.t_u[(df.index.month >= 3) & (df.index.month <= 5)]
                         # summer = df.t_u[(df.index.month >= 6) & (df.index.month <= 8)]
