@@ -15,13 +15,13 @@ These can be processed from Level 0 to a Level 3 data product as an ``AWS`` obje
 
 .. code:: python
 
-    from pypromice.aws import AWS
-    
+   from pypromice.process.aws import AWS
+
     # Define input paths
     config = "src/pypromice/test/test_config1.toml"
     inpath = "src/pypromice/test/"
-    vari = "src/pypromice/variables.csv"
-    
+    vari = "src/pypromice/process/variables.csv"
+
     # Initiate and process
     a = AWS(config, inpath, var_file=vari)
     a.process()
@@ -33,24 +33,24 @@ All processing steps are executed in ``AWS.process``. These can also be broken d
 
 .. code:: python
 
-    from pypromice.aws import AWS
-    
+    from pypromice.process.aws import AWS
+
     # Define input paths
     config = "src/pypromice/test/test_config2.toml"
     inpath = "src/pypromice/test/"
-    vari = "src/pypromice/variables.csv"
-    
+    vari = "src/pypromice/process/variables.csv"
+
     # Initiate
     a = AWS(config, inpath, var_file=vari)
-    
+
     # Process to Level 1
     a.getL1()
     l1 = a.L1
-    
+
     # Process to Level 2
     a.getL2()
     l2 = a.L2
-    
+
     # Process to Level 3
     a.getL3()
     l3 = a.L3
@@ -65,7 +65,7 @@ The Level 0 to Level 3 processing can also be executed from a CLI using the ``ge
 
 .. code:: console
 
-    $ getL3 -v src/pypromice/variables.csv -m src/pypromice/metadata.csv -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
+    $ getL3 -v src/pypromice/process/variables.csv -m src/pypromice/process/metadata.csv -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
 
 
 Loading PROMICE data
@@ -77,10 +77,10 @@ The automated weather station (AWS) datasets are openly available on our Dataver
 
 .. code:: python
 
-	import pypromice.get as pget
+    import pypromice.get as pget
 
-	# Import AWS data from station KPC_U
-	df = pget.aws_data("KPC_U")
+    # Import AWS data from station KPC_U
+    df = pget.aws_data("kpc_u_hour.csv")
 
 All available AWS datasets are retrieved by station name. Use ``aws_names()`` to list all station names which can be used as an input to ``aws_data()``.
 
