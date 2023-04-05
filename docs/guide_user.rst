@@ -15,15 +15,14 @@ These can be processed from Level 0 to a Level 3 data product as an ``AWS`` obje
 
 .. code:: python
 
-   from pypromice.process.aws import AWS
+   from pypromice.process import AWS
 
     # Define input paths
     config = "src/pypromice/test/test_config1.toml"
     inpath = "src/pypromice/test/"
-    vari = "src/pypromice/process/variables.csv"
 
     # Initiate and process
-    a = AWS(config, inpath, var_file=vari)
+    a = AWS(config, inpath)
     a.process()
     
     # Get Level 3
@@ -33,15 +32,14 @@ All processing steps are executed in ``AWS.process``. These can also be broken d
 
 .. code:: python
 
-    from pypromice.process.aws import AWS
+    from pypromice.process import AWS
 
     # Define input paths
     config = "src/pypromice/test/test_config2.toml"
     inpath = "src/pypromice/test/"
-    vari = "src/pypromice/process/variables.csv"
 
     # Initiate
-    a = AWS(config, inpath, var_file=vari)
+    a = AWS(config, inpath)
 
     # Process to Level 1
     a.getL1()
@@ -65,7 +63,7 @@ The Level 0 to Level 3 processing can also be executed from a CLI using the ``ge
 
 .. code:: console
 
-    $ getL3 -v src/pypromice/process/variables.csv -m src/pypromice/process/metadata.csv -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
+    $ getL3 -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
 
 
 Loading PROMICE data
@@ -98,7 +96,7 @@ AWS data can be downloaded to file with pypromice. Open up a CLI and use the ``g
 
 .. code:: console
 
-	$ getData -n KPC_U
+	$ getData -n KPC_U_hour.csv
 
 Files are downloaded to the current directory as a CSV formatted file. Use the ``-h`` help flag to explore further input variables.
  
@@ -135,5 +133,5 @@ If you would rather handle the AWS data as an ``xarray.Dataset`` object then the
 
 .. code:: python
 
-	ds = xr.Dataset.from_dataframe(df) 
+	ds = xr.Dataset.from_dataframe(df)
 

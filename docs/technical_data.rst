@@ -17,7 +17,7 @@ Level 0 is raw, untouched data in one of three formats:
 Level 1
 =======
 - [X] Engineering units (e.g. current or volts) converted to physical units (e.g. temperature or wind speed)
-- [ ] Invalid/bad/suspicious data flagged
+- [X] Invalid/bad/suspicious data flagged
 - [X] Multiple data files merged into one time series per station
   
 
