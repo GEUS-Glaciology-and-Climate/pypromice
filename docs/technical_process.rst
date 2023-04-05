@@ -22,8 +22,8 @@ Payload decoder
 
 ``PayloadFormat`` handles the message types and decoding templates. These can be imported from file, with two default CSV files provided with pypromice - payload_formatter.csv_ and payload_type.csv_.
 
-.. _payload_formatter.csv: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/payload_formats.csv
-.. _payload_type.csv: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/payload_types.csv
+.. _payload_formatter.csv: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/tx/payload_formats.csv
+.. _payload_type.csv: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/tx/payload_types.csv
 
 
 Payload processing
@@ -38,8 +38,7 @@ The following function can be executed from a CLI to fetch ``L0`` transmission m
 .. code:: console
 	
 	$ getL0tx -a accounts.ini -p credentials.ini -c tx/config 
-	-f payload_formats.csv -t payload_types.csv -u last_aws_uid.ini 
-	-o tx
+	-u last_aws_uid.ini -o tx
 
 .. note::
 
@@ -55,13 +54,13 @@ To process from L0>>L3, the following function can be executed in a CLI.
 
 .. code:: console
 	
-	$ getL3 -v variables.csv -m metadata.csv -c config/KPC_L.toml -i . -o ../../aws-l3/tx"
+	$ getL3 -c config/KPC_L.toml -i . -o ../../aws-l3/tx"
 
 And in parallel through all configuration .toml files ``$imei_list``
 
 .. code:: console
 
-	$ parallel --bar "getL3 -v variables.csv -m metadata.csv -c ./{} -i . -o ../../aws-l3/tx" ::: $(ls $imei_list)
+	$ parallel --bar "getL3 -c ./{} -i . -o ../../aws-l3/tx" ::: $(ls $imei_list)
 
 
 Station configuration
@@ -112,4 +111,4 @@ The TOML config file has the following expectations and behaviors:
 
 	Be aware the column names should follow those defined in the variables look-up table found here_. Any column names provided that are not in this look-up table will be passed through the processing untouched.
 
-.. _here: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/variables.csv
+.. _here: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/process/variables.csv
