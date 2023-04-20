@@ -66,8 +66,8 @@ The Level 0 to Level 3 processing can also be executed from a CLI using the ``ge
     $ getL3 -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
 
 
-Loading PROMICE data
-====================
+Loading PROMICE and GC-Net data
+===============================
 
 Import from Dataverse (no downloads!)
 -------------------------------------
