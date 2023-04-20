@@ -39,8 +39,10 @@ The package has inbuilt unit tests, which can be ran to test the package install
 
 .. code:: console
 
+        $ cd pypromice/
+        $ pip install .
 	$ python -m unittest discover pypromice
-
+        
 .. note::
 
 	This command line unit testing only works if pypromice is installed in the active Python environment. Unit testing can be ran directly from the cloned pypromice top directory also either by running each script or from the command line as so: ``$ python -m unittest discover src/pypromice``
