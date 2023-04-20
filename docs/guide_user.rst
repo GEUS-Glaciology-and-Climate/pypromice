@@ -135,3 +135,43 @@ If you would rather handle the AWS data as an ``xarray.Dataset`` object then the
 
 	ds = xr.Dataset.from_dataframe(df)
 
+
+Plotting PROMICE and GC-Net data
+================================
+
+Once loaded, variables from an AWS dataset can be simply plotted with using pandas or xarray.
+
+.. code:: python
+	
+	# Plot variable with pandas
+	# In this case, we will plot air pressure
+	df.plot(kind='line', y='p_u', use_index=True)
+
+.. image:: https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/geus-glaciology-and-climate.github.io/master/assets/images/kpc_u_pandas_plot.png
+	
+.. code:: python
+	
+	# Extract variable for plotting
+	# In this case, we will extract air temperature
+	airt = ds['t_u']
+	
+	# Plot with xarray
+	airt.plot()
+
+.. image:: https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/geus-glaciology-and-climate.github.io/master/assets/images/kpc_u_xr_plot.png
+
+.. note::
+
+	For more complex plotting, please see either the xarray_ or pandas_ plotting documentation.
+
+.. _xarray: https://docs.xarray.dev/en/stable/user-guide/plotting.html
+.. _pandas: https://pandas.pydata.org/docs/user_guide/10min.html#plotting
+	
+	
+.. warning::
+	
+	Plotting with either xarray or pandas requires the matplotlib_ package. This is not supplied as a dependency with pypromice, so please install matplotlib separately if you wish to do so.
+
+.. _matplotlib: https://matplotlib.org/
+	
+.. _matplotlib: https://matplotlib.org/
