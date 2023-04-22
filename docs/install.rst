@@ -35,6 +35,17 @@ pypromice is also provided with a conda environment configuration environment.ym
 .. _GitHub: https://github.com/GEUS-Glaciology-and-Climate/pypromice
 .. _environment.yml: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/environment.yml
 
+The package has inbuilt unit tests, which can be run to test the package installation:
+
+.. code:: console
+
+        $ cd pypromice/
+        $ pip install .
+	$ python -m unittest discover pypromice
+        
+.. note::
+
+	This command line unit testing only works if pypromice is installed in the active Python environment. Unit testing can be run directly from the cloned pypromice top directory also either by running each script or from the command line as so: ``$ python -m unittest discover src/pypromice``
 
 ***********************
 Additional dependencies

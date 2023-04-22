@@ -880,8 +880,9 @@ class TestProcess(unittest.TestCase):
     def testL0toL3(self):
         '''Test L0 to L3 processing'''
         try:
-            pAWS = AWS(os.path.join(os.path.dirname('pypromice'),'test/test_config1.toml'),
-                       os.path.join(os.path.dirname('pypromice'),'test'))
+            import pypromice
+            pAWS = AWS(os.path.join(os.path.dirname(pypromice.__file__),'test/test_config1.toml'),
+                       os.path.join(os.path.dirname(pypromice.__file__),'test'))
         except:
             pAWS = AWS('../test/test_config1.toml', '../test/')    
         pAWS.process()

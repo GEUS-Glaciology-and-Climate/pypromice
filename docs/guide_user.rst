@@ -66,12 +66,12 @@ The Level 0 to Level 3 processing can also be executed from a CLI using the ``ge
     $ getL3 -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
 
 
-Loading PROMICE data
-====================
+Loading our data
+================
 
 Import from Dataverse (no downloads!)
 -------------------------------------
-The automated weather station (AWS) datasets are openly available on our Dataverse_. These can be imported directly with pypromice, with no downloading required.
+The automated weather station (AWS) datasets from the PROMICE and GC-Net monitoring programmes are openly available on our Dataverse_. These can be imported directly with pypromice, with no downloading required.
 
 .. code:: python
 
@@ -135,3 +135,41 @@ If you would rather handle the AWS data as an ``xarray.Dataset`` object then the
 
 	ds = xr.Dataset.from_dataframe(df)
 
+
+Plotting our data
+=================
+
+Once loaded, variables from an AWS dataset can be simply plotted with using pandas or xarray.
+
+.. code:: python
+	
+	# Plot variable with pandas
+	# In this case, we will plot air pressure
+	df.plot(kind='line', y='p_u', use_index=True)
+
+.. image:: https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/geus-glaciology-and-climate.github.io/master/assets/images/kpc_u_pandas_plot.png
+	
+.. code:: python
+	
+	# Plot variable with xarray
+	# In this case, we will plot air temperature
+	ds['t_u'].plot()
+
+.. image:: https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/geus-glaciology-and-climate.github.io/master/assets/images/kpc_u_xr_plot.png
+
+.. note::
+
+	Variable names are provided in the dataset metadata, or can be found on in our variables look-up table here_. For more complex plotting, please see either the xarray_ or pandas_ plotting documentation.
+
+.. _here: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/process/variables.csv
+.. _xarray: https://docs.xarray.dev/en/stable/user-guide/plotting.html
+.. _pandas: https://pandas.pydata.org/docs/user_guide/10min.html#plotting
+	
+	
+.. warning::
+	
+	Plotting with either xarray or pandas requires the matplotlib_ package. This is not supplied as a dependency with pypromice, so please install matplotlib separately if you wish to do so.
+
+.. _matplotlib: https://matplotlib.org/
+	
+.. _matplotlib: https://matplotlib.org/
