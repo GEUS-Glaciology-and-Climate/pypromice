@@ -106,7 +106,9 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
                                                     ds.attrs['pt_z_factor'], 
                                                     ds.attrs['pt_z_coef'], 
                                                     ds.attrs['pt_z_p_coef'])       
-            
+        ds['z_stake'] = _reformatArray(ds['z_stake'])                          # Reformat boom height    
+        ds['z_stake'] = ds['z_stake'] * ((ds['t_u'] + T_0)/T_0)**0.5           # Adjust sonic ranger readings for sensitivity to air temperature
+        
     elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height    
         ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l'] + T_0)/T_0)**0.5         # Adjust sonic ranger readings for sensitivity to air temperature
