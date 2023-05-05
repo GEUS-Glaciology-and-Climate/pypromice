@@ -9,7 +9,10 @@ Two components are needed to perform Level 0 to Level 3 processing:
 - A Level 0 dataset file (.txt), or a collection of Level 0 dataset files
 - A station config file (.toml)
  
-Two test station datasets and config files are available with pypromice as an example of the Level 0 to Level 3 processing.
+Two test station datasets and config files are available with pypromice as an example of the Level 0 to Level 3 processing. These can be found on the Github repo here_, in the ``src/pypromice/test/`` directory in the cloned repo.
+
+.. _here: https://github.com/GEUS-Glaciology-and-Climate/pypromice/tree/joss-doc-edits/src/pypromice/test
+
 
 These can be processed from Level 0 to a Level 3 data product as an ``AWS`` object in pypromice.  
 
@@ -17,16 +20,16 @@ These can be processed from Level 0 to a Level 3 data product as an ``AWS`` obje
 
    from pypromice.process import AWS
 
-    # Define input paths
-    config = "src/pypromice/test/test_config1.toml"
-    inpath = "src/pypromice/test/"
+   # Define input paths
+   config = "src/pypromice/test/test_config1.toml"
+   inpath = "src/pypromice/test/"
 
-    # Initiate and process
-    a = AWS(config, inpath)
-    a.process()
+   # Initiate and process
+   a = AWS(config, inpath)
+   a.process()
     
-    # Get Level 3
-    l3 = a.L3
+   # Get Level 3
+   l3 = a.L3
 
 All processing steps are executed in ``AWS.process``. These can also be broken down into each Level processing 
 
