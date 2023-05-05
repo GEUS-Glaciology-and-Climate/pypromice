@@ -11,20 +11,15 @@ pypromice can installed using pip:
 Developer install
 *****************
 
-pypromice can be ran in an environment with the specified dependencies.
+pypromice can be ran in an environment with the pypromice package cloned from GitHub_. 
 
 .. code:: console
 
 	$ conda create --name pypromice python=3.8
 	$ conda activate pypromice
-	$ conda install xarray pandas pathlib
-	$ conda install -c conda-forge netCDF4
-
-With the pypromice package cloned from GitHub_. 
-
-.. code:: console
-
 	$ git clone git@github.com:GEUS-Glaciology-and-Climate/pypromice.git
+	$ cd pypromice/
+	$ pip install .
 
 pypromice is also provided with a conda environment configuration environment.yml_ for a more straightforward set-up, if needed:
 
@@ -39,8 +34,6 @@ The package has inbuilt unit tests, which can be run to test the package install
 
 .. code:: console
 
-        $ cd pypromice/
-        $ pip install .
 	$ python -m unittest discover pypromice
         
 .. note::
@@ -53,27 +46,7 @@ Additional dependencies
 
 Additional packages are required if you wish to use pypromice's post-processing functionality. 
 
-
-scikit-learn
-------------
-scikit-learn_ can installed with conda-forge.
-
-.. code:: console
-
-	$ conda install -c conda-forge scikit-learn
-
-Or with pip. 
-
-.. code:: console
-
-	$ pip install scikit-learn 
-
-.. _scikit-learn: https://scikit-learn.org/stable/
-
-
-eccodes
--------
-eccodes_ is the official package for BUFR encoding and decoding. Try firstly to install with conda-forge like so:
+eccodes_ is the official package for BUFR encoding and decoding, which pypromice uses for post-process formatting. Try firstly to install with conda-forge like so:
 
 .. code:: console
 
