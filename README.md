@@ -24,41 +24,19 @@ $ pip install --upgrade git+http://github.com/GEUS-Glaciology-and-Climate/pyprom
 
 ### Developer install
 	
-pypromice can be ran in an environment with the specified dependencies.
+pypromice can be ran in an environment with the pypromice repo:
 
 ```
 $ conda create --name pypromice python=3.8
 $ conda activate pypromice
-$ conda install xarray pandas pathlib
-$ conda install -c conda-forge netCDF4
-```
-
-With the pypromice package cloned from here.
-
-```
 $ git clone git@github.com:GEUS-Glaciology-and-Climate/pypromice.git
+$ cd pypromice/
+$ pip install .
 ```
 
 ### Additional dependencies
 
 Additional packages are required if you wish to use pypromice's post-processing functionality. 
-
-
-#### scikit-learn
-
-[scikit-learn](https://scikit-learn.org/stable/) can installed with conda-forge.
-
-```
-$ conda install -c conda-forge scikit-learn
-```
-
-Or with pip. 
-
-```
-$ pip install scikit-learn 
-```
-
-#### eccodes
 
 [eccodes](https://confluence.ecmwf.int/display/ECC/ecCodes+installation) is the official package for BUFR encoding and decoding. Try firstly to install with conda-forge like so:
 
