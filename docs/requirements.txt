@@ -1,9 +1,11 @@
 datetime
 eccodes
-numpy
-pandas
+numpy>=1.23.0
+pandas>=1.5.0
 pyDataverse
-scikit-learn
+scikit-learn>=1.1.0
+scipy>=1.9.0
 sphinx_rtd_theme
 toml
-xarray
+urllib3<2
+xarray>=2022.6.0
