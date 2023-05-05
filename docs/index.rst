@@ -1,7 +1,7 @@
 pypromice
 =========
 
-pypromice_ is designed for processing and handling PROMICE_ and GC-Net_ automated weather station (AWS) data. The PROMICE (Programme for Monitoring of the Greenland Ice Sheet) weather station network monitors glacier mass balance in the melt zone of the Greenland Ice Sheet, providing ground truth data to calibrate mass budget models. GC-Net weather stations measure snowfall and surface properties in the accumulation zone, providing valuable knowledge on the Greenland Ice Sheet's mass gain and climatology.
+pypromice_ is designed for processing and handling PROMICE_ and GC-Net_ automated weather station (AWS) data. The PROMICE (Programme for Monitoring of the Greenland Ice Sheet) weather station network monitors glacier mass balance in the melt zone of the Greenland Ice Sheet, providing ground truth data to calibrate mass budget models. GC-Net (Greenland Climate Network) weather stations measure snowfall and surface properties in the accumulation zone, providing valuable knowledge on the Greenland Ice Sheet's mass gain and climatology.
 
 The PROMICE and GC-Net monitoring networks have unique AWS configurations and provide specialized data, therefore a toolbox is needed to handle and process their data. pypromice is the go-to toolbox for handling and processing climate and glacier datasets from the PROMICE and GC-Net monitoring networks. New releases of pypromice are uploaded alongside PROMICE AWS data releases to our Dataverse_ for transparency purposes and to encourage collaboration on improving our data.
 
