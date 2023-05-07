@@ -227,7 +227,7 @@ def setBUFRvalue(ibufr, b_name, value):
         print('----> {} {}'.format(b_name, value))
 
 
-def linear_fit(df, column, decimals, stid):
+def linear_fit(df, column, decimals, stid, extrapolate=None):
     '''Apply a linear regression to the input column
 
     Linear regression is following:
@@ -257,20 +257,27 @@ def linear_fit(df, column, decimals, stid):
             x = x_epoch.reshape(-1,1)
             y = df_dropna[column].values # can also reshape this, but not necessary
             model = LinearRegression().fit(x, y)
-            y_pred = model.predict(x).round(decimals=decimals)
 
+            # Adding prediction back to original df
+            if extrapolate:
+                # if extrapolating, then giving all indexes of df to the linear model
+                x_all = df.index.values.astype(np.int64) // 10 ** 9
+                df['{}_fit'.format(column)] = model.predict(x_all.reshape(-1,1)).round(decimals=decimals)
+            else:
+                # if not extrapolating, then only giving to the linear model the
+                # indexes for which observations were available
+                df.loc[df_dropna.index, '{}_fit'.format(column)] = model.predict(x).round(decimals=decimals)
+                
             # Plot data if desired
             # if stid == 'LYN_T':
             #     if (column == 'gps_lat') or (column == 'gps_lon') or (column == 'gps_alt'):
             #         import matplotlib.pyplot as plt
-            #         plt.scatter(x,y)
-            #         plt.plot(x,y_pred, color='red')
+            #         plt.figure()
+            #         df_dropna[column].plot(marker='o',ls='None')
+            #         df['{}_fit'.format(column)].plot(marker='o', ls='None', color='red')
             #         plt.title('{} {}'.format(stid, column))
+            #         plt.xlim(df.index.min(),df.index.max())
             #         plt.show()
-
-            # Add y_pred back to original df
-            df_dropna['y_pred'] = y_pred
-            df['{}_fit'.format(column)] = df_dropna['y_pred']
         else:
             # All data is NaN! Just write NaNs using the original column
             print('----> No {} data for {}!'.format(column, stid))
@@ -398,7 +405,7 @@ def fetch_old_positions(df, stid, time_limit, positions):
     # to the resulting single array. Otherwise, we can have jumps when the GPS data goes out
     # or comes back. The message coordinates can sometimes all be 0.0, so we check for this.
     print('fetching old positions for {}'.format(stid))
-    df_limited = df.last(time_limit)
+    df_limited = df.last(time_limit).copy()
     print('last transmission: {}'.format(df_limited.index.max()))
 
     if ('msg_lat' in df_limited) and ('msg_lon' in df_limited):
@@ -406,10 +413,16 @@ def fetch_old_positions(df, stid, time_limit, positions):
             df_limited['gps_lat'] = df_limited['gps_lat'].combine_first(df_limited['msg_lat'])
         if (0.0 not in df_limited['msg_lon'].values):
             df_limited['gps_lon'] = df_limited['gps_lon'].combine_first(df_limited['msg_lon'])
-
-    df_limited = linear_fit(df_limited, 'gps_alt', 1, stid)
+    
     df_limited = linear_fit(df_limited, 'gps_lat', 6, stid)
     df_limited = linear_fit(df_limited, 'gps_lon', 6, stid)
+    df_limited = linear_fit(df_limited, 'gps_alt', 1, stid)
+    
+    # altitude is not transmitted in the iridium messages, so for some sites it
+    # is missing for as long back as 2012 (SCO_U). So if the last three months
+    # did not contain any data, we interpolate based on the entire data
+    if df_limited.gps_alt.isnull().all():
+        df_limited['gps_alt_fit'] = linear_fit(df, 'gps_alt', 1, stid, extrapolate=True).last(time_limit).gps_alt_fit
 
     # s = df_limited.loc[df_limited.index.max()] # just use max index
 
