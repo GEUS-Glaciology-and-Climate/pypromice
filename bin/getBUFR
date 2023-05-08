@@ -243,6 +243,7 @@ if __name__ == '__main__':
 						continue
 					elif min_data_pos_result is False:
 						failed_min_data_pos.append(stid)
+						positions = fetch_old_positions(df1, stid, args.time_limit, positions)
 						continue
 
 					# Construct and export BUFR file
