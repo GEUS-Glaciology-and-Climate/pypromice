@@ -1,4 +1,5 @@
 # pypromice
+[![PyPI version](https://badge.fury.io/py/pypromice.svg)](https://badge.fury.io/py/pypromice)
 [![](<https://img.shields.io/badge/Dataverse DOI-10.22008/FK2/3TSBF0-orange>)](https://www.doi.org/10.22008/FK2/3TSBF0) [![Documentation Status](https://readthedocs.org/projects/pypromice/badge/?version=latest)](https://pypromice.readthedocs.io/en/latest/?badge=latest)
  
 pypromice is designed for processing and handling [PROMICE](https://promice.dk) automated weather station (AWS) data.
@@ -49,3 +50,4 @@ If the environment cannot resolve the eccodes installation then follow the steps
 ```
 $ pip3 install eccodes-python
 ```
+

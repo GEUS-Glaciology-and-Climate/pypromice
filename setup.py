@@ -10,7 +10,7 @@ setuptools.setup(
     description="PROMICE/GC-Net data processing toolbox",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-processing",
+    url="https://github.com/GEUS-Glaciology-and-Climate/pypromice",
     project_urls={
         "Bug Tracker": "https://github.com/GEUS-Glaciology-and-Climate/pypromice/issues",
         "Documentation": "https://pypromice.readthedocs.io",
