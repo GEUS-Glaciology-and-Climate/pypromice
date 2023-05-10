@@ -13,7 +13,7 @@ import pickle
 
 from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, positions_seed, positions_update_timestamp_only
 from pypromice.postprocess.csv2bufr import getBUFR, linear_fit, rolling_window, round_values, \
-										   write_positions, fetch_old_positions, min_data_check
+										   find_positions, min_data_check
 
 # from IPython import embed
 
@@ -162,7 +162,7 @@ if __name__ == '__main__':
 					print('No recent instantaneous timestamps!')
 					no_recent_data.append(stid)
 					if args.positions is True:
-						positions = fetch_old_positions(df1, stid, args.time_limit, positions)
+						df1_limited, positions = find_positions(df1, stid, args.time_limit, positions=positions)
 					continue
 				else:
 					# we have partial data, just use the most recent row
@@ -174,7 +174,7 @@ if __name__ == '__main__':
 					print('All instantaneous timestamps are None!')
 					no_valid_data.append(stid)
 					if args.positions is True:
-						positions = fetch_old_positions(df1, stid, args.time_limit, positions)
+						df1_limited, positions = find_positions(df1, stid, args.time_limit, positions=positions)
 					continue
 				else:
 					# all values are present, with matching timestamps, so just use t_i
@@ -189,31 +189,20 @@ if __name__ == '__main__':
 				latest_timestamp = latest_timestamps[stid]
 
 				if args.dev is True:
-					print('---> Running in dev mode!')
+					print('----> Running in dev mode!')
 					# If we want to run repeatedly (before another transmission comes in), then don't
 					# check the actual latest timestamp, and just set to two_days_ago
 					latest_timestamp = two_days_ago
 
 				if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
 					print('Time checks passed.')
-					# limit the dataframe for linear regression (e.g. previous 3 months)
-					df1_limited = df1.last(args.time_limit)
 
-					# Combine gps and msg lat and lon using combine_first()
-					# If any GPS positions are missing, we will fill the missing GPS positions with modem
-					# positions (if they are present). Important to do this first, and then apply linear fit
-					# to the resulting single array. Otherwise, we can have jumps when the GPS data goes out
-					# or comes back. The message coordinates can sometimes all be 0.0, so we check for this.
-					if ('msg_lat' in df1_limited) and ('msg_lon' in df1_limited):
-						if (0.0 not in df1_limited['msg_lat'].values):
-							df1_limited['gps_lat'] = df1_limited['gps_lat'].combine_first(df1_limited['msg_lat'])
-						if (0.0 not in df1_limited['msg_lon'].values):
-							df1_limited['gps_lon'] = df1_limited['gps_lon'].combine_first(df1_limited['msg_lon'])
-
-					# Add '{}_fit' to df (linear fit of alt, lat, lon)
-					df1_limited = linear_fit(df1_limited, 'gps_alt', 1, stid)
-					df1_limited = linear_fit(df1_limited, 'gps_lat', 6, stid)
-					df1_limited = linear_fit(df1_limited, 'gps_lon', 6, stid)
+					if args.positions is True:
+						# return positions dict for writing to csv file after processing finished
+						df1_limited, positions = find_positions(df1, stid, args.time_limit, current_timestamp, positions)
+					else:
+						# we only need to add positions to the BUFR file
+						df1_limited = find_positions(df1, stid, args.time_limit, current_timestamp)
 
 					# Apply smoothing to z_boom_u
 					# require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
@@ -231,39 +220,37 @@ if __name__ == '__main__':
 
 					s1_current = round_values(s1_current)
 
-					if args.positions is True:
-						positions = write_positions(s1_current, stid, positions)
-
 					# Check that we have minimum required valid data
-					# This should really only apply to the case of partial data (from the timestamp checks above)
-					# However, good sanity check to just run this once here for all stids
 					min_data_wx_result, min_data_pos_result = min_data_check(s1_current, stid)
 					if min_data_wx_result is False:
 						failed_min_data_wx.append(stid)
 						continue
 					elif min_data_pos_result is False:
 						failed_min_data_pos.append(stid)
-						positions = fetch_old_positions(df1, stid, args.time_limit, positions)
 						continue
 
 					# Construct and export BUFR file
-					getBUFR(s1_current, outFiles+bufrname, stid, land_stids)
+					file_removed = getBUFR(s1_current, outFiles+bufrname, stid, land_stids)
 
-					print(f'Successfully exported bufr file to {outFiles+bufrname}')
+					if file_removed is False:
+						print(f'Successfully exported bufr file to {outFiles+bufrname}')
 				else:
 					print('----> Time checks failed for {}'.format(stid))
 					print('      current:', current_timestamp)
-					print('       latest:', latest_timestamp)
+					if args.dev is True:
+						print(' latest (DEV):', latest_timestamp)
+					else:
+						print('       latest:', latest_timestamp)
 					no_recent_data.append(stid)
 					if args.positions is True:
-						positions = fetch_old_positions(df1, stid, args.time_limit, positions)
+						df1_limited, positions = find_positions(df1, stid, args.time_limit, current_timestamp, positions)
 			else:
 				print('{} not found in latest_timestamps'.format(stid))
 				no_entry_latest_timestamps.append(stid)
 		else:
 			print('----> Skipping {} as per stid_to_skip config'.format(stid))
 			skipped.append(stid)
-			if args.positions is True:
+			if args.positions is True and stid not in ('XXX',):
 				# still will be useful to have all stations in AWS_station_location.csv,
 				# regardless if they were skipped for the DMI upload
 				if stid not in positions_update_timestamp_only:
@@ -271,7 +258,7 @@ if __name__ == '__main__':
 				df_skipped = pd.read_csv(f, delimiter=',')
 				df_skipped.set_index(pd.to_datetime(df_skipped['time']), inplace=True)
 				df_skipped.sort_index(inplace=True) # make sure we are time-sorted
-				positions = fetch_old_positions(df_skipped, stid, args.time_limit, positions)
+				df_skipped_limited, positions = find_positions(df_skipped, stid, args.time_limit, positions=positions)
 
 	# Write the most recent timestamps back to the pickle on disk
 	print('writing latest_timestamps.pickle')
