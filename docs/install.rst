@@ -1,7 +1,13 @@
 *************
 Quick install
 *************
-pypromice can installed using pip:
+The latest release of pypromice can installed using pip:
+
+.. code:: console
+
+	$ pip install pypromice
+
+For the most up-to-date version, pypromice can be installed directly from the repo: 
 
 .. code:: console
 
