@@ -5,6 +5,7 @@ Post-processing functions for AWS station data, such as converting PROMICE and G
 """
 import pandas as pd
 import sys, traceback
+import os
 from datetime import datetime, timedelta
 from eccodes import codes_set, codes_write, codes_release, \
                     codes_bufr_new_from_samples, CodesInternalError, \
@@ -36,19 +37,27 @@ def getBUFR(s1, outBUFR, stid, land_stids):
         The station ID to be processed. e.g. 'KPC_U'
     land_stids : list
         List of station IDs for land-based stations
+
+    Returns
+    -------
+    remove_file : boolean
+        Status object to return to getBUFR indicating successful completion
     '''
+    remove_file = False
+
     # Open bufr file
     fout = open(outBUFR, 'wb')
 
-    # for i1, r1 in df1.iterrows(): # If dataframe passed w/ multiple rows
-
-    #Create new bufr message to write to
+    # Create new bufr message to write to
     ibufr = codes_bufr_new_from_samples('BUFR4')
     timestamp = datetime.strptime(s1['time'], '%Y-%m-%d %H:%M:%S')
     config_key = 'mobile'
     if stid in land_stids:
         config_key = 'land'
     try:
+        # we must pass all the following functions without error.
+        # If handled (or unhandled) errors occur, we re-raise and
+        # the exceptions below will set remove_file to True.
         setTemplate(ibufr, timestamp, stid, config_key)
         setStation(ibufr, stid, config_key)
         setAWSvariables(ibufr, s1, timestamp, stid)
@@ -61,17 +70,24 @@ def getBUFR(s1, outBUFR, stid, land_stids):
 
     except CodesInternalError as ec:
         print(traceback.format_exc())
-        print(ec)
-        sys.exit('-----> CodesInternalError in getBUFR!')
+        # print(ec)
+        print(f'-----> CodesInternalError in getBUFR for {stid}!')
+        remove_file = True
     except Exception as e:
         # Catch anything else here...
         print(traceback.format_exc())
-        print(e)
-        sys.exit('!!!!!!!!!! ERROR in getBUFR')
+        # print(e)
+        print(f'-----> ERROR in getBUFR for {stid}')
+        remove_file = True
 
     codes_release(ibufr)
 
     fout.close()
+
+    if remove_file is True:
+        print(f'-----> Removing file for {stid}')
+        os.remove(fout.name)
+    return remove_file
 
 
 def setTemplate(ibufr, timestamp, stid, config_key):
@@ -129,15 +145,16 @@ def setStation(ibufr, stid, config_key):
                 stid = stid.replace('_O','')
             if stid == 'CEN2':
                 stid = 'CEN'
-            if stid in v:
+            try:
                 codes_set(ibufr, k, v[stid])
-            else:
-                sys.exit('!!!!!!!!!! ID not found for {}'.format(stid))
+            except KeyError as e:
+                print(f'-----> ID not found for {stid}')
+                raise # throw error back to getBUFR where it is handled
         else:
             if codes_is_defined(ibufr, k) == 1:
                 codes_set(ibufr, k, v)
             else:
-               print('-----> setStation Key not defined: {}'.format(k))
+               print(f'-----> setStation Key for {stid} not defined: {k}')
                continue
 
 
@@ -222,12 +239,13 @@ def setBUFRvalue(ibufr, b_name, value):
             codes_set(ibufr, b_name, value)
         except CodesInternalError as ec:
             print(f'{ec}: {b_name}')
-            sys.exit('-----> CodesInternalError in setBUFRvalue!')
+            print('-----> CodesInternalError in setBUFRvalue!')
+            raise # throw error back to getBUFR where it is handled
     else:
         print('----> {} {}'.format(b_name, value))
 
 
-def linear_fit(df, column, decimals, stid):
+def linear_fit(df, column, decimals, stid, extrapolate=False):
     '''Apply a linear regression to the input column
 
     Linear regression is following:
@@ -243,43 +261,58 @@ def linear_fit(df, column, decimals, stid):
         How many decimals to round the output fit values
     stid : str
         The station ID to be processed. e.g. 'KPC_U'
+    extrapolate : boolean
+        If False (default), only apply linear fit to timestamps with valid data
+        If True, then extrapolate positions based on linear fit model
 
     Returns
     -------
     df : pandas.Dataframe
         The original input df, with added column for the linear regression values
+    pos_valid : boolean
+        If True (default), sufficient valid data found in recent (limited) data.
+        If False, we need to return this status to find_positions and use full station history instead.
     '''
+    # print('=========== linear_fit ===========')
+    pos_valid = True
     if column in df:
         df_dropna = df[df[column].notna()] # limit to only non-nan for the target column
-        if len(df_dropna[column]) > 0:
+        # if len(df_dropna[column].index.normalize().unique()) >= 10: # must have at least 10 unique days
+        if len(df_dropna[column]) >= 15: # must have at least 15 data points (could be hourly or daily)
             # Get datetime x values into epoch sec integers
             x_epoch = df_dropna.index.values.astype(np.int64) // 10 ** 9
             x = x_epoch.reshape(-1,1)
             y = df_dropna[column].values # can also reshape this, but not necessary
             model = LinearRegression().fit(x, y)
-            y_pred = model.predict(x).round(decimals=decimals)
+
+            # Adding prediction back to original df
+            if extrapolate is True:
+                # if extrapolating, then giving all indexes of df to the linear model
+                x_all = df.index.values.astype(np.int64) // 10 ** 9
+                df['{}_fit'.format(column)] = model.predict(x_all.reshape(-1,1)).round(decimals=decimals)
+            else:
+                # if not extrapolating, then only giving to the linear model the
+                # indexes for which observations were available
+                df.loc[df_dropna.index, '{}_fit'.format(column)] = model.predict(x).round(decimals=decimals)
 
             # Plot data if desired
             # if stid == 'LYN_T':
             #     if (column == 'gps_lat') or (column == 'gps_lon') or (column == 'gps_alt'):
             #         import matplotlib.pyplot as plt
-            #         plt.scatter(x,y)
-            #         plt.plot(x,y_pred, color='red')
+            #         plt.figure()
+            #         df_dropna[column].plot(marker='o',ls='None')
+            #         df['{}_fit'.format(column)].plot(marker='o', ls='None', color='red')
             #         plt.title('{} {}'.format(stid, column))
+            #         plt.xlim(df.index.min(),df.index.max())
             #         plt.show()
-
-            # Add y_pred back to original df
-            df_dropna['y_pred'] = y_pred
-            df['{}_fit'.format(column)] = df_dropna['y_pred']
         else:
-            # All data is NaN! Just write NaNs using the original column
-            print('----> No {} data for {}!'.format(column, stid))
-            df['{}_fit'.format(column)] = df[column]
+            # Do not have 10 days of valid data, or all data is NaN.
+            print('----> Insufficient {} data for {}!'.format(column, stid))
+            pos_valid = False
     else:
         print('----> {} not found in dataframe!'.format(column))
         pass
-
-    return df
+    return df, pos_valid
 
 
 def rolling_window(df, column, window, min_periods, decimals):
@@ -336,44 +369,13 @@ def round_values(s):
     # gps_lat,gps_lon,gps_alt,z_boom_u are all rounded in linear_fit() or rolling_window()
     return s
 
-def write_positions(s, stid, positions):
-    '''Set valid lat, lon, alt and timestamp to the positions dict.
-    For submitting registration metadata to DMI/WMO, and for writing
-    positions to AWS_station_locations.csv. Must pass --positions arg.
 
-    Parameters
-    ----------
-    s : pandas series
-        The current obset we are working with (for BUFR submission)
-    stid : str
-        The station ID, such as NUK_L
-    positions : dict
-        Dict storing current station positions.
-
-    Returns
-    -------
-    positions : dict
-        Modified dict storing current station positions.
-    '''
-    print('writing positions for {}'.format(stid))
-    to_write = ['lat','lon','alt']
-    for i in to_write:
-        if (f'gps_{i}_fit' in s) and (pd.isna(s[f'gps_{i}_fit']) is False):
-            positions[stid][i] = s[f'gps_{i}_fit']
-
-    # Add timestamp
-    positions[stid]['timestamp'] = s['time']
-    return positions
-
-def fetch_old_positions(df, stid, time_limit, positions):
-    '''Set valid lat, lon, alt and timestamp to the positions dict.
-    For submitting registration metadata to DMI/WMO, and for writing
-    positions to AWS_station_locations.csv. We run this if a station
-    is skipped for BUFR processing or does not have new or recent-enough
-    obs, but we still want to find the last position if we have it.
-    Must pass --positions arg. The last position is using the previous
-    3 months best fit from the last transmission we have, could be many
-    months or even years ago.
+def find_positions(df, stid, time_limit, current_timestamp=None, positions=None):
+    ''' Driver function to run linear_fit() and set valid lat, lon, and alt
+    to df_limited, which is then used to set position data in BUFR.
+    If 'positions' is not None (must pass --positions arg), we also write to
+    the positions dict which will be written to AWS_station_locations.csv for
+    all stations (whether processed or skipped)
 
     Parameters
     ----------
@@ -384,65 +386,90 @@ def fetch_old_positions(df, stid, time_limit, positions):
     time_limit : str
         Previous time to limit dataframe before applying linear regression.
         (e.g. '3M')
-    positions : dict
-        Dict storing current station positions.
+    current_timestamp : datetime64 time
+        The timestamp for the most recent valid instantaneous data
+    positions : dict, or None
+        Dict storing current station positions. If present, we are writing
+        positions to file.
 
     Returns
     -------
+    df_limited : pandas dataframe
+        Dataframe limited to time_limit, and including position data
     positions : dict
         Modified dict storing most-recent station positions.
     '''
-    # Combine gps positions and modem-derived positions using combine_first()
-    # If any GPS positions are missing, we will fill the missing GPS positions with modem
-    # positions (if they are present). Important to do this first, and then apply linear fit
-    # to the resulting single array. Otherwise, we can have jumps when the GPS data goes out
-    # or comes back. The message coordinates can sometimes all be 0.0, so we check for this.
-    print('fetching old positions for {}'.format(stid))
-    df_limited = df.last(time_limit)
-    print('last transmission: {}'.format(df_limited.index.max()))
+    if stid in positions_update_timestamp_only:
+        # we don't have a position-associated timestamp, just use the most recent transmission.
+        # e.g. KAN_B (does not transmit position, and currently skipped because does not transmit
+        # instantaneous obs). If KAN_B ever submits inst data (but not position) we will need to use
+        # the config-seeded position coordinates to set positions here in df_limited.
+        positions[stid]['timestamp'] = df.index.max()
+        df_limited = df # just to return something
+    else:
+        print(f'finding positions for {stid}')
+        df_limited = df.last(time_limit).copy()
+        print(f'last transmission: {df_limited.index.max()}')
+        # Combine gps positions and Iridium modem-derived positions using combine_first()
+        # If any GPS positions are missing, we will fill the missing GPS positions with modem
+        # positions (if they are present). Important to do this first, and then apply linear fit
+        # to the resulting single array. Message coordinates can all be 0.0, so check for this.
+        if ('msg_lat' in df_limited) and ('msg_lon' in df_limited):
+            if (0.0 not in df_limited['msg_lat'].values):
+                df_limited['gps_lat'] = df_limited['gps_lat'].combine_first(df_limited['msg_lat'])
+            if (0.0 not in df_limited['msg_lon'].values):
+                df_limited['gps_lon'] = df_limited['gps_lon'].combine_first(df_limited['msg_lon'])
 
-    if ('msg_lat' in df_limited) and ('msg_lon' in df_limited):
-        if (0.0 not in df_limited['msg_lat'].values):
-            df_limited['gps_lat'] = df_limited['gps_lat'].combine_first(df_limited['msg_lat'])
-        if (0.0 not in df_limited['msg_lon'].values):
-            df_limited['gps_lon'] = df_limited['gps_lon'].combine_first(df_limited['msg_lon'])
+        # Extrapolate recommended for altitude, optional for lat and lon. Data reliably shows
+        # Iridium message positions to always be present for lat and lon when GPS is missing.
+        df_limited, lat_valid = linear_fit(df_limited, 'gps_lat', 6, stid)
+        df_limited, lon_valid = linear_fit(df_limited, 'gps_lon', 6, stid)
+        df_limited, alt_valid = linear_fit(df_limited, 'gps_alt', 1, stid, extrapolate=True)
 
-    df_limited = linear_fit(df_limited, 'gps_alt', 1, stid)
-    df_limited = linear_fit(df_limited, 'gps_lat', 6, stid)
-    df_limited = linear_fit(df_limited, 'gps_lon', 6, stid)
+        # If we have no valid lat, lon or alt data in the df_limited window, then interpolate
+        # using full tx dataset. This is primarily used for altitude, which is not transmitted in
+        # the Iridium messages.
+        check_valid = {'gps_lat': lat_valid, 'gps_lon': lon_valid, 'gps_alt': alt_valid}
+        check_valid_again = {}
+        for k,v in check_valid.items():
+            if v is False:
+                print(f'----> Using full history for linear extrapolation: {k}')
+                print(f'first transmission: {df.index.min()}')
+                if k == 'gps_alt':
+                    df, valid = linear_fit(df, k, 1, stid, extrapolate=True)
+                else:
+                    df, valid = linear_fit(df, k, 6, stid, extrapolate=True)
+                check_valid_again[k] = valid
+                if check_valid_again[k] is True:
+                    df_limited[f'{k}_fit'] = df.last(time_limit)[f'{k}_fit']
+                else:
+                    print(f'----> No data exists for {k}. Stubbing out with NaN.')
+                    df_limited[f'{k}_fit'] = pd.Series(np.nan, index= df.last(time_limit).index)
 
-    # s = df_limited.loc[df_limited.index.max()] # just use max index
+        # SET POSITIONS FOR CSV FILE
+        if positions is not None:
+            if current_timestamp is None:
+                # This is old data (> 2 days), not submitting to DMI, but writing to positions csv
+                # Find the most recent row that has valid lat, lon and alt
+                last_valid_timestamp = df_limited[['gps_lon_fit','gps_lat_fit','gps_alt_fit']].dropna().last_valid_index()
+                if last_valid_timestamp is None:
+                    # we are likely missing gps_alt_fit
+                    last_valid_timestamp = df_limited[['gps_lon_fit','gps_lat_fit']].dropna().last_valid_index()
+                    if last_valid_timestamp is None:
+                        # last ditch effort
+                        last_valid_timestamp = df_limited.index.max()
+                s = df_limited.loc[last_valid_timestamp]
+            else:
+                s = df_limited.loc[current_timestamp]
+            print(f'writing positions for {stid}')
+            pos_strings = ['lat','lon','alt']
+            for p in pos_strings:
+                if (f'gps_{p}_fit' in s) and (pd.isna(s[f'gps_{p}_fit']) is False):
+                    positions[stid][p] = s[f'gps_{p}_fit']
+            # Add timestamp
+            positions[stid]['timestamp'] = s['time']
 
-    # Go through gps_lat_fit, gps_lon_fit and gps_alt_fit and keep the most recent
-    # valid index. They should all be the same. Or, if modem-derived, we will have
-    # only lat and lon (with same index). This treatment covers all possible
-    # scenarios of missing data.
-    pos_strings = ['lat','lon','alt']
-    pos_timestamps = []
-    valid_timestamp_found = False
-    recent_timestamp = pd.to_datetime('1900-01-01') # initialize with an old date
-    for p in pos_strings:
-        # search for a valid timestamp associated with a non-nan position
-        p_timestamp = df_limited[f'gps_{p}_fit'].last_valid_index()
-        if (p_timestamp is not None) and (p_timestamp > recent_timestamp):
-            recent_timestamp = p_timestamp
-            valid_timestamp_found = True
-    if valid_timestamp_found:
-        s = df_limited.loc[recent_timestamp]
-
-        to_write = ['lat','lon','alt']
-        for p in pos_strings:
-            if (f'gps_{p}_fit' in s) and (pd.isna(s[f'gps_{p}_fit']) is False):
-                positions[stid][p] = s[f'gps_{p}_fit']
-                # positions[stid][f'{p}_source'] = 'OLD' #source flag
-
-        # Add timestamp
-        positions[stid]['timestamp'] = s['time']
-    elif stid in positions_update_timestamp_only:
-        # we don't have a position-associated timestamp, just use the most recent transmission
-        positions[stid]['timestamp'] = df_limited.index.max()
-
-    return positions
+    return df_limited, positions if positions else df_limited
 
 
 def min_data_check(s, stid):
@@ -482,9 +509,6 @@ def min_data_check(s, stid):
     if (pd.isna(s['t_i']) is True) and (pd.isna(s['p_i']) is True):
         print('----> Failed min_data_check for air temp and pressure!')
         min_data_wx_result = False
-
-    # Must have a valid position
-    # Note that gps_ variables have already had replacement with msg_ positions if needed
 
     # Missing just elevation OK
     # if (pd.isna(s['gps_lat_fit']) is False) and (pd.isna(s['gps_lon_fit']) is False):
