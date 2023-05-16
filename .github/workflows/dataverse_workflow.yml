@@ -1,9 +1,10 @@
 # Publish to GEUS Dataverse on package release
 # https://github.com/IQSS/dataverse-uploader
-on: 
+on:
   release:
+    types: [published]
   workflow_dispatch:
-
+  
 jobs:
   build:
     runs-on: ubuntu-latest
