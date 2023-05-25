@@ -12,7 +12,7 @@ from datetime import datetime
 def aws_names():
     '''Return PROMICE and GC-Net AWS names that can be used in get.aws_data() 
     fetching'''
-    lookup = lookup_table(['doi:10.22008/FK2/IW73UU', 'doi:10.22008/FK2/GNYFUK'])
+    lookup = lookup_table(['doi:10.22008/FK2/IW73UU'])
     print(f'Available dataset keywords: {list(lookup.keys())}')
     return list(lookup.keys())
 
@@ -24,7 +24,7 @@ def aws_data(aws_name):
     df : pandas.DataFrame
         AWS observations dataframe
     '''
-    lookup = lookup_table(['doi:10.22008/FK2/IW73UU', 'doi:10.22008/FK2/GNYFUK'])
+    lookup = lookup_table(['doi:10.22008/FK2/IW73UU'])
     assert aws_name.lower() in list(lookup.keys())
     data = pd.read_csv(lookup[aws_name], index_col=0, parse_dates=True)
     return data        
@@ -141,7 +141,7 @@ def _getDFdatetime(df, dt_str, dt_format='%Y %m %d %H'):
 class TestGet(unittest.TestCase): 
     def testURL(self):
         '''Test URL retrieval'''
-        l = lookup_table(['doi:10.22008/FK2/IW73UU', 'doi:10.22008/FK2/GNYFUK'])
+        l = lookup_table(['doi:10.22008/FK2/IW73UU'])
         self.assertTrue('10.22008/FK2' in list(l.values())[0])
     
     def testAWSname(self):  
