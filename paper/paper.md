@@ -64,7 +64,7 @@ A defined processing workflow is included in `pypromice` for transforming origin
 3. Supply easy and accessible methods to handle AWS data
 4. Provide opportunities to contribute to the processing and handling of AWS data in an open and collaborative manner
 
-The `pypromice` software has been designed to handle and process data from AWSs located in Greenland. The compilation and processing of data from national AWS networks has historically been conducted through un-distributed, oftentimes proprietary software. Similar Python packages to `pypromice` has been developed to process data from historical AWS in Greenland [@vandecrux-gcnet-2020;@steffen-gcnet-2023] or commercial AWS (e.g. [pywws](https://pypi.org/project/pywws/) [@easterbrook-pywws-2023]) or to post-process and harmonize AWS data from different institutions (e.g. [JAWS](https://github.com/jaws/jaws) [@zender-jaws-2019]). Therefore, there was a key need for the development of `pypromice` in order to have a package with a complete and operational `L0` to `L3` workflow.
+The `pypromice` software has been designed to handle and process data from AWSs located in Greenland. The compilation and processing of data from national AWS networks has historically been conducted through un-distributed, oftentimes proprietary software. Similar Python packages to `pypromice` have been developed to process data from historical AWS in Greenland [@vandecrux-gcnet-2020;@steffen-gcnet-2023], from commercial AWS (e.g. [pywws](https://pypi.org/project/pywws/) [@easterbrook-pywws-2023]), or to post-process and harmonize AWS data from different institutions (e.g. [JAWS](https://github.com/jaws/jaws) [@zender-jaws-2019]). Therefore, there was a key need for the development of `pypromice` in order to have a package with a complete and operational `L0` to `L3` workflow.
 
 
 # Usage
@@ -73,14 +73,14 @@ The `pypromice` software handles data from 43 AWSs on hourly, daily and monthly 
 
 GEUS is responsible for the Programme for Monitoring of the Greenland Ice Sheet ([PROMICE](https://promice.org)), which is now a network of over 21 AWSs installed across the Greenland Ice Sheet [@ahlstrom-programme-2008]. Launched in 2007, these one-level tripod stations are designed to stand on ice and move with the ice flow close to the ice sheet periphery [@fausto-programme-2021; @how-one-boom-2022]. The PROMICE stations are designed to monitor the surface melt and its meteorological drivers in the ablation area of the ice sheet.
 
-In 2021, GEUS assumed responsibility of the Greenland Climate Network (GC-Net) AWS locations [@steffen-greenland-1996], previously maintained by the United States National Science Foundation (NSF), National Aeronautics and Space Administration (NASA) and Swiss Federal Institute for Forest, Snow and Landscape Research (WSL). This expansion added 16 two-level mast stations to GEUS' sites. The data from these stations are intended to monitor conditions on the inner regions of the ice sheet, including snow accumulation and surface conditions [@how-two-boom-2022].
+In 2021, GEUS assumed responsibility of the Greenland Climate Network (GC-Net) AWS locations [@steffen-greenland-1996], previously maintained by the United States National Science Foundation (NSF), National Aeronautics and Space Administration (NASA) and Swiss Federal Institute for Forest, Snow and Landscape Research (WSL). This expansion added 16 two-level mast stations to GEUS' sites. The data from these stations are intended to monitor conditions on the inner regions of the ice sheet, including snow accumulation and surface conditions [@how-one-boom-2022].
 
 The Greenland Ecosystem Monitoring programme ([GEM](https://g-e-m.dk)) is an integrated, long-term monitoring effort that examines the effects of climate change on Arctic ecosystems. Established in 1995, GEM includes monitoring at Zackenberg, Kobbefjord, and Disko, Greenland. The program offers access to over 1000 freely-available environmental datasets, including data from 6 GEUS-designed AWS installations [@gem-glaciobasis-2020] which have been used in scientific publications [@messerli-snow-2022].
 
  
 # Documentation
 
-`pypromice` versions accompany releases of GEUS AWS one-boom and two-boom data publications [@how-pypromice-2022].
+`pypromice` versions accompany releases of GEUS AWS data publications [@how-pypromice-2022].
 
 Package documentation is available on the `pypromice` [readthedocs](https://pypromice.readthedocs.io/en/latest/). 
 
