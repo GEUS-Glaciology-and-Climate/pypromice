@@ -64,7 +64,13 @@ A defined processing workflow is included in `pypromice` for transforming origin
 3. Supply easy and accessible methods to handle AWS data
 4. Provide opportunities to contribute to the processing and handling of AWS data in an open and collaborative manner
 
-The `pypromice` software has been designed to handle and process data from AWSs located in Greenland. The compilation and processing of data from national AWS networks has historically been conducted through un-distributed, oftentimes proprietary software. Similar Python packages to `pypromice` have been developed to process data from historical AWS in Greenland [@vandecrux-gcnet-2020;@steffen-gcnet-2023], from commercial AWS (e.g. [pywws](https://pypi.org/project/pywws/), @easterbrook-pywws-2023), or to post-process and harmonize AWS data from different institutions (e.g. [JAWS](https://github.com/jaws/jaws), @zender-jaws-2019). Therefore, there was a key need for the development of `pypromice` in order to have a package with a complete and operational `L0` to `L3` workflow.
+The `pypromice` software has been designed to handle and process data from AWSs located in Greenland. The compilation and processing of data from national AWS networks has historically been conducted through un-distributed, oftentimes proprietary software. Similar Python packages to `pypromice` have been developed to:
+
+- Process data from historical AWS in Greenland, such as the legacy GC-Net processing workflow [@vandecrux-gcnet-2020;@steffen-gcnet-2023]
+- Handle data from commercial AWS, such as [pywws](https://pypi.org/project/pywws/) [@easterbrook-pywws-2023]
+- Perform post-processing steps and harmonize AWS data from different institutions, such as [JAWS](https://github.com/jaws/jaws) [@zender-jaws-2019]
+
+As a result, there was a key need for the development of `pypromice` in order to have a package with a complete and operational `L0` to `L3` workflow.
 
 
 # Usage
