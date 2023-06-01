@@ -46,7 +46,7 @@ bibliography: paper.bib
 
 The `pypromice` Python package is for processing and handling observation datasets from automated weather stations (AWS). It is primarily aimed at users of AWS data from the Geological Survey of Denmark and Greenland (GEUS), which collects and distributes in situ weather station observations to the cryospheric science research community. Functionality in `pypromice` is primarily handled using two key open-source Python packages, `xarray` [@hoyer-xarray-2017] and `pandas` [@pandas-decpandas-2020].
 
-A defined processing workflow is included in `pypromice` for transforming original AWS observations (Level 0, `L0`) to a usable, CF-convention-compliant dataset (Level 3, `L3`) (\autoref{fig:process}). Intermediary processing levels (`L1`,`L2`) refer to key stages in the workflow, namely the conversion of variables to physical measurements and variable filtering (`L1`), cross-variable corrections and user-defined data flagging and fixing (`L2`), and derived variables (`L3`). Information regarding the station configuration is needed to perform the processing, such as instrument calibration coefficients and station type (one-boom tripod or two-boom mast station design, for example), which are held in a `toml` configuration file. Two example configuration files are provided with `pypromice`, which are also used in the package's unit tests. More detailed documentation of the AWS design, instrumentation, and processing steps are described in [@fausto-programme-2021].
+A defined processing workflow is included in `pypromice` for transforming original AWS observations (Level 0, `L0`) to a usable, CF-convention-compliant dataset (Level 3, `L3`) (\autoref{fig:process}). Intermediary processing levels (`L1`,`L2`) refer to key stages in the workflow, namely the conversion of variables to physical measurements and variable filtering (`L1`), cross-variable corrections and user-defined data flagging and fixing (`L2`), and derived variables (`L3`). Information regarding the station configuration is needed to perform the processing, such as instrument calibration coefficients and station type (one-boom tripod or two-boom mast station design, for example), which are held in a `toml` configuration file. Two example configuration files are provided with `pypromice`, which are also used in the package's unit tests. More detailed documentation of the AWS design, instrumentation, and processing steps are described in @fausto-programme-2021.
 
 ![AWS data Level 0 (`L0`) to Level 3 (`L3`) processing steps, where `L0` refers to raw, original data and `L3` is usable data that has been transformed, corrected and filtered \label{fig:process}](https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/geus-glaciology-and-climate.github.io/master/assets/images/pypromice_process_design.png){ width=75% }
 
@@ -59,12 +59,18 @@ A defined processing workflow is included in `pypromice` for transforming origin
 
 `pypromice` has four main research purposes:
 
-1. Process and handle AWS observations  
+1. Process and handle AWS observations
 2. Document AWS data processing with transparency and reproducibility
 3. Supply easy and accessible methods to handle AWS data
 4. Provide opportunities to contribute to the processing and handling of AWS data in an open and collaborative manner
 
-The `pypromice` software has been designed to handle and process data from AWSs located in Greenland. The compilation and processing of data from national AWS networks has historically been conducted through un-distributed, oftentimes proprietary software. Similar Python packages to `pypromice` have been developed to process data from historical AWS in Greenland [@vandecrux-gcnet-2020;@steffen-gcnet-2023], from commercial AWS (e.g. [pywws](https://pypi.org/project/pywws/) [@easterbrook-pywws-2023]), or to post-process and harmonize AWS data from different institutions (e.g. [JAWS](https://github.com/jaws/jaws) [@zender-jaws-2019]). Therefore, there was a key need for the development of `pypromice` in order to have a package with a complete and operational `L0` to `L3` workflow.
+The `pypromice` software has been designed to handle and process data from AWSs located in Greenland. The compilation and processing of data from national AWS networks has historically been conducted through un-distributed, oftentimes proprietary software. Similar Python packages to `pypromice` have been developed to:
+
+- Process data from historical AWS in Greenland, such as the legacy GC-Net processing workflow [@vandecrux-gcnet-2020;@steffen-gcnet-2023]
+- Handle data from commercial AWS, such as [pywws](https://pypi.org/project/pywws/) [@easterbrook-pywws-2023]
+- Perform post-processing steps and harmonize AWS data from different institutions, such as [JAWS](https://github.com/jaws/jaws) [@zender-jaws-2019]
+
+As a result, there was a key need for the development of `pypromice` in order to have a package with a complete and operational `L0` to `L3` workflow.
 
 
 # Usage
