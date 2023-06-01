@@ -59,7 +59,7 @@ A defined processing workflow is included in `pypromice` for transforming origin
 
 `pypromice` has four main research purposes:
 
-1. Process and handle AWS observations  
+1. Process and handle AWS observations
 2. Document AWS data processing with transparency and reproducibility
 3. Supply easy and accessible methods to handle AWS data
 4. Provide opportunities to contribute to the processing and handling of AWS data in an open and collaborative manner
