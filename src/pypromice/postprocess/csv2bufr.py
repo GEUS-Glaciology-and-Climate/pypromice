@@ -374,7 +374,7 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
     ''' Driver function to run linear_fit() and set valid lat, lon, and alt
     to df_limited, which is then used to set position data in BUFR.
     If 'positions' is not None (must pass --positions arg), we also write to
-    the positions dict which will be written to AWS_station_locations.csv for
+    the positions dict which will be written to AWS_latest_locations.csv for
     all stations (whether processed or skipped)
 
     Parameters

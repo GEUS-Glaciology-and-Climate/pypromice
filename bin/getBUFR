@@ -29,13 +29,13 @@ def parse_arguments():
 	parser.add_argument('--positions',
 	    action='store_true',
 	    required=False,
-	    help='If included (True), make a positions dict and output AWS_station_locations.csv file.')
+	    help='If included (True), make a positions dict and output AWS_latest_locations.csv file.')
 
 	parser.add_argument('--positions-filepath',
-	    default='../aws-l3/AWS_station_locations.csv',
+	    default='../aws-l3/AWS_latest_locations.csv',
 	    type=str,
 	    required=False,
-	    help='Path to write AWS_station_locations.csv file.')
+	    help='Path to write AWS_latest_locations.csv file.')
 
 	parser.add_argument('--time-limit',
 	    default='3M',
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 		# Initiate a dict to store station positions
 		# (seeded with initial positions from wmo_config.positions_seed)
 		# Used to retrieve a static set of positions to register stations with DMI/WMO
-		# Also used to write AWS_station_locations.csv to aws-l3 repo
+		# Also used to write AWS_latest_locations.csv to aws-l3 repo
 		positions = positions_seed
 
 	# Define stations to skip
