@@ -11,8 +11,8 @@ qh_u,specific_humidity,Specific humidity (upper boom),%,0,100,,all,all,4,modelRe
 rh_l,relative_humidity,Relative humidity (lower boom),%,0,150,rh_l_cor,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
 rh_l_cor,relative_humidity_corrected,Relative humidity (lower boom) - corrected,%,0,100,dshf_l dlhf_l qh_l,two-boom,all,4,modelResult,time lat lon alt,False,
 qh_l,specific_humidity,Specific humidity (lower boom),%,0,100,,two-boom,all,4,modelResult,time lat lon alt,False,Derived value (L2 or later)
-wspd_u,wind_speed,Wind speed (upper boom),m s-1,0,100,"wdir_u wspd_x_u wspd_y_u dshf_u dlhf_u qh_u, precip_u",all,all,4,physicalMeasurement,time lat lon alt,False,
-wspd_l,wind_speed,Wind speed (lower boom),m s-1,0,100,"wdir_l wspd_x_l wspd_y_l dshf_l dlhf_l qh_l , precip_l",two-boom,all,4,physicalMeasurement,time lat lon alt,False,
+"wspd_u,wind_speed,Wind speed (upper boom),m s-1,0,100,""wdir_u wspd_x_u wspd_y_u dshf_u dlhf_u qh_u, precip_u"",all,all,4,physicalMeasurement,time lat lon alt,False,"
+"wspd_l,wind_speed,Wind speed (lower boom),m s-1,0,100,""wdir_l wspd_x_l wspd_y_l dshf_l dlhf_l qh_l , precip_l"",two-boom,all,4,physicalMeasurement,time lat lon alt,False,"
 wdir_u,wind_from_direction,Wind from direction (upper boom),degrees,1,360,wspd_x_u wspd_y_u,all,all,4,physicalMeasurement,time lat lon alt,False,
 wdir_std_u,wind_from_direction_standard_deviation,Wind from direction (standard deviation),degrees,,,,one-boom,,4,qualityInformation,time lat lon alt,False,L0 only
 wdir_l,wind_from_direction,Wind from direction (lower boom),degrees,1,360,wspd_x_l wspd_y_l,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
@@ -20,7 +20,7 @@ wspd_x_u,wind_speed_from_x_direction,Wind speed from x direction (upper boom),m 
 wspd_y_u,wind_speed_from_y_direction,Wind speed from y direction (upper boom),m s-1,-100,100,wdir_u wspd_u,all,,4,modelResult,time lat lon alt,False,L0 only
 wspd_x_l,wind_speed_from_x_direction,Wind speed from x direction (lower boom),m s-1,-100,100,wdir_l wspd_l,two-boom,,4,modelResult,time lat lon alt,False,L0 only
 wspd_y_l,wind_speed_from_y_direction,Wind speed from y direction (lower boom),m s-1,-100,100,wdir_l wspd_l,two-boom,,4,modelResult,time lat lon alt,False,L0 only
-dsr,surface_downwelling_shortwave_flux,Downwelling shortwave radiation,W m-2,-10,1500,albedo dsr_cor usr_cor,all,all,4,physicalMeasurement,time lat lon alt,False,"Actually radiation_at_sensor, not flux. Units 1E-5 V. Engineering units."
+"dsr,surface_downwelling_shortwave_flux,Downwelling shortwave radiation,W m-2,-10,1500,albedo dsr_cor usr_cor,all,all,4,physicalMeasurement,time lat lon alt,False,""Actually radiation_at_sensor, not flux. Units 1E-5 V. Engineering units."""
 dsr_cor,surface_downwelling_shortwave_flux_corrected,Downwelling shortwave radiation - corrected,W m-2,,,,all,all,4,modelResult,time lat lon alt,False,Derived value (L2 or later)
 usr,surface_upwelling_shortwave_flux,Upwelling shortwave radiation,W m-2,-10,1000,albedo dsr_cor usr_cor,all,all,4,physicalMeasurement,time lat lon alt,False,
 usr_cor,surface_upwelling_shortwave_flux_corrected,Upwelling shortwave radiation - corrected,W m-2,0,1000,,all,all,4,modelResult,time lat lon alt,False,Derived value (L2 or later)
@@ -47,17 +47,17 @@ precip_u_rate,precipitation_rate,Precipitation rate (upper boom) (cumulative sol
 precip_l,precipitation,Precipitation (lower boom) (cumulative solid & liquid),mm,0,,precip_l_cor precip_l_rate,two-boom,all,4,physicalMeasurement,time lat lon alt,True,Without wind/undercatch correction
 precip_l_cor,precipitation_corrected,Precipitation (lower boom) (cumulative solid & liquid) – corrected,mm,0,,,two-boom,all,4,modelResult,time lat lon alt,True,With wind/undercatch correction
 precip_l_rate,precipitation_rate,Precipitation rate (lower boom) (cumulative solid & liquid) – corrected,mm,0,,,two-boom,,4,modelResult,time lat lon alt,True,L0 only
-t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,True,t1 is installed @ 1 m depth
-t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,True,
-t_i_3,ice_temperature_at_t3,Ice temperature at sensor 3,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,True,
-t_i_4,ice_temperature_at_t4,Ice temperature at sensor 4,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,True,
-t_i_5,ice_temperature_at_t5,Ice temperature at sensor 5,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,True,
-t_i_6,ice_temperature_at_t6,Ice temperature at sensor 6,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,True,
-t_i_7,ice_temperature_at_t7,Ice temperature at sensor 7,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,True,
-t_i_8,ice_temperature_at_t8,Ice temperature at sensor 8,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,True,t8 is installed @ 10 m depth
-t_i_9,ice_temperature_at_t9,Ice temperature at sensor 9,degrees_C,-80,40,,two-boom,all,4,physicalMeasurement,time lat lon alt,True,
-t_i_10,ice_temperature_at_t10,Ice temperature at sensor 10,degrees_C,-80,40,,two-boom,all,4,physicalMeasurement,time lat lon alt,True,
-t_i_11,ice_temperature_at_t11,Ice temperature at sensor 11,degrees_C,-80,40,,two-boom,all,4,physicalMeasurement,time lat lon alt,True,
+t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,t1 is installed @ 1 m depth
+t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_3,ice_temperature_at_t3,Ice temperature at sensor 3,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_4,ice_temperature_at_t4,Ice temperature at sensor 4,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_5,ice_temperature_at_t5,Ice temperature at sensor 5,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_6,ice_temperature_at_t6,Ice temperature at sensor 6,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_7,ice_temperature_at_t7,Ice temperature at sensor 7,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_8,ice_temperature_at_t8,Ice temperature at sensor 8,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,t8 is installed @ 10 m depth
+t_i_9,ice_temperature_at_t9,Ice temperature at sensor 9,degrees_C,-80,40,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_10,ice_temperature_at_t10,Ice temperature at sensor 10,degrees_C,-80,40,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_11,ice_temperature_at_t11,Ice temperature at sensor 11,degrees_C,-80,40,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
 tilt_x,platform_view_angle_x,Tilt to east,degrees,-30,30,dsr_cor usr_cor albedo,all,all,4,physicalMeasurement,time lat lon alt,False,
 tilt_y,platform_view_angle_y,Tilt to north,degrees,-30,30,dsr_cor usr_cor albedo,all,all,4,physicalMeasurement,time lat lon alt,False,
 rot,platform_azimuth_angle,Station rotation from true North,degrees,0,360,,all,all,2,physicalMeasurement,time lat lon alt,False,v4 addition
@@ -80,9 +80,9 @@ fan_dc_u,fan_current,Fan current (upper boom),mA,0,200,,all,all,2,physicalMeasur
 fan_dc_l,fan_current,Fan current (lower boom),mA,0,200,,two-boom,all,2,physicalMeasurement,time lat lon alt,True,
 freq_vw,frequency_of_precipitation_wire_vibration,Frequency of vibrating wire in precipitation gauge,Hz,0,10000,precip_u,one-boom,all,,physicalMeasurement,time lat lon alt,True,
 t_log,temperature_of_logger,Logger temperature,degrees_C,-80,40,,one-boom,all,4,physicalMeasurement,time lat lon alt,True,LoggerTemperature(C)
-t_rad,temperature_of_radiation_sensor,Radiation sensor temperature,degrees_C,-80,40,t_surf dlr ulr,all,all,4,physicalMeasurement,time lat lon alt,True,
+t_rad,temperature_of_radiation_sensor,Radiation sensor temperature,degrees_C,-80,40,t_surf dlr ulr,all,all,4,physicalMeasurement,time lat lon alt,False,
 p_i,air_pressure,Air pressure (instantaneous) minus 1000,hPa,-350,100,,all,TX,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
-t_i,air_temperature,Air temperature (instantaneous),degrees_C,-80,40,,all,TX,4,physicalMeasurement,time lat lon alt,True,"PT100 temperature at boom, for meteorological observations"
+"t_i,air_temperature,Air temperature (instantaneous),degrees_C,-80,40,,all,TX,4,physicalMeasurement,time lat lon alt,True,""PT100 temperature at boom, for meteorological observations"""
 rh_i,relative_humidity,Relative humidity (instantaneous),%,0,150,rh_i_cor,all,TX,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
 rh_i_cor,relative_humidity_corrected,Relative humidity (instantaneous) – corrected,%,0,100,,all,TX,4,modelResult,time lat lon alt,True,For meteorological observations
 wspd_i,wind_speed,Wind speed (instantaneous),m s-1,0,100,wdir_i wspd_x_i wspd_y_i,all,TX,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
