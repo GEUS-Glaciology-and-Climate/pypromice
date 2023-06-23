@@ -15,6 +15,7 @@ def parse_arguments():
     parser.add_argument('-p', '--password', default=None, type=str, required=True, help='Email credentials .ini file')                      
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, help='Path where to write output (if given)')   
     parser.add_argument('-c', '--config', default=None, type=str, required=True, help='Directory to config .toml files')         
+    parser.add_argument('-n', '--name', default='*', type=str, required=False, help='name of the AWS to be fetched')         
     parser.add_argument('-f', '--formats', default=None, type=str, required=False, help='Path to Payload format .csv file')
     parser.add_argument('-t', '--types', default=None, type=str, required=False, help='Path to Payload type .csv file')  	
     parser.add_argument('-u', '--uid', default=None, type=str, required=True, help='Last AWS uid .ini file')	        
@@ -25,7 +26,7 @@ def parse_arguments():
 if __name__ == '__main__':
     """Executed from the command line"""
     args = parse_arguments()
-    toml_path = os.path.join(args.config, '*.toml')
+    toml_path = os.path.join(args.config, args.name+'.toml')
     toml_list = glob(toml_path)
     
     aws={}
@@ -136,7 +137,8 @@ if __name__ == '__main__':
  	
     if out_dir is not None:
         # Sort L0tx files and add tails    
-        for f in glob(out_dir+'/*.txt'):
+        print(out_dir+'/'+args.name+'*.txt')
+        for f in glob(out_dir+'/'+args.name+'*.txt'):
         
         	# Sort lines in L0tx file and remove duplicates
             in_dirn, in_fn = os.path.split(f)    
