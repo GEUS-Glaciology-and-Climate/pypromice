@@ -10,7 +10,6 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 import xarray as xr
 from datetime import timedelta
-import warnings
 
 try:
     from L0toL1 import toL1
