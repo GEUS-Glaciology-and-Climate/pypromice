@@ -8,7 +8,8 @@ import pandas as pd
 import xarray as xr
 import unittest, pkg_resources
 from datetime import datetime
-   
+import warnings
+
 def aws_names():
     '''Return PROMICE and GC-Net AWS names that can be used in get.aws_data() 
     fetching'''
@@ -44,12 +45,37 @@ def watson_discharge(t='hour'):
     '''
     lookup = lookup_table(['doi:10.22008/FK2/XEHYCM'])
     
+    dict_keys = lookup.keys()
+    
     if 'year' in t.lower():
-        link = lookup['watson river discharge (1949-2021) yearly.txt']
+        
+        key = [k for k in dict_keys if 'year' in k]
+        
+        if not key: 
+            warnings.warn('The yearly Watson River Discharge file does not exist, or has changed name, on GEUS Dataverse DOI, ' + \
+                  'please check the dataset, and the naming of the txt files on Dataverse')
+                
+        if len(key) > 1: 
+            warnings.warn('Warning, there exist multiple yearly txt files on dataverse, please check ' + \
+                  'if the correct txt file is used')
+        
+        link = lookup[key[0]]
         df = pd.read_csv(link, sep="\s+", skiprows=9, index_col=0)
         
     elif 'daily' in t.lower() or 'day' in t.lower():
-        link = lookup['watson river discharge (2006-2021) daily.txt']   
+        
+        key = [k for k in dict_keys if 'daily' in k]
+        
+        if not key: 
+            warnings.warn('The daily Watson River Discharge file does not exist, or has changed name, on GEUS Dataverse DOI, ' + \
+                  'please check the dataset, and the naming of the txt files on Dataverse')
+                
+        if len(key) > 1: 
+            warnings.warn('Warning, there exist multiple daily txt files on dataverse, please check ' + \
+                  'if the correct txt file is used')
+        
+        link = lookup[key[0]]   
+        
         df = pd.read_csv(link, sep="\s+", parse_dates=[[0,1,2]])\
                         .rename({"WaterFluxDiversOnly(m3/s)"        : "divers",
                                 "Uncertainty(m3/s)"                 : "divers_err",
@@ -63,7 +89,18 @@ def watson_discharge(t='hour'):
         df.drop(columns=df.columns[0:1], axis=1, inplace=True) 
         
     else:
-        link = lookup['watson river discharge (2006-2021) hourly.txt']  
+        
+        key = [k for k in dict_keys if 'hourly' in k]
+        
+        if not key: 
+            warnings.warn('The hourly Watson River Discharge file does not exist, or has changed name, on GEUS Dataverse DOI, ' + \
+                  'please check the dataset, and the naming of the txt files on Dataverse')
+                
+        if len(key) > 1: 
+            warnings.warn('Warning, there exist multiple Houlry txt files on dataverse, please check ' + \
+                  'if the correct txt file is used')
+        
+        link = lookup[key[0]]   
         
         df = pd.read_csv(link, sep="\s+", parse_dates=[[0,1,2,3]])\
                         .rename({"WaterFluxDiversOnly(m3/s)"        : "divers",
