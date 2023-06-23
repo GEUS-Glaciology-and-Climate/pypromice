@@ -5,6 +5,8 @@ AWS data processing module
 from importlib import metadata
 import os, unittest, toml, datetime, uuid, pkg_resources
 import numpy as np
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 import xarray as xr
 from datetime import timedelta
@@ -330,13 +332,15 @@ def getL0(infile, nodata, cols, skiprows, file_version,
                          parse_dates={'time': ['year', 'doy', 'hhmm']}, 
                          date_parser=_getDateParserV1, sep=delimiter,
                          skiprows=skiprows, skip_blank_lines=True,
-                         usecols=range(len(cols)))
+                         usecols=range(len(cols)),
+                         low_memory=False)
     else:
         df = pd.read_csv(infile, comment=comment, index_col=0,
                          na_values=nodata, names=cols, parse_dates=True,
                          sep=delimiter, skiprows=skiprows,
                          skip_blank_lines=True,
-                         usecols=range(len(cols)))
+                         usecols=range(len(cols)),
+                         low_memory=False)
 
     # Drop SKIP columns
     for c in df.columns:
