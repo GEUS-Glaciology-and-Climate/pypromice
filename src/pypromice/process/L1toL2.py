@@ -6,6 +6,7 @@ import numpy as np
 import urllib.request
 from urllib.error import HTTPError, URLError
 import pandas as pd
+import subprocess
 import os
 import xarray as xr
 import sqlite3
@@ -48,7 +49,9 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     except Exception as e: 
         print('Flagging and fixing failed:')
         print(e)
-
+        
+        
+    ds = differenceQC(ds)                                                      # Flag and Remove difference outliers     
     ds = percentileQC(ds)                                                      # Flag and remove percentile outliers
 
     T_100 = _getTempK(T_0)  
@@ -146,6 +149,78 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
                                              T_0, T_100, ews, ei0)                   
     return ds
 
+def differenceQC(ds):
+    '''
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+         Level 1 datset
+         
+    Returns
+    -------
+    ds_out : xr.Dataset
+            Level 1 dataset with difference outliers set to NaN
+    '''
+    
+    # the differenceQC is not done on the Windspeed
+    # Optionally examine flagged data by setting make_plots to True
+    # This is best done by running aws.py directly and setting 'test_station'
+    # Plots will be shown before and after flag removal for each var
+
+    stid = ds.station_id
+    df = ds.to_dataframe() # Switch to pandas
+    
+    # Define threshold dict to hold limit values, and the difference values.
+    # Limit values indicate how much a variable has to change to the previous value
+    # diff_period is how many hours a value can stay the same without being set to NaN 
+    # * are used to calculate and define all limits, which are then applied to *_u, *_l and *_i
+    
+    var_threshold = {
+        't': {'static_limit': 0.001, 'diff_period' : 1}, 
+        'p': {'static_limit': 0.0001, 'diff_period' : 24},
+        'rh': {'static_limit': 0.0001, 'diff_period' : 24}
+        }
+
+    
+    for k in var_threshold.keys():
+        
+         var_all = [k + '_u',k + '_l',k + '_i'] # appåly to upper, lower boom, and instant
+         static_lim = var_threshold[k]['static_limit'] # loading static limit
+         diff_h = var_threshold[k]['diff_period'] # loading diff period
+         
+         for v in var_all:
+             if v in df:
+                
+                data = df[k]
+                diff = data.diff()
+                diff.fillna(method='ffill', inplace=True) # forward filling all NaNs! 
+                diff = np.array(diff)
+
+                diff_period = np.ones_like(diff) * False
+                
+                for i,d in enumerate(diff): # algorithm that ensures values can stay the same within the diff_period
+                    if i > (diff_h-1): 
+                        if sum(abs(diff[i-diff_h:i])) < static_lim:
+                            diff_period[i-diff_h:i] = True
+                
+                diff_period = np.array(diff_period).astype('bool')
+                
+                outliers = df[v][diff_period] # finding outliers in dataframe
+                
+                df.loc[outliers.index,v] = np.nan # setting outliers to NaN
+                
+    # Back to xarray, and re-assign the original attrs
+    ds_out = df.to_xarray()
+    ds_out = ds_out.assign_attrs(ds.attrs) # Dataset attrs
+    for x in ds_out.data_vars: # variable-specific attrs
+        ds_out[x].attrs = ds[x].attrs
+    # equivalent to above:
+    # vals = [xr.DataArray(data=df_out[c], dims=['time'], coords={'time':df_out.index}, attrs=ds[c].attrs) for c in df_out.columns]
+    # ds_out = xr.Dataset(dict(zip(df_out.columns, vals)), attrs=ds.attrs)
+    return ds_out
+    
+
 def percentileQC(ds):
     '''
     Parameters
@@ -158,10 +233,19 @@ def percentileQC(ds):
     ds_out : xr.Dataset
         Level 1 dataset with percentile outliers set to NaN
     '''
+    # Check if on-disk sqlite db exists
+    # If it not exists, then run compute_percentiles.py
+    
+    file_path = '../qc/percentiles.db'
+    script_path = '../qc/compute_percentiles.py'
+    
+    if not os.path.isfile(file_path):
+        subprocess.run(script_path)
+    
     # Optionally examine flagged data by setting make_plots to True
     # This is best done by running aws.py directly and setting 'test_station'
     # Plots will be shown before and after flag removal for each var
-    make_plots = True
+    make_plots = False
 
     stid = ds.station_id
     df = ds.to_dataframe() # Switch to pandas
@@ -171,11 +255,12 @@ def percentileQC(ds):
     # *_u are used to calculate and define all limits, which are then applied to *_u, *_l and *_i
     var_threshold = {
         't_u': {'limit': 9}, # 'hi' and 'lo' will be held in 'seasons' dict
-        'p_u': {'limit': 15},
+        'p_u': {'limit': 12},
         'rh_u': {'limit': 12},
-        'wspd_u': {'limit': 10}
+        'wspd_u': {'limit': 12},
         }
 
+    
     # Query from the on-disk sqlite db for specified percentiles
     con = sqlite3.connect('../qc/percentiles.db')
     cur = con.cursor()
