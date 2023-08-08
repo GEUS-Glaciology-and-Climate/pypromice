@@ -241,8 +241,10 @@ def percentileQC(ds):
     file_path =  base_path + '/main/src/pypromice/qc/percentiles.db'
     script_path = base_path + '/main/src/pypromice/qc/compute_percentiles.py'
     
+    script_exist = os.path.isfile(script_path)
+
     #current_path = os.getcwd()
-    #print(f'This is my current Path {current_path}')    
+    print(f'Does compute_percintiles.py exist {script_exist}')    
     
     
     if not os.path.isfile(file_path):
