@@ -271,7 +271,7 @@ def percentileQC(ds):
 
     
     # Query from the on-disk sqlite db for specified percentiles
-    con = sqlite3.connect('../qc/percentiles.db')
+    con = sqlite3.connect(file_path)
     cur = con.cursor()
     for k in var_threshold.keys():
         if k == 't_u':
