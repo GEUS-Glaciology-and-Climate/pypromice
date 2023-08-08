@@ -241,15 +241,15 @@ def percentileQC(ds):
     file_path =  base_path + '/main/src/pypromice/qc/percentiles.db'
     script_path = base_path + '/main/src/pypromice/qc/compute_percentiles.py'
     
-    script_exist = os.path.isfile(script_path)
+    #script_exist = os.path.isfile(script_path)
 
     #current_path = os.getcwd()
-    print(f'Does compute_percintiles.py exist {script_exist}')    
+    #print(f'Does compute_percintiles.py exist {script_exist}')    
     
     
     if not os.path.isfile(file_path):
         print(f'percentiles.db does not exist running {script_path}')
-        subprocess.run([script_path])
+        subprocess.run(['python',script_path])
     
     # Optionally examine flagged data by setting make_plots to True
     # This is best done by running aws.py directly and setting 'test_station'
