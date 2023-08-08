@@ -240,7 +240,7 @@ def percentileQC(ds):
     script_path = '../qc/compute_percentiles.py'
     
     if not os.path.isfile(file_path):
-        subprocess.run(script_path)
+        subprocess.run([script_path],shell=True)
     
     # Optionally examine flagged data by setting make_plots to True
     # This is best done by running aws.py directly and setting 'test_station'
