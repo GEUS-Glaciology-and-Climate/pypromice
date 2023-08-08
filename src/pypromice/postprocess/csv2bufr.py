@@ -417,8 +417,7 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
         df_limited, alt_valid = linear_fit(df_limited, 'gps_alt', 1, stid, extrapolate=True)
 
         # If we have no valid lat, lon or alt data in the df_limited window, then interpolate
-        # using full tx dataset. This is primarily used for altitude, which is not transmitted in
-        # the Iridium messages.
+        # using full tx dataset.
         check_valid = {'gps_lat': lat_valid, 'gps_lon': lon_valid, 'gps_alt': alt_valid}
         check_valid_again = {}
         for k,v in check_valid.items():
