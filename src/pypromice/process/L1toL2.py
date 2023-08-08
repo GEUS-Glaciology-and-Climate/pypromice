@@ -249,7 +249,7 @@ def percentileQC(ds):
     
     if not os.path.isfile(file_path):
         print(f'percentiles.db does not exist running {script_path}')
-        subprocess.run(['python',script_path])
+        subprocess.call(['python',script_path])
     
     # Optionally examine flagged data by setting make_plots to True
     # This is best done by running aws.py directly and setting 'test_station'
