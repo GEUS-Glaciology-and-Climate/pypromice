@@ -242,6 +242,8 @@ def percentileQC(ds):
     current_path = os.getcwd()
     print(f'This is my current Path {current_path}')    
     
+    script_path = os.path.abspath('..') + '/qc/compute_percentiles.py'
+    
     if not os.path.isfile(file_path):
         subprocess.run([script_path])
     
