@@ -185,14 +185,14 @@ def differenceQC(ds):
     
     for k in var_threshold.keys():
         
-         var_all = [k + '_u',k + '_l',k + '_i'] # appåly to upper, lower boom, and instant
+         var_all = [k + '_u',k + '_l',k + '_i'] # apply to upper, lower boom, and instant
          static_lim = var_threshold[k]['static_limit'] # loading static limit
          diff_h = var_threshold[k]['diff_period'] # loading diff period
          
          for v in var_all:
              if v in df:
                 
-                data = df[k]
+                data = df[v]
                 diff = data.diff()
                 diff.fillna(method='ffill', inplace=True) # forward filling all NaNs! 
                 diff = np.array(diff)
