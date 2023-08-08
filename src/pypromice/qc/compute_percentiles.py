@@ -14,8 +14,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--l3-filepath',
-        default='../../../../aws-l3/level_3/', # relative path to qc dir
-        # default='/data/pypromice_aws/aws-l3/level_3/' # full path
+        #default='../../../../aws-l3/level_3/', # relative path to qc dir
+        default ='/data/geusgk/awsl3-fileshare/aws-l3/level_3', # full path
         type=str,
         required=False,
         help='Path to read level 3 csv files.')
