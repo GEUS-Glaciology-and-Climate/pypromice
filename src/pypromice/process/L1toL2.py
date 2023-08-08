@@ -238,8 +238,8 @@ def percentileQC(ds):
     
     base_path = os.getcwd()
     
-    file_path =  base_path + '/qc/percentiles.db'
-    script_path = base_path + '/qc/compute_percentiles.py'
+    file_path =  base_path + '/main/src/pypromice/qc/percentiles.db'
+    script_path = base_path + '/main/src/pypromice/qc/compute_percentiles.py'
     
     #current_path = os.getcwd()
     #print(f'This is my current Path {current_path}')    
