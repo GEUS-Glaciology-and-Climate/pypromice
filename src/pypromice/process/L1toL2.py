@@ -238,6 +238,8 @@ def percentileQC(ds):
     
     file_path = '../qc/percentiles.db'
     script_path = os.path.abspath('../qc/compute_percentiles.py')
+    script_check = os.path.isfile(script_path)
+    print('Does compute_percentiles exist: {script_check}')
     
     if not os.path.isfile(file_path):
         subprocess.run([script_path])
