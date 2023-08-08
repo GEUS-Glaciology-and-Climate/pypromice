@@ -236,8 +236,10 @@ def percentileQC(ds):
     # Check if on-disk sqlite db exists
     # If it not exists, then run compute_percentiles.py
     
-    file_path = '/qc/percentiles.db'
-    script_path = '/qc/compute_percentiles.py'
+    base_path = os.getcwd()
+    
+    file_path =  base_path + '/qc/percentiles.db'
+    script_path = base_path + '/qc/compute_percentiles.py'
     
     #current_path = os.getcwd()
     #print(f'This is my current Path {current_path}')    
