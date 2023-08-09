@@ -243,6 +243,7 @@ if __name__ == '__main__':
 						print('       latest:', latest_timestamp)
 					no_recent_data.append(stid)
 					if args.positions is True:
+						current_timestamp = None
 						df1_limited, positions = find_positions(df1, stid, args.time_limit, current_timestamp, positions)
 			else:
 				print('{} not found in latest_timestamps'.format(stid))
