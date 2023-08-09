@@ -410,25 +410,14 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
         print(f'finding positions for {stid}')
         df_limited = df.last(time_limit).copy()
         print(f'last transmission: {df_limited.index.max()}')
-        # Combine gps positions and Iridium modem-derived positions using combine_first()
-        # If any GPS positions are missing, we will fill the missing GPS positions with modem
-        # positions (if they are present). Important to do this first, and then apply linear fit
-        # to the resulting single array. Message coordinates can all be 0.0, so check for this.
-        if ('msg_lat' in df_limited) and ('msg_lon' in df_limited):
-            if (0.0 not in df_limited['msg_lat'].values):
-                df_limited['gps_lat'] = df_limited['gps_lat'].combine_first(df_limited['msg_lat'])
-            if (0.0 not in df_limited['msg_lon'].values):
-                df_limited['gps_lon'] = df_limited['gps_lon'].combine_first(df_limited['msg_lon'])
 
-        # Extrapolate recommended for altitude, optional for lat and lon. Data reliably shows
-        # Iridium message positions to always be present for lat and lon when GPS is missing.
+        # Extrapolate recommended for altitude, optional for lat and lon.
         df_limited, lat_valid = linear_fit(df_limited, 'gps_lat', 6, stid)
         df_limited, lon_valid = linear_fit(df_limited, 'gps_lon', 6, stid)
         df_limited, alt_valid = linear_fit(df_limited, 'gps_alt', 1, stid, extrapolate=True)
 
         # If we have no valid lat, lon or alt data in the df_limited window, then interpolate
-        # using full tx dataset. This is primarily used for altitude, which is not transmitted in
-        # the Iridium messages.
+        # using full tx dataset.
         check_valid = {'gps_lat': lat_valid, 'gps_lon': lon_valid, 'gps_alt': alt_valid}
         check_valid_again = {}
         for k,v in check_valid.items():
