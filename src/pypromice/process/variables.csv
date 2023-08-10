@@ -66,7 +66,7 @@ gps_lon,gps_longitude,Longitude,degrees_east,5,70,,all,all,6,coordinate,time lat
 gps_alt,gps_altitude,Altitude,m,0,3000,,all,all,2,coordinate,time lat lon alt,True,
 gps_time,gps_time,GPS time,s,0,240000,,all,all,,coordinate,time lat lon alt,True,
 gps_geoid,gps_geoid_separation,Height of EGM96 geoid over WGS84 ellipsoid,m,,,,one-boom,all,,physicalMeasurement,time lat lon alt,True,
-gps_geounit,gps_geounit,GeoUnit,-,,,,all,raw,,qualityInformation,time lat lon alt,True,skip_processing
+gps_geounit,gps_geounit,GeoUnit,-,,,,all,raw,,qualityInformation,time lat lon alt,True,
 gps_hdop,gps_hdop,GPS horizontal dillution of precision (HDOP),m,,,,all,all,2,qualityInformation,time lat lon alt,True,NMEA: Horizontal dilution of precision
 gps_numsat,gps_numsat,GPS number of satellites,-,,,,one-boom,all,0,qualityInformation,time lat lon alt,True,
 gps_q,gps_q,Quality,-,,,,one-boom,all,,qualityInformation,time lat lon alt,True,

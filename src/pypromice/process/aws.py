@@ -638,7 +638,6 @@ def addVars(ds, variables):
    '''
     for k in ds.keys():
         if k not in variables.index: continue
-        if "skip_processing" in variables.loc[k]['comment']: continue
         ds[k].attrs['standard_name'] = variables.loc[k]['standard_name']
         ds[k].attrs['long_name'] = variables.loc[k]['long_name']
         ds[k].attrs['units'] = variables.loc[k]['units']
