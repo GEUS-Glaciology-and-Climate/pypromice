@@ -245,7 +245,7 @@ def setBUFRvalue(ibufr, b_name, value):
         print('----> {} {}'.format(b_name, value))
 
 
-def linear_fit(df, column, decimals, stid, extrapolate=False):
+def linear_fit(df, column, decimals, stid):
     '''Apply a linear regression to the input column
 
     Linear regression is following:
@@ -286,14 +286,8 @@ def linear_fit(df, column, decimals, stid, extrapolate=False):
             model = LinearRegression().fit(x, y)
 
             # Adding prediction back to original df
-            if extrapolate is True:
-                # if extrapolating, then giving all indexes of df to the linear model
-                x_all = df.index.values.astype(np.int64) // 10 ** 9
-                df['{}_fit'.format(column)] = model.predict(x_all.reshape(-1,1)).round(decimals=decimals)
-            else:
-                # if not extrapolating, then only giving to the linear model the
-                # indexes for which observations were available
-                df.loc[df_dropna.index, '{}_fit'.format(column)] = model.predict(x).round(decimals=decimals)
+            x_all = df.index.values.astype(np.int64) // 10 ** 9
+            df['{}_fit'.format(column)] = model.predict(x_all.reshape(-1,1)).round(decimals=decimals)
 
             # Plot data if desired
             # if stid == 'LYN_T':
@@ -414,7 +408,7 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
         # Extrapolate recommended for altitude, optional for lat and lon.
         df_limited, lat_valid = linear_fit(df_limited, 'gps_lat', 6, stid)
         df_limited, lon_valid = linear_fit(df_limited, 'gps_lon', 6, stid)
-        df_limited, alt_valid = linear_fit(df_limited, 'gps_alt', 1, stid, extrapolate=True)
+        df_limited, alt_valid = linear_fit(df_limited, 'gps_alt', 1, stid)
 
         # If we have no valid lat, lon or alt data in the df_limited window, then interpolate
         # using full tx dataset.
@@ -425,9 +419,9 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
                 print(f'----> Using full history for linear extrapolation: {k}')
                 print(f'first transmission: {df.index.min()}')
                 if k == 'gps_alt':
-                    df, valid = linear_fit(df, k, 1, stid, extrapolate=True)
+                    df, valid = linear_fit(df, k, 1, stid)
                 else:
-                    df, valid = linear_fit(df, k, 6, stid, extrapolate=True)
+                    df, valid = linear_fit(df, k, 6, stid)
                 check_valid_again[k] = valid
                 if check_valid_again[k] is True:
                     df_limited[f'{k}_fit'] = df.last(time_limit)[f'{k}_fit']
