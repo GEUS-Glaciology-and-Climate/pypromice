@@ -119,7 +119,8 @@ class AWS(object):
         # Switch gps_lon to negative (degrees_east)
         # Do this here, and NOT in addMeta, otherwise we switch back to positive
         # when calling getMeta in joinL3! PJW
-        self.L3['gps_lon'] = self.L3['gps_lon'] * -1
+        if self.attrs['station_id'] not in ['UWN', 'Roof_GEUS', 'Roof_PROMICE']:
+            self.L3['gps_lon'] = self.L3['gps_lon'] * -1
 
         # Add variable attributes and metadata
         self.L3 = self.addAttributes(self.L3)
