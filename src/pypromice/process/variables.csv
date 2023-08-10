@@ -36,7 +36,7 @@ dshf_l,surface_downward_sensible_heat_flux,Sensible heat flux (lower boom),W m-2
 z_boom_u,distance_to_surface_from_boom,Upper boom height,m,0.3,10,dshf_u dlhf_u qh_u,all,all,4,physicalMeasurement,time lat lon alt,True,
 z_boom_q_u,distance_to_surface_from_boom_quality,Upper boom height (quality),-,,,,all,,4,qualityInformation,time lat lon alt,True,L0 only
 z_boom_l,distance_to_surface_from_boom,Lower boom height,m,0.3,5,dshf_l dlhf_l qh_l,two-boom,all,4,physicalMeasurement,time lat lon alt,True,
-z_boom_q_l,distance_to_surface_from_boom_quality,Loer boom height (quality),-,,,,two-boom,,4,qualityInformation,time lat lon alt,True,L0 only
+z_boom_q_l,distance_to_surface_from_boom_quality,Lower boom height (quality),-,,,,two-boom,,4,qualityInformation,time lat lon alt,True,L0 only
 z_stake,distance_to_surface_from_stake_assembly,Stake height,m,0.3,8,,one-boom,all,4,physicalMeasurement,time lat lon alt,True,HeightStakes(m)
 z_stake_q,distance_to_surface_from_stake_assembly_quality,Stake height (quality),-,,,,one-boom,,4,qualityInformation,time lat lon alt,True,L0 only
 z_pt,depth_of_pressure_transducer_in_ice,Depth of pressure transducer in ice,m,0,30,z_pt_cor,one-boom,all,4,physicalMeasurement,time lat lon alt,False,DepthPressureTransducer(m)
@@ -66,7 +66,7 @@ gps_lon,gps_longitude,Longitude,degrees_east,5,70,,all,all,6,coordinate,time lat
 gps_alt,gps_altitude,Altitude,m,0,3000,,all,all,2,coordinate,time lat lon alt,True,
 gps_time,gps_time,GPS time,s,0,240000,,all,all,,coordinate,time lat lon alt,True,
 gps_geoid,gps_geoid_separation,Height of EGM96 geoid over WGS84 ellipsoid,m,,,,one-boom,all,,physicalMeasurement,time lat lon alt,True,
-gps_geounit,gps_geounit,GeoUnit,-,,,,all,raw,,qualityInformation,time lat lon alt,True,
+gps_geounit,gps_geounit,GeoUnit,-,,,,all,,,qualityInformation,time lat lon alt,True,L0 only
 gps_hdop,gps_hdop,GPS horizontal dillution of precision (HDOP),m,,,,all,all,2,qualityInformation,time lat lon alt,True,NMEA: Horizontal dilution of precision
 gps_numsat,gps_numsat,GPS number of satellites,-,,,,one-boom,all,0,qualityInformation,time lat lon alt,True,
 gps_q,gps_q,Quality,-,,,,one-boom,all,,qualityInformation,time lat lon alt,True,
