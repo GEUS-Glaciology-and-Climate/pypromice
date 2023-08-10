@@ -435,6 +435,8 @@ def writeNC(outfile, Lx, col_names=None):
         os.remove(outfile)
     if col_names is not None:   
         names = [c for c in col_names if c in list(Lx.keys())]
+    else:
+        names = list(Lx.keys())
     Lx[names].to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)    
     
 def writeAll(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
