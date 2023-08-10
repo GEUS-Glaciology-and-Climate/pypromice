@@ -8,7 +8,7 @@ import xarray as xr
 import re
 
 
-def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
+def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     '''Process one Level 0 (L0) product to Level 1
 
     Parameters
@@ -17,8 +17,6 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
         Level 0 dataset
     vars_df : pd.DataFrame
         Metadata dataframe
-    flag_file : str
-        Flag .csv file path for bad data
     T_0 : int
         Air temperature for sonic ranger adjustment
     tilt_threshold : int
@@ -91,9 +89,14 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     
     if hasattr(ds, 'bedrock'):                                                 # Fix tilt to zero if station is on bedrock
         if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
+            ds.attrs['bedrock'] = True                                         # ensures all AWS objects have a 'bedrock' attribute
             ds['tilt_x'] = (('time'), np.arange(ds['time'].size)*0)
             ds['tilt_y'] = (('time'), np.arange(ds['time'].size)*0)
-            
+        else:
+            ds.attrs['bedrock'] = False                                        # ensures all AWS objects have a 'bedrock' attribute
+    else:
+        ds.attrs['bedrock'] = False                                            # ensures all AWS objects have a 'bedrock' attribute
+
     ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                       # Get directional wind speed                    
     ds['wspd_x_u'], ds['wspd_y_u'] = calcWindDir(ds['wspd_u'], ds['wdir_u']) 
     

@@ -50,15 +50,18 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],  
                                      T_0, T_100, ews, ei0)                       
         
-    # Determiune cloud cover
-    cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,                  # Calculate cloud coverage
-                           ds['dlr'], ds.attrs['station_id'])  
-    ds['cc'] = (('time'), cc.data)
+    # Determiune cloud cover for on-ice stations
+    if not ds.attrs['bedrock']:
+        cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,    # Calculate cloud coverage
+                               ds['dlr'], ds.attrs['station_id'])  
+        ds['cc'] = (('time'), cc.data)
     
     # Determine surface temperature
     ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],           # Calculate surface temperature
                                           emissivity)
-    
+    if not ds.attrs['bedrock']:
+        ds['t_surf'] = ds['t_surf'].where(ds['t_surf'] <= 0, other = 0)
+        
     # Determine station position relative to sun    
     doy = ds['time'].to_dataframe().index.dayofyear.values                     # Gather variables to calculate sun pos
     hour = ds['time'].to_dataframe().index.hour.values
@@ -489,7 +492,7 @@ def calcSurfaceTemperature(T_0, ulr, dlr, emissivity):
         Calculated surface temperature
     '''
     t_surf = ((ulr - (1 - emissivity) * dlr) / emissivity / 5.67e-8)**0.25 - T_0
-    return t_surf.where(t_surf <= 0, other = 0)
+    return t_surf
     
 def calcTilt(tilt_x, tilt_y, deg2rad):
     '''Calculate station tilt

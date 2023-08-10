@@ -45,15 +45,16 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
     rho_atm_u = 100 * p_h_u / R_d / (T_h_u + T_0)                              # Calculate atmospheric density                                  
     nu_u = calcVisc(T_h_u, T_0, rho_atm_u)                                     # Calculate kinematic viscosity  
     q_h_u = calcHumid(T_0, T_100, T_h_u, es_0, es_100, eps,                    # Calculate specific humidity
-                       p_h_u, RH_cor_h_u)          
-    SHF_h_u, LHF_h_u= calcHeatFlux(T_0, T_h_u, Tsurf_h, rho_atm_u, WS_h_u,     # Calculate latent and sensible heat fluxes
-                                    z_WS_u, z_T_u, nu_u, q_h_u, p_h_u)     
-    SHF_h_u, LHF_h_u = cleanHeatFlux(SHF_h_u, LHF_h_u, T_h_u, Tsurf_h, p_h_u,  # Clean heat flux values
-                                      WS_h_u, RH_cor_h_u, ds['z_boom_u'])
+                       p_h_u, RH_cor_h_u)   
+    if not ds.attrs['bedrock']:       
+        SHF_h_u, LHF_h_u= calcHeatFlux(T_0, T_h_u, Tsurf_h, rho_atm_u, WS_h_u,     # Calculate latent and sensible heat fluxes
+                                        z_WS_u, z_T_u, nu_u, q_h_u, p_h_u)     
+        SHF_h_u, LHF_h_u = cleanHeatFlux(SHF_h_u, LHF_h_u, T_h_u, Tsurf_h, p_h_u,  # Clean heat flux values
+                                          WS_h_u, RH_cor_h_u, ds['z_boom_u'])
+        ds['dshf_u'] = (('time'), SHF_h_u.data)
+        ds['dlhf_u'] = (('time'), LHF_h_u.data)
     q_h_u = 1000 * q_h_u                                                       # Convert sp.humid from kg/kg to g/kg
     q_h_u = cleanSpHumid(q_h_u, T_h_u, Tsurf_h, p_h_u, RH_cor_h_u)             # Clean sp.humid values    
-    ds['dshf_u'] = (('time'), SHF_h_u.data)
-    ds['dlhf_u'] = (('time'), LHF_h_u.data)
     ds['qh_u'] = (('time'), q_h_u.data)    
 
     # Lower boom bulk calculation
@@ -70,15 +71,16 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
         rho_atm_l = 100 * p_h_l / R_d / (T_h_l + T_0)                          # Calculate atmospheric density                                  
         nu_l = calcVisc(T_h_l, T_0, rho_atm_l)                                 # Calculate kinematic viscosity  
         q_h_l = calcHumid(T_0, T_100, T_h_l, es_0, es_100, eps,                # Calculate sp.humidity
-                           p_h_l, RH_cor_h_l)        
-        SHF_h_l, LHF_h_l= calcHeatFlux(T_0, T_h_l, Tsurf_h, rho_atm_l, WS_h_l, # Calculate latent and sensible heat fluxes 
-                                        z_WS_l, z_T_l, nu_l, q_h_l, p_h_l)        
-        SHF_h_l, LHF_h_l = cleanHeatFlux(SHF_h_l, LHF_h_l, T_h_l, Tsurf_h, p_h_l, # Clean heat flux values
-                                          WS_h_l, RH_cor_h_l, ds['z_boom_l'])        
+                           p_h_l, RH_cor_h_l)
+        if not ds.attrs['bedrock']:       
+            SHF_h_l, LHF_h_l= calcHeatFlux(T_0, T_h_l, Tsurf_h, rho_atm_l, WS_h_l, # Calculate latent and sensible heat fluxes 
+                                            z_WS_l, z_T_l, nu_l, q_h_l, p_h_l)        
+            SHF_h_l, LHF_h_l = cleanHeatFlux(SHF_h_l, LHF_h_l, T_h_l, Tsurf_h, p_h_l, # Clean heat flux values
+                                              WS_h_l, RH_cor_h_l, ds['z_boom_l'])
+            ds['dshf_l'] = (('time'), SHF_h_l.data)
+            ds['dlhf_l'] = (('time'), LHF_h_l.data)
         q_h_l = 1000 * q_h_l                                                   # Convert sp.humid from kg/kg to g/kg
         q_h_l = cleanSpHumid(q_h_l, T_h_l, Tsurf_h, p_h_l, RH_cor_h_l)         # Clean sp.humid values
-        ds['dshf_l'] = (('time'), SHF_h_l.data)
-        ds['dlhf_l'] = (('time'), LHF_h_l.data)
         ds['qh_l'] = (('time'), q_h_l.data)    
 
     # if hasattr(ds, 'wspd_x_i'): 
