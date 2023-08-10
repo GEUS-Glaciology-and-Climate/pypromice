@@ -162,10 +162,12 @@ class AWS(object):
         f = [l.attrs['format'] for l in self.L0]
         if all(f):
             col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
-                                    self.L0[0].attrs['format'])
+                                    self.L0[0].attrs['format'],
+                                    self.L3.attrs['bedrock'])
         else:
             col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
-                                    None)
+                                    None,
+                                    self.L3.attrs['bedrock'])
         
         t = int(pd.Timedelta((self.L3['time'][1] - self.L3['time'][0]).values).total_seconds())
         print('Writing to files...')
@@ -176,7 +178,8 @@ class AWS(object):
             out_csv = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.csv')
             out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.nc')            
         writeCSV(out_csv, self.L3, col_names)
-        writeNC(out_nc, self.L3) 
+        col_names = col_names + ['lat', 'lon', 'alt']
+        writeNC(out_nc, self.L3, col_names) 
         print(f'Written to {out_csv}')           
         print(f'Written to {out_nc}') 
         
@@ -418,7 +421,7 @@ def writeCSV(outfile, Lx, csv_order):
         Lcsv = Lcsv[names]
     Lcsv.to_csv(outfile)
     
-def writeNC(outfile, Lx):
+def writeNC(outfile, Lx, col_names=None):
     '''Write data product to NetCDF file
     
     Parameters
@@ -430,7 +433,9 @@ def writeNC(outfile, Lx):
     '''
     if os.path.isfile(outfile): 
         os.remove(outfile)
-    Lx.to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)    
+    if col_names is not None:   
+        names = [c for c in col_names if c in list(Lx.keys())]
+    Lx[names].to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)    
     
 def writeAll(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
     '''Write L3 hourly, daily and monthly datasets to .nc and .csv 
@@ -567,7 +572,7 @@ def popCols(ds, names):
             ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
     return ds
 
-def getColNames(vars_df, booms=None, data_type=None):
+def getColNames(vars_df, booms=None, data_type=None, bedrock=False):
     '''Get all variable names for a given data type, based on a variables 
     look-up table
 
@@ -596,8 +601,16 @@ def getColNames(vars_df, booms=None, data_type=None):
         vars_df = vars_df.loc[vars_df['data_type'].isin(['TX','all'])]
     elif data_type=='STM' or data_type=='raw':
         vars_df = vars_df.loc[vars_df['data_type'].isin(['raw','all'])]
-
-    return list(vars_df.index)
+    
+    col_names = list(vars_df.index)
+    if bedrock:
+        col_names.remove('cc')
+        for v in ['dlhf_u', 'dlhf_l', 'dshf_u', 'dshf_l']:
+            try:
+                col_names.remove(v)
+            except:
+                pass
+    return col_names
 
 def roundValues(ds, df, col='max_decimals'):
     '''Round all variable values in data array based on pre-defined rounding 
