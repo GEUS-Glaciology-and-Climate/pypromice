@@ -817,8 +817,8 @@ def resampleL3(ds_h, t):
     # recalculating wind direction from averaged directional wind speeds
     for var in ['wdir_u','wdir_l','wdir_i']:
         if var in df_d.columns:
-            df_d[var] = _calcWindDir(df_d['wspd_x'+var.split('_')[1]],
-                                   df_d['wspd_y'+var.split('_')[1]])
+            df_d[var] = _calcWindDir(df_d['wspd_x_'+var.split('_')[1]],
+                                   df_d['wspd_y_'+var.split('_')[1]])
     vals = [xr.DataArray(data=df_d[c], dims=['time'], 
            coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
     ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)  
