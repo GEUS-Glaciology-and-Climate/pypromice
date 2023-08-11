@@ -194,10 +194,12 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
     LHF_h = xr.zeros_like(T_h)
     L = xr.full_like(T_h, 1E5)
     
-    u_star = kappa * WS_h / np.log(z_WS / z_0)                                 # Rough surfaces, from Smeets & Van den Broeke 2008
+    u_star = kappa * WS_h.where(WS_h>0) / np.log(z_WS / z_0)                                 # Rough surfaces, from Smeets & Van den Broeke 2008
     Re = u_star * z_0 / nu
-    z_0h = z_0 * np.exp(1.5 - 0.2 * np.log(Re) - 0.11 * np.log(Re)**2)
-    z_0h[WS_h <= 0] = 1e-10
+    z_0h = u_star
+    z_0h = xr.where(WS_h <= 0,
+                    1e-10,
+                    z_0* np.exp(1.5 - 0.2 * np.log(Re) - 0.11 * np.log(Re)**2))
     es_ice_surf = 10**(-9.09718
                        * (T_0 / (Tsurf_h + T_0) -1) - 3.56654
                        * np.log10(T_0 / (Tsurf_h + T_0)) + 0.876793
