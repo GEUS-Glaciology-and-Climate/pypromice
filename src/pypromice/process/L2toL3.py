@@ -31,7 +31,9 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
     ds = L2
 
     T_100 = _getTempK(T_0)                                                     # Get steam point temperature as K 
-    # ds['wdir_u'] = _calcWindDir(ds['wspd_x_u'], ds['wspd_y_u'])              # Calculatate wind direction   
+    
+    ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                       # Get directional wind speed                    
+    ds['wspd_x_u'], ds['wspd_y_u'] = calcDirWindSpeeds(ds['wspd_u'], ds['wdir_u']) 
 
     # Upper boom bulk calculation
     T_h_u = ds['t_u'].copy()                                                   # Copy for processing
@@ -83,12 +85,40 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
         q_h_l = cleanSpHumid(q_h_l, T_h_l, Tsurf_h, p_h_l, RH_cor_h_l)         # Clean sp.humid values
         ds['qh_l'] = (('time'), q_h_l.data)    
 
-    # if hasattr(ds, 'wspd_x_i'): 
-    #     if ~ds['wspd_x_i'].isnull().all() and ~ds['wspd_x_i'].isnull().all(): # Instantaneous msg processing
-    #         ds['wdir_i'] = _calcWindDir(ds['wspd_x_i'], ds['wspd_y_i'])      # Calculatate wind direction  
+        ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0)                   # Get directional wind speed    
+        ds['wspd_x_l'], ds['wspd_y_l'] = calcDirWindSpeeds(ds['wspd_l'], ds['wdir_l'])
+     
+    if hasattr(ds, 'wdir_i'):    
+        if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():      # Instantaneous msg processing
+            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)               # Get directional wind speed                    
+            ds['wspd_x_i'], ds['wspd_y_i'] = calcDirWindSpeeds(ds['wspd_i'], ds['wdir_i'])   
     
-    # ds_d = _getDailyAver(ds)                                                 # Get daily average dataset  
     return ds
+
+
+def calcDirWindSpeeds(wspd, wdir, deg2rad=np.pi/180):
+    '''Calculate directional wind speed from wind speed and direction
+    
+    Parameters
+    ----------
+    wspd : xr.Dataarray
+        Wind speed data array
+    wdir : xr.Dataarray
+        Wind direction data array
+    deg2rad : float
+        Degree to radians coefficient. The default is np.pi/180
+    
+    Returns
+    -------
+    wspd_x : xr.Dataarray
+        Wind speed in X direction
+    wspd_y : xr.Datarray
+        Wind speed in Y direction
+    '''        
+    wspd_x = wspd * np.sin(wdir * deg2rad)
+    wspd_y = wspd * np.cos(wdir * deg2rad) 
+    return wspd_x, wspd_y
+
 
 def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h, 
                 kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622, 
@@ -380,25 +410,6 @@ def cleanSpHumid(q_h, T, Tsurf, p, RH_cor):
     q_h[q_nan] = np.nan
     return q_h
  
-# def _calcWindDir(wspd_x, wspd_y):
-#     '''Calculate wind direction in degrees
-    
-#     Parameters
-#     ----------
-#     wspd_x : xarray.DataArray
-#         Wind speed in X direction
-#     wspd_y : xarray.DataArray
-#         Wind speed in Y direction
-    
-#     Returns
-#     -------
-#     wdir : xarray.DataArray
-#         Wind direction'''
-#     deg2rad = np.pi / 180
-#     rad2deg = 1 / deg2rad    
-#     wdir = np.arctan2(wspd_x, wspd_y) * rad2deg 
-#     wdir = (wdir + 360) % 360  
-#     return wdir
 
 def _calcAtmosDens(p_h, R_d, T_h, T_0):                                        # TODO: check this shouldn't be in this step somewhere
     '''Calculate atmospheric density'''

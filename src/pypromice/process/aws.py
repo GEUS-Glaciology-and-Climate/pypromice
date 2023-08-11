@@ -814,10 +814,37 @@ def resampleL3(ds_h, t):
         L3 AWS hourly dataset
     '''
     df_d = ds_h.to_dataframe().resample(t).mean()
+    # recalculating wind direction from averaged directional wind speeds
+    for var in ['wdir_u','wdir_l','wdir_i']:
+        if var in df_d.columns:
+            df_d[var] = _calcWindDir(df_d['wspd_x'+var.split('_')[1]],
+                                   df_d['wspd_y'+var.split('_')[1]])
     vals = [xr.DataArray(data=df_d[c], dims=['time'], 
            coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
     ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)  
     return ds_d
+
+
+def _calcWindDir(wspd_x, wspd_y):
+    '''Calculate wind direction in degrees
+    
+    Parameters
+    ----------
+    wspd_x : xarray.DataArray
+        Wind speed in X direction
+    wspd_y : xarray.DataArray
+        Wind speed in Y direction
+    
+    Returns
+    -------
+    wdir : xarray.DataArray
+        Wind direction'''
+    deg2rad = np.pi / 180
+    rad2deg = 1 / deg2rad    
+    wdir = np.arctan2(wspd_x, wspd_y) * rad2deg 
+    wdir = (wdir + 360) % 360  
+    return wdir
+
 
 def _addAttr(ds, key, value):
     '''Add attribute to xarray dataset

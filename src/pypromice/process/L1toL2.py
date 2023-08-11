@@ -27,9 +27,9 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
         default is 6.1071.
     eps_overcast : int, optional
         Cloud overcast. The default is 1..
-    eps_clear : int, optional
+    eps_clear : float, optional
         Cloud clear. The default is 9.36508e-6.
-    emissivity : int, optional
+    emissivity : float, optional
         Emissivity. The default is 0.97.
 
     Returns
