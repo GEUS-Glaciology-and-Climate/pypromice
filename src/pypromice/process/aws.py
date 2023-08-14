@@ -333,11 +333,18 @@ def getL0(infile, nodata, cols, skiprows, file_version,
     if file_version == 1:        
         df = pd.read_csv(infile, comment=comment, index_col=0, 
                          na_values=nodata, names=cols, 
-                         parse_dates={'time': ['year', 'doy', 'hhmm']}, 
-                         date_parser=_getDateParserV1, sep=delimiter,
+                         sep=delimiter,
                          skiprows=skiprows, skip_blank_lines=True,
                          usecols=range(len(cols)),
                          low_memory=False)
+        df['time'] = pd.to_datetime(
+                                    df.year.astype(str) \
+                                        + df.doy.astype(str).str.zfill(3) \
+                                            + df.hhmm.astype(str).str.zfill(4),
+                                    format='%Y%j%H%M'
+                                    )
+        df = df.set_index('time')
+            
     else:
         df = pd.read_csv(infile, comment=comment, index_col=0,
                          na_values=nodata, names=cols, parse_dates=True,
@@ -866,30 +873,7 @@ def _addAttr(ds, key, value):
             # print(f'Unable to add metadata to {key.split(".")[0]}')
     else:
         ds.attrs[key] = value    
-        
-def _getDateParserV1(y, doy, t):                                               #TODO fix deprecation warning
-    '''Convert for yyyy,doy,hhmm (without leading 0s) to a pandas datetime.
-    Example: "2007,90,430" to "2007-03-31 04:30:00"
-    
-    This may produce the following deprecation warning:
-    FutureWarning: Use pd.to_datetime instead.
-    
-    Parameters
-    ----------
-    y : int
-        Year
-    doy: int
-        Day of year
-    t : int
-        Hour
-    
-    Returns
-    -------
-    pd.Datetime
-        Datetime object
-    '''
-    return pd.to_datetime(f'{y}-{str(doy).zfill(3)}:{str(t).zfill(4)}',
-                          format='%Y-%j:%H%M')
+
 
 #------------------------------------------------------------------------------
 
