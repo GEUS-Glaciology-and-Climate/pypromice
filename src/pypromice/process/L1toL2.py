@@ -294,9 +294,12 @@ def percentileQC(ds):
             sql = f"SELECT p0p5,p99p5 FROM {k} WHERE stid = ?"
             cur.execute(sql, [stid])
             result = cur.fetchone() # we only expect one row back per station
-            var_threshold[k]['lo'] = result[0] # 0.005
-            var_threshold[k]['hi'] = result[1] # 0.995
-
+            if result: 
+                var_threshold[k]['lo'] = result[0] # 0.005
+                var_threshold[k]['hi'] = result[1] # 0.995
+            else:
+               print(f'{stid} has no {k} data')
+               
     con.close() # close the database connection (and cursor)
 
     # Set flagged data to NaN
