@@ -312,15 +312,18 @@ def percentileQC(ds):
                     if make_plots:
                         _plot_percentiles_t(k,t,df,season_dfs,var_threshold,stid) # BEFORE OUTLIER REMOVAL
                     for x1,x2 in zip([1,2,3,4], season_dfs):
-                        print(f'percentile flagging {t} {x1}')
-                        lower_thresh = var_threshold[k]['seasons'][x1]['lo'] - var_threshold[k]['limit']
-                        upper_thresh = var_threshold[k]['seasons'][x1]['hi'] + var_threshold[k]['limit']
-                        outliers_upper = x2[x2.values > upper_thresh]
-                        outliers_lower = x2[x2.values < lower_thresh]
-                        outliers = pd.concat([outliers_upper,outliers_lower])
-                        df.loc[outliers.index,t] = np.nan
-                        df.loc[outliers.index,t] = np.nan
-
+                        try:
+                            print(f'percentile flagging {t} {x1}')
+                            lower_thresh = var_threshold[k]['seasons'][x1]['lo'] - var_threshold[k]['limit']
+                            upper_thresh = var_threshold[k]['seasons'][x1]['hi'] + var_threshold[k]['limit']
+                            outliers_upper = x2[x2.values > upper_thresh]
+                            outliers_lower = x2[x2.values < lower_thresh]
+                            outliers = pd.concat([outliers_upper,outliers_lower])
+                            df.loc[outliers.index,t] = np.nan
+                            df.loc[outliers.index,t] = np.nan
+                        except Exception as e:
+                            print(f'{t} Season {x1} is not computed due to lack of data')
+                            print(e)
                     if make_plots:
                         _plot_percentiles_t(k,t,df,season_dfs,var_threshold,stid) # AFTER OUTLIER REMOVAL
         else:

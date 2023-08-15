@@ -15,6 +15,7 @@ def parse_arguments():
 
     parser.add_argument('--l3-filepath',
         #default='../../../../aws-l3/level_3/', # relative path to qc dir
+        #default = r'C:\Users\rabni\Desktop\AWS_L3\level_3',
         default ='/data/geusgk/awsl3-fileshare/aws-l3/level_3', # full path
         type=str,
         required=False,
@@ -255,14 +256,18 @@ def _percentileQC(df, stid):
 
                     _plot_percentiles_t(k,t,df,season_dfs,var_threshold,stid) # BEFORE OUTLIER REMOVAL
                     for x1,x2 in zip([1,2,3,4], season_dfs):
-                        print(f'percentile flagging {t} {x1}')
-                        lower_thresh = var_threshold[k]['seasons'][x1]['lo'] - var_threshold[k]['limit']
-                        upper_thresh = var_threshold[k]['seasons'][x1]['hi'] + var_threshold[k]['limit']
-                        outliers_upper = x2[x2.values > upper_thresh]
-                        outliers_lower = x2[x2.values < lower_thresh]
-                        outliers = pd.concat([outliers_upper,outliers_lower])
-                        df.loc[outliers.index,t] = np.nan
-                        df.loc[outliers.index,t] = np.nan
+                        try:
+                            print(f'percentile flagging {t} {x1}')
+                            lower_thresh = var_threshold[k]['seasons'][x1]['lo'] - var_threshold[k]['limit']
+                            upper_thresh = var_threshold[k]['seasons'][x1]['hi'] + var_threshold[k]['limit']
+                            outliers_upper = x2[x2.values > upper_thresh]
+                            outliers_lower = x2[x2.values < lower_thresh]
+                            outliers = pd.concat([outliers_upper,outliers_lower])
+                            df.loc[outliers.index,t] = np.nan
+                            df.loc[outliers.index,t] = np.nan
+                        except Exception as e:
+                            print(f'{t} Season {x1} is not computed due to lack of data')
+                            print(e)
 
                     # _plot_percentiles_t(k,t,df,season_dfs,var_threshold,stid) # AFTER OUTLIER REMOVAL
         else:
@@ -301,14 +306,18 @@ def _plot_percentiles_t(k, t, df, season_dfs, var_threshold, stid):
     if t in ('t_u','t_l'):
         plt.scatter(df.index,df[t], color='b', s=3, label=f'{t} hourly ave')
     for x1,x2 in zip([1,2,3,4], season_dfs):
-        y1 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['lo'] - var_threshold[k]['limit']))
-        y2 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['hi'] + var_threshold[k]['limit']))
-        y11 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['lo'] ))
-        y22 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['hi'] ))
-        plt.scatter(x2.index, y1, color='r',s=1)
-        plt.scatter(x2.index, y2, color='r', s=1)
-        plt.scatter(x2.index, y11, color='k', s=1)
-        plt.scatter(x2.index, y22, color='k', s=1)
+        try:
+            y1 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['lo'] - var_threshold[k]['limit']))
+            y2 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['hi'] + var_threshold[k]['limit']))
+            y11 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['lo'] ))
+            y22 = np.full(len(x2.index), (var_threshold[k]['seasons'][x1]['hi'] ))
+            plt.scatter(x2.index, y1, color='r',s=1)
+            plt.scatter(x2.index, y2, color='r', s=1)
+            plt.scatter(x2.index, y11, color='k', s=1)
+            plt.scatter(x2.index, y22, color='k', s=1)
+        except Exception as e:
+            print(f'Season {x1} is not computed due to lack of data')
+            print(e)
     plt.title('{} {}'.format(stid, t))
     plt.legend(loc="lower left")
     plt.show()
@@ -352,4 +361,4 @@ if __name__ == '__main__':
     # ========================================
 
     # Turn this on to make full station plots
-    # _analyze_percentiles()
+    _analyze_percentiles()
