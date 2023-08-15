@@ -257,6 +257,10 @@ def percentileQC(ds):
     make_plots = False
 
     stid = ds.station_id
+    stid_type = type(stid)
+    
+    print(f'station id {stid}')
+    print(f'station id type {stid_type}')
     df = ds.to_dataframe() # Switch to pandas
 
     # Define threshold dict to hold limit values, and 'hi' and 'lo' percentile.
