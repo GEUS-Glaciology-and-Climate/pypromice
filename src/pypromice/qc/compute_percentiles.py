@@ -133,11 +133,11 @@ def write_percentiles(cur, var_list):
     print(f'writing to tables...')
     for x in os.walk(args.l3_filepath):
         if (len(x[2]) > 0): # files are present
-            stid = x[0].split('/')[-1]
+            stid = x[0].split(os.sep)[-1]
             csv_file = [s for s in x[2] if '_hour.csv' in s]
             if (len(csv_file) > 0) and (stid not in disclude_stations): # csv file is present
                 print(stid)
-                csv_filepath = x[0] + '/' + csv_file[0]
+                csv_filepath = x[0] + os.sep + csv_file[0]
                 df = pd.read_csv(csv_filepath)
                 timestamp = pd.to_datetime(df.time)
                 years = round((timestamp.max()-timestamp.min()) / timedelta(days=365.25))
@@ -190,7 +190,9 @@ def _analyze_percentiles():
     '''
     for x in os.walk(args.l3_filepath):
         if (len(x[2]) > 0): # files are present
-            stid = x[0].split('/')[-1]
+            stid = x[0].split(os.sep)[-1]
+           
+            
             csv_file = [s for s in x[2] if '_hour.csv' in s]
             if (len(csv_file) > 0) and (stid not in disclude_stations): # csv file is present
                 print(stid)
@@ -214,11 +216,12 @@ def _percentileQC(df, stid):
         'rh_u': {'limit': 12},
         'wspd_u': {'limit': 10}
         }
-
+    
     # Query from the on-disk sqlite db for specified percentiles
     con = sqlite3.connect('percentiles.db')
     cur = con.cursor()
     for k in var_threshold.keys():
+                        
         if k == 't_u':
             # Different pattern for t_u, which considers seasons
             # 1: winter (DecJanFeb), 2: spring (MarAprMay), 3: summer (JunJulAug), 4: fall (SepOctNov)
@@ -235,9 +238,12 @@ def _percentileQC(df, stid):
             sql = f"SELECT p0p5,p99p5 FROM {k} WHERE stid = ?"
             cur.execute(sql, [stid])
             result = cur.fetchone() # we only expect one row back per station
-            var_threshold[k]['lo'] = result[0] # 0.005
-            var_threshold[k]['hi'] = result[1] # 0.995
-
+            if result: 
+                var_threshold[k]['lo'] = result[0] # 0.005
+                var_threshold[k]['hi'] = result[1] # 0.995
+            else:
+               print(f'{stid} has no {k} data')
+               
     con.close() # close the database connection (and cursor)
 
     # Set flagged data to NaN
@@ -361,4 +367,4 @@ if __name__ == '__main__':
     # ========================================
 
     # Turn this on to make full station plots
-    _analyze_percentiles()
+    #_analyze_percentiles()
