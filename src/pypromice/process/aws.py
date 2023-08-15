@@ -352,6 +352,13 @@ def getL0(infile, nodata, cols, skiprows, file_version,
                          skip_blank_lines=True,
                          usecols=range(len(cols)),
                          low_memory=False)
+        try:
+            df.index = pd.to_datetime(df.index)
+        except  ValueError as e:
+            print(e)
+            print('Trying pd.to_datetime with format=mixed')
+            df.index = pd.to_datetime(df.index, format='mixed')
+            
 
     # Drop SKIP columns
     for c in df.columns:
