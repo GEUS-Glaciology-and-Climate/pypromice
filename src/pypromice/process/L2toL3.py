@@ -31,7 +31,9 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
     ds = L2
 
     T_100 = _getTempK(T_0)                                                     # Get steam point temperature as K 
-    # ds['wdir_u'] = _calcWindDir(ds['wspd_x_u'], ds['wspd_y_u'])              # Calculatate wind direction   
+    
+    ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                       # Get directional wind speed                    
+    ds['wspd_x_u'], ds['wspd_y_u'] = calcDirWindSpeeds(ds['wspd_u'], ds['wdir_u']) 
 
     # Upper boom bulk calculation
     T_h_u = ds['t_u'].copy()                                                   # Copy for processing
@@ -45,15 +47,16 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
     rho_atm_u = 100 * p_h_u / R_d / (T_h_u + T_0)                              # Calculate atmospheric density                                  
     nu_u = calcVisc(T_h_u, T_0, rho_atm_u)                                     # Calculate kinematic viscosity  
     q_h_u = calcHumid(T_0, T_100, T_h_u, es_0, es_100, eps,                    # Calculate specific humidity
-                       p_h_u, RH_cor_h_u)          
-    SHF_h_u, LHF_h_u= calcHeatFlux(T_0, T_h_u, Tsurf_h, rho_atm_u, WS_h_u,     # Calculate latent and sensible heat fluxes
-                                    z_WS_u, z_T_u, nu_u, q_h_u, p_h_u)     
-    SHF_h_u, LHF_h_u = cleanHeatFlux(SHF_h_u, LHF_h_u, T_h_u, Tsurf_h, p_h_u,  # Clean heat flux values
-                                      WS_h_u, RH_cor_h_u, ds['z_boom_u'])
+                       p_h_u, RH_cor_h_u)   
+    if not ds.attrs['bedrock']:       
+        SHF_h_u, LHF_h_u= calcHeatFlux(T_0, T_h_u, Tsurf_h, rho_atm_u, WS_h_u,     # Calculate latent and sensible heat fluxes
+                                        z_WS_u, z_T_u, nu_u, q_h_u, p_h_u)     
+        SHF_h_u, LHF_h_u = cleanHeatFlux(SHF_h_u, LHF_h_u, T_h_u, Tsurf_h, p_h_u,  # Clean heat flux values
+                                          WS_h_u, RH_cor_h_u, ds['z_boom_u'])
+        ds['dshf_u'] = (('time'), SHF_h_u.data)
+        ds['dlhf_u'] = (('time'), LHF_h_u.data)
     q_h_u = 1000 * q_h_u                                                       # Convert sp.humid from kg/kg to g/kg
     q_h_u = cleanSpHumid(q_h_u, T_h_u, Tsurf_h, p_h_u, RH_cor_h_u)             # Clean sp.humid values    
-    ds['dshf_u'] = (('time'), SHF_h_u.data)
-    ds['dlhf_u'] = (('time'), LHF_h_u.data)
     ds['qh_u'] = (('time'), q_h_u.data)    
 
     # Lower boom bulk calculation
@@ -70,23 +73,52 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
         rho_atm_l = 100 * p_h_l / R_d / (T_h_l + T_0)                          # Calculate atmospheric density                                  
         nu_l = calcVisc(T_h_l, T_0, rho_atm_l)                                 # Calculate kinematic viscosity  
         q_h_l = calcHumid(T_0, T_100, T_h_l, es_0, es_100, eps,                # Calculate sp.humidity
-                           p_h_l, RH_cor_h_l)        
-        SHF_h_l, LHF_h_l= calcHeatFlux(T_0, T_h_l, Tsurf_h, rho_atm_l, WS_h_l, # Calculate latent and sensible heat fluxes 
-                                        z_WS_l, z_T_l, nu_l, q_h_l, p_h_l)        
-        SHF_h_l, LHF_h_l = cleanHeatFlux(SHF_h_l, LHF_h_l, T_h_l, Tsurf_h, p_h_l, # Clean heat flux values
-                                          WS_h_l, RH_cor_h_l, ds['z_boom_l'])        
+                           p_h_l, RH_cor_h_l)
+        if not ds.attrs['bedrock']:       
+            SHF_h_l, LHF_h_l= calcHeatFlux(T_0, T_h_l, Tsurf_h, rho_atm_l, WS_h_l, # Calculate latent and sensible heat fluxes 
+                                            z_WS_l, z_T_l, nu_l, q_h_l, p_h_l)        
+            SHF_h_l, LHF_h_l = cleanHeatFlux(SHF_h_l, LHF_h_l, T_h_l, Tsurf_h, p_h_l, # Clean heat flux values
+                                              WS_h_l, RH_cor_h_l, ds['z_boom_l'])
+            ds['dshf_l'] = (('time'), SHF_h_l.data)
+            ds['dlhf_l'] = (('time'), LHF_h_l.data)
         q_h_l = 1000 * q_h_l                                                   # Convert sp.humid from kg/kg to g/kg
         q_h_l = cleanSpHumid(q_h_l, T_h_l, Tsurf_h, p_h_l, RH_cor_h_l)         # Clean sp.humid values
-        ds['dshf_l'] = (('time'), SHF_h_l.data)
-        ds['dlhf_l'] = (('time'), LHF_h_l.data)
         ds['qh_l'] = (('time'), q_h_l.data)    
 
-    # if hasattr(ds, 'wspd_x_i'): 
-    #     if ~ds['wspd_x_i'].isnull().all() and ~ds['wspd_x_i'].isnull().all(): # Instantaneous msg processing
-    #         ds['wdir_i'] = _calcWindDir(ds['wspd_x_i'], ds['wspd_y_i'])      # Calculatate wind direction  
+        ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0)                   # Get directional wind speed    
+        ds['wspd_x_l'], ds['wspd_y_l'] = calcDirWindSpeeds(ds['wspd_l'], ds['wdir_l'])
+     
+    if hasattr(ds, 'wdir_i'):    
+        if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():      # Instantaneous msg processing
+            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)               # Get directional wind speed                    
+            ds['wspd_x_i'], ds['wspd_y_i'] = calcDirWindSpeeds(ds['wspd_i'], ds['wdir_i'])   
     
-    # ds_d = _getDailyAver(ds)                                                 # Get daily average dataset  
     return ds
+
+
+def calcDirWindSpeeds(wspd, wdir, deg2rad=np.pi/180):
+    '''Calculate directional wind speed from wind speed and direction
+    
+    Parameters
+    ----------
+    wspd : xr.Dataarray
+        Wind speed data array
+    wdir : xr.Dataarray
+        Wind direction data array
+    deg2rad : float
+        Degree to radians coefficient. The default is np.pi/180
+    
+    Returns
+    -------
+    wspd_x : xr.Dataarray
+        Wind speed in X direction
+    wspd_y : xr.Datarray
+        Wind speed in Y direction
+    '''        
+    wspd_x = wspd * np.sin(wdir * deg2rad)
+    wspd_y = wspd * np.cos(wdir * deg2rad) 
+    return wspd_x, wspd_y
+
 
 def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h, 
                 kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622, 
@@ -162,10 +194,12 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
     LHF_h = xr.zeros_like(T_h)
     L = xr.full_like(T_h, 1E5)
     
-    u_star = kappa * WS_h / np.log(z_WS / z_0)                                 # Rough surfaces, from Smeets & Van den Broeke 2008
+    u_star = kappa * WS_h.where(WS_h>0) / np.log(z_WS / z_0)                                 # Rough surfaces, from Smeets & Van den Broeke 2008
     Re = u_star * z_0 / nu
-    z_0h = z_0 * np.exp(1.5 - 0.2 * np.log(Re) - 0.11 * np.log(Re)**2)
-    z_0h[WS_h <= 0] = 1e-10
+    z_0h = u_star
+    z_0h = xr.where(WS_h <= 0,
+                    1e-10,
+                    z_0* np.exp(1.5 - 0.2 * np.log(Re) - 0.11 * np.log(Re)**2))
     es_ice_surf = 10**(-9.09718
                        * (T_0 / (Tsurf_h + T_0) -1) - 3.56654
                        * np.log10(T_0 / (Tsurf_h + T_0)) + 0.876793
@@ -378,25 +412,6 @@ def cleanSpHumid(q_h, T, Tsurf, p, RH_cor):
     q_h[q_nan] = np.nan
     return q_h
  
-# def _calcWindDir(wspd_x, wspd_y):
-#     '''Calculate wind direction in degrees
-    
-#     Parameters
-#     ----------
-#     wspd_x : xarray.DataArray
-#         Wind speed in X direction
-#     wspd_y : xarray.DataArray
-#         Wind speed in Y direction
-    
-#     Returns
-#     -------
-#     wdir : xarray.DataArray
-#         Wind direction'''
-#     deg2rad = np.pi / 180
-#     rad2deg = 1 / deg2rad    
-#     wdir = np.arctan2(wspd_x, wspd_y) * rad2deg 
-#     wdir = (wdir + 360) % 360  
-#     return wdir
 
 def _calcAtmosDens(p_h, R_d, T_h, T_0):                                        # TODO: check this shouldn't be in this step somewhere
     '''Calculate atmospheric density'''

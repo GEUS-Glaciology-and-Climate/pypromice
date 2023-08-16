@@ -8,7 +8,7 @@ import xarray as xr
 import re
 
 
-def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
+def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     '''Process one Level 0 (L0) product to Level 1
 
     Parameters
@@ -17,8 +17,6 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
         Level 0 dataset
     vars_df : pd.DataFrame
         Metadata dataframe
-    flag_file : str
-        Flag .csv file path for bad data
     T_0 : int
         Air temperature for sonic ranger adjustment
     tilt_threshold : int
@@ -91,11 +89,13 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
     
     if hasattr(ds, 'bedrock'):                                                 # Fix tilt to zero if station is on bedrock
         if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
+            ds.attrs['bedrock'] = True                                         # ensures all AWS objects have a 'bedrock' attribute
             ds['tilt_x'] = (('time'), np.arange(ds['time'].size)*0)
             ds['tilt_y'] = (('time'), np.arange(ds['time'].size)*0)
-            
-    ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                       # Get directional wind speed                    
-    ds['wspd_x_u'], ds['wspd_y_u'] = calcWindDir(ds['wspd_u'], ds['wdir_u']) 
+        else:
+            ds.attrs['bedrock'] = False                                        # ensures all AWS objects have a 'bedrock' attribute
+    else:
+        ds.attrs['bedrock'] = False                                            # ensures all AWS objects have a 'bedrock' attribute
     
     if ds.attrs['number_of_booms']==1:                                         # 1-boom processing
         if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density                                           
@@ -111,14 +111,8 @@ def toL1(L0, vars_df, flag_file=None, T_0=273.15, tilt_threshold=-100):
         
     elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height    
-        ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l'] + T_0)/T_0)**0.5         # Adjust sonic ranger readings for sensitivity to air temperature
-        ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0)                   # Get directional wind speed    
-        ds['wspd_x_l'], ds['wspd_y_l'] = calcWindDir(ds['wspd_l'], ds['wdir_l'])
-     
-    if hasattr(ds, 'wdir_i'):    
-        if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():      # Instantaneous msg processing
-            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)               # Get directional wind speed                    
-            ds['wspd_x_i'], ds['wspd_y_i'] = calcWindDir(ds['wspd_i'], ds['wdir_i'])   
+        ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l'] + T_0)/T_0)**0.5         # Adjust sonic ranger readings for sensitivity to air temperature    
+
     return ds
 
 def addTimeShift(ds, vars_df):
@@ -331,28 +325,6 @@ def getTiltDegrees(tilt, threshold):
     dst = dst.where(~notOKtilt)
     return dst.interpolate_na(dim='time', use_coordinate=False)                #TODO: Filling w/o considering time gaps to re-create IDL/GDL outputs. Should fill with coordinate not False. Also consider 'max_gap' option?
 
-def calcWindDir(wspd, wdir, deg2rad=np.pi/180):
-    '''Calculate directional wind speed from wind speed and direction
-    
-    Parameters
-    ----------
-    wspd : xr.Dataarray
-        Wind speed data array
-    wdir : xr.Dataarray
-        Wind direction data array
-    deg2rad : float
-        Degree to radians coefficient. The default is np.pi/180
-    
-    Returns
-    -------
-    wspd_x : xr.Dataarray
-        Wind speed in X direction
-    wspd_y : xr.Datarray
-        Wind speed in Y direction
-    '''        
-    wspd_x = wspd * np.sin(wdir * deg2rad)
-    wspd_y = wspd * np.cos(wdir * deg2rad) 
-    return wspd_x, wspd_y
     
 def decodeGPS(ds, gps_names):
     '''Decode GPS information based on names of GPS attributes. This should be 

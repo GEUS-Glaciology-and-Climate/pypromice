@@ -44,8 +44,8 @@ class AWS(object):
             Metadata info file path. If not given then pypromice's 
             metadata file is used. The default is None.
         '''
-        assert(os.path.isfile(config_file))
-        assert(os.path.isdir(inpath))
+        assert(os.path.isfile(config_file)), "cannot find "+config_file
+        assert(os.path.isdir(inpath)), "cannot find "+inpath
         print('\nAWS object initialising...')
         
         # Load config, variables CSF standards, and L0 files
@@ -119,7 +119,8 @@ class AWS(object):
         # Switch gps_lon to negative (degrees_east)
         # Do this here, and NOT in addMeta, otherwise we switch back to positive
         # when calling getMeta in joinL3! PJW
-        self.L3['gps_lon'] = self.L3['gps_lon'] * -1
+        if self.L3.attrs['station_id'] not in ['UWN', 'Roof_GEUS', 'Roof_PROMICE']:
+            self.L3['gps_lon'] = self.L3['gps_lon'] * -1
 
         # Add variable attributes and metadata
         self.L3 = self.addAttributes(self.L3)
@@ -161,10 +162,12 @@ class AWS(object):
         f = [l.attrs['format'] for l in self.L0]
         if all(f):
             col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
-                                    self.L0[0].attrs['format'])
+                                    self.L0[0].attrs['format'],
+                                    self.L3.attrs['bedrock'])
         else:
             col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
-                                    None)
+                                    None,
+                                    self.L3.attrs['bedrock'])
         
         t = int(pd.Timedelta((self.L3['time'][1] - self.L3['time'][0]).values).total_seconds())
         print('Writing to files...')
@@ -175,7 +178,8 @@ class AWS(object):
             out_csv = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.csv')
             out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.nc')            
         writeCSV(out_csv, self.L3, col_names)
-        writeNC(out_nc, self.L3) 
+        col_names = col_names + ['lat', 'lon', 'alt']
+        writeNC(out_nc, self.L3, col_names) 
         print(f'Written to {out_csv}')           
         print(f'Written to {out_nc}') 
         
@@ -297,7 +301,7 @@ def getConfig(config_file, inpath):
                                                                                # should carry all properties with it
     for k in conf.keys():                                                      # Check required fields are present
         for field in ["columns", "station_id", "format", "skiprows"]:
-            assert(field in conf[k].keys())
+            assert(field in conf[k].keys()), field+" not in config keys"
     return conf
 
 def getL0(infile, nodata, cols, skiprows, file_version, 
@@ -329,11 +333,18 @@ def getL0(infile, nodata, cols, skiprows, file_version,
     if file_version == 1:        
         df = pd.read_csv(infile, comment=comment, index_col=0, 
                          na_values=nodata, names=cols, 
-                         parse_dates={'time': ['year', 'doy', 'hhmm']}, 
-                         date_parser=_getDateParserV1, sep=delimiter,
+                         sep=delimiter,
                          skiprows=skiprows, skip_blank_lines=True,
                          usecols=range(len(cols)),
                          low_memory=False)
+        df['time'] = pd.to_datetime(
+                                    df.year.astype(str) \
+                                        + df.doy.astype(str).str.zfill(3) \
+                                            + df.hhmm.astype(str).str.zfill(4),
+                                    format='%Y%j%H%M'
+                                    )
+        df = df.set_index('time')
+            
     else:
         df = pd.read_csv(infile, comment=comment, index_col=0,
                          na_values=nodata, names=cols, parse_dates=True,
@@ -341,6 +352,13 @@ def getL0(infile, nodata, cols, skiprows, file_version,
                          skip_blank_lines=True,
                          usecols=range(len(cols)),
                          low_memory=False)
+        try:
+            df.index = pd.to_datetime(df.index)
+        except  ValueError as e:
+            print(e)
+            print('Trying pd.to_datetime with format=mixed')
+            df.index = pd.to_datetime(df.index, format='mixed')
+            
 
     # Drop SKIP columns
     for c in df.columns:
@@ -417,7 +435,7 @@ def writeCSV(outfile, Lx, csv_order):
         Lcsv = Lcsv[names]
     Lcsv.to_csv(outfile)
     
-def writeNC(outfile, Lx):
+def writeNC(outfile, Lx, col_names=None):
     '''Write data product to NetCDF file
     
     Parameters
@@ -429,7 +447,11 @@ def writeNC(outfile, Lx):
     '''
     if os.path.isfile(outfile): 
         os.remove(outfile)
-    Lx.to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)    
+    if col_names is not None:   
+        names = [c for c in col_names if c in list(Lx.keys())]
+    else:
+        names = list(Lx.keys())
+    Lx[names].to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)    
     
 def writeAll(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
     '''Write L3 hourly, daily and monthly datasets to .nc and .csv 
@@ -566,7 +588,7 @@ def popCols(ds, names):
             ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
     return ds
 
-def getColNames(vars_df, booms=None, data_type=None):
+def getColNames(vars_df, booms=None, data_type=None, bedrock=False):
     '''Get all variable names for a given data type, based on a variables 
     look-up table
 
@@ -595,8 +617,16 @@ def getColNames(vars_df, booms=None, data_type=None):
         vars_df = vars_df.loc[vars_df['data_type'].isin(['TX','all'])]
     elif data_type=='STM' or data_type=='raw':
         vars_df = vars_df.loc[vars_df['data_type'].isin(['raw','all'])]
-
-    return list(vars_df.index)
+    
+    col_names = list(vars_df.index)
+    if bedrock:
+        col_names.remove('cc')
+        for v in ['dlhf_u', 'dlhf_l', 'dshf_u', 'dshf_l']:
+            try:
+                col_names.remove(v)
+            except:
+                pass
+    return col_names
 
 def roundValues(ds, df, col='max_decimals'):
     '''Round all variable values in data array based on pre-defined rounding 
@@ -798,10 +828,40 @@ def resampleL3(ds_h, t):
         L3 AWS hourly dataset
     '''
     df_d = ds_h.to_dataframe().resample(t).mean()
+    # recalculating wind direction from averaged directional wind speeds
+    for var in ['wdir_u','wdir_l','wdir_i']:
+        if var in df_d.columns:
+            if ('wspd_x_'+var.split('_')[1] in df_d.columns) & ('wspd_x_'+var.split('_')[1] in df_d.columns):
+                df_d[var] = _calcWindDir(df_d['wspd_x_'+var.split('_')[1]],
+                                   df_d['wspd_y_'+var.split('_')[1]])
+            else:
+                print(var,'in dataframe but not','wspd_x_'+var.split('_')[1],'wspd_x_'+var.split('_')[1])
     vals = [xr.DataArray(data=df_d[c], dims=['time'], 
            coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
     ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)  
     return ds_d
+
+
+def _calcWindDir(wspd_x, wspd_y):
+    '''Calculate wind direction in degrees
+    
+    Parameters
+    ----------
+    wspd_x : xarray.DataArray
+        Wind speed in X direction
+    wspd_y : xarray.DataArray
+        Wind speed in Y direction
+    
+    Returns
+    -------
+    wdir : xarray.DataArray
+        Wind direction'''
+    deg2rad = np.pi / 180
+    rad2deg = 1 / deg2rad    
+    wdir = np.arctan2(wspd_x, wspd_y) * rad2deg 
+    wdir = (wdir + 360) % 360  
+    return wdir
+
 
 def _addAttr(ds, key, value):
     '''Add attribute to xarray dataset
@@ -820,30 +880,7 @@ def _addAttr(ds, key, value):
             # print(f'Unable to add metadata to {key.split(".")[0]}')
     else:
         ds.attrs[key] = value    
-        
-def _getDateParserV1(y, doy, t):                                               #TODO fix deprecation warning
-    '''Convert for yyyy,doy,hhmm (without leading 0s) to a pandas datetime.
-    Example: "2007,90,430" to "2007-03-31 04:30:00"
-    
-    This may produce the following deprecation warning:
-    FutureWarning: Use pd.to_datetime instead.
-    
-    Parameters
-    ----------
-    y : int
-        Year
-    doy: int
-        Day of year
-    t : int
-        Hour
-    
-    Returns
-    -------
-    pd.Datetime
-        Datetime object
-    '''
-    return pd.to_datetime(f'{y}-{str(doy).zfill(3)}:{str(t).zfill(4)}',
-                          format='%Y-%j:%H%M')
+
 
 #------------------------------------------------------------------------------
 
