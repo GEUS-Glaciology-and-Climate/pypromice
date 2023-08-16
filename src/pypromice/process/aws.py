@@ -44,8 +44,8 @@ class AWS(object):
             Metadata info file path. If not given then pypromice's 
             metadata file is used. The default is None.
         '''
-        assert(os.path.isfile(config_file))
-        assert(os.path.isdir(inpath))
+        assert(os.path.isfile(config_file)), "cannot find "+config_file
+        assert(os.path.isdir(inpath)), "cannot find "+inpath
         print('\nAWS object initialising...')
         
         # Load config, variables CSF standards, and L0 files
@@ -301,7 +301,7 @@ def getConfig(config_file, inpath):
                                                                                # should carry all properties with it
     for k in conf.keys():                                                      # Check required fields are present
         for field in ["columns", "station_id", "format", "skiprows"]:
-            assert(field in conf[k].keys())
+            assert(field in conf[k].keys()), field+" not in config keys"
     return conf
 
 def getL0(infile, nodata, cols, skiprows, file_version, 
