@@ -355,9 +355,17 @@ def getL0(infile, nodata, cols, skiprows, file_version,
         try:
             df.index = pd.to_datetime(df.index)
         except  ValueError as e:
+            print("\n", infile)
+            print("\nValueError:")
             print(e)
-            print('Trying pd.to_datetime with format=mixed')
-            df.index = pd.to_datetime(df.index, format='mixed')
+            print('\n\t\t> Trying pd.to_datetime with format=mixed')
+            try:
+                df.index = pd.to_datetime(df.index, format='mixed')
+            except Exception as e:
+                print("\nDateParseError:")
+                print(e)
+                print('\n\t\t> Trying again removing apostrophes in timestamp (old files format)')
+                df.index = pd.to_datetime(df.index.str.replace("\"",""))
             
 
     # Drop SKIP columns
