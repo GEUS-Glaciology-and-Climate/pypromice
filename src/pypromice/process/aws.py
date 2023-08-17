@@ -627,8 +627,8 @@ def getColNames(vars_df, booms=None, data_type=None, bedrock=False):
         vars_df = vars_df.loc[vars_df['data_type'].isin(['raw','all'])]
     
     col_names = list(vars_df.index)
-	if isinstance(bedrock, str):
-		bedrock = (bedrock.lower() == 'true')
+    if isinstance(bedrock, str):
+        bedrock = (bedrock.lower() == 'true')
     if bedrock == True:
         col_names.remove('cc')
         for v in ['dlhf_u', 'dlhf_l', 'dshf_u', 'dshf_l']:
