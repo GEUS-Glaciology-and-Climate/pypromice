@@ -245,19 +245,31 @@ def percentileQC(ds):
     
     base_path = os.getcwd()
     
-    file_path =  base_path + '/main/src/pypromice/qc/percentiles.db'
-    script_path = base_path + '/main/src/pypromice/qc/compute_percentiles.py'
+    file_path1 =  base_path + '/main/src/pypromice/qc/percentiles.db'
+    file_path2 =  base_path + '/qc/percentiles.db'
+   
+    script_path1 = base_path + '/main/src/pypromice/qc/compute_percentiles.py'
+    script_path2 = base_path + '/qc/compute_percentiles.py'
     
-    db_exist = os.path.isfile(file_path)
+    script_exist1 = os.path.isfile(script_path1)
+    
+    db_exist1 = os.path.isfile(file_path1)
+    db_exist2 = os.path.isfile(file_path2)
 
     
-    print(f'Does percintiles.db exist {db_exist} in this path {file_path}')    
+    print(f'Does percentiles.db exist {db_exist2} in this path {file_path2}')    
     
     
-    if not os.path.isfile(file_path):
-        print(f'percentiles.db does not exist running {script_path}')
-        subprocess.call(['python',script_path])
-    
+    if not db_exist1 and not db_exist2:
+        if script_exist1: 
+            print(f'percentiles.db does not exist running {script_path1}')
+            subprocess.call(['python',script_path1])
+            file_path = file_path1
+        else:
+            print(f'percentiles.db does not exist running {script_path2}')
+            subprocess.call(['python',script_path2])
+            file_path = file_path2
+        
     # Optionally examine flagged data by setting make_plots to True
     # This is best done by running aws.py directly and setting 'test_station'
     # Plots will be shown before and after flag removal for each var
@@ -279,9 +291,13 @@ def percentileQC(ds):
         'rh_u': {'limit': 12},
         'wspd_u': {'limit': 12},
         }
-
     
     # Query from the on-disk sqlite db for specified percentiles
+    if db_exist1:        
+        file_path = file_path1
+    else: 
+        file_path = file_path2
+        
     con = sqlite3.connect(file_path)
     cur = con.cursor()
     for k in var_threshold.keys():
@@ -292,11 +308,14 @@ def percentileQC(ds):
             sql = f"SELECT p0p5,p99p5,season FROM {k} WHERE season in (1,2,3,4) and stid = ?"
             cur.execute(sql, [stid])
             result = cur.fetchall()
-            for row in result:
-                # row[0] is p0p5, row[1] is p99p5, row[2] is the season integer
-                seasons[row[2]]['lo'] = row[0] # 0.005
-                seasons[row[2]]['hi'] = row[1] # 0.995
-                var_threshold[k]['seasons'] = seasons
+            if result:
+                for row in result:  
+                    # row[0] is p0p5, row[1] is p99p5, row[2] is the season integer
+                    seasons[row[2]]['lo'] = row[0] # 0.005
+                    seasons[row[2]]['hi'] = row[1] # 0.995
+                    var_threshold[k]['seasons'] = seasons
+            else:
+               print(f'{stid} has no {k} data')
         else:
             sql = f"SELECT p0p5,p99p5 FROM {k} WHERE stid = ?"
             cur.execute(sql, [stid])
@@ -346,23 +365,26 @@ def percentileQC(ds):
             vars_all = [k, base_var+'_l', base_var+'_i']
             for t in vars_all:
                 if t in df:
-                    print(f'percentile flagging {t}')
-                    upper_thresh = var_threshold[k]['hi'] + var_threshold[k]['limit']
-                    lower_thresh = var_threshold[k]['lo'] - var_threshold[k]['limit']
-                    if make_plots:
-                        _plot_percentiles(k,t,df,var_threshold,upper_thresh,lower_thresh,stid) # BEFORE OUTLIER REMOVAL
-                    if t == 'p_i':
-                        # shift p_i so we can use the p_u thresholds
-                        shift_p = df[t]+1000.
-                        outliers_upper = shift_p[shift_p.values > upper_thresh]
-                        outliers_lower = shift_p[shift_p.values < lower_thresh]
-                    else:
-                        outliers_upper = df[t][df[t].values > upper_thresh]
-                        outliers_lower = df[t][df[t].values < lower_thresh]
-                    outliers = pd.concat([outliers_upper,outliers_lower])
-                    df.loc[outliers.index,t] = np.nan
-                    df.loc[outliers.index,t] = np.nan
-
+                    try:
+                        print(f'percentile flagging {t}')
+                        upper_thresh = var_threshold[k]['hi'] + var_threshold[k]['limit']
+                        lower_thresh = var_threshold[k]['lo'] - var_threshold[k]['limit']
+                        if make_plots:
+                            _plot_percentiles(k,t,df,var_threshold,upper_thresh,lower_thresh,stid) # BEFORE OUTLIER REMOVAL
+                        if t == 'p_i':
+                            # shift p_i so we can use the p_u thresholds
+                            shift_p = df[t]+1000.
+                            outliers_upper = shift_p[shift_p.values > upper_thresh]
+                            outliers_lower = shift_p[shift_p.values < lower_thresh]
+                        else:
+                            outliers_upper = df[t][df[t].values > upper_thresh]
+                            outliers_lower = df[t][df[t].values < lower_thresh]
+                        outliers = pd.concat([outliers_upper,outliers_lower])
+                        df.loc[outliers.index,t] = np.nan
+                        df.loc[outliers.index,t] = np.nan
+                    except Exception as e:
+                        print(f'{t} is not flagged due to lack of data')
+                        print(e)
                     if make_plots:
                         _plot_percentiles(k,t,df,var_threshold,upper_thresh,lower_thresh,stid) # AFTER OUTLIER REMOVAL
 
