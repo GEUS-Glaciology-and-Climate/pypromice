@@ -50,7 +50,10 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
         print('Flagging and fixing failed:')
         print(e)
         
-        
+    #stid = ds.station_id
+    
+    
+    
     ds = differenceQC(ds)                                                      # Flag and Remove difference outliers     
     ds = percentileQC(ds)                                                      # Flag and remove percentile outliers
 
@@ -241,10 +244,10 @@ def percentileQC(ds):
     file_path =  base_path + '/main/src/pypromice/qc/percentiles.db'
     script_path = base_path + '/main/src/pypromice/qc/compute_percentiles.py'
     
-    #script_exist = os.path.isfile(script_path)
+    db_exist = os.path.isfile(file_path)
 
-    #current_path = os.getcwd()
-    #print(f'Does compute_percintiles.py exist {script_exist}')    
+    
+    print(f'Does percintiles.db exist {db_exist} in this path {file_path}')    
     
     
     if not os.path.isfile(file_path):
