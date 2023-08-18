@@ -61,10 +61,14 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],  
                                      T_0, T_100, ews, ei0)                       
         
-    # Determiune cloud cover
-    cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,            # Calculate cloud coverage
-                           ds['dlr'], ds.attrs['station_id'])  
-    ds['cc'] = (('time'), cc.data)
+    # Determiune cloud cover for on-ice stations
+    if not ds.attrs['bedrock']:
+        cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,        # Calculate cloud coverage
+                               ds['dlr'], ds.attrs['station_id'])  
+        ds['cc'] = (('time'), cc.data)
+    else:
+        # Default cloud cover for bedrock station for which tilt should be 0 anyway.
+        cc = 0.8
     
     # Determine surface temperature
     ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],           # Calculate surface temperature
