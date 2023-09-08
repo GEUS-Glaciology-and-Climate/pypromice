@@ -3,8 +3,12 @@ import pandas as pd
 import xarray as xr
 
 
-def differenceQC(ds: xr.Dataset) -> xr.Dataset:
+def staticQC(ds: xr.Dataset) -> xr.Dataset:
     '''
+    Detect and filter data points that sems to be static within a certain period.
+
+    TODO: It could be nice to have a reference to the logger or description of the behaviour here.
+    The AWS logger program is know to return the last successfully read value if it fails reading from the sensor.
 
     Parameters
     ----------
@@ -22,7 +26,6 @@ def differenceQC(ds: xr.Dataset) -> xr.Dataset:
     # This is best done by running aws.py directly and setting 'test_station'
     # Plots will be shown before and after flag removal for each var
 
-    stid = ds.station_id
     df = ds.to_dataframe()  # Switch to pandas
 
     # Define threshold dict to hold limit values, and the difference values.

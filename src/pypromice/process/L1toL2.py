@@ -9,7 +9,7 @@ import pandas as pd
 import os
 import xarray as xr
 
-from pypromice.qc.difference import differenceQC
+from pypromice.qc.static_qc import staticQC
 
 
 # from IPython import embed
@@ -59,8 +59,8 @@ def toL2(L1, vars_df: pd.DataFrame, T_0=273.15, ews=1013.246, ei0=6.1071, eps_ov
     #stid = ds.station_id
     
     
-    
-    ds = differenceQC(ds)                                                      # Flag and Remove difference outliers
+
+    ds = staticQC(ds)                                                      # Flag and remove percentile outliers
 
     T_100 = _getTempK(T_0)  
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],  

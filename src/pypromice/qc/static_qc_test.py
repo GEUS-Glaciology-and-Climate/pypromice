@@ -6,7 +6,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from pypromice.qc.difference import find_static_regions
+from pypromice.qc.static_qc import find_static_regions
 
 
 def get_random_datetime() -> datetime.datetime:
@@ -32,7 +32,7 @@ def get_random_timeseries(
     return pd.Series(index=time_range, data=data, name="data")
 
 
-class DifferenceQATestCase(unittest.TestCase):
+class StaticQATestCase(unittest.TestCase):
     def test_1_hour_static(self):
         series = get_random_timeseries(
             start=get_random_datetime(),
