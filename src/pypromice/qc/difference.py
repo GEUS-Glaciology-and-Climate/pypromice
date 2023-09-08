@@ -44,8 +44,9 @@ def differenceQC(ds: xr.Dataset) -> xr.Dataset:
 
         for v in var_all:
             if v in df:
-                outliers = find_stationary_values(df[v], diff_period, static_limit)
-                df.loc[outliers.index, v] = np.nan  # setting outliers to NaN
+                mask = find_static_regions(df[v], diff_period, static_limit)
+                # setting outliers to NaN
+                df.loc[mask, v] = np.nan
 
     # Back to xarray, and re-assign the original attrs
     ds_out = df.to_xarray()
@@ -58,18 +59,20 @@ def differenceQC(ds: xr.Dataset) -> xr.Dataset:
     return ds_out
 
 
-def find_stationary_values(
-        data: pd.Series,
-        diff_period: int,
-        static_limit: float,
+def find_static_regions(
+    data: pd.Series,
+    diff_period: int,
+    static_limit: float,
 ) -> pd.Series:
-    diff = data.diff()
-    diff.fillna(method='ffill', inplace=True)  # forward filling all NaNs!
+    """
+    Algorithm that ensures values can stay the same within the outliers_mask
+    """
+    diff = data.diff().fillna(method="ffill").abs()  # forward filling all NaNs!
+    # Indexing is significantly faster on numpy arrays that pandas series
     diff = np.array(diff)
     outliers_mask = np.zeros_like(diff, dtype=bool)
-    for i, d in enumerate(diff):  # algorithm that ensures values can stay the same within the outliers_mask
-        if i > (diff_period - 1):
-            if sum(abs(diff[i - diff_period:i])) < static_limit:
-                outliers_mask[i - diff_period:i] = True
-    outliers = data[outliers_mask]  # finding outliers in dataframe
-    return outliers
+    for i in range(len(outliers_mask) - diff_period + 1):
+        i_end = i + diff_period
+        if max(diff[i:i_end]) < static_limit:
+            outliers_mask[i:i_end] = True
+    return pd.Series(index=data.index, data=outliers_mask)
