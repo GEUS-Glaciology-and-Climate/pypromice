@@ -42,7 +42,7 @@ class StaticQATestCase(unittest.TestCase):
         index = 24
         series.iloc[index] = series.iloc[index - 1]
 
-        mask = find_static_regions(series, diff_period=1, static_limit=0.001)
+        mask = find_static_regions(series, period=1, max_diff=0.001)
 
         self.assertEqual(1, mask.sum())
         self.assertTrue(1, mask.iloc[index])
@@ -56,7 +56,7 @@ class StaticQATestCase(unittest.TestCase):
         index = 1
         series.iloc[index] = series.iloc[index - 1]
 
-        mask = find_static_regions(series, diff_period=1, static_limit=0.001)
+        mask = find_static_regions(series, period=1, max_diff=0.001)
 
         self.assertEqual(1, mask.sum())
         self.assertTrue(1, mask.iloc[index])
@@ -70,7 +70,7 @@ class StaticQATestCase(unittest.TestCase):
         index = -1
         series.iloc[index] = series.iloc[index - 1]
 
-        mask = find_static_regions(series, diff_period=1, static_limit=0.001)
+        mask = find_static_regions(series, period=1, max_diff=0.001)
 
         self.assertEqual(1, mask.sum())
         self.assertTrue(1, mask.iloc[index])
@@ -82,7 +82,7 @@ class StaticQATestCase(unittest.TestCase):
             freq="1h",
         )
 
-        static_mask = find_static_regions(series, diff_period=1, static_limit=0.001)
+        static_mask = find_static_regions(series, period=1, max_diff=0.001)
 
         pd.testing.assert_series_equal(
             pd.Series(index=static_mask.index, data=False),
@@ -90,7 +90,7 @@ class StaticQATestCase(unittest.TestCase):
             check_names=False,
         )
 
-    def test_static_period_longer_than_diff(self):
+    def test_static_period_longer_than_period_threshold(self):
         series = get_random_timeseries(
             start=get_random_datetime(),
             period=datetime.timedelta(days=100),
@@ -101,7 +101,7 @@ class StaticQATestCase(unittest.TestCase):
         index_end = index_start + index_length
         series.iloc[index_start:index_end] = series.iloc[index_start - 1]
 
-        static_mask = find_static_regions(series, diff_period=24, static_limit=0.001)
+        static_mask = find_static_regions(series, period=24, max_diff=0.001)
 
         self.assertEqual(
             index_length,
@@ -112,7 +112,7 @@ class StaticQATestCase(unittest.TestCase):
             static_mask.iloc[index_start:index_end].sum(),
         )
 
-    def test_diff_period_longer_than_static_period(self):
+    def test_period_threshold_longer_than_static_period(self):
         series = get_random_timeseries(
             start=get_random_datetime(),
             period=datetime.timedelta(days=100),
@@ -123,7 +123,7 @@ class StaticQATestCase(unittest.TestCase):
         index_end = index_start + index_length
         series.iloc[index_start:index_end] = series.iloc[index_start - 1]
 
-        static_mask = find_static_regions(series, diff_period=31, static_limit=0.001)
+        static_mask = find_static_regions(series, period=31, max_diff=0.001)
 
         self.assertEqual(0, static_mask.sum())
 
@@ -136,7 +136,7 @@ class StaticQATestCase(unittest.TestCase):
         index_length = 14
         series.iloc[-index_length:] = series.iloc[-index_length - 1]
 
-        static_mask = find_static_regions(series, diff_period=10, static_limit=0.001)
+        static_mask = find_static_regions(series, period=10, max_diff=0.001)
 
         self.assertEqual(index_length, static_mask.sum())
         self.assertEqual(index_length, static_mask.iloc[-index_length:].sum())

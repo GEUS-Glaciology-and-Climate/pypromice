@@ -10,9 +10,9 @@ __all__ = [
 ]
 
 DEFAULT_VARIABLE_THRESHOLDS = {
-    "t": {"static_limit": 0.001, "diff_period": 1},
-    "p": {"static_limit": 0.0001 / 24, "diff_period": 24},
-    "rh": {"static_limit": 0.0001 / 24, "diff_period": 24},
+    "t": {"max_diff": 0.001, "period": 1},
+    "p": {"max_diff": 0.0001 / 24, "period": 24},
+    "rh": {"max_diff": 0.0001 / 24, "period": 24},
 }
 
 
@@ -33,7 +33,7 @@ def apply_static_qc(
     variable_thresholds : Mapping
         Define threshold dict to hold limit values, and the difference values.
         Limit values indicate how much a variable has to change to the previous value
-        diff_period is how many hours a value can stay the same without being set to NaN
+        period is how many hours a value can stay the same without being set to NaN
         * are used to calculate and define all limits, which are then applied to *_u, *_l and *_i
 
     Returns
@@ -58,12 +58,12 @@ def apply_static_qc(
             k + "_l",
             k + "_i",
         ]  # apply to upper, lower boom, and instant
-        static_limit = variable_thresholds[k]["static_limit"]  # loading static limit
-        diff_period = variable_thresholds[k]["diff_period"]  # loading diff period
+        max_diff = variable_thresholds[k]["max_diff"]  # loading static limit
+        period = variable_thresholds[k]["period"]  # loading diff period
 
         for v in var_all:
             if v in df:
-                mask = find_static_regions(df[v], diff_period, static_limit)
+                mask = find_static_regions(df[v], period, max_diff)
                 # setting outliers to NaN
                 df.loc[mask, v] = np.nan
 
@@ -78,8 +78,8 @@ def apply_static_qc(
 
 def find_static_regions(
     data: pd.Series,
-    diff_period: int,
-    static_limit: float,
+    period: int,
+    max_diff: float,
 ) -> pd.Series:
     """
     Algorithm that ensures values can stay the same within the outliers_mask
@@ -88,8 +88,8 @@ def find_static_regions(
     # Indexing is significantly faster on numpy arrays that pandas series
     diff = np.array(diff)
     outliers_mask = np.zeros_like(diff, dtype=bool)
-    for i in range(len(outliers_mask) - diff_period + 1):
-        i_end = i + diff_period
-        if max(diff[i:i_end]) < static_limit:
+    for i in range(len(outliers_mask) - period + 1):
+        i_end = i + period
+        if max(diff[i:i_end]) < max_diff:
             outliers_mask[i:i_end] = True
     return pd.Series(index=data.index, data=outliers_mask)
