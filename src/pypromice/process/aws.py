@@ -265,7 +265,7 @@ class AWS(object):
         '''
         file_version = conf.get('file_version', -1)  
         ds = getL0(conf['file'], conf['nodata'], conf['columns'], 
-                   conf["skiprows"], file_version)
+                   conf["skiprows"], file_version, time_offset=conf.get('time_offset'))
         ds = populateMeta(ds, conf, ["columns", "skiprows", "modem"])
         return ds
 
