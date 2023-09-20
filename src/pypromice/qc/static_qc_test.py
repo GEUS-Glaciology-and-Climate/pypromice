@@ -1,142 +1,146 @@
-import datetime
-import random
 import unittest
-from typing import Union
 
 import numpy as np
+import numpy.testing
 import pandas as pd
 
 from pypromice.qc.static_qc import find_static_regions
 
 
-def get_random_datetime() -> datetime.datetime:
-    # Select random timestamp in the period 1970-2030
-    seconds_per_year = 365.25 * 24 * 3600
-    timestamp = 60 * seconds_per_year * random.random()
-    return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
-
-
-def get_random_timeseries(
-    start: Union[str, datetime.datetime],
-    period: datetime.timedelta = datetime.timedelta(days=5),
-    freq="1h",
-    offset: float = -20,
-    amplitude: float = 5,
-) -> pd.Series:
-    end = start + period
-    time_range = pd.date_range(start=start, end=end, freq=freq, tz="utc")
-    steps_per_day = "1d" / time_range.freq
-    phase = np.random.random() * 2 * np.pi
-    x = 2 * np.pi * np.arange(len(time_range)) / steps_per_day
-    data = amplitude * np.sin(x + phase) + offset
-    return pd.Series(index=time_range, data=data, name="data")
-
-
 class StaticQATestCase(unittest.TestCase):
     def test_1_hour_static(self):
-        series = get_random_timeseries(
-            start=get_random_datetime(),
-            period=datetime.timedelta(days=5),
-            freq="1h",
-        )
-        index = 24
-        series.iloc[index] = series.iloc[index - 1]
-
-        mask = find_static_regions(series, period=1, max_diff=0.001)
-
-        self.assertEqual(1, mask.sum())
-        self.assertTrue(1, mask.iloc[index])
+        self._test_1_hour_repeat(10)
 
     def test_1_hour_second_index(self):
-        series = get_random_timeseries(
-            start=get_random_datetime(),
-            period=datetime.timedelta(days=5),
-            freq="1h",
-        )
-        index = 1
-        series.iloc[index] = series.iloc[index - 1]
-
-        mask = find_static_regions(series, period=1, max_diff=0.001)
-
-        self.assertEqual(1, mask.sum())
-        self.assertTrue(1, mask.iloc[index])
+        self._test_1_hour_repeat(0)
 
     def test_1_hour_last_index(self):
-        series = get_random_timeseries(
-            start=get_random_datetime(),
-            period=datetime.timedelta(days=5),
-            freq="1h",
+        self._test_1_hour_repeat(-2)
+
+    def _test_1_hour_repeat(self, index: int):
+        self.assertTrue(index < -1 or index >= 0)
+        time_range = pd.date_range(
+            start="2023-01-26", end="2023-01-27", freq="h", tz="utc", inclusive="left"
         )
-        index = -1
-        series.iloc[index] = series.iloc[index - 1]
+        input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
+        input_series[index + 1] = input_series[index]
+        min_repeats = 1
+        expected_output = input_series.map(lambda _: False)
+        expected_output[index + 1] = True
 
-        mask = find_static_regions(series, period=1, max_diff=0.001)
+        static_mask = find_static_regions(
+            input_series, min_repeats=min_repeats, max_diff=0.001
+        )
 
-        self.assertEqual(1, mask.sum())
-        self.assertTrue(1, mask.iloc[index])
+        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
 
     def test_no_static_period(self):
-        series = get_random_timeseries(
-            start=get_random_datetime(),
-            period=datetime.timedelta(days=5),
-            freq="1h",
+        time_range = pd.date_range(
+            start="2023-01-26", end="2023-01-27", freq="h", tz="utc", inclusive="left"
+        )
+        input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
+        min_repeats = 1
+        expected_output = input_series.map(lambda _: False)
+
+        static_mask = find_static_regions(
+            input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        static_mask = find_static_regions(series, period=1, max_diff=0.001)
-
-        pd.testing.assert_series_equal(
-            pd.Series(index=static_mask.index, data=False),
-            static_mask,
-            check_names=False,
-        )
+        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
 
     def test_static_period_longer_than_period_threshold(self):
-        series = get_random_timeseries(
-            start=get_random_datetime(),
-            period=datetime.timedelta(days=100),
-            freq="1h",
+        time_range = pd.date_range(
+            start="2023-01-26", end="2023-01-28", freq="h", tz="utc", inclusive="left"
         )
-        index_start = 41
-        index_length = 30
-        index_end = index_start + index_length
-        series.iloc[index_start:index_end] = series.iloc[index_start - 1]
+        index_start = 23
+        index_end = 33
+        min_repeats = 4
+        expected_filter_start = 27
+        expected_filter_end = 33
+        input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
+        input_series[index_start:index_end] = input_series[index_start]
+        expected_output = input_series.map(lambda _: False)
+        expected_output[expected_filter_start:expected_filter_end] = True
 
-        static_mask = find_static_regions(series, period=24, max_diff=0.001)
+        static_mask = find_static_regions(
+            input_series, min_repeats=min_repeats, max_diff=0.001
+        )
 
-        self.assertEqual(
-            index_length,
-            static_mask.sum(),
-        )
-        self.assertEqual(
-            index_length,
-            static_mask.iloc[index_start:index_end].sum(),
-        )
+        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
 
     def test_period_threshold_longer_than_static_period(self):
-        series = get_random_timeseries(
-            start=get_random_datetime(),
-            period=datetime.timedelta(days=100),
-            freq="1h",
+        time_range = pd.date_range(
+            start="2023-01-26", end="2023-01-28", freq="h", tz="utc", inclusive="left"
         )
-        index_start = 41
-        index_length = 30
-        index_end = index_start + index_length
-        series.iloc[index_start:index_end] = series.iloc[index_start - 1]
+        index_start = 23
+        index_end = 27
+        min_repeats = 10
+        input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
+        input_series[index_start:index_end] = input_series[index_start]
+        expected_output = input_series.map(lambda _: False)
 
-        static_mask = find_static_regions(series, period=31, max_diff=0.001)
+        static_mask = find_static_regions(
+            input_series, min_repeats=min_repeats, max_diff=0.001
+        )
 
-        self.assertEqual(0, static_mask.sum())
+        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
 
     def test_static_period_at_the_end(self):
-        series = get_random_timeseries(
-            start=get_random_datetime(),
-            period=datetime.timedelta(days=5),
-            freq="1h",
+        time_range = pd.date_range(
+            start="2023-01-26", end="2023-01-28", freq="h", tz="utc", inclusive="left"
         )
-        index_length = 14
-        series.iloc[-index_length:] = series.iloc[-index_length - 1]
+        index_start = 23
+        min_repeats = 4
+        expected_filter_start = 27
+        input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
+        input_series[index_start:] = input_series[index_start]
+        expected_output = input_series.map(lambda _: False)
+        expected_output[expected_filter_start:] = True
 
-        static_mask = find_static_regions(series, period=10, max_diff=0.001)
+        static_mask = find_static_regions(
+            input_series, min_repeats=min_repeats, max_diff=0.001
+        )
 
-        self.assertEqual(index_length, static_mask.sum())
-        self.assertEqual(index_length, static_mask.iloc[-index_length:].sum())
+        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
+
+    def test_dont_filter_nan_values(self):
+        time_range = pd.date_range(
+            start="2023-01-26", end="2023-01-27", freq="h", tz="utc", inclusive="left"
+        )
+        input_series = pd.Series(
+            index=time_range, data=np.zeros_like(time_range, dtype="float")
+        )
+        min_repeats = 4
+        input_series[:] = np.nan
+        input_series[9] = -11
+        input_series[10:12] = -10
+        input_series[15] = -9
+        # There are >=4 repeats if the nan values are forward filled. [10:15] == -10
+        # The output mask shouldn't filter nan values.
+        expected_output = input_series.map(lambda _: False)
+
+        static_mask = find_static_regions(
+            input_series, min_repeats=min_repeats, max_diff=0.001
+        )
+
+        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
+
+    def test_series_with_nan_values_between_static_values(self):
+        time_range = pd.date_range(
+            start="2023-01-26", end="2023-01-27", freq="h", tz="utc", inclusive="left"
+        )
+        values = np.zeros_like(time_range, dtype="float")
+        values[:] = np.nan
+        values[9] = -11
+        values[16] = -11
+        values[17] = -9
+        series = pd.Series(index=time_range, data=values)
+        expected_mask = np.zeros_like(values, dtype="bool")
+        period = 4
+        # The value and index 16 is the same as 9 which is longer than period
+        # Note: The station region mask shall not filter nan values
+        expected_mask[16] = True
+
+        output_mask = find_static_regions(series, min_repeats=period, max_diff=0.01)
+
+        np.testing.assert_equal(expected_mask, output_mask)

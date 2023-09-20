@@ -1,18 +1,22 @@
+import logging
+
 import numpy as np
 import pandas as pd
 import xarray as xr
-from typing import Mapping, Optional
-
+from typing import Mapping, Optional, Union
 
 __all__ = [
     "apply_static_qc",
     "find_static_regions",
 ]
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_VARIABLE_THRESHOLDS = {
-    "t": {"max_diff": 0.001, "period": 1},
-    "p": {"max_diff": 0.0001 / 24, "period": 24},
-    "rh": {"max_diff": 0.0001 / 24, "period": 24},
+    "t": {"max_diff": 0.0001, "period": 2},
+    "p": {"max_diff": 0.0001, "period": 2},
+    # Relative humidity can be very stable around 100%.
+    #"rh": {"max_diff": 0.0001, "period": 2},
 }
 
 
@@ -52,6 +56,8 @@ def apply_static_qc(
     if variable_thresholds is None:
         variable_thresholds = DEFAULT_VARIABLE_THRESHOLDS
 
+    logger.debug(f"Running apply_static_qc using {variable_thresholds}")
+
     for k in variable_thresholds.keys():
         var_all = [
             k + "_u",
@@ -64,6 +70,9 @@ def apply_static_qc(
         for v in var_all:
             if v in df:
                 mask = find_static_regions(df[v], period, max_diff)
+                n_masked = mask.sum()
+                n_samples = len(mask)
+                logger.debug(f"Applying static QC in {v}. Filtering {n_masked}/{n_samples} samples")
                 # setting outliers to NaN
                 df.loc[mask, v] = np.nan
 
@@ -78,18 +87,45 @@ def apply_static_qc(
 
 def find_static_regions(
     data: pd.Series,
-    period: int,
+    min_repeats: int,
     max_diff: float,
 ) -> pd.Series:
     """
     Algorithm that ensures values can stay the same within the outliers_mask
     """
-    diff = data.diff().fillna(method="ffill").abs()  # forward filling all NaNs!
-    # Indexing is significantly faster on numpy arrays that pandas series
-    diff = np.array(diff)
-    outliers_mask = np.zeros_like(diff, dtype=bool)
-    for i in range(len(outliers_mask) - period + 1):
-        i_end = i + period
-        if max(diff[i:i_end]) < max_diff:
-            outliers_mask[i:i_end] = True
-    return pd.Series(index=data.index, data=outliers_mask)
+    diff = data.ffill().diff().abs()  # forward filling all NaNs!
+    mask: pd.Series = diff < max_diff
+    consecutive_true_df = count_consecutive_true(mask)
+    static_regions = consecutive_true_df >= min_repeats
+    # Ignore entries which already nan in the input data
+    static_regions[data.isna()] = False
+    return static_regions
+
+
+def count_consecutive_true(
+    series: Union[pd.Series, pd.DataFrame]
+) -> Union[pd.Series, pd.DataFrame]:
+    """
+    Convert boolean series to integer series where the values represent the number of connective true values.
+
+    Examples
+    --------
+    >>> count_consecutive_true(pd.Series([False, True, False, False, True, True, True, False, True]))
+    pd.Series([0, 1, 0, 0, 1, 2, 3, 0, 1])
+
+    Parameters
+    ----------
+    series
+        Boolean pandas Series or DataFrame
+
+    Returns
+    -------
+    consecutive_true_count
+        Integer pandas Series or DataFrame with values representing the number of connective true values.
+
+    """
+    # assert series.dtype == bool
+    cumsum = series.cumsum()
+    is_first = series.astype("int").diff() == 1
+    offset = (is_first * cumsum).replace(0, np.nan).fillna(method="ffill").fillna(0)
+    return ((cumsum - offset + 1) * series).astype("int")
