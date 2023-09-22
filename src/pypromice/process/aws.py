@@ -28,9 +28,10 @@ logger = logging.getLogger(__name__)
 
 #------------------------------------------------------------------------------
 
+
 class AWS(object):
     '''AWS object to load and process PROMICE AWS data'''
-    
+
     def __init__(self, config_file, inpath, var_file=None, meta_file=None):
         '''Object initialisation
 
@@ -83,7 +84,7 @@ class AWS(object):
         self.getL1()
         self.getL2()
         self.getL3()
-        
+
     def write(self, outpath):
         '''Write L3 data to .csv and .nc file'''
         if os.path.isdir(outpath):
@@ -91,7 +92,7 @@ class AWS(object):
         else:
             logger.info(f'Outpath f{outpath} does not exist. Unable to save to file')
             pass
-            
+
     def getL1(self):
         '''Perform L0 to L1 data processing'''
         logger.info('Level 1 processing...')
@@ -110,7 +111,7 @@ class AWS(object):
         and attribute population'''
         logger.info('Level 3 processing...')
         self.L3 = toL3(self.L2)
-        
+
         # Resample L3 product
         f = [l.attrs['format'] for l in self.L0]
         if 'raw' in f or 'STM' in f:
@@ -123,7 +124,7 @@ class AWS(object):
         # Re-format time
         t = self.L3['time'].values
         self.L3['time'] = list(t)
-        
+
         # Switch gps_lon to negative (degrees_east)
         # Do this here, and NOT in addMeta, otherwise we switch back to positive
         # when calling getMeta in joinL3! PJW
@@ -132,18 +133,18 @@ class AWS(object):
 
         # Add variable attributes and metadata
         self.L3 = self.addAttributes(self.L3)
-        
+
         # Round all values to specified decimals places
-        self.L3 = roundValues(self.L3, self.vars) 
-               
+        self.L3 = roundValues(self.L3, self.vars)
+
     def addAttributes(self, L3):
         '''Add variable and attribute metadata
-        
+
         Parameters
         ----------
         L3 : xr.Dataset
             Level-3 data object
-        
+
         Returns
         -------
         L3 : xr.Dataset
@@ -155,7 +156,7 @@ class AWS(object):
 
     def writeArr(self, outpath):
         '''Write L3 data to .nc and .csv hourly and daily files
-        
+
         Parameters
         ----------
         outpath : str
@@ -163,20 +164,20 @@ class AWS(object):
         L3 : AWS.L3
             Level-3 data object
         '''
-        outdir = os.path.join(outpath, self.L3.attrs['station_id']) 
+        outdir = os.path.join(outpath, self.L3.attrs['station_id'])
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
-        
+
         f = [l.attrs['format'] for l in self.L0]
         if all(f):
-            col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
+            col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'],
                                     self.L0[0].attrs['format'],
                                     self.L3.attrs['bedrock'])
         else:
-            col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'], 
+            col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'],
                                     None,
                                     self.L3.attrs['bedrock'])
-        
+
         t = int(pd.Timedelta((self.L3['time'][1] - self.L3['time'][0]).values).total_seconds())
         logger.info('Writing to files...')
         if t == 600:
@@ -184,23 +185,23 @@ class AWS(object):
             out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_10min.nc')
         else:
             out_csv = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.csv')
-            out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.nc')            
+            out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.nc')
         writeCSV(out_csv, self.L3, col_names)
         col_names = col_names + ['lat', 'lon', 'alt']
-        writeNC(out_nc, self.L3, col_names) 
+        writeNC(out_nc, self.L3, col_names)
         logger.info(f'Written to {out_csv}')
         logger.info(f'Written to {out_nc}')
-        
+
     def loadConfig(self, config_file, inpath):
         '''Load configuration from .toml file
-        
+
         Parameters
         ----------
         config_file : str
             TOML file path
         inpath : str
-            Input folder directory where L0 files can be found  
-        
+            Input folder directory where L0 files can be found
+
         Returns
         -------
         conf : dict
@@ -208,19 +209,19 @@ class AWS(object):
         '''
         conf = getConfig(config_file, inpath)
         return conf
-        
+
     def loadL0(self):
-        '''Load level 0 (L0) data from associated TOML-formatted 
+        '''Load level 0 (L0) data from associated TOML-formatted
         config file and L0 data file
 
-        Try readL0file() using the config with msg_lat & msg_lon appended. The 
-        specific ParserError except will occur when the number of columns in 
-        the tx file does not match the expected columns. In this case, remove 
-        msg_lat & msg_lon from the config and call readL0file() again. These 
-        station files either have no data after Nov 2022 (when msg_lat & 
-        msg_lon were added to processing), or for whatever reason these fields 
+        Try readL0file() using the config with msg_lat & msg_lon appended. The
+        specific ParserError except will occur when the number of columns in
+        the tx file does not match the expected columns. In this case, remove
+        msg_lat & msg_lon from the config and call readL0file() again. These
+        station files either have no data after Nov 2022 (when msg_lat &
+        msg_lon were added to processing), or for whatever reason these fields
         did not exist in the modem message and were not added.
-        
+
         Returns
         -------
         ds_list : list
@@ -258,19 +259,19 @@ class AWS(object):
     def readL0file(self, conf):
         '''Read L0 .txt file to Dataset object using config dictionary and
         populate with initial metadata
-        
+
         Parameters
         ----------
         conf : dict
-            Configuration parameters  
-        
+            Configuration parameters
+
         Returns
         -------
         ds : xr.Dataset
             L0 data
         '''
-        file_version = conf.get('file_version', -1)  
-        ds = getL0(conf['file'], conf['nodata'], conf['columns'], 
+        file_version = conf.get('file_version', -1)
+        ds = getL0(conf['file'], conf['nodata'], conf['columns'],
                    conf["skiprows"], file_version)
         ds = populateMeta(ds, conf, ["columns", "skiprows", "modem"])
         return ds
@@ -312,10 +313,10 @@ def getConfig(config_file, inpath):
             assert(field in conf[k].keys()), field+" not in config keys"
     return conf
 
-def getL0(infile, nodata, cols, skiprows, file_version, 
+def getL0(infile, nodata, cols, skiprows, file_version,
           delimiter=',', comment='#'):
     ''' Read L0 data file into pandas DataFrame object
-    
+
     Parameters
     ----------
     infile : str
@@ -332,15 +333,15 @@ def getL0(infile, nodata, cols, skiprows, file_version,
         String delimiter for L0 file
     comment : str
         Notifier of commented sections in L0 file
-    
+
     Returns
     -------
     ds : xarray.Dataset
         L0 Dataset
     '''
-    if file_version == 1:        
-        df = pd.read_csv(infile, comment=comment, index_col=0, 
-                         na_values=nodata, names=cols, 
+    if file_version == 1:
+        df = pd.read_csv(infile, comment=comment, index_col=0,
+                         na_values=nodata, names=cols,
                          sep=delimiter,
                          skiprows=skiprows, skip_blank_lines=True,
                          usecols=range(len(cols)),
@@ -352,7 +353,7 @@ def getL0(infile, nodata, cols, skiprows, file_version,
                                     format='%Y%j%H%M'
                                     )
         df = df.set_index('time')
-            
+
     else:
         df = pd.read_csv(infile, comment=comment, index_col=0,
                          na_values=nodata, names=cols, parse_dates=True,
@@ -374,7 +375,7 @@ def getL0(infile, nodata, cols, skiprows, file_version,
                 logger.info(e)
                 logger.info('\t\t> Trying again removing apostrophes in timestamp (old files format)')
                 df.index = pd.to_datetime(df.index.str.replace("\"",""))
-            
+
 
     # Drop SKIP columns
     for c in df.columns:
@@ -386,16 +387,16 @@ def getL0(infile, nodata, cols, skiprows, file_version,
     return ds
 
 def addBasicMeta(ds, vars_df):
-    ''' Use a variable lookup table DataFrame to add the basic metadata 
+    ''' Use a variable lookup table DataFrame to add the basic metadata
     to the xarray dataset. This is later amended to finalise L3
-    
+
     Parameters
     ----------
     ds : xr.Dataset
         Dataset to add metadata to
     vars_df : pd.DataFrame
         Metadata dataframe
-    
+
     Returns
     -------
     ds : xr.Dataset
@@ -411,7 +412,7 @@ def addBasicMeta(ds, vars_df):
 
 def populateMeta(ds, conf, skip):
     '''Populate L0 Dataset with metadata dictionary
-    
+
     Parameters
     ----------
     ds : xarray.Dataset
@@ -419,8 +420,8 @@ def populateMeta(ds, conf, skip):
     conf : dict
         Metadata dictionary
     skip : list
-        List of column names to skip parsing to metadata 
-    
+        List of column names to skip parsing to metadata
+
     Returns
     -------
     ds : xarray.Dataset
@@ -435,7 +436,7 @@ def populateMeta(ds, conf, skip):
 
 def writeCSV(outfile, Lx, csv_order):
     '''Write data product to CSV file
-    
+
     Parameters
     ----------
     outfile : str
@@ -446,14 +447,14 @@ def writeCSV(outfile, Lx, csv_order):
         List order of variables
     '''
     Lcsv = Lx.to_dataframe().dropna(how='all')
-    if csv_order is not None:   
+    if csv_order is not None:
         names = [c for c in csv_order if c in list(Lcsv.columns)]
         Lcsv = Lcsv[names]
     Lcsv.to_csv(outfile)
-    
+
 def writeNC(outfile, Lx, col_names=None):
     '''Write data product to NetCDF file
-    
+
     Parameters
     ----------
     outfile : str
@@ -461,18 +462,18 @@ def writeNC(outfile, Lx, col_names=None):
     Lx : xr.Dataset
         Dataset to write to file
     '''
-    if os.path.isfile(outfile): 
+    if os.path.isfile(outfile):
         os.remove(outfile)
-    if col_names is not None:   
+    if col_names is not None:
         names = [c for c in col_names if c in list(Lx.keys())]
     else:
         names = list(Lx.keys())
-    Lx[names].to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)    
-    
+    Lx[names].to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)
+
 def writeAll(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
-    '''Write L3 hourly, daily and monthly datasets to .nc and .csv 
+    '''Write L3 hourly, daily and monthly datasets to .nc and .csv
     files
-    
+
     outpath : str
         Output file path
     station_id : str
@@ -493,12 +494,12 @@ def writeAll(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
     outfile_m = os.path.join(outpath, station_id + '_month')
     for o,l in zip([outfile_h, outfile_d, outfile_m], [l3_h ,l3_d, l3_m]):
         writeCSV(o+'.csv',l, csv_order)
-        writeNC(o+'.nc',l)        
+        writeNC(o+'.nc',l)
 
 def mergeVars(ds_list, variables, cols=['lo','hi','OOL']):                     #TODO find way to make this one line as described
     '''Merge dataset by variable attributes from lookup table file. This could
-    be as simple as: 
-    ds = xr.open_mfdataset(infile_list, combine='by_coords', mask_and_scale=False).load() 
+    be as simple as:
+    ds = xr.open_mfdataset(infile_list, combine='by_coords', mask_and_scale=False).load()
     Except that some files have overlapping times.
 
     Parameters
@@ -509,7 +510,7 @@ def mergeVars(ds_list, variables, cols=['lo','hi','OOL']):                     #
         Variable look up table
     cols : str, optional
         Variable column names to merge by. The default is ['lo','hi','OOL'].
-        
+
     Returns
     -------
     ds : xarray.Dataset
@@ -524,74 +525,74 @@ def mergeVars(ds_list, variables, cols=['lo','hi','OOL']):                     #
     # Get variables
     df = variables[cols]
     df = df.dropna(how='all')
-    
+
     # Remove outliers
     ds = clipValues(ds, df, cols)
-                        
+
     # Clean up metadata
     for k in ['format', 'hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
               'dlr_eng_coef', 'ulr_eng_coef', 'pt_z_coef', 'pt_z_p_coef',
               'pt_z_factor', 'pt_antifreeze', 'boom_azimuth', 'nodata',
               'conf', 'file']:
         if k in ds.attrs.keys():
-            ds.attrs.pop(k) 
+            ds.attrs.pop(k)
     return ds
 
 def clipValues(ds, df, cols=['lo','hi','OOL']):
     '''Clip values in dataset to defined "hi" and "lo" variables from dataframe.
     There is a special treatment here for rh_u and rh_l variables, where values
     are clipped and not assigned to NaN. This is for replication purposes
-    
+
     Parameters
     ----------
     ds : xarray.Dataset
         Dataset to clip hi-lo range to
     df : pandas.DataFrame
         Dataframe to retrieve attribute hi-lo values from
-    
+
     Returns
     -------
     ds : xarray.Dataset
         Dataset with clipped data
     '''
-    df = df[cols] 
+    df = df[cols]
     df = df.dropna(how='all')
     lo = cols[0]
     hi = cols[1]
     ool = cols[2]
     for var in df.index:
-        if var not in list(ds.variables): 
+        if var not in list(ds.variables):
             continue
-            
+
         if var in ['rh_u_cor', 'rh_l_cor']:
              ds[var] = ds[var].where(ds[var] >= df.loc[var, lo], other = 0)
              ds[var] = ds[var].where(ds[var] <= df.loc[var, hi], other = 100)
-             
+
              # Mask out invalid corrections based on uncorrected var
              var_uncor=var.split('_cor')[0]
              ds[var] = ds[var].where(~np.isnan(ds[var_uncor]), other=np.nan)
-            
+
         else:
             if ~np.isnan(df.loc[var, lo]):
                 ds[var] = ds[var].where(ds[var] >= df.loc[var, lo])
-            if ~np.isnan(df.loc[var, hi]):                
+            if ~np.isnan(df.loc[var, hi]):
                 ds[var] = ds[var].where(ds[var] <= df.loc[var, hi])
-                
+
         other_vars = df.loc[var][ool]
-        if isinstance(other_vars, str) and ~ds[var].isnull().all():            
+        if isinstance(other_vars, str) and ~ds[var].isnull().all():
             for o in other_vars.split():
-                if o not in list(ds.variables): 
+                if o not in list(ds.variables):
                     continue
                 else:
                     if ~np.isnan(df.loc[var, lo]):
                         ds[o] = ds[o].where(ds[var] >= df.loc[var, lo])
-                    if ~np.isnan(df.loc[var, hi]):  
-                        ds[o] = ds[o].where(ds[var] <= df.loc[var, hi])  
+                    if ~np.isnan(df.loc[var, hi]):
+                        ds[o] = ds[o].where(ds[var] <= df.loc[var, hi])
     return ds
 
-def popCols(ds, names):       
+def popCols(ds, names):
     '''Populate dataset with all given variable names
-    
+
     Parammeters
     -----------
     ds : xr.Dataset
@@ -601,11 +602,11 @@ def popCols(ds, names):
     '''
     for v in names:
         if v not in list(ds.variables):
-            ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)      
+            ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)
     return ds
 
 def getColNames(vars_df, booms=None, data_type=None, bedrock=False):
-    '''Get all variable names for a given data type, based on a variables 
+    '''Get all variable names for a given data type, based on a variables
     look-up table
 
     Parameters
@@ -613,10 +614,10 @@ def getColNames(vars_df, booms=None, data_type=None, bedrock=False):
     vars_df : pd.DataFrame
         Variables look-up table
     booms : int, optional
-        Number of booms. If this parameter is empty then all variables 
+        Number of booms. If this parameter is empty then all variables
         regardless of boom type will be passed. The default is None.
     data_type : str, optional
-        Data type, "tx", "STM" or "raw". If this parameter is empty then all 
+        Data type, "tx", "STM" or "raw". If this parameter is empty then all
         variables regardless of data type will be passed. The default is None.
 
     Returns
@@ -628,12 +629,12 @@ def getColNames(vars_df, booms=None, data_type=None, bedrock=False):
         vars_df = vars_df.loc[vars_df['station_type'].isin(['one-boom','all'])]
     elif booms==2:
         vars_df = vars_df.loc[vars_df['station_type'].isin(['two-boom','all'])]
-    
+
     if data_type=='TX':
         vars_df = vars_df.loc[vars_df['data_type'].isin(['TX','all'])]
     elif data_type=='STM' or data_type=='raw':
         vars_df = vars_df.loc[vars_df['data_type'].isin(['raw','all'])]
-    
+
     col_names = list(vars_df.index)
     if isinstance(bedrock, str):
         bedrock = (bedrock.lower() == 'true')
@@ -647,9 +648,9 @@ def getColNames(vars_df, booms=None, data_type=None, bedrock=False):
     return col_names
 
 def roundValues(ds, df, col='max_decimals'):
-    '''Round all variable values in data array based on pre-defined rounding 
+    '''Round all variable values in data array based on pre-defined rounding
     value in variables look-up table DataFrame
-    
+
     Parameters
     ----------
     ds : xr.Dataset
@@ -657,28 +658,28 @@ def roundValues(ds, df, col='max_decimals'):
     df : pd.Dataframe
         Variable look-up table with rounding values
     col : str
-        Column in variable look-up table that contains rounding values. The 
+        Column in variable look-up table that contains rounding values. The
         default is "max_decimals"
     '''
     df = df[col]
     df = df.dropna(how='all')
     for var in df.index:
-        if var not in list(ds.variables): 
+        if var not in list(ds.variables):
             continue
         if df[var] is not np.nan:
             ds[var] = ds[var].round(decimals=int(df[var]))
     return ds
-        
+
 def addVars(ds, variables):
     '''Add variable attributes from file to dataset
-    
+
     Parameters
     ----------
     ds : xarray.Dataset
         Dataset to add variable attributes to
     variables : pandas.DataFrame
         Variables lookup table file
-    
+
     Returns
     -------
     ds : xarray.Dataset
@@ -690,19 +691,19 @@ def addVars(ds, variables):
         ds[k].attrs['long_name'] = variables.loc[k]['long_name']
         ds[k].attrs['units'] = variables.loc[k]['units']
         ds[k].attrs['coverage_content_type'] = variables.loc[k]['coverage_content_type']
-        ds[k].attrs['coordinates'] = variables.loc[k]['coordinates']        
+        ds[k].attrs['coordinates'] = variables.loc[k]['coordinates']
     return ds
 
 def addMeta(ds, meta):
     '''Add metadata attributes from file to dataset
-    
+
     Parameters
     ----------
     ds : xarray.Dataset
         Dataset to add metadata attributes to
-    meta : str
+    meta : dict
         Metadata file
-        
+
     Returns
     -------
     ds : xarray.Dataset
@@ -710,15 +711,15 @@ def addMeta(ds, meta):
    '''
     ds['lon'] = ds['gps_lon'].mean()
     ds['lon'].attrs = ds['gps_lon'].attrs
-    
+
     ds['lat'] = ds['gps_lat'].mean()
     ds['lat'].attrs = ds['gps_lat'].attrs
-    
+
     ds['alt'] = ds['gps_alt'].mean()
     ds['alt'].attrs = ds['gps_alt'].attrs
 
     # for k in ds.keys(): # for each var
-    #     if 'units' in ds[k].attrs:        
+    #     if 'units' in ds[k].attrs:
     #         if ds[k].attrs['units'] == 'C':
     #             ds[k].attrs['units'] = 'degrees_C'
 
@@ -728,8 +729,8 @@ def addMeta(ds, meta):
     ds.attrs['date_created'] = str(datetime.datetime.now().isoformat())
     ds.attrs['date_modified'] = ds.attrs['date_created']
     ds.attrs['date_issued'] = ds.attrs['date_created']
-    ds.attrs['date_metadata_modified'] = ds.attrs['date_created'] 
-    
+    ds.attrs['date_metadata_modified'] = ds.attrs['date_created']
+
     ds.attrs['geospatial_bounds'] = "POLYGON((" + \
         f"{ds['lat'].min().values} {ds['lon'].min().values}, " + \
         f"{ds['lat'].min().values} {ds['lon'].max().values}, " + \
@@ -746,38 +747,38 @@ def addMeta(ds, meta):
     ds.attrs['geospatial_vertical_positive'] = 'up'
     ds.attrs['time_coverage_start'] = str(ds['time'][0].values)
     ds.attrs['time_coverage_end'] = str(ds['time'][-1].values)
-    
+
     try:
         ds.attrs['source']= 'pypromice v' + str(metadata.version('pypromice'))
     except:
         ds.attrs['source'] = 'pypromice'
-        
+
     # https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm
     try:
         ds.attrs['time_coverage_duration'] = str(pd.Timedelta((ds['time'][-1] - ds['time'][0]).values).isoformat())
         ds.attrs['time_coverage_resolution'] = str(pd.Timedelta((ds['time'][1] - ds['time'][0]).values).isoformat())
     except:
         ds.attrs['time_coverage_duration'] = str(pd.Timedelta(0).isoformat())
-        ds.attrs['time_coverage_resolution'] = str(pd.Timedelta(0).isoformat())   
+        ds.attrs['time_coverage_resolution'] = str(pd.Timedelta(0).isoformat())
 
     # Note: int64 dtype (long int) is incompatible with OPeNDAP access via THREDDS for NetCDF files
     # See https://stackoverflow.com/questions/48895227/output-int32-time-dimension-in-netcdf-using-xarray
     ds.time.encoding["dtype"] = "i4" # 32-bit signed integer
     #ds.time.encoding["calendar"] = 'proleptic_gregorian' # this is default
-    
-    # Load metadata attributes and add to Dataset   
+
+    # Load metadata attributes and add to Dataset
     [_addAttr(ds, key, value) for key,value in meta.items()]
-    
+
     # Check attribute formating
     for k,v in ds.attrs.items():
         if not isinstance(v, str) or not isinstance(v, int):
-            ds.attrs[k]=str(v) 
+            ds.attrs[k]=str(v)
     return ds
 
 
 def getVars(v_file=None):
    '''Load variables.csv file
-   
+
    Parameters
    ----------
    v_file : str
@@ -796,7 +797,7 @@ def getVars(v_file=None):
 
 def getMeta(m_file=None, delimiter=','):                                            #TODO change to DataFrame output to match variables.csv
     '''Load metadata table
-    
+
     Parameters
     ----------
     m_file : str
@@ -813,33 +814,33 @@ def getMeta(m_file=None, delimiter=','):                                        
     if m_file is None:
         with pkg_resources.resource_stream('pypromice', 'process/metadata.csv') as stream:
             lines = stream.read().decode("utf-8")
-            lines = lines.split("\n") 
-    else:        
+            lines = lines.split("\n")
+    else:
         with open(m_file, 'r') as f:
             lines = f.readlines()
     for l in lines[1:]:
         try:
-            meta[l.split(',')[0]] = l.split(delimiter)[1].split('\n')[0].replace(';',',')  
+            meta[l.split(',')[0]] = l.split(delimiter)[1].split('\n')[0].replace(';',',')
         except IndexError:
             pass
     return meta
-    
+
 def resampleL3(ds_h, t):
-    '''Resample L3 AWS data, e.g. hourly to daily average. This uses pandas 
+    '''Resample L3 AWS data, e.g. hourly to daily average. This uses pandas
     DataFrame resampling at the moment as a work-around to the xarray Dataset
     resampling. As stated, xarray resampling is a lengthy process that takes
     ~2-3 minutes per operation: ds_d = ds_h.resample({'time':"1D"}).mean()
     This has now been fixed, so needs implementing:
     https://github.com/pydata/xarray/issues/4498#event-6610799698
-    
+
     Parameters
     ----------
     ds_h : xarray.Dataset
         L3 AWS daily dataset
     t : str
-        Resample factor, same variable definition as in 
+        Resample factor, same variable definition as in
         pandas.DataFrame.resample()
-    
+
     Returns
     -------
     ds_d : xarray.Dataset
@@ -854,36 +855,36 @@ def resampleL3(ds_h, t):
                                    df_d['wspd_y_'+var.split('_')[1]])
             else:
                 logger.info(var,'in dataframe but not','wspd_x_'+var.split('_')[1],'wspd_x_'+var.split('_')[1])
-    vals = [xr.DataArray(data=df_d[c], dims=['time'], 
+    vals = [xr.DataArray(data=df_d[c], dims=['time'],
            coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
-    ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)  
+    ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)
     return ds_d
 
 
 def _calcWindDir(wspd_x, wspd_y):
     '''Calculate wind direction in degrees
-    
+
     Parameters
     ----------
     wspd_x : xarray.DataArray
         Wind speed in X direction
     wspd_y : xarray.DataArray
         Wind speed in Y direction
-    
+
     Returns
     -------
     wdir : xarray.DataArray
         Wind direction'''
     deg2rad = np.pi / 180
-    rad2deg = 1 / deg2rad    
-    wdir = np.arctan2(wspd_x, wspd_y) * rad2deg 
-    wdir = (wdir + 360) % 360  
+    rad2deg = 1 / deg2rad
+    wdir = np.arctan2(wspd_x, wspd_y) * rad2deg
+    wdir = (wdir + 360) % 360
     return wdir
 
 
 def _addAttr(ds, key, value):
     '''Add attribute to xarray dataset
-    
+
     ds : xr.Dataset
         Dataset to add attribute to
     key : str
@@ -897,12 +898,12 @@ def _addAttr(ds, key, value):
             pass
             # logger.info(f'Unable to add metadata to {key.split(".")[0]}')
     else:
-        ds.attrs[key] = value    
+        ds.attrs[key] = value
 
 
 #------------------------------------------------------------------------------
 
-class TestProcess(unittest.TestCase): 
+class TestProcess(unittest.TestCase):
 
     def testgetVars(self):
         '''Test variable table lookup retrieval'''
@@ -910,24 +911,24 @@ class TestProcess(unittest.TestCase):
         self.assertIsInstance(v, pd.DataFrame)
         self.assertTrue(v.columns[0] in 'standard_name')
         self.assertTrue(v.columns[2] in 'units')
-        
-    def testgetMeta(self):  
+
+    def testgetMeta(self):
         '''Test AWS names retrieval'''
         m = getMeta()
         self.assertIsInstance(m, dict)
         self.assertTrue('references' in m)
-    
+
     def testAddAll(self):
         '''Test variable and metadata attributes added to Dataset'''
         d = xr.Dataset()
-        v = getVars()    
+        v = getVars()
         att = list(v.index)
         att1 = ['gps_lon', 'gps_lat', 'gps_alt', 'albedo', 'p']
         for a in att:
             d[a]=[0,1]
         for a in att1:
             d[a]=[0,1]
-        d['time'] = [datetime.datetime.now(), 
+        d['time'] = [datetime.datetime.now(),
                      datetime.datetime.now()-timedelta(days=365)]
         d.attrs['station_id']='TEST'
         meta = getMeta()
@@ -943,7 +944,7 @@ class TestProcess(unittest.TestCase):
             pAWS = AWS(os.path.join(os.path.dirname(pypromice.__file__),'test/test_config1.toml'),
                        os.path.join(os.path.dirname(pypromice.__file__),'test'))
         except:
-            pAWS = AWS('../test/test_config1.toml', '../test/')    
+            pAWS = AWS('../test/test_config1.toml', '../test/')
         pAWS.process()
         self.assertIsInstance(pAWS.L3, xr.Dataset)
         self.assertTrue(pAWS.L3.attrs['station_id']=='TEST1')
