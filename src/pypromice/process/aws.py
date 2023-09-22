@@ -227,34 +227,20 @@ class AWS(object):
         ds_list : list
             List of L0 xr.Dataset objects
         '''
-        c = self.config
-        if len(c.keys()) == 1: # one file in this config
-            target = c[list(c.keys())[0]]
+        ds_list = []
+        for k in self.config.keys():
+            target = self.config[k]
             try:
-                ds = self.readL0file(target)
+                ds_list.append(self.readL0file(target))
+
             except pd.errors.ParserError as e:
-                
                 # ParserError: Too many columns specified: expected 40 and found 38
-                logger.info(f'-----> No msg_lat or msg_lon for {list(c.keys())[0]}')
+                logger.info(f'-----> No msg_lat or msg_lon for {k}')
                 for item in ['msg_lat', 'msg_lon']:
-                    target['columns'].remove(item)                             # Also removes from self.config
-                ds = self.readL0file(target)
-            logger.info(f'L0 data successfully loaded from {list(c.keys())[0]}')
-            return [ds]
-        else:
-            ds_list = []
-            for k in c.keys():
-                try:
-                    ds_list.append(self.readL0file(c[k]))
-                except pd.errors.ParserError as e:
-                    
-                    # ParserError: Too many columns specified: expected 40 and found 38
-                    logger.info(f'-----> No msg_lat or msg_lon for {k}')
-                    for item in ['msg_lat', 'msg_lon']:
-                        c[k]['columns'].remove(item)                           # Also removes from self.config
-                    ds_list.append(self.readL0file(c[k]))
-                logger.info(f'L0 data successfully loaded from {k}')
-            return ds_list
+                    target['columns'].remove(item)                           # Also removes from self.config
+                ds_list.append(self.readL0file(target))
+            logger.info(f'L0 data successfully loaded from {k}')
+        return ds_list
 
     def readL0file(self, conf):
         '''Read L0 .txt file to Dataset object using config dictionary and
