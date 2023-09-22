@@ -41,10 +41,10 @@ class AWS(object):
         inpath : str
             Input file path
         var_file: str, optional
-            Variables look-up table file path. If not given then pypromice's 
+            Variables look-up table file path. If not given then pypromice's
             variables file is used. The default is None.
         meta_file: str, optional
-            Metadata info file path. If not given then pypromice's 
+            Metadata info file path. If not given then pypromice's
             metadata file is used. The default is None.
         '''
         assert(os.path.isfile(config_file)), "cannot find "+config_file
@@ -68,7 +68,12 @@ class AWS(object):
         for l in L0:
             n = getColNames(self.vars, l.attrs['number_of_booms'], l.attrs['format'])
             self.L0.append(popCols(l, n))
-      
+
+        self.L1 = None
+        self.L1A = None
+        self.L2 = None
+        self.L3 = None
+
     def process(self):
         '''Perform L0 to L3 data processing'''
         try:
