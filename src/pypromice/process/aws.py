@@ -2,6 +2,7 @@
 """
 AWS data processing module
 """
+import logging
 from importlib import metadata
 import os, unittest, toml, datetime, uuid, pkg_resources
 import numpy as np
@@ -22,6 +23,8 @@ except:
 
 pd.set_option('display.precision', 2)
 xr.set_options(keep_attrs=True)
+
+logger = logging.getLogger(__name__)
 
 #------------------------------------------------------------------------------
 
@@ -46,8 +49,8 @@ class AWS(object):
         '''
         assert(os.path.isfile(config_file)), "cannot find "+config_file
         assert(os.path.isdir(inpath)), "cannot find "+inpath
-        print('\nAWS object initialising...')
-        
+        logger.info('AWS object initialising...')
+
         # Load config, variables CSF standards, and L0 files
         self.config = self.loadConfig(config_file, inpath)
         self.vars = getVars(var_file)
@@ -69,9 +72,9 @@ class AWS(object):
     def process(self):
         '''Perform L0 to L3 data processing'''
         try:
-            print(f'Commencing {self.L0.attrs["number_of_booms"]}-boom processing...')
+            logger.info(f'Commencing {self.L0.attrs["number_of_booms"]}-boom processing...')
         except:
-            print(f'Commencing {self.L0[0].attrs["number_of_booms"]}-boom processing...')        
+            logger.info(f'Commencing {self.L0[0].attrs["number_of_booms"]}-boom processing...')
         self.getL1()
         self.getL2()
         self.getL3()
@@ -81,38 +84,38 @@ class AWS(object):
         if os.path.isdir(outpath):
             self.writeArr(outpath)
         else:
-            print(f'Outpath f{outpath} does not exist. Unable to save to file')
+            logger.info(f'Outpath f{outpath} does not exist. Unable to save to file')
             pass
             
     def getL1(self):
         '''Perform L0 to L1 data processing'''
-        print('Level 1 processing...')
+        logger.info('Level 1 processing...')
         self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
         self.L1 = [toL1(item, self.vars) for item in self.L0]
         self.L1A = mergeVars(self.L1, self.vars)
 
     def getL2(self):
         '''Perform L1 to L2 data processing'''
-        print('Level 2 processing...')
+        logger.info('Level 2 processing...')
         self.L2 = toL2(self.L1A)
         self.L2 = clipValues(self.L2, self.vars)
 
     def getL3(self):
         '''Perform L2 to L3 data processing, including resampling and metadata
         and attribute population'''
-        print('Level 3 processing...')        
+        logger.info('Level 3 processing...')
         self.L3 = toL3(self.L2)
         
         # Resample L3 product
         f = [l.attrs['format'] for l in self.L0]
         if 'raw' in f or 'STM' in f:
-            print('Resampling to 10 minute')
+            logger.info('Resampling to 10 minute')
             self.L3 = resampleL3(self.L3, '10min')
         else:
-            self.L3 = resampleL3(self.L3, '60min') 
-            print('Resampling to hour')
-        
-        # Re-format time 
+            self.L3 = resampleL3(self.L3, '60min')
+            logger.info('Resampling to hour')
+
+        # Re-format time
         t = self.L3['time'].values
         self.L3['time'] = list(t)
         
@@ -170,7 +173,7 @@ class AWS(object):
                                     self.L3.attrs['bedrock'])
         
         t = int(pd.Timedelta((self.L3['time'][1] - self.L3['time'][0]).values).total_seconds())
-        print('Writing to files...')
+        logger.info('Writing to files...')
         if t == 600:
             out_csv = os.path.join(outdir, self.L3.attrs['station_id']+'_10min.csv')
             out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_10min.nc')
@@ -180,8 +183,8 @@ class AWS(object):
         writeCSV(out_csv, self.L3, col_names)
         col_names = col_names + ['lat', 'lon', 'alt']
         writeNC(out_nc, self.L3, col_names) 
-        print(f'Written to {out_csv}')           
-        print(f'Written to {out_nc}') 
+        logger.info(f'Written to {out_csv}')
+        logger.info(f'Written to {out_nc}')
         
     def loadConfig(self, config_file, inpath):
         '''Load configuration from .toml file
@@ -226,11 +229,11 @@ class AWS(object):
             except pd.errors.ParserError as e:
                 
                 # ParserError: Too many columns specified: expected 40 and found 38
-                print(f'-----> No msg_lat or msg_lon for {list(c.keys())[0]}')
+                logger.info(f'-----> No msg_lat or msg_lon for {list(c.keys())[0]}')
                 for item in ['msg_lat', 'msg_lon']:
                     target['columns'].remove(item)                             # Also removes from self.config
                 ds = self.readL0file(target)
-            print(f'L0 data successfully loaded from {list(c.keys())[0]}')
+            logger.info(f'L0 data successfully loaded from {list(c.keys())[0]}')
             return [ds]
         else:
             ds_list = []
@@ -240,11 +243,11 @@ class AWS(object):
                 except pd.errors.ParserError as e:
                     
                     # ParserError: Too many columns specified: expected 40 and found 38
-                    print(f'-----> No msg_lat or msg_lon for {k}')
+                    logger.info(f'-----> No msg_lat or msg_lon for {k}')
                     for item in ['msg_lat', 'msg_lon']:
                         c[k]['columns'].remove(item)                           # Also removes from self.config
                     ds_list.append(self.readL0file(c[k]))
-                print(f'L0 data successfully loaded from {k}')
+                logger.info(f'L0 data successfully loaded from {k}')
             return ds_list
 
     def readL0file(self, conf):
@@ -355,16 +358,16 @@ def getL0(infile, nodata, cols, skiprows, file_version,
         try:
             df.index = pd.to_datetime(df.index)
         except  ValueError as e:
-            print("\n", infile)
-            print("\nValueError:")
-            print(e)
-            print('\n\t\t> Trying pd.to_datetime with format=mixed')
+            logger.info("\n", infile)
+            logger.info("\nValueError:")
+            logger.info(e)
+            logger.info('\t\t> Trying pd.to_datetime with format=mixed')
             try:
                 df.index = pd.to_datetime(df.index, format='mixed')
             except Exception as e:
-                print("\nDateParseError:")
-                print(e)
-                print('\n\t\t> Trying again removing apostrophes in timestamp (old files format)')
+                logger.info("\nDateParseError:")
+                logger.info(e)
+                logger.info('\t\t> Trying again removing apostrophes in timestamp (old files format)')
                 df.index = pd.to_datetime(df.index.str.replace("\"",""))
             
 
@@ -845,7 +848,7 @@ def resampleL3(ds_h, t):
                 df_d[var] = _calcWindDir(df_d['wspd_x_'+var.split('_')[1]],
                                    df_d['wspd_y_'+var.split('_')[1]])
             else:
-                print(var,'in dataframe but not','wspd_x_'+var.split('_')[1],'wspd_x_'+var.split('_')[1])
+                logger.info(var,'in dataframe but not','wspd_x_'+var.split('_')[1],'wspd_x_'+var.split('_')[1])
     vals = [xr.DataArray(data=df_d[c], dims=['time'], 
            coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
     ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)  
@@ -887,7 +890,7 @@ def _addAttr(ds, key, value):
             ds[key.split('.')[0]].attrs[key.split('.')[1]] = str(value)
         except:
             pass
-            # print(f'Unable to add metadata to {key.split(".")[0]}')
+            # logger.info(f'Unable to add metadata to {key.split(".")[0]}')
     else:
         ds.attrs[key] = value    
 
