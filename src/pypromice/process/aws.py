@@ -9,6 +9,9 @@ from typing import Sequence
 
 import numpy as np
 import warnings
+
+from pypromice.process.value_clipping import clip_values
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 import xarray as xr
@@ -95,7 +98,7 @@ class AWS(object):
         '''Perform L1 to L2 data processing'''
         logger.info('Level 2 processing...')
         self.L2 = toL2(self.L1A)
-        self.L2 = clipValues(self.L2, self.vars)
+        self.L2 = clip_values(self.L2, self.vars)
 
     def getL3(self):
         '''Perform L2 to L3 data processing, including resampling and metadata
@@ -505,7 +508,7 @@ def mergeVars(ds_list, variables, cols=['lo','hi','OOL']):                     #
     df = df.dropna(how='all')
 
     # Remove outliers
-    ds = clipValues(ds, df, cols)
+    ds = clip_values(ds, df, cols)
 
     # Clean up metadata
     for k in ['format', 'hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
@@ -516,57 +519,6 @@ def mergeVars(ds_list, variables, cols=['lo','hi','OOL']):                     #
             ds.attrs.pop(k)
     return ds
 
-def clipValues(ds, df, cols=['lo','hi','OOL']):
-    '''Clip values in dataset to defined "hi" and "lo" variables from dataframe.
-    There is a special treatment here for rh_u and rh_l variables, where values
-    are clipped and not assigned to NaN. This is for replication purposes
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Dataset to clip hi-lo range to
-    df : pandas.DataFrame
-        Dataframe to retrieve attribute hi-lo values from
-
-    Returns
-    -------
-    ds : xarray.Dataset
-        Dataset with clipped data
-    '''
-    df = df[cols]
-    df = df.dropna(how='all')
-    lo = cols[0]
-    hi = cols[1]
-    ool = cols[2]
-    for var in df.index:
-        if var not in list(ds.variables):
-            continue
-
-        if var in ['rh_u_cor', 'rh_l_cor']:
-             ds[var] = ds[var].where(ds[var] >= df.loc[var, lo], other = 0)
-             ds[var] = ds[var].where(ds[var] <= df.loc[var, hi], other = 100)
-
-             # Mask out invalid corrections based on uncorrected var
-             var_uncor=var.split('_cor')[0]
-             ds[var] = ds[var].where(~np.isnan(ds[var_uncor]), other=np.nan)
-
-        else:
-            if ~np.isnan(df.loc[var, lo]):
-                ds[var] = ds[var].where(ds[var] >= df.loc[var, lo])
-            if ~np.isnan(df.loc[var, hi]):
-                ds[var] = ds[var].where(ds[var] <= df.loc[var, hi])
-
-        other_vars = df.loc[var][ool]
-        if isinstance(other_vars, str) and ~ds[var].isnull().all():
-            for o in other_vars.split():
-                if o not in list(ds.variables):
-                    continue
-                else:
-                    if ~np.isnan(df.loc[var, lo]):
-                        ds[o] = ds[o].where(ds[var] >= df.loc[var, lo])
-                    if ~np.isnan(df.loc[var, hi]):
-                        ds[o] = ds[o].where(ds[var] <= df.loc[var, hi])
-    return ds
 
 def popCols(ds, names):
     '''Populate dataset with all given variable names
