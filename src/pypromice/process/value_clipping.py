@@ -1,5 +1,3 @@
-from typing import Sequence
-
 import numpy as np
 import pandas
 import xarray
@@ -7,8 +5,7 @@ import xarray
 
 def clip_values(
     ds: xarray.Dataset,
-    df: pandas.DataFrame,
-    cols: Sequence[str] = ("lo", "hi", "OOL"),
+    var_configurations: pandas.DataFrame,
 ):
     """
     Clip values in dataset to defined "hi" and "lo" variables from dataframe.
@@ -19,7 +16,7 @@ def clip_values(
     ----------
     ds : `xarray.Dataset`
         Dataset to clip hi-lo range to
-    df : `pandas.DataFrame`
+    var_configurations : `pandas.DataFrame`
         Dataframe to retrieve attribute hi-lo values from
 
     Returns
@@ -27,38 +24,36 @@ def clip_values(
     ds : `xarray.Dataset`
         Dataset with clipped data
     """
+    cols = ["lo", "hi", "OOL"]
+    assert set(cols) <= set(var_configurations.columns)
 
-    df = df[cols]
-    df = df.dropna(how="all")
-    lo = cols[0]
-    hi = cols[1]
-    ool = cols[2]
-    for var in df.index:
+    variable_limits = var_configurations[cols].dropna(how="all")
+    for var, row in variable_limits.iterrows():
         if var not in list(ds.variables):
             continue
 
         if var in ["rh_u_cor", "rh_l_cor"]:
-            ds[var] = ds[var].where(ds[var] >= df.loc[var, lo], other=0)
-            ds[var] = ds[var].where(ds[var] <= df.loc[var, hi], other=100)
+            ds[var] = ds[var].where(ds[var] >= row.lo, other=0)
+            ds[var] = ds[var].where(ds[var] <= row.hi, other=100)
 
             # Mask out invalid corrections based on uncorrected var
             var_uncor = var.split("_cor")[0]
             ds[var] = ds[var].where(~np.isnan(ds[var_uncor]), other=np.nan)
 
         else:
-            if ~np.isnan(df.loc[var, lo]):
-                ds[var] = ds[var].where(ds[var] >= df.loc[var, lo])
-            if ~np.isnan(df.loc[var, hi]):
-                ds[var] = ds[var].where(ds[var] <= df.loc[var, hi])
+            if ~np.isnan(row.lo):
+                ds[var] = ds[var].where(ds[var] >= row.lo)
+            if ~np.isnan(row.hi):
+                ds[var] = ds[var].where(ds[var] <= row.hi)
 
-        other_vars = df.loc[var][ool]
+        other_vars = row.OOL
         if isinstance(other_vars, str) and ~ds[var].isnull().all():
             for o in other_vars.split():
                 if o not in list(ds.variables):
                     continue
                 else:
-                    if ~np.isnan(df.loc[var, lo]):
-                        ds[o] = ds[o].where(ds[var] >= df.loc[var, lo])
-                    if ~np.isnan(df.loc[var, hi]):
-                        ds[o] = ds[o].where(ds[var] <= df.loc[var, hi])
+                    if ~np.isnan(row.lo):
+                        ds[var] = ds[var].where(ds[var] >= row.lo)
+                    if ~np.isnan(row.hi):
+                        ds[var] = ds[var].where(ds[var] <= row.hi)
     return ds
