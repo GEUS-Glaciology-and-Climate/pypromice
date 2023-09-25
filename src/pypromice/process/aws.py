@@ -5,6 +5,8 @@ AWS data processing module
 import logging
 from importlib import metadata
 import os, unittest, toml, datetime, uuid, pkg_resources
+from typing import Sequence
+
 import numpy as np
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -56,12 +58,6 @@ class AWS(object):
         self.config = self.loadConfig(config_file, inpath)
         self.vars = getVars(var_file)
         self.meta = getMeta(meta_file)
-
-        # Hard-wire the msg_lat and msg_lon here
-        # Prevents having to list these vars in the individual station toml files
-        config_keys = list(self.config.keys())
-        for i in config_keys:
-            self.config[i]['columns'].extend(['msg_lat', 'msg_lon'])
 
         # Load config file
         L0 = self.loadL0()
@@ -264,18 +260,18 @@ class AWS(object):
 
 #------------------------------------------------------------------------------
 
-def getConfig(config_file, inpath):
-    '''Load configuration from .toml file. PROMICE .toml files support defining 
-    features at the top level which apply to all nested properties, but do not 
+def getConfig(config_file, inpath, default_columns: Sequence[str] = ('msg_lat', 'msg_lon')):
+    '''Load configuration from .toml file. PROMICE .toml files support defining
+    features at the top level which apply to all nested properties, but do not
     overwrite nested properties if they are defined
-    
+
     Parameters
     ----------
     config_file : str
         TOML file path
     inpath : str
         Input folder directory where L0 files can be found
-    
+
     Returns
     -------
     conf : dict
@@ -291,6 +287,7 @@ def getConfig(config_file, inpath):
 
         conf[s]['conf'] = config_file
         conf[s]['file'] = os.path.join(inpath, s)
+        conf[s]["columns"].extend(default_columns)
 
     for t in top: conf.pop(t)                                                  # Delete all top level keys beause each file
                                                                                # should carry all properties with it
