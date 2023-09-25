@@ -3,6 +3,7 @@
 AWS data processing module
 """
 import logging
+from functools import reduce
 from importlib import metadata
 import os, unittest, toml, datetime, uuid, pkg_resources
 from typing import Sequence
@@ -92,7 +93,7 @@ class AWS(object):
         logger.info('Level 1 processing...')
         self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
         self.L1 = [toL1(item, self.vars) for item in self.L0]
-        self.L1A = mergeVars(self.L1, self.vars)
+        self.L1A = reduce(xr.Dataset.combine_first, self.L1)
 
     def getL2(self):
         '''Perform L1 to L2 data processing'''
@@ -477,48 +478,6 @@ def writeAll(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
         writeCSV(o+'.csv',l, csv_order)
         writeNC(o+'.nc',l)
 
-def mergeVars(ds_list, variables, cols=['lo','hi','OOL']):                     #TODO find way to make this one line as described
-    '''Merge dataset by variable attributes from lookup table file. This could
-    be as simple as:
-    ds = xr.open_mfdataset(infile_list, combine='by_coords', mask_and_scale=False).load()
-    Except that some files have overlapping times.
-
-    Parameters
-    ----------
-    ds_list : list
-        List of xarray.Dataset objects
-    varaibles : pandas.DataFrame
-        Variable look up table
-    cols : str, optional
-        Variable column names to merge by. The default is ['lo','hi','OOL'].
-
-    Returns
-    -------
-    ds : xarray.Dataset
-        Dataset with merged attributes
-    '''
-    # Combine Dataset objects
-    ds = ds_list[0]
-    if len(ds_list) > 1:
-        for d in ds_list[1:]:
-            ds = ds.combine_first(d)
-     
-    # Get variables
-    df = variables[cols]
-    df = df.dropna(how='all')
-
-    # Remove outliers
-    ds = clip_values(ds, df, cols)
-
-    # Clean up metadata
-    for k in ['format', 'hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
-              'dlr_eng_coef', 'ulr_eng_coef', 'pt_z_coef', 'pt_z_p_coef',
-              'pt_z_factor', 'pt_antifreeze', 'boom_azimuth', 'nodata',
-              'conf', 'file']:
-        if k in ds.attrs.keys():
-            ds.attrs.pop(k)
-    return ds
-
 
 def popCols(ds, names):
     '''Populate dataset with all given variable names
@@ -724,6 +683,7 @@ def getVars(v_file=None):
             return pd.read_csv(stream, index_col=0, comment="#", encoding='utf-8')
    else:
         return pd.read_csv(v_file, index_col=0, comment="#")
+
 
 def getMeta(m_file=None, delimiter=','):                                            #TODO change to DataFrame output to match variables.csv
     '''Load metadata table
