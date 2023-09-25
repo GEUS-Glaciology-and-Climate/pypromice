@@ -14,14 +14,9 @@ import pandas as pd
 import xarray as xr
 from datetime import timedelta
 
-try:
-    from L0toL1 import toL1
-    from L1toL2 import toL2
-    from L2toL3 import toL3
-except:
-    from pypromice.process.L0toL1 import toL1
-    from pypromice.process.L1toL2 import toL2
-    from pypromice.process.L2toL3 import toL3
+from pypromice.process.L0toL1 import toL1
+from pypromice.process.L1toL2 import toL2
+from pypromice.process.L2toL3 import toL3
 
 pd.set_option('display.precision', 2)
 xr.set_options(keep_attrs=True)
