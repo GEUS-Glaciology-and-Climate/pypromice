@@ -9,7 +9,10 @@ import pandas as pd
 import os
 import xarray as xr
 
-def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1., 
+from pypromice.process.value_clipping import clip_values
+
+
+def toL2(L1, vars_df: pd.DataFrame, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
          eps_clear=9.36508e-6, emissivity=0.97):
     '''Process one Level 1 (L1) product to Level 2
 
@@ -17,6 +20,8 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     ----------
     L1 : xarray.Dataset
         Level 1 dataset
+    vars_df : pd.DataFrame
+        Metadata dataframe
     T_0 : float, optional
         Ice point temperature in K. The default is 273.15.
     ews : float, optional
@@ -144,7 +149,9 @@ def toL2(L1, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
     if hasattr(ds,'t_i'):       
         if ~ds['t_i'].isnull().all():                                          # Instantaneous msg processing
             ds['rh_i_cor'] = correctHumidity(ds['rh_i'], ds['t_i'],       # Correct relative humidity
-                                             T_0, T_100, ews, ei0)                   
+                                             T_0, T_100, ews, ei0)
+
+    ds = clip_values(ds, vars_df)
     return ds
 
 def flagNAN(ds_in, 
@@ -205,7 +212,8 @@ def flagNAN(ds_in,
                         print('---> flagging',t0, t1, v)
                         ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
                     else:
-                        print('---> could not flag', v,', not in dataset')            
+                        print('---> could not flag', v,', not in dataset')
+
     return ds
 
 

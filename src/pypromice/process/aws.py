@@ -11,8 +11,6 @@ from typing import Sequence
 import numpy as np
 import warnings
 
-from pypromice.process.value_clipping import clip_values
-
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 import xarray as xr
@@ -98,8 +96,7 @@ class AWS(object):
     def getL2(self):
         '''Perform L1 to L2 data processing'''
         logger.info('Level 2 processing...')
-        self.L2 = toL2(self.L1A)
-        self.L2 = clip_values(self.L2, self.vars)
+        self.L2 = toL2(self.L1A, vars_df=self.vars)
 
     def getL3(self):
         '''Perform L2 to L3 data processing, including resampling and metadata
