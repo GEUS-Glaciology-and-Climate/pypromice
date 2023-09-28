@@ -17,10 +17,8 @@ stid_to_skip = { # All the following IDS will not be processed or submitted
     'discontinued': ['CEN1','TAS_U','QAS_A','NUK_N','THU_U','JAR','SWC'],
     'no_instantaneous': ['ZAK_L','ZAK_U','KAN_B'], # currently not transmitting instantaneous values
     'suspect_data': [], # instantaneous data is suspect
-    'use_v3': ['KPC_L','KPC_U','NUK_U','ZAK_L','ZAK_U','QAS_U','QAS_M','KAN_L'], # use v3 versions instead (but registered IDs are non-v3 names)
-    'v3_bad': ['QAS_Lv3'] # QAS_Lv3 new ablation sensor & non-standard logger program. Must be addressed in field. Talk to RSF.
-    # Eventually, as we change all stations to v3, the use_v3 list should be empty (there will not be v3 and non-v3 stations operating together)
-    # If your remove a station from 'v3_bad', then add it to 'use_v3' if both v2 and v3 stations still exist together
+    'use_v3': ['KPC_L', 'KPC_U', 'NUK_U', 'ZAK_L', 'ZAK_U', 'QAS_U', 'QAS_L', 'QAS_M', 'KAN_L'], # use v3 versions instead (but registered IDs are non-v3 names)
+    'v3_bad': []
 }
 # NOTE: Use both THU_L and THU_L2; use ONLY THU_U2, but register it as THU_U (this is dealt with in csv2bufr.py)
 # NOTE: JAR_O and SWC_O are used, but registered as JAR and SWC
