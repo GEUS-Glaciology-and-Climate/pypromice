@@ -8,6 +8,8 @@ from typing import Mapping, Optional, Union
 __all__ = [
     "apply_static_qc",
     "find_static_regions",
+    "count_consecutive_static_values",
+    "count_consecutive_true",
 ]
 
 logger = logging.getLogger(__name__)
@@ -72,7 +74,9 @@ def apply_static_qc(
                 mask = find_static_regions(df[v], period, max_diff)
                 n_masked = mask.sum()
                 n_samples = len(mask)
-                logger.debug(f"Applying static QC in {v}. Filtering {n_masked}/{n_samples} samples")
+                logger.debug(
+                    f"Applying static QC in {v}. Filtering {n_masked}/{n_samples} samples"
+                )
                 # setting outliers to NaN
                 df.loc[mask, v] = np.nan
 
@@ -93,13 +97,20 @@ def find_static_regions(
     """
     Algorithm that ensures values can stay the same within the outliers_mask
     """
-    diff = data.ffill().diff().abs()  # forward filling all NaNs!
-    mask: pd.Series = diff < max_diff
-    consecutive_true_df = count_consecutive_true(mask)
+    consecutive_true_df = count_consecutive_static_values(data, max_diff)
     static_regions = consecutive_true_df >= min_repeats
     # Ignore entries which already nan in the input data
     static_regions[data.isna()] = False
     return static_regions
+
+
+def count_consecutive_static_values(
+    data: pd.Series,
+    max_diff: float,
+) -> pd.Series:
+    diff = data.ffill().diff().abs()  # forward filling all NaNs!
+    mask: pd.Series = diff < max_diff
+    return count_consecutive_true(mask)
 
 
 def count_consecutive_true(
