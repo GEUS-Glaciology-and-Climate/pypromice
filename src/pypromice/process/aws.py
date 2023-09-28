@@ -4,6 +4,8 @@ AWS data processing module
 """
 from importlib import metadata
 import os, unittest, toml, datetime, uuid, pkg_resources
+from typing import Optional
+
 import numpy as np
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -263,7 +265,7 @@ class AWS(object):
         '''
         file_version = conf.get('file_version', -1)  
         ds = getL0(conf['file'], conf['nodata'], conf['columns'], 
-                   conf["skiprows"], file_version)
+                   conf["skiprows"], file_version, time_offset=conf.get('time_offset'))
         ds = populateMeta(ds, conf, ["columns", "skiprows", "modem"])
         return ds
 
@@ -304,8 +306,8 @@ def getConfig(config_file, inpath):
             assert(field in conf[k].keys()), field+" not in config keys"
     return conf
 
-def getL0(infile, nodata, cols, skiprows, file_version, 
-          delimiter=',', comment='#'):
+def getL0(infile, nodata, cols, skiprows, file_version,
+          delimiter=',', comment='#', time_offset: Optional[float] = None) -> xr.Dataset:
     ''' Read L0 data file into pandas DataFrame object
     
     Parameters
@@ -324,6 +326,8 @@ def getL0(infile, nodata, cols, skiprows, file_version,
         String delimiter for L0 file
     comment : str
         Notifier of commented sections in L0 file
+    time_offset : Optional[float]
+        Time offset in hours for correcting for non utc time data.
     
     Returns
     -------
@@ -366,7 +370,9 @@ def getL0(infile, nodata, cols, skiprows, file_version,
                 print(e)
                 print('\n\t\t> Trying again removing apostrophes in timestamp (old files format)')
                 df.index = pd.to_datetime(df.index.str.replace("\"",""))
-            
+
+    if time_offset is not None:
+        df.index = df.index + timedelta(hours=time_offset)
 
     # Drop SKIP columns
     for c in df.columns:
