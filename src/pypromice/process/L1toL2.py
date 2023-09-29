@@ -60,8 +60,8 @@ def toL2(
         print('Flagging and fixing failed:')
         print(e)
 
-
-    ds = apply_static_qc(ds)                                             # Flag and remove percentile outliers
+    if ds.attrs['format'] == 'TX':
+        ds = apply_static_qc(ds)                                               # Detect and filter data points that seems to be static
 
     T_100 = _getTempK(T_0)
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],
