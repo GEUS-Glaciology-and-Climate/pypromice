@@ -2,6 +2,8 @@
 """
 AWS Level 1 (L1) to Level 2 (L2) data processing
 """
+import logging
+
 import numpy as np
 import urllib.request
 from urllib.error import HTTPError, URLError
@@ -12,6 +14,7 @@ import xarray as xr
 from pypromice.qc.static_qc import apply_static_qc
 from pypromice.process.value_clipping import clip_values
 
+logger = logging.getLogger(__name__)
 
 def toL2(
     L1: xr.Dataset,
@@ -56,10 +59,8 @@ def toL2(
         ds = adjustTime(ds)                                                    # Adjust time after a user-defined csv files
         ds = flagNAN(ds)                                                       # Flag NaNs after a user-defined csv files
         ds = adjustData(ds)                                                    # Adjust data after a user-defined csv files
-    except Exception as e:
-        print('Flagging and fixing failed:')
-        print(e)
-
+    except Exception:
+        logger.exception('Flagging and fixing failed:')
     if ds.attrs['format'] == 'TX':
         ds = apply_static_qc(ds)                                               # Detect and filter data points that seems to be static
 
@@ -221,10 +222,10 @@ def flagNAN(ds_in,
 
                 for v in varlist:
                     if v in list(ds.keys()):
-                        print('---> flagging',t0, t1, v)
+                        logger.info(f'---> flagging {t0} {t1} {v}')
                         ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
                     else:
-                        print('---> could not flag', v,', not in dataset')
+                        logger.info(f'---> could not flag {v} not in dataset')
 
     return ds
 
@@ -253,9 +254,7 @@ def adjustTime(ds,
     adj_info=None
 
     adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
-                      os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"),
-                      # download = False,
-                      verbose = False)
+                      os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"),)
 
     if isinstance(adj_info, pd.DataFrame):
 
@@ -361,7 +360,7 @@ def adjustData(ds,
 
         for var in var_list:
             if var not in list(ds_out.keys()):
-                print('could not adjust',var,', not in dataset')
+                logger.info(f'could not adjust {var } not in dataset')
                 continue
             for t0, t1, func, val in zip(
                 adj_info.loc[var].t0,
@@ -371,7 +370,7 @@ def adjustData(ds,
             ):
                 if (t0 > pd.to_datetime(ds_out.time.values[-1])) | (t1 < pd.to_datetime(ds_out.time.values[0])):
                     continue
-                print('--->',t0, t1, var, func, val)
+                logger.info(f'---> {t0} {t1} {var} {func} {val}')
                 if func == "add":
                     ds_out[var].loc[dict(time=slice(t0, t1))] = ds_out[var].loc[dict(time=slice(t0, t1))].values + val
                     # flagging adjusted values
@@ -913,7 +912,7 @@ def calcCorrectionFactor(Declination_rad, phi_sensor_rad, theta_sensor_rad,
 
     return CorFac_all
 
-def _getDF(flag_url, flag_file, download=True, verbose=True):
+def _getDF(flag_url, flag_file, download=True):
     '''Get dataframe from flag or adjust file. First attempt to retrieve from
     URL. If this fails then attempt to retrieve from local file
 
@@ -938,17 +937,11 @@ def _getDF(flag_url, flag_file, download=True, verbose=True):
 
         try:
             urllib.request.urlretrieve(flag_url, flag_file)
-            if verbose: print('Downloaded a',
-                              flag_file.split('/')[-2][:-1],
-                              f'file to {flag_file}')
+            logger.info(f"Downloaded a {flag_file.split('/')[-2][:-1],} file to {flag_file}")
         except (HTTPError, URLError) as e:
-            if verbose: print('Unable to download',
-                              flag_file.split('/')[-2][:-1],
-                              f'file, using local file: {flag_file}')
+            logger.info(f"Unable to download {flag_file.split('/')[-2][:-1],} file, using local file: {flag_file}")
     else:
-        if verbose: print('Using local',
-                          flag_file.split('/')[-2][:-1],
-                          f'file: {flag_file}')
+        logger.info(f"Using local {flag_file.split('/')[-2][:-1],} file: {flag_file}")
 
     if os.path.isfile(flag_file):
         df = pd.read_csv(
@@ -958,7 +951,7 @@ def _getDF(flag_url, flag_file, download=True, verbose=True):
                         ).dropna(how='all', axis='rows')
     else:
         df=None
-        if verbose: print('No', flag_file.split('/')[-2][:-1], 'file to read.')
+        logger.info(f"No {flag_file.split('/')[-2][:-1]} file to read.")
     return df
 
 
