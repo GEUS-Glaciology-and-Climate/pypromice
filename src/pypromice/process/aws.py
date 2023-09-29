@@ -160,15 +160,12 @@ class AWS(object):
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
 
-        f = [l.attrs['format'] for l in self.L0]
-        if all(f):
-            col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'],
-                                    self.L0[0].attrs['format'],
-                                    self.L3.attrs['bedrock'])
-        else:
-            col_names = getColNames(self.vars, self.L3.attrs['number_of_booms'],
-                                    None,
-                                    self.L3.attrs['bedrock'])
+        col_names = getColNames(
+            self.vars,
+            self.L3.attrs['number_of_booms'],
+            self.L0[0].attrs['format'],
+            self.L3.attrs['bedrock'],
+        )
 
         t = int(pd.Timedelta((self.L3['time'][1] - self.L3['time'][0]).values).total_seconds())
         logger.info('Writing to files...')
