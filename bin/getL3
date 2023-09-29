@@ -1,5 +1,7 @@
 #!/usr/bin/env python
+import logging
 import os
+import sys
 from argparse import ArgumentParser
 from pypromice.process import AWS
 
@@ -24,16 +26,22 @@ if __name__ == '__main__':
     """Executed from the command line"""
     args = parse_arguments()
 
+    logging.basicConfig(
+        format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
+        level=logging.INFO,
+        stream=sys.stdout,
+    )
+
     station_name = args.config_file.split('/')[-1].split('.')[0] 
     station_path = os.path.join(args.inpath, station_name)
 
     if os.path.exists(station_path):
-        pAWS = AWS(args.config_file, station_path, args.variables, args.metadata)    
+        aws = AWS(args.config_file, station_path, args.variables, args.metadata)
     else:
-        pAWS = AWS(args.config_file, args.inpath, args.variables, args.metadata)
+        aws = AWS(args.config_file, args.inpath, args.variables, args.metadata)
 
-    pAWS.process()
-    pAWS.write(args.outpath)
+    aws.process()
+    aws.write(args.outpath)
     
 else:
     """Executed on import"""

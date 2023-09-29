@@ -89,7 +89,7 @@ if __name__ == '__main__':
     typ, accountDetails = mail_server.login(account, password) 	
     if typ != 'OK':
         print('Not able to sign in!')
-        raise
+        raise Exception('Not able to sign in!')
 
  	# Grab new emails
     result, data = mail_server.select(mailbox='"[Gmail]/All Mail"', readonly=True)

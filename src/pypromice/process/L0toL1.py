@@ -7,6 +7,8 @@ import pandas as pd
 import xarray as xr
 import re
 
+from pypromice.process.value_clipping import clip_values
+
 
 def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     '''Process one Level 0 (L0) product to Level 1
@@ -112,6 +114,13 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height    
         ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l'] + T_0)/T_0)**0.5         # Adjust sonic ranger readings for sensitivity to air temperature    
+
+    ds = clip_values(ds, vars_df)
+    for key in ['format', 'hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
+          'dlr_eng_coef', 'ulr_eng_coef', 'pt_z_coef', 'pt_z_p_coef',
+          'pt_z_factor', 'pt_antifreeze', 'boom_azimuth', 'nodata',
+          'conf', 'file']:
+        ds.attrs.pop(key, None)
 
     return ds
 
