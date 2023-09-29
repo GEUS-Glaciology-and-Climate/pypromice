@@ -27,7 +27,7 @@ def apply_static_qc(
     variable_thresholds: Optional[Mapping] = None,
 ) -> xr.Dataset:
     """
-    Detect and filter data points that sems to be static within a certain period.
+    Detect and filter data points that seems to be static within a certain period.
 
     TODO: It could be nice to have a reference to the logger or description of the behaviour here.
     The AWS logger program is know to return the last successfully read value if it fails reading from the sensor.
