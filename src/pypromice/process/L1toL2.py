@@ -13,8 +13,16 @@ from pypromice.qc.static_qc import apply_static_qc
 from pypromice.process.value_clipping import clip_values
 
 
-def toL2(L1, vars_df: pd.DataFrame, T_0=273.15, ews=1013.246, ei0=6.1071, eps_overcast=1.,
-         eps_clear=9.36508e-6, emissivity=0.97):
+def toL2(
+    L1: xr.Dataset,
+    vars_df: pd.DataFrame,
+    T_0=273.15,
+    ews=1013.246,
+    ei0=6.1071,
+    eps_overcast=1.0,
+    eps_clear=9.36508e-6,
+    emissivity=0.97,
+) -> xr.Dataset:
     '''Process one Level 1 (L1) product to Level 2
 
     Parameters
@@ -23,19 +31,19 @@ def toL2(L1, vars_df: pd.DataFrame, T_0=273.15, ews=1013.246, ei0=6.1071, eps_ov
         Level 1 dataset
     vars_df : pd.DataFrame
         Metadata dataframe
-    T_0 : float, optional
+    T_0 : float
         Ice point temperature in K. The default is 273.15.
-    ews : float, optional
+    ews : float
         Saturation pressure (normal atmosphere) at steam point temperature.
         The default is 1013.246.
-    ei0 : float, optional
+    ei0 : float
         Saturation pressure (normal atmosphere) at ice-point temperature. The
         default is 6.1071.
-    eps_overcast : int, optional
+    eps_overcast : int
         Cloud overcast. The default is 1..
-    eps_clear : float, optional
+    eps_clear : float
         Cloud clear. The default is 9.36508e-6.
-    emissivity : float, optional
+    emissivity : float
         Emissivity. The default is 0.97.
 
     Returns
