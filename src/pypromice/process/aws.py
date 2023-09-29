@@ -163,7 +163,7 @@ class AWS(object):
         col_names = getColNames(
             self.vars,
             self.L3.attrs['number_of_booms'],
-            self.L0[0].attrs['format'],
+            self.L3.attrs['format'],
             self.L3.attrs['bedrock'],
         )
 
