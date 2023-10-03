@@ -11,7 +11,7 @@ import pandas as pd
 import os
 import xarray as xr
 
-from pypromice.qc.static_qc import apply_static_qc
+from pypromice.qc.persistence import persistence_qc
 from pypromice.process.value_clipping import clip_values
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ def toL2(
     except Exception:
         logger.exception('Flagging and fixing failed:')
     if ds.attrs['format'] == 'TX':
-        ds = apply_static_qc(ds)                                               # Detect and filter data points that seems to be static
+        ds = persistence_qc(ds)                                               # Detect and filter data points that seems to be static
 
     T_100 = _getTempK(T_0)
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],
