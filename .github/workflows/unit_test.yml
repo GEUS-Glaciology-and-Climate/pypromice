@@ -30,4 +30,4 @@ jobs:
         shell: bash
         run: |
           cd $GITHUB_WORKSPACE/src/pypromice
-          python3 -m unittest -v process/aws.py get.py tx/tx.py qc/static_qc_test.py
+          python3 -m unittest -v process/aws.py get.py tx/tx.py qc/persistence_test.py
