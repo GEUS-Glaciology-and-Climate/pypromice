@@ -116,7 +116,7 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
         ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l'] + T_0)/T_0)**0.5         # Adjust sonic ranger readings for sensitivity to air temperature    
 
     ds = clip_values(ds, vars_df)
-    for key in ['format', 'hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
+    for key in ['hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
           'dlr_eng_coef', 'ulr_eng_coef', 'pt_z_coef', 'pt_z_p_coef',
           'pt_z_factor', 'pt_antifreeze', 'boom_azimuth', 'nodata',
           'conf', 'file']:
