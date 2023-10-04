@@ -1,0 +1,68 @@
+
+cff-version: 1.2.0
+title: pypromice
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file
+type: software
+authors:
+  - given-names: Penelope
+    family-names: How
+    email: pho@geus.dk
+    affiliation: GEUS
+    orcid: 'https://orcid.org/0000-0002-8088-8497'
+  - given-names: Mads Christian
+    family-names: Lund
+    email: maclu@geus.dk
+    affiliation: GEUS
+    orcid: 'https://orcid.org/0009-0009-0446-8253'
+  - given-names: Rasmus Bahbah
+    family-names: Nielsen
+    email: rabni@geus.dk
+    affiliation: GEUS
+    orcid: 'https://orcid.org/0000-0003-2342-639X'
+  - given-names: Andreas P.
+    family-names: Ahlstrøm
+    email: apa@geus.dk
+    affiliation: GEUS
+    orcid: 'https://orcid.org/0000-0001-8235-8070'
+  - given-names: Robert S.
+    email: rsf@geus.dk
+    family-names: Fausto
+    affiliation: GEUS
+    orcid: 'https://orcid.org/0000-0003-1317-8185'
+  - given-names: Signe Hillerup
+    family-names: Larsen
+    email: shl@geus.dk
+    affiliation: GEUS
+    orcid: 'https://orcid.org/0000-0002-3656-3521'
+  - given-names: Kenneth D.
+    family-names: Mankoff
+    email: mankoff@gmail.com
+    affiliation: NASA GISS
+    orcid: 'https://orcid.org/0000-0001-5453-2019'
+  - given-names: Baptiste
+    family-names: Vandecrux
+    email: bav@geus.dk
+    affiliation: GEUS
+    orcid: 'https://orcid.org/0000-0002-4169-8973'
+  - given-names: Patrick J.
+    family-names: Wright
+    orcid: 'https://orcid.org/0000-0003-2999-9076'
+    affiliation: Synoptic
+    email: pajwr@geus.dk
+identifiers:
+  - type: doi
+    value: 10.21105/joss.05298
+    description: JOSS software paper
+  - type: doi
+    value: 10.22008/FK2/3TSBF0
+    description: Dataverse for releases
+repository-code: 'https://github.com/GEUS-Glaciology-and-Climate/pypromice'
+url: 'https://pypromice.readthedocs.io/'
+keywords:
+  - weather
+  - weather-station
+  - greenland
+  - python
+license: GPL-2.0
