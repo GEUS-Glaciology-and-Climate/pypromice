@@ -17,8 +17,8 @@ stid_to_skip = { # All the following IDS will not be processed or submitted
     'discontinued': ['CEN1','TAS_U','QAS_A','NUK_N','THU_U','JAR','SWC'],
     'no_instantaneous': ['ZAK_L','ZAK_U','KAN_B'], # currently not transmitting instantaneous values
     'suspect_data': [], # instantaneous data is suspect
-    'use_v3': ['KPC_L', 'KPC_U', 'NUK_U', 'ZAK_L', 'ZAK_U', 'QAS_U', 'QAS_L', 'QAS_M', 'KAN_L'], # use v3 versions instead (but registered IDs are non-v3 names)
-    'v3_bad': []
+    'use_v3': ['NUK_U', 'ZAK_L', 'ZAK_U', 'QAS_U', 'QAS_L', 'QAS_M', 'KAN_L'], # use v3 versions instead (but registered IDs are non-v3 names)
+    'v3_bad': ['KPC_L', 'KPC_U', ]
 }
 # NOTE: Use both THU_L and THU_L2; use ONLY THU_U2, but register it as THU_U (this is dealt with in csv2bufr.py)
 # NOTE: JAR_O and SWC_O are used, but registered as JAR and SWC
