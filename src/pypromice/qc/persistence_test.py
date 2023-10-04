@@ -4,11 +4,11 @@ import numpy as np
 import numpy.testing
 import pandas as pd
 
-from pypromice.qc.static_qc import find_static_regions
+from pypromice.qc.persistence import find_persistent_regions
 
 
-class StaticQATestCase(unittest.TestCase):
-    def test_1_hour_static(self):
+class PersistenceQATestCase(unittest.TestCase):
+    def test_1_hour_persistent(self):
         self._test_1_hour_repeat(10)
 
     def test_1_hour_second_index(self):
@@ -28,13 +28,13 @@ class StaticQATestCase(unittest.TestCase):
         expected_output = input_series.map(lambda _: False)
         expected_output[index + 1] = True
 
-        static_mask = find_static_regions(
+        persistent_mask = find_persistent_regions(
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
+        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
 
-    def test_no_static_period(self):
+    def test_no_persistent_period(self):
         time_range = pd.date_range(
             start="2023-01-26", end="2023-01-27", freq="h", tz="utc", inclusive="left"
         )
@@ -42,13 +42,13 @@ class StaticQATestCase(unittest.TestCase):
         min_repeats = 1
         expected_output = input_series.map(lambda _: False)
 
-        static_mask = find_static_regions(
+        persistent_mask = find_persistent_regions(
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
+        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
 
-    def test_static_period_longer_than_period_threshold(self):
+    def test_persistent_period_longer_than_period_threshold(self):
         time_range = pd.date_range(
             start="2023-01-26", end="2023-01-28", freq="h", tz="utc", inclusive="left"
         )
@@ -62,13 +62,13 @@ class StaticQATestCase(unittest.TestCase):
         expected_output = input_series.map(lambda _: False)
         expected_output[expected_filter_start:expected_filter_end] = True
 
-        static_mask = find_static_regions(
+        persistent_mask = find_persistent_regions(
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
+        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
 
-    def test_period_threshold_longer_than_static_period(self):
+    def test_period_threshold_longer_than_persistent_period(self):
         time_range = pd.date_range(
             start="2023-01-26", end="2023-01-28", freq="h", tz="utc", inclusive="left"
         )
@@ -79,13 +79,13 @@ class StaticQATestCase(unittest.TestCase):
         input_series[index_start:index_end] = input_series[index_start]
         expected_output = input_series.map(lambda _: False)
 
-        static_mask = find_static_regions(
+        persistent_mask = find_persistent_regions(
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
+        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
 
-    def test_static_period_at_the_end(self):
+    def test_persistent_period_at_the_end(self):
         time_range = pd.date_range(
             start="2023-01-26", end="2023-01-28", freq="h", tz="utc", inclusive="left"
         )
@@ -97,11 +97,11 @@ class StaticQATestCase(unittest.TestCase):
         expected_output = input_series.map(lambda _: False)
         expected_output[expected_filter_start:] = True
 
-        static_mask = find_static_regions(
+        persistent_mask = find_persistent_regions(
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
+        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
 
     def test_dont_filter_nan_values(self):
         time_range = pd.date_range(
@@ -119,13 +119,13 @@ class StaticQATestCase(unittest.TestCase):
         # The output mask shouldn't filter nan values.
         expected_output = input_series.map(lambda _: False)
 
-        static_mask = find_static_regions(
+        persistent_mask = find_persistent_regions(
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, static_mask, check_names=False)
+        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
 
-    def test_series_with_nan_values_between_static_values(self):
+    def test_series_with_nan_values_between_persistent_values(self):
         time_range = pd.date_range(
             start="2023-01-26", end="2023-01-27", freq="h", tz="utc", inclusive="left"
         )
@@ -141,6 +141,10 @@ class StaticQATestCase(unittest.TestCase):
         # Note: The station region mask shall not filter nan values
         expected_mask[16] = True
 
-        output_mask = find_static_regions(series, min_repeats=period, max_diff=0.01)
+        output_mask = find_persistent_regions(series, min_repeats=period, max_diff=0.01)
 
         np.testing.assert_equal(expected_mask, output_mask)
+
+
+if __name__ == "__main__":
+    unittest.main()
