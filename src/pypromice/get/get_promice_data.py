@@ -52,12 +52,5 @@ def get_promice_data():
         	
     print(f'File saved to {outfile}')
 
-
-class get_promice_data_test(unittest.TestCase): 
-    def get_test(self):
-        '''Test get_promice_data'''
-        exit_status = os.system('get_promice_data -h')
-        self.assertEqual(exit_status, 0)
-
 if __name__ == "__main__":  
-    unittest.main()
+    get_promice_data()

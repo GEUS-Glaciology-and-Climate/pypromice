@@ -40,13 +40,7 @@ def get_l3():
      
     if args.outpath is not None:
         aws.write(args.outpath)
-
-class get_l3_test(unittest.TestCase): 
-    def l3_test(self):
-        '''Test get_l3 CLI'''
-        exit_status = os.system('get_l3 -h')
-        self.assertEqual(exit_status, 0)
         
 if __name__ == "__main__":  
-    unittest.main()
+    get_l3()
         

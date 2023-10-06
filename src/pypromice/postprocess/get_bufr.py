@@ -287,11 +287,5 @@ def get_bufr():
 	print('failed_min_data_pos: {}'.format(failed_min_data_pos))
 	print('--------------------------------')
 
-class get_bufr_test(unittest.TestCase): 
-    def bufr_test(self):
-        '''Test get_bufr CLI'''
-        exit_status = os.system('get_bufr -h')
-        self.assertEqual(exit_status, 0)
-    
 if __name__ == "__main__":  
-    unittest.main()
+    get_bufr()

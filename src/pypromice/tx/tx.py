@@ -959,6 +959,21 @@ class TestTX(unittest.TestCase):
         self.assertTrue('tfffffffffff' in l0.bin_format)
         self.assertTrue('2022-07-25 10:00:00' in l0.msg)
         self.assertFalse('?' in l0.msg)
-            
+
+    def testCLIl0tx(self):
+        '''Test get_l0tx CLI'''
+        exit_status = os.system('get_l0tx -h')
+        self.assertEqual(exit_status, 0)
+ 
+    def testCLIwatson(self):
+        '''Test get_watsontx CLI'''
+        exit_status = os.system('get_watsontx -h')
+        self.assertEqual(exit_status, 0)
+ 
+    def testCLImsg(self):
+        '''Test get_msg CLI'''
+        exit_status = os.system('get_msg -h')
+        self.assertEqual(exit_status, 0)
+                   
 if __name__ == "__main__":  
     unittest.main()

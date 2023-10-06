@@ -125,14 +125,6 @@ def join_l3():
     # Write to files
     writeAll(out, name, l3_h, l3_d, l3_m, col_names)
     print(f'Files saved to {os.path.join(out, name)}...')
- 
 
-
-class join_l3_test(unittest.TestCase): 
-    def join_test(self):
-        '''Test join_l3 CLI'''
-        exit_status = os.system('join_l3 -h')
-        self.assertEqual(exit_status, 0)
-        
 if __name__ == "__main__":  
-    unittest.main()
+    join_l3()

@@ -8,7 +8,7 @@ import pandas as pd
 import xarray as xr
 import unittest, pkg_resources
 from datetime import datetime
-import warnings
+import warnings, os
 
 def aws_names():
     '''Return PROMICE and GC-Net AWS names that can be used in get.aws_data() 
@@ -201,6 +201,11 @@ class TestGet(unittest.TestCase):
         '''Test Wason River discharge daily data retrieval'''
         wd = watson_discharge(t='day')
         self.assertTrue(wd['Q']['2009-09-04 00:00:00']==4.72)
+
+    def testGetCLI(self):
+        '''Test get_promice_data'''
+        exit_status = os.system('get_promice_data -h')
+        self.assertEqual(exit_status, 0)
             
 if __name__ == "__main__": 
     unittest.main()

@@ -98,13 +98,6 @@ def get_msg():
 
     
     print('Finished')
-
-
-class get_msg_test(unittest.TestCase): 
-    def msg_test(self):
-        '''Test get_msg CLI'''
-        exit_status = os.system('get_msg -h')
-        self.assertEqual(exit_status, 0)
         
 if __name__ == "__main__":  
-    unittest.main()
+    get_msg()

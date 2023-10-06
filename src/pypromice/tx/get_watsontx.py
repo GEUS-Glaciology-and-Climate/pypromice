@@ -19,7 +19,7 @@ from pypromice.tx import getMail, L0tx, sortLines
 
 
 def parse_arguments_watson():
-    parser = ArgumentParser(description="AWS L0 transmission fetcher")       
+    parser = ArgumentParser(description="AWS L0 transmission fetcher for Watson River measurements")       
     parser.add_argument('-a', '--account', default=None, type=str, required=True, help='Email account .ini file')
     parser.add_argument('-p', '--password', default=None, type=str, required=True, help='Email credentials .ini file')                      
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, help='Path where to write output (if given)')           
@@ -139,13 +139,6 @@ def get_watsontx():
         print(f'Could not write last uid {uid} to {uid_file}')
          
     print('Finished')
-
-
-class get_watsontx_test(unittest.TestCase): 
-    def watson_test(self):
-        '''Test get_watsontx CLI'''
-        exit_status = os.system('get_watsontx -h')
-        self.assertEqual(exit_status, 0)
         
 if __name__ == "__main__":  
-    unittest.main()
+    get_watsontx()

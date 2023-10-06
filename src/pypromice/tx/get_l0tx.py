@@ -172,12 +172,5 @@ def get_l0tx():
     
     print('Finished')
 
-
-class get_l0tx_test(unittest.TestCase): 
-    def l0tx_test(self):
-        '''Test get_l0tx CLI'''
-        exit_status = os.system('get_l0tx -h')
-        self.assertEqual(exit_status, 0)
-        
 if __name__ == "__main__":  
-    unittest.main()
+    get_l0tx()
