@@ -7,7 +7,7 @@ from pypromice.process import getVars, getMeta, addMeta, getColNames, \
     roundValues, resampleL3, writeAll
 from pypromice.process.L1toL2 import correctPrecip
 
-def parse_arguments():
+def parse_arguments_join():
     parser = ArgumentParser(description="AWS L3 joiner for merging together two L3 products, for example an L3 RAW and L3 TX data product. An hourly, daily and monthly L3 data product is outputted to the defined output path")
     parser.add_argument('-s', '--file1', type=str, required=True,
                         help='Path to source L3 file, which will be preferenced in merge process')
@@ -41,9 +41,8 @@ def loadArr(infile):
     return ds, name
     
 
-if __name__ == '__main__':
-    """Executed from the command line"""
-    args = parse_arguments()
+def join_l3():
+    args = parse_arguments_join()
     
     # Check files
     if os.path.isfile(args.file1) and os.path.isfile(args.file2): 
@@ -127,6 +126,11 @@ if __name__ == '__main__':
     writeAll(out, name, l3_h, l3_d, l3_m, col_names)
     print(f'Files saved to {os.path.join(out, name)}...')
  
+
+
+if __name__ == '__main__':
+    """Executed from the command line"""
+    join_l3()
 else:
     """Executed on import"""
     pass
