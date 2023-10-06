@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from argparse import ArgumentParser
 from configparser import ConfigParser
-import os, imaplib, email
+import os, imaplib, email, unittest
 from glob import glob
 from pypromice.tx import getMail
 
@@ -99,9 +99,12 @@ def get_msg():
     
     print('Finished')
 
-if __name__ == '__main__':
-    """Executed from the command line""" 
-    get_msg()    
-else:
-    """Executed on import"""
-    pass
+
+class get_msg_test(unittest.TestCase): 
+    def msg_test(self):
+        '''Test get_msg CLI'''
+        exit_status = os.system('get_msg -h')
+        self.assertEqual(exit_status, 0)
+        
+if __name__ == "__main__":  
+    unittest.main()

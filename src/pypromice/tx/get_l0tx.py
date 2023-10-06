@@ -2,7 +2,7 @@
 from argparse import ArgumentParser
 
 from configparser import ConfigParser
-import os, imaplib, email, toml, re
+import os, imaplib, email, toml, re, unittest
 from glob import glob
 from datetime import datetime, timedelta
 
@@ -172,9 +172,12 @@ def get_l0tx():
     
     print('Finished')
 
-if __name__ == '__main__':
-    """Executed from the command line"""
-    get_l0tx()    
-else:
-    """Executed on import"""
-    pass
+
+class get_l0tx_test(unittest.TestCase): 
+    def l0tx_test(self):
+        '''Test get_l0tx CLI'''
+        exit_status = os.system('get_l0tx -h')
+        self.assertEqual(exit_status, 0)
+        
+if __name__ == "__main__":  
+    unittest.main()

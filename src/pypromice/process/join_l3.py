@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os
+import os, unittest
 import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
@@ -128,9 +128,11 @@ def join_l3():
  
 
 
-if __name__ == '__main__':
-    """Executed from the command line"""
-    join_l3()
-else:
-    """Executed on import"""
-    pass
+class join_l3_test(unittest.TestCase): 
+    def join_test(self):
+        '''Test join_l3 CLI'''
+        exit_status = os.system('join_l3 -h')
+        self.assertEqual(exit_status, 0)
+        
+if __name__ == "__main__":  
+    unittest.main()

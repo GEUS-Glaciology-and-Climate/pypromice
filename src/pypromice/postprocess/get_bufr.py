@@ -9,7 +9,7 @@ import pandas as pd
 import glob, os
 import argparse
 from datetime import datetime, timedelta
-import pickle
+import pickle, unittest
 
 from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, positions_seed, positions_update_timestamp_only
 from pypromice.postprocess.csv2bufr import getBUFR, linear_fit, rolling_window, round_values, \
@@ -287,9 +287,11 @@ def get_bufr():
 	print('failed_min_data_pos: {}'.format(failed_min_data_pos))
 	print('--------------------------------')
 
-if __name__ == '__main__':
-    """Executed from the command line"""
-    get_bufr()
-else:
-    """Executed on import"""
-    pass
+class get_bufr_test(unittest.TestCase): 
+    def bufr_test(self):
+        '''Test get_bufr CLI'''
+        exit_status = os.system('get_bufr -h')
+        self.assertEqual(exit_status, 0)
+    
+if __name__ == "__main__":  
+    unittest.main()

@@ -11,7 +11,7 @@ the tx module
 from argparse import ArgumentParser
 
 from configparser import ConfigParser
-import os, imaplib, email
+import os, imaplib, email, unittest
 from glob import glob
 from datetime import datetime
 
@@ -140,8 +140,12 @@ def get_watsontx():
          
     print('Finished')
 
-if __name__ == '__main__':
-    get_watsontx()    
-else:
-    """Executed on import"""
-    pass
+
+class get_watsontx_test(unittest.TestCase): 
+    def watson_test(self):
+        '''Test get_watsontx CLI'''
+        exit_status = os.system('get_watsontx -h')
+        self.assertEqual(exit_status, 0)
+        
+if __name__ == "__main__":  
+    unittest.main()
