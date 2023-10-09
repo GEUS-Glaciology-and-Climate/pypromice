@@ -365,7 +365,7 @@ class L0tx(EmailMessage, PayloadFormat):
     '''L0 tranmission data object'''
 
     def __init__(self, email_msg, format_file=None, type_file=None, 
-                 sender_name=['sbdservice', 'ice@geus.dk'],                    #TODO don't hardcode sender names?
+                 sender_name=['sbdservice', 'ice@geus.dk','emailrelay@konectgds.com'],    #TODO don't hardcode sender names?
                  UnixEpochOffset=calendar.timegm((1970,1,1,0,0,0,0,1,0)),
                  CRbasicEpochOffset = calendar.timegm((1990,1,1,0,0,0,0,1,0))):
         '''L0tx object initialisation. 
@@ -521,7 +521,7 @@ class L0tx(EmailMessage, PayloadFormat):
     
     def isWatsonObservation(self, DataLine):
         '''Flag if message is Watson River measurement'''
-        return ('watson' in DataLine.lower())
+        return ('watson' in DataLine.lower() or 'gios' in DataLine.lower())
     
     def isWithInstance(self, DataLine):
         '''Flag if message is with instance'''
