@@ -107,7 +107,7 @@ def get_watsontx():
             if l0.msg: 
                 content, attachment = l0.getEmailBody()
                 attachment_name = str(attachment.get_filename())
-                out_fn = attachment_name.split('.')[0]+'.txt'
+                out_fn = attachment_name.split('able')[0]+'able.txt'
                 out_path = os.sep.join((out_dir, out_fn))
         
                 print(f'Writing to {out_fn}')
