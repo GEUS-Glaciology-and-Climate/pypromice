@@ -9,7 +9,7 @@ Two components are needed to perform Level 0 to Level 3 processing:
 - A Level 0 dataset file (.txt), or a collection of Level 0 dataset files
 - A station config file (.toml)
  
-Two test station datasets and config files are available with pypromice as an example of the Level 0 to Level 3 processing. These can be found on the Github repo `here <https://github.com/GEUS-Glaciology-and-Climate/pypromice/tree/joss-doc-edits/src/pypromice/test>`_, in the ``src/pypromice/test/`` directory in the cloned repo.
+Two test station datasets and config files are available with pypromice as an example of the Level 0 to Level 3 processing. These can be found on the Github repo `here <https://github.com/GEUS-Glaciology-and-Climate/pypromice/tree/main/src/pypromice/test>`_, in the ``src/pypromice/test/`` directory in the cloned repo.
 
 
 These can be processed from Level 0 to a Level 3 data product as an ``AWS`` object in pypromice.  
