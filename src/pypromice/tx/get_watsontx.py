@@ -100,6 +100,7 @@ def get_watsontx():
         
         if 'Watson' in name or 'GIOS' in name:
             print(f'Watson/GIOS station message, {d.strftime("%Y-%m-%d %H:%M:%S")}')
+
             l0 = L0tx(message, formatter_file, type_file, 
                       sender_name=['emailrelay@konectgds.com','sbdservice'])
             
