@@ -2,14 +2,14 @@
 from argparse import ArgumentParser
 
 from configparser import ConfigParser
-import os, imaplib, email, toml, re
+import os, imaplib, email, toml, re, unittest
 from glob import glob
 from datetime import datetime, timedelta
 
 from pypromice.tx import getMail, L0tx, sortLines
 
 
-def parse_arguments():
+def parse_arguments_l0tx():
     parser = ArgumentParser(description="AWS L0 transmission fetcher")       
     parser.add_argument('-a', '--account', default=None, type=str, required=True, help='Email account .ini file')
     parser.add_argument('-p', '--password', default=None, type=str, required=True, help='Email credentials .ini file')                      
@@ -22,10 +22,8 @@ def parse_arguments():
     args = parser.parse_args()
     return args
 
-
-if __name__ == '__main__':
-    """Executed from the command line"""
-    args = parse_arguments()
+def get_l0tx():
+    args = parse_arguments_l0tx()
     toml_path = os.path.join(args.config, args.name+'.toml')
     toml_list = glob(toml_path)
     
@@ -173,7 +171,6 @@ if __name__ == '__main__':
         print(f'Could not write last uid {uid} to {uid_file}')
     
     print('Finished')
-    
-else:
-    """Executed on import"""
-    pass
+
+if __name__ == "__main__":  
+    get_l0tx()

@@ -836,6 +836,16 @@ class TestProcess(unittest.TestCase):
         self.assertIsInstance(pAWS.L3, xr.Dataset)
         self.assertTrue(pAWS.L3.attrs['station_id']=='TEST1')
 
+    def testCLIgetl3(self):
+        '''Test get_l3 CLI'''
+        exit_status = os.system('get_l3 -h')
+        self.assertEqual(exit_status, 0)
+
+    def testCLIjoinl3(self):
+        '''Test join_l3 CLI'''
+        exit_status = os.system('join_l3 -h')
+        self.assertEqual(exit_status, 0)
+        
 #------------------------------------------------------------------------------
 
 if __name__ == "__main__":

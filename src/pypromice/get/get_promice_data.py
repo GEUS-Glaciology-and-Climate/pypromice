@@ -1,23 +1,25 @@
 #!/usr/bin/env python
 from argparse import ArgumentParser
-import os
-from pypromice.get import aws_names, aws_data
+import os, unittest
+from pypromice.get.get import aws_data
 
 
-def parse_arguments():
+def parse_arguments_data():
 	parser = ArgumentParser(description="PROMICE and GC-Net dataset fetcher")       
 	parser.add_argument('-n', '--awsname', default=None, type=str, required=True, 
 		        help='AWS name')
 	parser.add_argument('-f', '--format', default='csv', type=str, required=False, 
 		        help='File format to save data as')                      
 	parser.add_argument('-o', '--outpath', default=os.getcwd(), type=str, required=False, 
-		        help='Directory where file will be written to')            	        
+		        help='Directory where file will be written to')          	        
 	args = parser.parse_args()
 	return args
 
 
-if __name__ == '__main__':
-    args = parse_arguments()
+def get_promice_data():
+    '''Command line driver for fetching PROMICE and GC-Net datasets'''
+
+    args = parse_arguments_data()
 	
     # Construct AWS dataset name
 #    n = aws_names()
@@ -41,13 +43,14 @@ if __name__ == '__main__':
     # Save to file
     if f in 'csv':
         outfile = os.path.join(args.outpath, args.awsname.lower()) 
-        data.to_csv(outfile)
+        if outfile is not None:
+            data.to_csv(outfile)
     elif f in 'nc': 
         data.to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)
-        outfile = os.path.join(args.outpath, args.awsname.lower().split('.csv')[0]+'.nc')
+        if outfile is not None:
+            outfile = os.path.join(args.outpath, args.awsname.lower().split('.csv')[0]+'.nc')
         	
     print(f'File saved to {outfile}')
 
-else:
-    """Executed on import"""
-    pass
+if __name__ == "__main__":  
+    get_promice_data()

@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 from argparse import ArgumentParser
 from configparser import ConfigParser
-import os, imaplib, email
+import os, imaplib, email, unittest
 from glob import glob
 from pypromice.tx import getMail
 
 
-def parse_arguments():
+def parse_arguments_msg():
     parser = ArgumentParser(description="AWS message downloader")       
     parser.add_argument('-a', '--account', default=None, type=str, 
                         required=True, help='Email account .ini file')
@@ -21,10 +21,8 @@ def parse_arguments():
     args = parser.parse_args()
     return args
 
-
-if __name__ == '__main__':
-    """Executed from the command line""" 
-    args = parse_arguments()
+def get_msg():
+    args = parse_arguments_msg()
 
     # Set credential paths
     accounts_file = args.account
@@ -100,7 +98,6 @@ if __name__ == '__main__':
 
     
     print('Finished')
-    
-else:
-    """Executed on import"""
-    pass
+        
+if __name__ == "__main__":  
+    get_msg()
