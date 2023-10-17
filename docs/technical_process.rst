@@ -34,7 +34,7 @@ The following function can be executed from a CLI to fetch ``L0`` transmission m
 
 .. code:: console
 	
-	$ getL0tx -a accounts.ini -p credentials.ini -c tx/config 
+	$ get_l0tx -a accounts.ini -p credentials.ini -c tx/config 
 	-u last_aws_uid.ini -o tx
 
 .. note::
@@ -51,13 +51,13 @@ To process from L0>>L3, the following function can be executed in a CLI.
 
 .. code:: console
 	
-	$ getL3 -c config/KPC_L.toml -i . -o ../../aws-l3/tx"
+	$ get_l3 -c config/KPC_L.toml -i . -o ../../aws-l3/tx"
 
 And in parallel through all configuration .toml files ``$imei_list``
 
 .. code:: console
 
-	$ parallel --bar "getL3 -c ./{} -i . -o ../../aws-l3/tx" ::: $(ls $imei_list)
+	$ parallel --bar "get_l3 -c ./{} -i . -o ../../aws-l3/tx" ::: $(ls $imei_list)
 
 
 Station configuration
