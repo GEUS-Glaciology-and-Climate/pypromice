@@ -64,7 +64,7 @@ The Level 0 to Level 3 processing can also be executed from a CLI using the ``ge
 
 .. code:: console
 
-    $ getL3 -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
+    $ get_l3 -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
 
 
 Loading our data
@@ -95,13 +95,13 @@ AWS data can be downloaded to file with pypromice. Open up a CLI and use the ``g
 
 .. code:: console
 
-	$ getData -n KPC_U_hour.csv
+	$ get_promice_data -n KPC_U_hour.csv
 
 Files are downloaded to the current directory as a CSV formatted file. Use the ``-h`` help flag to explore further input variables.
  
 .. code:: console
 
-	$ getData -h
+	$ get_promice_data -h
 
 .. note::
 
