@@ -98,13 +98,15 @@ def get_watsontx():
             name=None
             d=None
         
-        if name and 'Watson station' in name:
-            print(f'Watson station message, {d.strftime("%Y-%m-%d %H:%M:%S")}')
+        if 'Watson' in name or 'GIOS' in name:
+            print(f'Watson/GIOS station message, {d.strftime("%Y-%m-%d %H:%M:%S")}')
             l0 = L0tx(message, formatter_file, type_file, 
                       sender_name=['emailrelay@konectgds.com','sbdservice'])
             
             if l0.msg: 
-                out_fn = 'watson_station_tx.txt'
+                content, attachment = l0.getEmailBody()
+                attachment_name = str(attachment.get_filename())
+                out_fn = attachment_name.split('.')[0]+'.txt'
                 out_path = os.sep.join((out_dir, out_fn))
         
                 print(f'Writing to {out_fn}')
