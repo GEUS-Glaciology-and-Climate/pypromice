@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-import logging
-import os
-import sys
+import logging, os, sys, unittest
 from argparse import ArgumentParser
-from pypromice.process import AWS
+from pypromice.process.aws import AWS
 
-def parse_arguments():
+def parse_arguments_l3():
     parser = ArgumentParser(description="AWS L3 processor")
 
     parser.add_argument('-c', '--config_file', type=str, required=True,
@@ -21,10 +19,8 @@ def parse_arguments():
     args = parser.parse_args()
     return args
 
-
-if __name__ == '__main__':
-    """Executed from the command line"""
-    args = parse_arguments()
+def get_l3():
+    args = parse_arguments_l3()
 
     logging.basicConfig(
         format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
@@ -40,10 +36,11 @@ if __name__ == '__main__':
     else:
         aws = AWS(args.config_file, args.inpath, args.variables, args.metadata)
 
-    aws.process()
-    aws.write(args.outpath)
-    
-else:
-    """Executed on import"""
-    pass
+    aws.process() 
+     
+    if args.outpath is not None:
+        aws.write(args.outpath)
+        
+if __name__ == "__main__":  
+    get_l3()
         

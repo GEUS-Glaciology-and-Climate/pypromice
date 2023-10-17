@@ -11,15 +11,15 @@ the tx module
 from argparse import ArgumentParser
 
 from configparser import ConfigParser
-import os, imaplib, email
+import os, imaplib, email, unittest
 from glob import glob
 from datetime import datetime
 
 from pypromice.tx import getMail, L0tx, sortLines
 
 
-def parse_arguments():
-    parser = ArgumentParser(description="AWS L0 transmission fetcher")       
+def parse_arguments_watson():
+    parser = ArgumentParser(description="AWS L0 transmission fetcher for Watson River measurements")       
     parser.add_argument('-a', '--account', default=None, type=str, required=True, help='Email account .ini file')
     parser.add_argument('-p', '--password', default=None, type=str, required=True, help='Email credentials .ini file')                      
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, help='Path where to write output (if given)')           
@@ -30,9 +30,9 @@ def parse_arguments():
     return args
 
 #------------------------------------------------------------------------------
-if __name__ == '__main__':
+def get_watsontx():
     """Executed from the command line"""
-    args = parse_arguments()
+    args = parse_arguments_watson()
     
      # Set payload formatter paths
     formatter_file = args.formats
@@ -139,7 +139,6 @@ if __name__ == '__main__':
         print(f'Could not write last uid {uid} to {uid_file}')
          
     print('Finished')
-    
-else:
-    """Executed on import"""
-    pass
+        
+if __name__ == "__main__":  
+    get_watsontx()

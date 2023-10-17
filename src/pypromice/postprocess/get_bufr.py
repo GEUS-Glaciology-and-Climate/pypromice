@@ -9,7 +9,7 @@ import pandas as pd
 import glob, os
 import argparse
 from datetime import datetime, timedelta
-import pickle
+import pickle, unittest
 
 from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, positions_seed, positions_update_timestamp_only
 from pypromice.postprocess.csv2bufr import getBUFR, linear_fit, rolling_window, round_values, \
@@ -18,7 +18,7 @@ from pypromice.postprocess.csv2bufr import getBUFR, linear_fit, rolling_window, 
 # from IPython import embed
 
 
-def parse_arguments():
+def parse_arguments_bufr():
 	parser = argparse.ArgumentParser()
 
 	parser.add_argument('--dev',
@@ -64,10 +64,8 @@ def parse_arguments():
 	args = parser.parse_args()
 	return args
 
-if __name__ == '__main__':
-	"""Executed from the command line"""
-
-	args = parse_arguments()
+def get_bufr():
+	args = parse_arguments_bufr()
 
 	# Get list of relative file paths
 	fpaths = glob.glob(args.l3_filepath)
@@ -288,3 +286,6 @@ if __name__ == '__main__':
 	print('failed_min_data_wx: {}'.format(failed_min_data_wx))
 	print('failed_min_data_pos: {}'.format(failed_min_data_pos))
 	print('--------------------------------')
+
+if __name__ == "__main__":  
+    get_bufr()
