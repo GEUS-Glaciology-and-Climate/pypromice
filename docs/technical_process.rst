@@ -20,10 +20,7 @@ Payload handling
 Payload decoder
 ===============
 
-``PayloadFormat`` handles the message types and decoding templates. These can be imported from file, with two default CSV files provided with pypromice - payload_formatter.csv_ and payload_type.csv_.
-
-.. _payload_formatter.csv: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/tx/payload_formats.csv
-.. _payload_type.csv: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/tx/payload_types.csv
+``PayloadFormat`` handles the message types and decoding templates. These can be imported from file, with two default CSV files provided with pypromice - `payload_formatter.csv <https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/tx/payload_formats.csv>`_ and `payload_type.csv <https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/tx/payload_types.csv>`_.
 
 
 Payload processing
@@ -109,6 +106,4 @@ The TOML config file has the following expectations and behaviors:
 
 .. note::
 
-	Be aware the column names should follow those defined in the variables look-up table found here_. Any column names provided that are not in this look-up table will be passed through the processing untouched.
-
-.. _here: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/process/variables.csv
+	Be aware the column names should follow those defined in pypromice's `variables look-up table <https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/process/variables.csv>`_. Any column names provided that are not in this look-up table will be passed through the processing untouched.

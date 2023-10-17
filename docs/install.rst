@@ -17,7 +17,7 @@ For the most up-to-date version, pypromice can be installed directly from the re
 Developer install
 *****************
 
-pypromice can be ran in an environment with the pypromice package cloned from GitHub_. 
+pypromice can be ran in an environment with the pypromice package cloned from the `GitHub repo <https://github.com/GEUS-Glaciology-and-Climate/pypromice>`_. 
 
 .. code:: console
 
@@ -27,14 +27,11 @@ pypromice can be ran in an environment with the pypromice package cloned from Gi
 	$ cd pypromice/
 	$ pip install .
 
-pypromice is also provided with a conda environment configuration environment.yml_ for a more straightforward set-up, if needed:
+pypromice is also provided with a `conda environment configuration file <https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/environment.yml>`_ for a more straightforward set-up, if needed:
 
 .. code:: console
 
 	$ conda env create --file environment.yml -n pypromice
-	
-.. _GitHub: https://github.com/GEUS-Glaciology-and-Climate/pypromice
-.. _environment.yml: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/environment.yml
 
 The package has inbuilt unit tests, which can be run to test the package installation:
 
@@ -52,7 +49,7 @@ Additional dependencies
 
 Additional packages are required if you wish to use pypromice's post-processing functionality. 
 
-eccodes_ is the official package for BUFR encoding and decoding, which pypromice uses for post-process formatting. Try firstly to install with conda-forge like so:
+`eccodes <https://confluence.ecmwf.int/display/ECC/ecCodes+installation>`_ is the official package for BUFR encoding and decoding, which pypromice uses for post-process formatting. Try firstly to install with conda-forge like so:
 
 .. code:: console
 
@@ -60,7 +57,4 @@ eccodes_ is the official package for BUFR encoding and decoding, which pypromice
 
 .. note::
 
-	If the environment cannot resolve the eccodes installation then follow the steps documented here_ to download eccodes and then install eccodes' python bindings using pip: ``pip3 install eccodes-python``
-
-.. _eccodes: https://confluence.ecmwf.int/display/ECC/ecCodes+installation
-.. _here: https://gist.github.com/MHBalsmeier/a01ad4e07ecf467c90fad2ac7719844a
+	If the environment cannot resolve the eccodes installation then follow the steps documented `here <https://gist.github.com/MHBalsmeier/a01ad4e07ecf467c90fad2ac7719844a>`_ to download eccodes and then install eccodes' python bindings using pip: ``pip3 install eccodes-python``

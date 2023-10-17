@@ -38,10 +38,18 @@ postprocess
    :undoc-members:
    :show-inheritance:
       
+qc
+==
+
+.. automodule:: qc.persistence
+   :members:  
+   :undoc-members:
+   :show-inheritance:
+   
 get 
 ===
 
-.. automodule:: get
+.. automodule:: get.get
    :members:
    :undoc-members:
    :show-inheritance:
