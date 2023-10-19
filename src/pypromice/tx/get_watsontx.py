@@ -98,7 +98,7 @@ def get_watsontx():
             name=None
             d=None
         
-        if name and 'Watson' in name or name and 'GIOS' in name:
+        if name and ('Watson' in name or 'GIOS' in name):
             print(f'Watson/GIOS station message, {d.strftime("%Y-%m-%d %H:%M:%S")}')
 
             l0 = L0tx(message, formatter_file, type_file, 
