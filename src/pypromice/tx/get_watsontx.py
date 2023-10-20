@@ -11,10 +11,9 @@ the tx module
 from argparse import ArgumentParser
 
 from configparser import ConfigParser
-import os, imaplib, email, unittest
+import os, imaplib, email, re
 from glob import glob
 from datetime import datetime
-from pathlib import Path
 
 from pypromice.tx import getMail, L0tx, sortLines
 
@@ -107,9 +106,8 @@ def get_watsontx():
             
             if l0.msg: 
                 content, attachment = l0.getEmailBody()
-                attachment_name = str(attachment.get_filename())
-                out_fn = ''.join([i for i in attachment_name if not i.isdigit()])
-                out_fn = Path(out_fn).stem+'.txt'
+                attachment_name = str(attachment.get_filename())               
+                out_fn = re.sub(r'\d*\.dat$', '', attachment_name) + '.txt'
                 out_path = os.sep.join((out_dir, out_fn))
         
                 print(f'Writing to {out_fn}')
