@@ -14,6 +14,7 @@ from configparser import ConfigParser
 import os, imaplib, email, unittest
 from glob import glob
 from datetime import datetime
+from pathlib import Path
 
 from pypromice.tx import getMail, L0tx, sortLines
 
@@ -107,7 +108,8 @@ def get_watsontx():
             if l0.msg: 
                 content, attachment = l0.getEmailBody()
                 attachment_name = str(attachment.get_filename())
-                out_fn = attachment_name.split('able')[0]+'able.txt'
+                out_fn = ''.join([i for i in attachment_name if not i.isdigit()])
+                out_fn = Path(out_fn).stem+'.txt'
                 out_path = os.sep.join((out_dir, out_fn))
         
                 print(f'Writing to {out_fn}')
