@@ -47,17 +47,17 @@ precip_u_rate,precipitation_rate,Precipitation rate (upper boom) (cumulative sol
 precip_l,precipitation,Precipitation (lower boom) (cumulative solid & liquid),mm,0,,precip_l_cor precip_l_rate,two-boom,all,4,physicalMeasurement,time lat lon alt,True,Without wind/undercatch correction
 precip_l_cor,precipitation_corrected,Precipitation (lower boom) (cumulative solid & liquid) – corrected,mm,0,,,two-boom,all,4,modelResult,time lat lon alt,True,With wind/undercatch correction
 precip_l_rate,precipitation_rate,Precipitation rate (lower boom) (cumulative solid & liquid) – corrected,mm,0,,,two-boom,all,4,modelResult,time lat lon alt,True,L0 only
-t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,t1 is installed @ 1 m depth
-t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_3,ice_temperature_at_t3,Ice temperature at sensor 3,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_4,ice_temperature_at_t4,Ice temperature at sensor 4,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_5,ice_temperature_at_t5,Ice temperature at sensor 5,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_6,ice_temperature_at_t6,Ice temperature at sensor 6,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_7,ice_temperature_at_t7,Ice temperature at sensor 7,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_8,ice_temperature_at_t8,Ice temperature at sensor 8,degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,False,t8 is installed @ 10 m depth
-t_i_9,ice_temperature_at_t9,Ice temperature at sensor 9,degrees_C,-80,40,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_10,ice_temperature_at_t10,Ice temperature at sensor 10,degrees_C,-80,40,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_11,ice_temperature_at_t11,Ice temperature at sensor 11,degrees_C,-80,40,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,t1 is installed @ 1 m depth
+t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_3,ice_temperature_at_t3,Ice temperature at sensor 3,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_4,ice_temperature_at_t4,Ice temperature at sensor 4,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_5,ice_temperature_at_t5,Ice temperature at sensor 5,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_6,ice_temperature_at_t6,Ice temperature at sensor 6,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_7,ice_temperature_at_t7,Ice temperature at sensor 7,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_8,ice_temperature_at_t8,Ice temperature at sensor 8,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,t8 is installed @ 10 m depth
+t_i_9,ice_temperature_at_t9,Ice temperature at sensor 9,degrees_C,-80,1,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_10,ice_temperature_at_t10,Ice temperature at sensor 10,degrees_C,-80,1,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_11,ice_temperature_at_t11,Ice temperature at sensor 11,degrees_C,-80,1,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
 tilt_x,platform_view_angle_x,Tilt to east,degrees,-30,30,dsr_cor usr_cor albedo,all,all,4,physicalMeasurement,time lat lon alt,False,
 tilt_y,platform_view_angle_y,Tilt to north,degrees,-30,30,dsr_cor usr_cor albedo,all,all,4,physicalMeasurement,time lat lon alt,False,
 rot,platform_azimuth_angle,Station rotation from true North,degrees,0,360,,all,all,2,physicalMeasurement,time lat lon alt,False,v4 addition
