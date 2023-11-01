@@ -81,7 +81,7 @@ def toL2(
     ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],           # Calculate surface temperature
                                           emissivity)
     if not ds.attrs['bedrock']:
-        ds['t_surf'] = ds['t_surf'].where(ds['t_surf'] <= 0, other = 0)
+        ds['t_surf'] = xr.where(ds['t_surf'] > 0, 0, ds['t_surf'])
 
     # Determine station position relative to sun
     doy = ds['time'].to_dataframe().index.dayofyear.values                     # Gather variables to calculate sun pos
