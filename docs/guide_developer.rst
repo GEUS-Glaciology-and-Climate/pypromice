@@ -4,11 +4,8 @@ Developer guide
 
 Contributions, bug reports and fixes, documentation improvements, enhancements and ideas are welcome. A good starting place to look at is:
 
-1. PROMICE-AWS-data-issues_, where we report suspicious or incorrect data
-2. pypromice's GitHub Issues_, for an overview of known bugs, developments and ideas
-
-.. _PROMICE-AWS-data-issues: https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues
-.. _Issues: https://github.com/GEUS-Glaciology-and-Climate/pypromice/issues
+1. `PROMICE-AWS-data-issues <https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues>_`, where we report suspicious or incorrect data
+2. pypromice's `GitHub Issues <https://github.com/GEUS-Glaciology-and-Climate/pypromice/issues>`_, for an overview of known bugs, developments and ideas
 
 
 Data reports
@@ -16,17 +13,17 @@ Data reports
 
 Automatic weather station (AWS) data from the Greenland Ice Sheet are often imperfect due to the complexity and conditions involved in installing and maintaining the AWS. 
 
-If you are using our AWS data and something seems suspicious or erroneous, you can check the PROMICE-AWS-data-issues_ space to see if has previously been flagged and/or fixed. If not, then please follow the conventions stated in the repository and open an issue.
+If you are using our AWS data and something seems suspicious or erroneous, you can check the `PROMICE-AWS-data-issues <https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues>`_ space to see if has previously been flagged and/or fixed. If not, then please follow the conventions stated in the repository and open an issue.
 
 .. note::
 
-	Data visualisations best demonstrate data problems and are greatly appreciated in solving data issues. If you are unsure, see examples of our closed issues in PROMICE-AWS-data-issues_ 
+	Data visualisations best demonstrate data problems and are greatly appreciated in solving data issues. If you are unsure, see examples of our closed issues in `PROMICE-AWS-data-issues <https://github.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues>`_ 
 
 
 Bug reports and enhancement requests
 ====================================
 
-Bug reports are essential to improving the stability and usability of pypromice. These should be raised on pypromice's GitHub Issues_. A complete and reproducible report is essential for bugs to be resolved easily, therefore bug reports must:
+Bug reports are essential to improving the stability and usability of pypromice. These should be raised on pypromice's `GitHub Issues <https://github.com/GEUS-Glaciology-and-Climate/pypromice/issues>`_. A complete and reproducible report is essential for bugs to be resolved easily, therefore bug reports must:
 
 1. Include a concise and self-contained Python snippet reproducing the problem. For example:
 
@@ -47,9 +44,7 @@ Bug reports are essential to improving the stability and usability of pypromice.
 
 .. note:: 
 
-	Before submitting an issue, please make sure that your installation is correct and working from either the pip installation or the main_ branch of the pypromice repository.
-
-.. _main: https://github.com/GEUS-Glaciology-and-Climate/pypromice/tree/main
+	Before submitting an issue, please make sure that your installation is correct and working from either the pip installation or the `main <https://github.com/GEUS-Glaciology-and-Climate/pypromice/tree/main>`_ branch of the pypromice repository.
 
 
 Contributing to pypromice
@@ -61,9 +56,7 @@ You can work directly with pypromice's development if you have a contribution, s
 Forking 
 -------
 
-In order to contribute, you will need your own fork of the pypromice GitHub repository to work on the code. Go to the repo_ and choose the ``Fork`` option. This now creates a copy in your own GitHub space, which is connected to the upstream pypromice repository.
-
-.. _repo: https://github.com/GEUS-Glaciology-and-Climate/pypromice
+In order to contribute, you will need your own fork of the pypromice GitHub repository to work on the code. Go to the `repo <https://github.com/GEUS-Glaciology-and-Climate/pypromice>`_ and choose the ``Fork`` option. This now creates a copy in your own GitHub space, which is connected to the upstream pypromice repository.
 
 
 Creating a development branch
@@ -85,15 +78,13 @@ To contribute your changes to pypromice, you need to make a pull request from yo
 
 .. code:: console
 
-	$ git fetch upstream
+	$ git fetch
 	$ git merge upstream/main
 
-And then open a pull request as documented here_. Make sure to include the following in your pull request description:
+And then open a pull request as documented `here <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork>`_. Make sure to include the following in your pull request description:
 
 1. The aim of your changes
 2. Details of what these changes are
 3. Any limitations or further development needed
 
 Your pull request will be reviewed and, if valid and suitable, will be accepted. Following this, you will be listed as a contributor to pypromice!
-
-.. _here: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork

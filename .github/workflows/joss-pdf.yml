@@ -1,5 +1,7 @@
-on: [push]
-
+on:
+  workflow_dispatch:
+#on: [push]
+  
 jobs:
   paper:
     runs-on: ubuntu-latest

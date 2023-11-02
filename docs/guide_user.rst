@@ -9,9 +9,7 @@ Two components are needed to perform Level 0 to Level 3 processing:
 - A Level 0 dataset file (.txt), or a collection of Level 0 dataset files
 - A station config file (.toml)
  
-Two test station datasets and config files are available with pypromice as an example of the Level 0 to Level 3 processing. These can be found on the Github repo here_, in the ``src/pypromice/test/`` directory in the cloned repo.
-
-.. _here: https://github.com/GEUS-Glaciology-and-Climate/pypromice/tree/joss-doc-edits/src/pypromice/test
+Two test station datasets and config files are available with pypromice as an example of the Level 0 to Level 3 processing. These can be found on the Github repo `here <https://github.com/GEUS-Glaciology-and-Climate/pypromice/tree/main/src/pypromice/test>`_, in the ``src/pypromice/test/`` directory in the cloned repo.
 
 
 These can be processed from Level 0 to a Level 3 data product as an ``AWS`` object in pypromice.  
@@ -66,7 +64,7 @@ The Level 0 to Level 3 processing can also be executed from a CLI using the ``ge
 
 .. code:: console
 
-    $ getL3 -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
+    $ get_l3 -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
 
 
 Loading our data
@@ -74,7 +72,7 @@ Loading our data
 
 Import from Dataverse (no downloads!)
 -------------------------------------
-The automated weather station (AWS) datasets from the PROMICE and GC-Net monitoring programmes are openly available on our Dataverse_. These can be imported directly with pypromice, with no downloading required.
+The automated weather station (AWS) datasets from the PROMICE and GC-Net monitoring programmes are openly available on the `GEUS Dataverse <https://dataverse.geus.dk/dataverse/AWS>`_. These can be imported directly with pypromice, with no downloading required.
 
 .. code:: python
 
@@ -89,9 +87,7 @@ All available AWS datasets are retrieved by station name. Use ``aws_names()`` to
 
 	n = pget.aws_names()
 	print(n)
-
-.. _Dataverse: https://dataverse.geus.dk/dataverse/AWS
-
+	
 
 Download with pypromice
 -----------------------
@@ -99,17 +95,17 @@ AWS data can be downloaded to file with pypromice. Open up a CLI and use the ``g
 
 .. code:: console
 
-	$ getData -n KPC_U_hour.csv
+	$ get_promice_data -n KPC_U_hour.csv
 
 Files are downloaded to the current directory as a CSV formatted file. Use the ``-h`` help flag to explore further input variables.
  
 .. code:: console
 
-	$ getData -h
+	$ get_promice_data -h
 
 .. note::
 
-	Currently, this functionality within pypromice is only for our hourly AWS data. For daily and monthly AWS data, please download these from the Dataverse_.
+	Currently, this functionality within pypromice is only for our hourly AWS data. For daily and monthly AWS data, please download these from the `GEUS Dataverse <https://dataverse.geus.dk/dataverse/AWS>`_.
 	
 	
 Load from NetCDF file
@@ -162,17 +158,9 @@ Once loaded, variables from an AWS dataset can be simply plotted with using pand
 
 .. note::
 
-	Variable names are provided in the dataset metadata, or can be found on in our variables look-up table here_. For more complex plotting, please see either the xarray_ or pandas_ plotting documentation.
-
-.. _here: https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/process/variables.csv
-.. _xarray: https://docs.xarray.dev/en/stable/user-guide/plotting.html
-.. _pandas: https://pandas.pydata.org/docs/user_guide/10min.html#plotting
+	Variable names are provided in the dataset metadata, or can be found on in our `variables look-up table <https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/process/variables.csv>`_. For more complex plotting, please see either the `xarray <https://docs.xarray.dev/en/stable/user-guide/plotting.html>`_ or `pandas <https://pandas.pydata.org/docs/user_guide/10min.html#plotting>`_ plotting documentation.
 	
 	
 .. warning::
 	
-	Plotting with either xarray or pandas requires the matplotlib_ package. This is not supplied as a dependency with pypromice, so please install matplotlib separately if you wish to do so.
-
-.. _matplotlib: https://matplotlib.org/
-	
-.. _matplotlib: https://matplotlib.org/
+	Plotting with either xarray or pandas requires `matplotlib <https://matplotlib.org/>`_. This is not supplied as a dependency with pypromice, so please install matplotlib separately if you wish to do so.

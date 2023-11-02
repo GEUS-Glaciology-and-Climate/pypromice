@@ -365,7 +365,7 @@ class L0tx(EmailMessage, PayloadFormat):
     '''L0 tranmission data object'''
 
     def __init__(self, email_msg, format_file=None, type_file=None, 
-                 sender_name=['sbdservice', 'ice@geus.dk'],                    #TODO don't hardcode sender names?
+                 sender_name=['sbdservice', 'ice@geus.dk','emailrelay@konectgds.com'],    #TODO don't hardcode sender names?
                  UnixEpochOffset=calendar.timegm((1970,1,1,0,0,0,0,1,0)),
                  CRbasicEpochOffset = calendar.timegm((1990,1,1,0,0,0,0,1,0))):
         '''L0tx object initialisation. 
@@ -454,9 +454,12 @@ class L0tx(EmailMessage, PayloadFormat):
         bool
             Valid format flag
         '''
-        if self.getFirstByte().isdigit() or 'Watson' in self.email_data['subject'] or (self.payload[:2] == '\n' and self.imei == 300234064121930):     #TODO needed?
+        if self.getFirstByte().isdigit() or (self.payload[:2] == '\n' and self.imei == 300234064121930):     #TODO needed?
             return None, None, None, None, -9999, False
         
+        elif 'watson' in self.email_data['subject'].lower() or 'gios' in self.email_data['subject'].lower():
+            return None, None, None, None, -9999, False    
+       
         else:
             bidx = ord(self.getFirstByte()) 
             try:
@@ -478,8 +481,8 @@ class L0tx(EmailMessage, PayloadFormat):
         '''Check byte format against payload formatter object'''
         if ord(b) not in self.payload_format:
             print('Unrecognized first byte %s' %hex(ord(b)))
-            return False
-        else:
+            return False      
+        else:    
             return True
     
     def checkLength(self):                                                   
@@ -521,7 +524,7 @@ class L0tx(EmailMessage, PayloadFormat):
     
     def isWatsonObservation(self, DataLine):
         '''Flag if message is Watson River measurement'''
-        return ('watson' in DataLine.lower())
+        return ('watson' in DataLine.lower() or 'gios' in DataLine.lower())
     
     def isWithInstance(self, DataLine):
         '''Flag if message is with instance'''

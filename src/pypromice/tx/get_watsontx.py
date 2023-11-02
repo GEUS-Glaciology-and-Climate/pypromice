@@ -11,7 +11,7 @@ the tx module
 from argparse import ArgumentParser
 
 from configparser import ConfigParser
-import os, imaplib, email, unittest
+import os, imaplib, email, re
 from glob import glob
 from datetime import datetime
 
@@ -23,8 +23,8 @@ def parse_arguments_watson():
     parser.add_argument('-a', '--account', default=None, type=str, required=True, help='Email account .ini file')
     parser.add_argument('-p', '--password', default=None, type=str, required=True, help='Email credentials .ini file')                      
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, help='Path where to write output (if given)')           
-    parser.add_argument('-f', '--formats', default=None, type=str, required=True, help='Path to Payload format .csv file')
-    parser.add_argument('-t', '--types', default=None, type=str, required=True, help='Path to Payload type .csv file')  	
+    parser.add_argument('-f', '--formats', default=None, type=str, required=False, help='Path to Payload format .csv file')
+    parser.add_argument('-t', '--types', default=None, type=str, required=False, help='Path to Payload type .csv file')  	
     parser.add_argument('-u', '--uid', default=None, type=str, required=True, help='Last AWS uid .ini file')	        
     args = parser.parse_args()
     return args
@@ -98,13 +98,16 @@ def get_watsontx():
             name=None
             d=None
         
-        if name and 'Watson station' in name:
-            print(f'Watson station message, {d.strftime("%Y-%m-%d %H:%M:%S")}')
+        if name and ('Watson' in name or 'GIOS' in name):
+            print(f'Watson/GIOS station message, {d.strftime("%Y-%m-%d %H:%M:%S")}')
+
             l0 = L0tx(message, formatter_file, type_file, 
                       sender_name=['emailrelay@konectgds.com','sbdservice'])
             
             if l0.msg: 
-                out_fn = 'watson_station_tx.txt'
+                content, attachment = l0.getEmailBody()
+                attachment_name = str(attachment.get_filename())               
+                out_fn = re.sub(r'\d*\.dat$', '', attachment_name) + '.txt'
                 out_path = os.sep.join((out_dir, out_fn))
         
                 print(f'Writing to {out_fn}')
