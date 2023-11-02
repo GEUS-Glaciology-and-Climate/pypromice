@@ -9,11 +9,11 @@ jobs:
     name: process_test
     steps:
       - name: Install Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: "3.8"        
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: "main"
           token: ${{ secrets.GITHUB_TOKEN }}
