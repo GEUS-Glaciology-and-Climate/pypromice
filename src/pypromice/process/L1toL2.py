@@ -9,6 +9,7 @@ import pandas as pd
 import xarray as xr
 
 from pypromice.qc.github_data_issues import flagNAN, adjustTime, adjustData
+from pypromice.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.qc.persistence import persistence_qc
 from pypromice.process.value_clipping import clip_values
 
@@ -66,7 +67,10 @@ def toL2(
         logger.exception('Flagging and fixing failed:')
 
     if ds.attrs['format'] == 'TX':
-        ds = persistence_qc(ds)                                               # Detect and filter data points that seems to be static
+        ds = persistence_qc(ds)                                               # Flag and remove persistence outliers
+        # TODO: The configuration should be provided explicitly
+        outlier_detector = ThresholdBasedOutlierDetector.default()
+        ds = outlier_detector.filter_data(ds)                                 # Flag and remove percentile outliers
 
     T_100 = _getTempK(T_0)
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],
