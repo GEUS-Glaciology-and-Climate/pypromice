@@ -6,9 +6,7 @@ import pandas as pd
 import xarray as xr
 
 
-__all__ = [
-    "ThresholdBasedOutlierDetector"
-]
+__all__ = ["ThresholdBasedOutlierDetector"]
 
 season_month_map = {
     "winter": {12, 1, 2},
@@ -18,7 +16,7 @@ season_month_map = {
 }
 
 
-def get_season_index_mask(data_set: pd.DataFrame, season: str) -> np.ndarray[bool]:
+def get_season_index_mask(data_set: pd.DataFrame, season: str) -> np.ndarray:
     season_months = season_month_map.get(
         season, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
     )
@@ -67,7 +65,7 @@ class ThresholdBasedOutlierDetector:
         stid = ds.station_id
 
         stid_thresholds = self.thresholds.query(f"stid == '{stid}'")
-        if not stid_thresholds.any():
+        if stid_thresholds.empty:
             return ds
 
         data_df = ds.to_dataframe()  # Switch to pandas
@@ -84,7 +82,7 @@ class ThresholdBasedOutlierDetector:
         return ds_out
 
     @classmethod
-    def from_csv_config(cls, config_file: Path) -> 'ThresholdBasedOutlierDetector':
+    def from_csv_config(cls, config_file: Path) -> "ThresholdBasedOutlierDetector":
         """
         Instantiate using explicit csv file with explicit thresholds
 
@@ -103,12 +101,12 @@ class ThresholdBasedOutlierDetector:
         return cls(thresholds=pd.read_csv(config_file))
 
     @classmethod
-    def default(cls) -> 'ThresholdBasedOutlierDetector':
+    def default(cls) -> "ThresholdBasedOutlierDetector":
         """
         Instantiate using aws thresholds stored in the python package.
         Returns
         -------
 
         """
-        default_thresholds_path = Path(__file__).parent.joinpath('thresholds.csv')
+        default_thresholds_path = Path(__file__).parent.joinpath("thresholds.csv")
         return cls.from_csv_config(default_thresholds_path)

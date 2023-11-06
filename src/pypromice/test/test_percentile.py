@@ -4,8 +4,13 @@ from typing import List
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
-from pypromice.qc.percentiles.outlier_detector import detect_outliers, filter_data
+from pypromice.qc.percentiles.outlier_detector import (
+    detect_outliers,
+    filter_data,
+    ThresholdBasedOutlierDetector,
+)
 
 
 class PercentileQCTestCase(unittest.TestCase):
@@ -184,3 +189,41 @@ class PercentileQCTestCase(unittest.TestCase):
         output_data = filter_data(input_data, thresholds)
         self.assertIsNot(output_data, input_data)
         pd.testing.assert_frame_equal(output_data, expected_output_data)
+
+
+class ThresholdBasedOutlierDetectorTestCase(unittest.TestCase):
+    def test_default_init(self):
+        outlier_detector = ThresholdBasedOutlierDetector.default()
+        self.assertIsInstance(outlier_detector, ThresholdBasedOutlierDetector)
+
+    def test_filter_data_aws_with_threshold(self):
+        stid = "NUK_K"
+        index = pd.period_range("2023-10-01", "2023-11-01", freq="1h")
+        columns = ["p_i", "t_i", "p_l", "wpsd_u", "foo"]
+        dataset: xr.Dataset = pd.DataFrame(
+            index=index,
+            columns=columns,
+            data=np.random.random((len(index), len(columns))),
+        ).to_xarray()
+        dataset = dataset.assign_attrs(dict(station_id=stid))
+        outlier_detector = ThresholdBasedOutlierDetector.default()
+
+        dataset_output = outlier_detector.filter_data(dataset)
+
+        self.assertIsInstance(dataset_output, xr.Dataset)
+        self.assertSetEqual(
+            set(dict(dataset.items())),
+            set(dict(dataset_output.items())),
+        )
+
+        pass
+
+    def test_filter_data_aws_without_threshold(self):
+        stid = "non_exsiting"
+        dataset = xr.Dataset(attrs=dict(station_id=stid))
+        outlier_detector = ThresholdBasedOutlierDetector.default()
+        self.assertNotIn(stid, outlier_detector.thresholds.stid)
+
+        output_dataset = outlier_detector.filter_data(dataset)
+
+        xr.testing.assert_equal(output_dataset, dataset)
