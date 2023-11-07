@@ -1,16 +1,16 @@
 *************
 Quick install
 *************
-The latest release of pypromice can installed using pip or conda-forge:
-
-.. code:: console
-
-	$ pip install pypromice
-
+The latest release of pypromice can installed using conda or pip:
 
 .. code:: console
 
 	$ conda install pypromice -c conda-forge
+	
+	
+.. code:: console
+
+	$ pip install pypromice
 
 
 For the most up-to-date version, pypromice can be installed directly from the repo: 

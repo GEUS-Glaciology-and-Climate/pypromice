@@ -17,14 +17,14 @@ If you intend to use PROMICE AWS data and/or pypromice in your work, please cite
 
 ### Quick install
 
-The latest release of pypromice can installed using pip or conda-forge:
-
-```
-$ pip install pypromice
-```
+The latest release of pypromice can installed using conda or pip:
 
 ```
 $ conda install pypromice -c conda-forge
+```
+
+```
+$ pip install pypromice
 ```
 
 For the most up-to-date version, pypromice can be installed directly from the repo: 
