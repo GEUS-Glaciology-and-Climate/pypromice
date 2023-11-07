@@ -1,11 +1,17 @@
 *************
 Quick install
 *************
-The latest release of pypromice can installed using pip:
+The latest release of pypromice can installed using pip or conda-forge:
 
 .. code:: console
 
 	$ pip install pypromice
+
+
+.. code:: console
+
+	$ conda install pypromice -c conda-forge
+
 
 For the most up-to-date version, pypromice can be installed directly from the repo: 
 
@@ -17,7 +23,7 @@ For the most up-to-date version, pypromice can be installed directly from the re
 Developer install
 *****************
 
-pypromice can be ran in an environment with the pypromice package cloned from the `GitHub repo <https://github.com/GEUS-Glaciology-and-Climate/pypromice>`_. 
+pypromice can be ran in an environment with the pypromice package forked or cloned from the `GitHub repo <https://github.com/GEUS-Glaciology-and-Climate/pypromice>`_. 
 
 .. code:: console
 
