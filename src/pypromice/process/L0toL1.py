@@ -361,23 +361,35 @@ def decodeGPS(ds, gps_names):
     return ds
 
 def reformatGPS(pos_arr, attrs):
-    '''Correct position if only recorded minutes (and not degrees), and 
-    reformat values and attributes
+    '''Correct latitude and longitude from native format to decimal degrees.
     
+    v2 stations should send  "NH6429.01544","WH04932.86061" (NUK_L 2022)
+    v3 stations should send coordinates as "6628.93936","04617.59187" (DY2) or 6430,4916 (NUK_Uv3)
+    decodeGPS should have decoded these strings to floats in ddmm.mmmm format
+    v1 stations however only saved decimal minutes (mm.mmmmm) as float<=60. '
+    In this case, we use the integer part of the latitude given in the config 
+    file and append the gps value after it.
+        
     Parameters
     ----------
     pos_arr : xr.Dataarray
-        GPS position array
+        Array of latitude or longitude measured by the GPS
     attrs : dict
-        Array attributes
+        The global attribute 'latitude' or 'longitude' associated with the 
+        file being processed. It is the standard latitude/longitude given in the 
+        config file for that station.
     
     Returns
     -------
     pos_arr : xr.Dataarray
-        Formatted GPS position array
+        Formatted GPS position array in decimal degree
     '''       
     if np.any((pos_arr <= 90) & (pos_arr > 0)):  
-        pos_arr = pos_arr + 100*attrs
+        # then pos_arr is in decimal minutes, so we add to it the integer 
+        # part of the latitude given in the config file x100
+        # so that it reads ddmm.mmmmmm like for v2 and v3 files
+        # Note that np.sign and np.attrs handles negative longitudes.
+        pos_arr = np.sign(attrs) * (pos_arr + 100*np.floor(np.abs(attrs)))
     a = pos_arr.attrs                                                     
     pos_arr = np.floor(pos_arr / 100) + (pos_arr / 100 - np.floor(pos_arr / 100)) * 100 / 60
     pos_arr.attrs = a 
