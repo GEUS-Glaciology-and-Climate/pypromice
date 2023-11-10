@@ -1,8 +1,7 @@
 # pypromice
-[![PyPI version](https://badge.fury.io/py/pypromice.svg)](https://badge.fury.io/py/pypromice)
-[![](<https://img.shields.io/badge/Dataverse DOI-10.22008/FK2/3TSBF0-orange>)](https://www.doi.org/10.22008/FK2/3TSBF0) [![DOI](https://joss.theoj.org/papers/10.21105/joss.05298/status.svg)](https://doi.org/10.21105/joss.05298) [![Documentation Status](https://readthedocs.org/projects/pypromice/badge/?version=latest)](https://pypromice.readthedocs.io/en/latest/?badge=latest)
+[![PyPI version](https://badge.fury.io/py/pypromice.svg)](https://badge.fury.io/py/pypromice) [![Anaconda-Server Badge](https://anaconda.org/conda-forge/pypromice/badges/version.svg)](https://anaconda.org/conda-forge/pypromice) [![Anaconda-Server Badge](https://anaconda.org/conda-forge/pypromice/badges/platforms.svg)](https://anaconda.org/conda-forge/pypromice) [![](<https://img.shields.io/badge/Dataverse DOI-10.22008/FK2/3TSBF0-orange>)](https://www.doi.org/10.22008/FK2/3TSBF0) [![DOI](https://joss.theoj.org/papers/10.21105/joss.05298/status.svg)](https://doi.org/10.21105/joss.05298) [![Documentation Status](https://readthedocs.org/projects/pypromice/badge/?version=latest)](https://pypromice.readthedocs.io/en/latest/?badge=latest)
  
-pypromice is designed for processing and handling [PROMICE](https://promice.dk) automated weather station (AWS) data.
+pypromice is designed for processing and handling [PROMICE](https://promice.org) automated weather station (AWS) data.
 
 It is envisioned for pypromice to be the go-to toolbox for handling and processing [PROMICE](https://promice.dk) and [GC-Net](http://cires1.colorado.edu/steffen/gcnet/) datasets. New releases of pypromice are uploaded alongside PROMICE AWS data releases to our [Dataverse](https://dataverse.geus.dk/dataverse/PROMICE) for transparency purposes and to encourage collaboration on improving our data. Please visit the pypromice [readthedocs](https://pypromice.readthedocs.io/en/latest/?badge=latest) for more information. 
 
@@ -18,7 +17,11 @@ If you intend to use PROMICE AWS data and/or pypromice in your work, please cite
 
 ### Quick install
 
-The latest release of pypromice can installed using pip:
+The latest release of pypromice can installed using conda or pip:
+
+```
+$ conda install pypromice -c conda-forge
+```
 
 ```
 $ pip install pypromice
