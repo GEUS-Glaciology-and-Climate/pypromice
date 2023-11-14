@@ -200,7 +200,7 @@ def get_bufr():
 						df1_limited, positions = find_positions(df1, stid, args.time_limit, current_timestamp, positions)
 					else:
 						# we only need to add positions to the BUFR file
-						df1_limited = find_positions(df1, stid, args.time_limit, current_timestamp)
+						df1_limited, _ = find_positions(df1, stid, args.time_limit, current_timestamp)
 
 					# Apply smoothing to z_boom_u
 					# require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
