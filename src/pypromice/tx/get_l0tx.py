@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from configparser import ConfigParser
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 
 import toml
 
@@ -16,7 +16,7 @@ from pypromice.tx import getMail, L0tx, sortLines
 def get_l0tx_argument_parser() -> ArgumentParser:
     parser = ArgumentParser(description="AWS L0 transmission fetcher")
     parser.add_argument('-a', '--account', required=True, help='Email account .ini file')
-    parser.add_argument('-p', '--password', required=True, help='Email credentials .ini file')
+    parser.add_argument('-p', '--credentials', '--password', required=True, help='Email credentials .ini file')
     parser.add_argument('-c', '--config', required=True, help='Directory to config .toml files')
     parser.add_argument('-u', '--uid', required=True, help='Last AWS uid .ini file')
     parser.add_argument('-o', '--outpath', default=None, required=False,
@@ -26,10 +26,11 @@ def get_l0tx_argument_parser() -> ArgumentParser:
     parser.add_argument('-t', '--types', default=None, required=False, help='Path to Payload type .csv file')
     return parser
 
-
 def get_l0tx(
-        account_file: str,
-        credentials_file: str,
+        account: str,
+        server: str,
+        port: int,
+        password: Optional[str],
         config_dir: str,
         uid_file: str,
         formatter_file: Optional[str] = None,
@@ -60,21 +61,11 @@ def get_l0tx(
 
     # ----------------------------------
 
-    # Define accounts and credentials ini file paths
-    accounts_ini = ConfigParser()
-    with open(account_file) as fp:
-        accounts_ini.read_file(fp)
-    with open(credentials_file) as fp:
-        accounts_ini.read_file(fp)
     # Get last email uid
     with open(uid_file) as last_uid_f:
         last_uid = int(last_uid_f.readline())
 
     # Get credentials
-    account = accounts_ini.get('aws', 'account')
-    server = accounts_ini.get('aws', 'server')
-    port = accounts_ini.getint('aws', 'port')
-    password = accounts_ini.get('aws', 'password')
     if not password:
         password = input('password for AWS email account: ')
     print('AWS data from server %s, account %s' % (server, account))
@@ -174,9 +165,19 @@ def get_l0tx(
 
 if __name__ == "__main__":
     args = get_l0tx_argument_parser().parse_args()
+
+    # Get credentials from account and credentials files
+    accounts_ini = ConfigParser()
+    accounts_ini.read_file([
+        args.account,
+        args.credentials,
+    ])
+
     get_l0tx(
-        account_file=args.account,
-        credentials_file=args.password,
+        account = accounts_ini.get('aws', 'account'),
+        server = accounts_ini.get('aws', 'server'),
+        port = accounts_ini.getint('aws', 'port'),
+        password = accounts_ini.get('aws', 'password'),
         config_dir=args.config,
         uid_file=args.uid,
         formatter_file=args.formats,

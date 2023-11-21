@@ -25,7 +25,7 @@ def instantiate_station_status() -> pd.DataFrame:
             names=["stid", "step"],
             codes=[(), ()],
         ),
-        columns=["datetime"],
+        columns=["datetime", "failed"],
     )
 
 

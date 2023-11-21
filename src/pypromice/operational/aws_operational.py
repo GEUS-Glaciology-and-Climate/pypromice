@@ -3,7 +3,7 @@ import logging
 import multiprocessing
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Mapping
 
 import attrs
 import pandas as pd
@@ -23,7 +23,6 @@ from pypromice.operational.station_status import (
     parse_l0_tx_filename,
 )
 from pypromice.postprocess.bufr_upload import (
-    DMIConfig,
     concat_bufr_files,
     upload_bufr,
 )
@@ -31,38 +30,57 @@ from pypromice.postprocess.get_bufr import get_bufr
 from pypromice.process.get_l3 import get_l3
 from pypromice.process.join_l3 import join_l3
 from pypromice.tx.get_l0tx import get_l0tx
+from pypromice.utilities.config_io import load_toml_files
 
 # %%
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+DEFAULT_L0_REPOSITORY_BRANCH = "main"
+DEFAULT_PROMICE_DATA_ISSUES_BRANCH = "master"
+
+
 @attrs.define(kw_only=True)
 class AWSOperational:
-    l0_repository_path: Path
-    l3_repository_path: Path
-    promice_data_issues: Path
-    bufr_output_path: Path
-    dmi_config: Optional[DMIConfig]
-    account_file: Path
-    credentials_file: Path
-    l0_tx_uid_path: Path
+    l0_repository_path: Path = attrs.field(converter=Path)
+    l3_repository_path: Path = attrs.field(converter=Path)
+    promice_data_issues: Path = attrs.field(converter=Path)
+    bufr_output_path: Path = attrs.field(converter=Path)
+    dmi_config: Optional[Mapping] = attrs.field(repr=False)
+    gmail_config: Optional[Mapping] = attrs.field(repr=False)
+    l0_tx_uid_path: Path = attrs.field(
+        converter=Path,
+    )
     aws_fileshare: AWSFileshare
 
-    status_path: Path
+    status_path: Path = attrs.field(converter=Path)
 
-    l0_repository_branch: str = "main"
-    promice_data_issues_branch: str = "master"
+    l0_repository_branch: str = DEFAULT_L0_REPOSITORY_BRANCH
+    promice_data_issues_branch: str = DEFAULT_PROMICE_DATA_ISSUES_BRANCH
     max_processes: Optional[int] = None
 
-    _station_status: pd.DataFrame = attrs.field()
+    _station_status: pd.DataFrame = attrs.field(factory=instantiate_station_status)
 
-    @_station_status.default
-    def _station_status_factory(self):
+    def __attrs_post_init__(self):
         if self.status_path.exists():
-            return load_station_status(self.status_path)
-        else:
-            return instantiate_station_status()
+            self._station_status = load_station_status(self.status_path)
+
+    @classmethod
+    def from_config_file(cls, *config_files: Path) -> "AWSOperational":
+        config = load_toml_files(*config_files)
+        aws_operational = config["aws_operational"]
+        gmail_config = config.get("aws")
+        dmi_config = config.get("dmi")
+
+        aws_fileshare = AWSFileshare(root=aws_operational.pop("aws_fileshare"))
+
+        return cls(
+            **aws_operational,
+            aws_fileshare=aws_fileshare,
+            gmail_config=gmail_config,
+            dmi_config=dmi_config,
+        )
 
     def get_station_status(self) -> pd.DataFrame:
         return (
@@ -189,8 +207,6 @@ class AWSOperational:
 
     def get_l0tx(self):
         get_l0tx(
-            account_file=self.account_file.as_posix(),
-            credentials_file=self.credentials_file.as_posix(),
             config_dir=self.l0_tx_path.joinpath("config").as_posix(),
             uid_file=self.l0_tx_uid_path.as_posix(),
             out_dir=self.l0_tx_path.as_posix(),
@@ -310,9 +326,9 @@ class AWSOperational:
             f"Size of concatenated file: {concat_output_path.stat().st_size} bytes"
         )
 
-        if False and self.dmi_config is not None:
+        if False and isinstance(self.dmi_config, Mapping):
             logger.info("Upload to DMI")
-            upload_bufr(concat_output_path, self.dmi_config)
+            upload_bufr(concat_output_path, **self.dmi_config)
             logger.info("Done")
         else:
             logger.info("Skipping BUFR upload")
@@ -354,32 +370,6 @@ class AWSOperational:
 
 
 # %% Production instance
-def production(aws_operational: AWSOperational):
-    """
-    Assume the modified time stamps in the input folder are correct.
-    This is not the case if it is a git repository after pull
-    """
-    aws_operational.pull_l0_repository()
-    aws_operational.pull_issues_repository()
-    aws_operational.get_l0tx()
-    aws_operational.commit_l0_repository()
-    aws_operational.process_tx()
-    aws_operational.export_bufr()
-    aws_operational.process_raw()
-    aws_operational.process_level3()
-    aws_operational.sync_l3()
-    aws_operational.push_l0_repository()
-
-
-def glacio01(aws_operational: AWSOperational):
-    aws_operational.pull_l0_repository()
-    aws_operational.pull_issues_repository()
-    aws_operational.read_l0_file_modified()
-    aws_operational.process_tx()
-    aws_operational.export_bufr()
-    aws_operational.process_raw()
-    aws_operational.process_level3()
-    aws_operational.commit_l0_repository()
 
 
 if __name__ == "__main__":
@@ -389,22 +379,7 @@ if __name__ == "__main__":
         level=logging.INFO,
     )
 
-    aws_operational = AWSOperational(
-        account_file=Path("/Users/maclu/work/pypromice/credentials/accounts.ini"),
-        credentials_file=Path(
-            "/Users/maclu/work/pypromice/credentials/credentials.ini"
-        ),
-        l0_tx_uid_path=Path("/Users/maclu/work/pypromice/credentials/last_aws_uid.ini"),
-        l0_repository_path=Path("/Users/maclu/data/aws-l0"),
-        l0_repository_branch="test/new_operation_script",
-        l3_repository_path=Path("/Users/maclu/data/aws-l3"),
-        promice_data_issues=Path("/Users/maclu/data/PROMICE-AWS-data-issues"),
-        bufr_output_path=Path("/Users/maclu/work/pypromice/scratch/tmp_output/bufr/"),
-        status_path=Path("/Users/maclu/work/pypromice/scratch/tmp_output/status.csv"),
-        max_processes=4,
-        dmi_config=None,
-        aws_fileshare=AWSFileshare(
-            root=Path("/Users/maclu/work/pypromice/scratch/tmp_output/fileshare/")
-        ),
+    aws_operational = AWSOperational.from_config_file(
+        Path("/Users/maclu/work/pypromice/configurations/maclu_laptop.toml"),
+        Path("/Users/maclu/work/pypromice/credentials/credentials.toml"),
     )
-    production(aws_operational)

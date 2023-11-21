@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 @attrs.define
 class AWSFileshare:
-    root: Path
+    root: Path = attrs.field(converter=Path)
     exclude = ("XXX", "CEN")
 
     @property
