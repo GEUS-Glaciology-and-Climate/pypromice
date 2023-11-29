@@ -36,6 +36,9 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
             ds[l] = _reformatArray(ds[l])
 
+    #Perform range threshold before all corrections are applied
+    ds = clip_values(ds, vars_df)
+
     # ds['time_orig'] = ds['time'] # Not used
 
     # The following drops duplicate datetime indices. Needs to run before _addTimeShift!
