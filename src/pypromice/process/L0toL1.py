@@ -36,9 +36,6 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
             ds[l] = _reformatArray(ds[l])
 
-    #Perform range threshold before all corrections are applied
-    ds = clip_values(ds, vars_df)
-
     # ds['time_orig'] = ds['time'] # Not used
 
     # The following drops duplicate datetime indices. Needs to run before _addTimeShift!
@@ -60,7 +57,9 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
         ds['ulr'] = ((ds['ulr'] * 10) / ds.attrs['ulr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
 
     ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
-    ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u'] + T_0)/T_0)**0.5             # Adjust sonic ranger readings for sensitivity to air temperature       
+    
+    ds['t_u_interp'] = interpTemp(ds['t_u'], vars_df)
+    ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u_interp'] + T_0)/T_0)**0.5      # Adjust sonic ranger readings for sensitivity to air temperature       
     
     if ds['gps_lat'].dtype.kind == 'O':                                        # Decode and reformat GPS information
         if 'NH' in ds['gps_lat'].dropna(dim='time').values[1]:
@@ -116,7 +115,8 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
         
     elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height    
-        ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l'] + T_0)/T_0)**0.5         # Adjust sonic ranger readings for sensitivity to air temperature    
+        ds['t_l_interp'] = interpTemp(ds['t_l'], vars_df)
+        ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l_interp']+ T_0)/T_0)**0.5   # Adjust sonic ranger readings for sensitivity to air temperature    
 
     ds = clip_values(ds, vars_df)
     for key in ['hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
@@ -256,6 +256,41 @@ def getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef):
     z_pt = z_pt * pt_z_coef * pt_z_factor * 998.0 / rho_af
     
     return z_pt_cor, z_pt
+
+
+def interpTemp(temp, var_configurations, max_interp=pd.Timedelta(12,'h')):
+    '''Clip and interpolate temperature dataset for use in corrections
+    
+    Parameters
+    ----------
+    temp : `xarray.DataArray`
+        Array of temperature data
+    vars_df : `pandas.DataFrame`
+        Dataframe to retrieve attribute hi-lo values from for temperature clipping
+    max_interp : `pandas.Timedelta`
+        Maximum time steps to interpolate across. The default is 12 hours.
+    
+    Returns
+    -------
+    temp_interp : `xarray.DataArray`
+        Array of interpolatedtemperature data
+    '''
+    # Determine if upper or lower temperature array
+    var = temp.name.lower()
+    
+    # Find range threshold and use it to clip measurements
+    cols = ["lo", "hi", "OOL"]
+    assert set(cols) <= set(var_configurations.columns)
+    variable_limits = var_configurations[cols].dropna(how="all")
+    temp = temp.where(temp >= variable_limits.loc[var,'lo'])
+    temp = temp.where(temp <= variable_limits.loc[var, 'hi'])
+    
+    # Drop duplicates and interpolate across NaN values
+    temp_interp = temp.drop_duplicates(dim='time', keep='first')
+    temp_interp = temp_interp.interpolate_na(dim='time', max_gap=max_interp)
+    
+    return temp_interp
+
 
 def smoothTilt(tilt, win_size):
     '''Smooth tilt values using a rolling window. This is translated from the
