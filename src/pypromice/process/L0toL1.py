@@ -286,8 +286,8 @@ def interpTemp(temp, var_configurations, max_interp=pd.Timedelta(12,'h')):
     temp = temp.where(temp <= variable_limits.loc[var, 'hi'])
     
     # Drop duplicates and interpolate across NaN values
-    temp_interp = temp.drop_duplicates(dim='time', keep='first')
-    temp_interp = temp_interp.interpolate_na(dim='time', max_gap=max_interp)
+#    temp_interp = temp.drop_duplicates(dim='time', keep='first')
+    temp_interp = temp.interpolate_na(dim='time', max_gap=max_interp)
     
     return temp_interp
 
