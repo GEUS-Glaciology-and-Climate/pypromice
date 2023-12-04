@@ -29,6 +29,7 @@ def clip_values(
 
     variable_limits = var_configurations[cols].dropna(how="all")
     for var, row in variable_limits.iterrows():
+
         if var not in list(ds.variables):
             continue
 
@@ -56,4 +57,5 @@ def clip_values(
                         ds[var] = ds[var].where(ds[var] >= row.lo)
                     if ~np.isnan(row.hi):
                         ds[var] = ds[var].where(ds[var] <= row.hi)
+
     return ds
