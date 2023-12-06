@@ -29,5 +29,5 @@ if __name__ == '__main__':
         level=logging.INFO,
     )
 
-    aws_operational = AWSOperational.from_config_file(args.configuration_file)
+    aws_operational = AWSOperational.from_config_file(*args.configuration_file)
     glacio01(aws_operational)
