@@ -36,7 +36,7 @@ def flagNAN(ds_in,
     ds : xr.Dataset
         Level 0 data with flagged data
     '''
-    ds = ds_in.copy()
+    ds = ds_in.copy(deep=True)
     df = None
 
     df = _getDF(flag_url + ds.attrs["station_id"] + ".csv",
@@ -99,7 +99,7 @@ def adjustTime(ds,
     ds : xr.Dataset
         Level 0 data with flagged data
     '''
-    ds_out = ds.copy()
+    ds_out = ds.copy(deep=True)
     adj_info=None
 
     adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
@@ -165,7 +165,7 @@ def adjustData(ds,
     ds : xr.Dataset
         Level 0 data with flagged data
     '''
-    ds_out = ds.copy()
+    ds_out = ds.copy(deep=True)
     adj_info=None
     adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
                       os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"),
