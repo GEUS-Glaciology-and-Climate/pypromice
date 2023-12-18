@@ -177,8 +177,8 @@ def adjustData(ds,
         adj_info = adj_info.loc[adj_info.adjust_function != "time_shift", :]
 
         # if t1 is left empty, then adjustment is applied until the end of the file
-        adj_info.loc[adj_info.t0.isnull(), "t0"] = ds_out.time.values[0]
-        adj_info.loc[adj_info.t1.isnull(), "t1"] = ds_out.time.values[-1]
+        adj_info.loc[adj_info.t0.isnull(), "t0"] = pd.to_datetime(ds_out.time.values[0], utc=True)
+        adj_info.loc[adj_info.t1.isnull(), "t1"] = pd.to_datetime(ds_out.time.values[-1], utc=True)
         # making all timestamps timezone naive (compatibility with xarray)
         adj_info.t0 = pd.to_datetime(adj_info.t0).dt.tz_localize(None)
         adj_info.t1 = pd.to_datetime(adj_info.t1).dt.tz_localize(None)
