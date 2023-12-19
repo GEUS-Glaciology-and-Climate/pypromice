@@ -71,7 +71,7 @@ def flagNAN(ds_in,
 
                 for v in varlist:
                     if v in list(ds.keys()):
-                        logger.info(f'---> flagging {t0} {t1} {v}')
+                        logger.info(f'---> flagging {v} between {t0} and {t1}')
                         ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
                     else:
                         logger.info(f'---> could not flag {v} not in dataset')
@@ -227,7 +227,7 @@ def adjustData(ds,
                     logger.info("Time range does not intersect with dataset")
                     continue
 
-                logger.info(f'---> {t0} {t1} {var} {func} {val}')
+                logger.info(f'---> adjusting {var} between {t0} and {t1} ({func} {val})')
 				
                 if func == "add":
                     ds_out[var].loc[index_slice] = ds_out[var].loc[index_slice].values + val
