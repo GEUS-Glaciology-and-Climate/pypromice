@@ -260,8 +260,8 @@ def adjustData(ds,
 
                 if func == "upper_perc_filter":
                     tmp = ds_out[var].loc[index_slice].copy()
-                    df_w = ds_out[var].loc[index_slice].resample("14D").quantile(1 - val / 100)
-                    df_w = ds_out[var].loc[index_slice].resample("14D").var()
+                    df_w = ds_out[var].loc[index_slice].resample(time="14D").quantile(1 - val / 100)
+                    df_w = ds_out[var].loc[index_slice].resample(time="14D").var()
                     for m_start, m_end in zip(df_w.time[:-2], df_w.time[1:]):
                         msk = (tmp.time >= m_start) & (tmp.time < m_end)
                         values_month = tmp.loc[msk].values
@@ -271,22 +271,15 @@ def adjustData(ds,
                     ds_out[var].loc[index_slice] = tmp.values
 
                 if func == "biweekly_upper_range_filter":
-                    tmp = ds_out[var].loc[index_slice].copy()
-                    df_max = ds_out[var].loc[index_slice].resample("14D").max()
-                    for m_start, m_end in zip(df_max.time[:-2], df_max.time[1:]):
-                        msk = (tmp.time >= m_start) & (tmp.time < m_end)
-                        lim = df_max.loc[m_start] - val
-                        values_month = tmp.loc[msk].values
-                        values_month[values_month < lim] = np.nan
-                        tmp.loc[msk] = values_month
-                    # remaining samples following outside of the last 2 weeks window
-                    msk = tmp.time >= m_end
-                    lim = df_max.loc[m_start] - val
-                    values_month = tmp.loc[msk].values
-                    values_month[values_month < lim] = np.nan
-                    tmp.loc[msk] = values_month
-                    # updating original pandas
-                    ds_out[var].loc[index_slice] = tmp.values
+                    df_max = (
+                        ds_out[var].loc[index_slice].copy(deep=True)
+                        .resample(time="14D",offset='7D').max()
+                        .sel(time=ds_out[var].loc[index_slice].time.values, method='ffill')
+                        )
+                    df_max['time'] = ds_out[var].loc[index_slice].time
+                    # updating original pandas                   
+                    ds_out[var].loc[index_slice] = ds_out[var].loc[index_slice].where(ds_out[var].loc[index_slice] > df_max-val)
+                                        
 
                 if func == "hampel_filter":
                     tmp = ds_out[var].loc[index_slice]
