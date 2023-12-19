@@ -176,6 +176,11 @@ def adjustData(ds,
         # removing potential time shifts from the adjustment list
         adj_info = adj_info.loc[adj_info.adjust_function != "time_shift", :]
 
+        # making sure that t0 and t1 columns are object dtype then replaceing nan with None
+        adj_info[['t0','t1']] = adj_info[['t0','t1']].astype(object)
+        adj_info.loc[adj_info.t1.isnull()|(adj_info.t1==''), "t1"] = None      
+        adj_info.loc[adj_info.t0.isnull()|(adj_info.t0==''), "t0"] = None
+		
         # if "*" is in the variable name then we interpret it as regex
         selec =  adj_info['variable'].str.contains('\*') & (adj_info['variable'] != "*")
         for ind in adj_info.loc[selec, :].index:
