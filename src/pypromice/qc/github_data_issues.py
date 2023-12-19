@@ -180,7 +180,8 @@ def adjustData(ds,
         adj_info.loc[adj_info.t0.isnull(), "t0"] = pd.to_datetime(ds_out.time.values[0], utc=True)
         adj_info.loc[adj_info.t1.isnull(), "t1"] = pd.to_datetime(ds_out.time.values[-1], utc=True)
         # making all timestamps timezone naive (compatibility with xarray)
-        adj_info.t0 = pd.to_datetime(adj_info.t0).dt.tz_localize(None)
+        adj_info.t0 = pd.to_datetime(adj_info.t0, utc=True).dt.tz_localize(None)
+        adj_info.t1 = pd.to_datetime(adj_info.t1, utc=True).dt.tz_localize(None)
         adj_info.t1 = pd.to_datetime(adj_info.t1).dt.tz_localize(None)
 
         # if "*" is in the variable name then we interpret it as regex
