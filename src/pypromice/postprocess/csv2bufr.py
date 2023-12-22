@@ -187,46 +187,34 @@ def setAWSvariables(
     setBUFRvalue(ibufr, 'hour', timestamp.hour)
     setBUFRvalue(ibufr, 'minute', timestamp.minute)
 
-    vars_dict = {
-        'relativeHumidity': 'rh_i', # DMI wants non-corrected rh
-        'airTemperature': 't_i',
-        'pressure': 'p_i',
-        'windDirection': 'wdir_i',
-        'windSpeed': 'wspd_i'
-    }
-    for bufr_key, source_var in vars_dict.items():
-        if (stid in vars_to_skip) and (source_var in vars_to_skip[stid]):
-            print('----> Skipping var: {} {}'.format(stid,source_var))
-        else:
-            setBUFRvalue(ibufr, bufr_key, row[source_var])
+    setBUFRvalue(ibufr, "relativeHumidity", row["relativeHumidity"])
+    setBUFRvalue(ibufr, "airTemperature", row["airTemperature"])
+    setBUFRvalue(ibufr, "pressure", row["pressure"])
+    setBUFRvalue(ibufr, "windDirection", row["windDirection"])
+    setBUFRvalue(ibufr, "windSpeed", row["windSpeed"])
+
+    setBUFRvalue(ibufr, 'latitude', row['latitude'])
 
     # Set position metadata
-    setBUFRvalue(ibufr, 'latitude', row['gps_lat_fit'])
-    setBUFRvalue(ibufr, 'longitude', row['gps_lon_fit'])
-    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['gps_alt_fit']) # also height and heightOfStation?
+    setBUFRvalue(ibufr, 'latitude', row['latitude'])
+    setBUFRvalue(ibufr, 'longitude', row['longitude'])
+    setBUFRvalue(ibufr, 'heightOfStationGroundAboveMeanSeaLevel', row['heightOfStationGroundAboveMeanSeaLevel']) # also height and heightOfStation?
 
     # The ## in the codes_set() indicate the position in the BUFR for the parameter.
     # e.g. #10#timePeriod will assign to the 10th occurence of "timePeriod", which corresponds
     # to the wind speed section. Note that both the "synopMobil" and "synopLand" templates
     # appear to have the same positions for all parameters that are set here.
     # View the output BUFR to see section keys with 'bufr_dump filename.bufr'.
-    if math.isnan(row['wspd_i']) is False:
+    if math.isnan(row['windSpeed']) is False:
         #Set time significance (2=temporally averaged)
         codes_set(ibufr, '#1#timeSignificance', 2)
         #Set monitoring time period (-10=10 minutes)
         codes_set(ibufr, '#10#timePeriod', -10)
 
     #Set measurement heights
-    if math.isnan(row['z_boom_u_smooth']) is False:
-        codes_set(ibufr,
-                  '#1#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
-                  row['z_boom_u_smooth']-0.1) # For air temp and RH
-        codes_set(ibufr,
-                  '#7#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
-                  row['z_boom_u_smooth']+0.4) # For wind speed
-    if math.isnan(row['gps_alt_fit']) is False:
-        codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel',
-                  row['gps_alt_fit'] + barometer_height_relative_to_gps) # For pressure
+    setBUFRvalue(ibufr,'#1#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', row['heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH'])
+    setBUFRvalue(ibufr,'#7#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform', row['heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD'])
+    setBUFRvalue(ibufr, 'heightOfBarometerAboveMeanSeaLevel',row['heightOfBarometerAboveMeanSeaLevel']) # For pressure
 
 
 def setBUFRvalue(ibufr, b_name, value):
@@ -347,31 +335,6 @@ def rolling_window(df, column, window, min_periods, decimals):
         ).median().round(decimals=decimals) # could also round to whole meters (decimals=0)
     return df
 
-def round_values(s):
-    '''Enforce precision
-    Note the sensor accuracies listed here:
-    https://essd.copernicus.org/articles/13/3819/2021/#section8
-    In addition to sensor accuracy, WMO requires pressure and heights
-    to be reported at 0.1 precision.
-    
-    Parameters
-    ----------
-    s : pandas series (could also be a dataframe)
-
-    Returns
-    -------
-    s : modified pandas series (could also be a dataframe)
-    '''
-    s['rh_i'] = s['rh_i'].round(decimals=0)
-    s['wspd_i'] = s['wspd_i'].round(decimals=1)
-    s['wdir_i'] = s['wdir_i'].round(decimals=0)
-    s['t_i'] = s['t_i'].round(decimals=1)
-    s['p_i'] = s['p_i'].round(decimals=1)
-
-    # gps_lat,gps_lon,gps_alt,z_boom_u are all rounded in linear_fit() or rolling_window()
-    return s
-
-
 def find_positions(df, stid, time_limit, current_timestamp=None, positions=None):
     ''' Driver function to run linear_fit() and set valid lat, lon, and alt
     to df_limited, which is then used to set position data in BUFR.
@@ -439,6 +402,8 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
 
         # SET POSITIONS FOR CSV FILE
         if positions is not None:
+            if stid not in positions:
+                positions[stid] = dict()
             if current_timestamp is None:
                 # This is old data (> 2 days), not submitting to DMI, but writing to positions csv
                 # Find the most recent row that has valid lat, lon and alt

@@ -5,34 +5,26 @@ Command-line script for running BUFR file generation
 Created: Dec 20, 2022
 Author: Patrick Wright, GEUS
 """
+import argparse
+import glob
+import logging
+import os
+import pickle
+from datetime import datetime, timedelta
 from typing import List, Dict
 
-import logging
-
+import numpy as np
 import pandas as pd
-import glob, os
-import argparse
-from datetime import datetime, timedelta
-import pickle
 
-from pypromice.postprocess.wmo_config import (
-    ibufr_settings,
-    stid_to_skip,
-    positions_seed,
-    positions_update_timestamp_only,
-)
+from pypromice.postprocess import wmo_config
 from pypromice.postprocess.csv2bufr import (
     getBUFR,
-    linear_fit,
-    rolling_window,
-    round_values,
-    find_positions,
-    min_data_check,
 )
-from pypromice.postprocess import wmo_config
-from pypromice.postprocess.wmo_config import ibufr_settings, positions_seed, positions_update_timestamp_only
-from pypromice.postprocess.csv2bufr import getBUFR, linear_fit, rolling_window, round_values, \
-										   find_positions, min_data_check
+from pypromice.postprocess.real_time_utilities import get_latest_data
+from pypromice.postprocess.wmo_config import ibufr_settings, positions_seed
+from pypromice.postprocess.wmo_config import (
+    vars_to_skip,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +99,13 @@ def get_bufr(
         timestamps_pickle_filepath,
         now_timestamp: datetime,
         stid_to_skip: Dict[str, List[str]],
+        earliest_date: datetime = None,
         dev: bool = False,
         store_positions: bool = False,
         time_limit: str = "3M",
     ):
+    if earliest_date is None:
+        earliest_date = now_timestamp - timedelta(days=2)
     # Get list of relative file paths
     fpaths = glob.glob(l3_filepath)
 
@@ -136,6 +131,8 @@ def get_bufr(
         # Used to retrieve a static set of positions to register stations with DMI/WMO
         # Also used to write AWS_latest_locations.csv to aws-L3 repo
         positions = positions_seed
+    else:
+        positions = None
 
     # Define stations to skip
     to_skip = []
@@ -146,7 +143,6 @@ def get_bufr(
     # Setup diagnostic lists (logger.info at end)
     skipped = []
     no_recent_data = []
-    no_valid_data = []
     no_entry_latest_timestamps = []
     failed_min_data_wx = []
     failed_min_data_pos = []
@@ -160,171 +156,58 @@ def get_bufr(
         stid = file_path[first_index + 1 : last_index]
         # stid = f.split('/')[-1].split('.csv')[0][:-5]
         logger.info("####### Processing {} #######".format(stid))
-        if ("Roof" not in file_path) and (stid not in to_skip):
-            bufrname = stid + ".bufr"
-            logger.info(f"Generating {bufrname} from {file_path}")
-
-            # TODO: Consider the store positions
-            if store_positions and (stid not in positions_update_timestamp_only):
-                positions[stid] = {}
-                # Optionally include source flag columns, useful to indicate if position
-                # comes from current transmission, or older data. This could also be used
-                # to differentiate GPS from modem, but using the combine_first method for
-                # the modem positions currently prevents us from easily knowing which source
-                # was used.
-                # positions[stid]['lat_source'] = ''
-                # positions[stid]['lon_source'] = ''
-
-            # Read csv file
-            df1 = (
-                pd.read_csv(file_path, delimiter=",")
-                .assign(time=lambda df: pd.to_datetime(df["time"]))
-                .set_index("time")
-                .sort_index()
-                .assign(time=lambda df: df.index)
-            )
-            # df1.set_index(pd.to_datetime(df1['time']), inplace=True)
-            # df1.sort_index(inplace=True) # make sure we are time-sorted
-
-            # Check that the last valid index for all instantaneous values match
-            # Note: we cannot always use the single most-recent timestamp in the dataframe
-            # e.g. for 6-hr transmissions, *_u will have hourly data while *_i is nan
-            # Need to check for last valid (non-nan) index instead
-            last_valid_indices = {
-                "t_i": df1["t_i"].last_valid_index(),
-                "p_i": df1["p_i"].last_valid_index(),
-                "rh_i": df1["rh_i"].last_valid_index(),
-                "wspd_i": df1["wspd_i"].last_valid_index(),
-                "wdir_i": df1["wdir_i"].last_valid_index(),
-            }
-
-            two_days_ago = now_timestamp - timedelta(days=2)
-
-            if len(set(last_valid_indices.values())) != 1:
-                # instantaneous vars have different timestamps
-                recent = {}
-                for k, v in last_valid_indices.items():
-                    if (v is not None) and (v >= two_days_ago):
-                        recent[k] = v
-                if len(recent) == 0:
-                    logger.info("No recent instantaneous timestamps!")
-                    no_recent_data.append(stid)
-                    if store_positions:
-                        df1_limited, positions = find_positions(df1, stid, time_limit, positions=positions)
-                    continue
-                else:
-                    # we have partial data, just use the most recent row
-                    current_timestamp = max(recent.values())
-                    # We will throw this obset down the line, and there is a final min_data_check
-                    # to make sure we have minimum data requirements before writing to BUFR
-            else:
-                if all(i is None for i in last_valid_indices.values()) is True:
-                    logger.info("All instantaneous timestamps are None!")
-                    no_valid_data.append(stid)
-                    if store_positions:
-                        df1_limited, positions = find_positions(
-                            df1, stid, time_limit, positions=positions
-                        )
-                    continue
-                else:
-                    # all values are present, with matching timestamps, so just use t_i
-                    current_timestamp = df1["t_i"].last_valid_index()
-
-            logger.info(f"TIMESTAMP: {current_timestamp}")
-
-            # set in dict, will be written to disk at end
-            current_timestamps[stid] = current_timestamp
-
-            if stid in latest_timestamps:
-                latest_timestamp = latest_timestamps[stid]
-
-                if dev is True:
-                    logger.info("----> Running in dev mode!")
-                    # If we want to run repeatedly (before another transmission comes in), then don't
-                    # check the actual latest timestamp, and just set to two_days_ago
-                    latest_timestamp = two_days_ago
-
-                if (current_timestamp > latest_timestamp) and (
-                    current_timestamp > two_days_ago
-                ):
-                    logger.info("Time checks passed.")
-
-                    if store_positions:
-                        # return positions dict for writing to csv file after processing finished
-                        df1_limited, positions = find_positions(
-                            df1, stid, time_limit, current_timestamp, positions
-                        )
-                    else:
-                        # we only need to add positions to the BUFR file
-                        df1_limited, _ = find_positions(
-                            df1, stid, time_limit, current_timestamp
-                        )
-
-                    # Apply smoothing to z_boom_u
-                    # require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
-                    df1_limited = rolling_window(df1_limited, "z_boom_u", "72H", 2, 1)
-
-                    # limit to single most recent valid row (convert to series)
-                    s1_current = df1_limited.loc[current_timestamp]
-
-                    # Convert air temp, C to Kelvin
-                    s1_current.t_i = s1_current.t_i + 273.15
-
-                    # Convert pressure, correct the -1000 offset, then hPa to Pa
-                    # note that instantaneous pressure has 0.1 hPa precision
-                    s1_current.p_i = (s1_current.p_i + 1000.0) * 100.0
-
-                    s1_current = round_values(s1_current)
-
-                    # Check that we have minimum required valid data
-                    min_data_wx_result, min_data_pos_result = min_data_check(
-                        s1_current, stid
-                    )
-                    if min_data_wx_result is False:
-                        failed_min_data_wx.append(stid)
-                        continue
-                    elif min_data_pos_result is False:
-                        failed_min_data_pos.append(stid)
-                        continue
-
-                    # Construct and export BUFR file
-                    outBUFR_path = os.path.join(outFiles, bufrname)
-                    file_removed = getBUFR(s1_current, outBUFR_path, stid, land_stids)
-
-                    if file_removed is False:
-                        logger.info(
-                            f"Successfully exported bufr file to {outFiles+bufrname}"
-                        )
-                else:
-                    logger.info("----> Time checks failed for {}".format(stid))
-                    logger.info(f"      current: {current_timestamp}")
-                    if dev is True:
-                        logger.info(f" latest (DEV): {latest_timestamp}")
-                    else:
-                        logger.info(f"       latest: {latest_timestamp}")
-                    no_recent_data.append(stid)
-                    if store_positions:
-                        current_timestamp = None
-                        df1_limited, positions = find_positions(
-                            df1, stid, time_limit, current_timestamp, positions
-                        )
-            else:
-                logger.info("{} not found in latest_timestamps".format(stid))
-                no_entry_latest_timestamps.append(stid)
-        else:
-            logger.info("----> Skipping {} as per stid_to_skip config".format(stid))
+        if ("Roof" in file_path) or (stid in to_skip):
+            logger.info(f"----> Skipping {stid} as per stid_to_skip config")
             skipped.append(stid)
-            if store_positions and stid not in ("XXX",):
-                # still will be useful to have all stations in AWS_station_location.csv,
-                # regardless if they were skipped for the DMI upload
-                if stid not in positions_update_timestamp_only:
-                    positions[stid] = {}
-                df_skipped = pd.read_csv(file_path, delimiter=",")
-                df_skipped.set_index(pd.to_datetime(df_skipped["time"]), inplace=True)
-                df_skipped.sort_index(inplace=True)  # make sure we are time-sorted
-                df_skipped_limited, positions = find_positions(
-                    df_skipped, stid, time_limit, positions=positions
-                )
+            continue
+
+        bufrname = stid + ".bufr"
+        logger.info(f"Generating {bufrname} from {file_path}")
+
+        # Read csv file
+        df1: pd.DataFrame = (
+            pd.read_csv(file_path, delimiter=",")
+            .assign(time=lambda df: pd.to_datetime(df["time"]))
+            .set_index("time", drop=False)
+            .sort_index()
+            .assign(time=lambda df: df.index)
+        )
+
+        s1_current = get_latest_data(
+            df1,
+            stid,
+            earliest_date=earliest_date,
+            lin_reg_time_limit=time_limit,
+            positions=positions,
+        )
+        if s1_current is None:
+            no_recent_data.append(stid)
+            continue
+
+        s1_current = filter_skipped_variables(s1_current, stid=s1_current["stid"])
+        bufr_variables = get_bufr_variables(s1_current, barometer_height_relative_to_gps=0)
+
+        current_timestamp = s1_current.name
+        current_timestamps[stid] = current_timestamp
+        if store_positions:
+            position = dict(
+                timestamp=s1_current.name,
+                lat=s1_current.get("gps_lat_fit"),
+                lon=s1_current.get("gps_lon_fit"),
+                alt=s1_current.get("gps_alt_fit"),
+            )
+            positions[stid] = position
+
+        if stid in latest_timestamps and current_timestamp <= latest_timestamps[stid]:
+            logger.info("Current data is not newer than latest")
+            continue
+
+        if stid not in latest_timestamps:
+            continue
+
+        # Construct and export BUFR file
+        outBUFR_path = os.path.join(outFiles, bufrname)
+        getBUFR(bufr_variables, outBUFR_path, stid, land_stids)
 
     # Write the most recent timestamps back to the pickle on disk
     logger.info("writing latest_timestamps.pickle")
@@ -341,12 +224,12 @@ def get_bufr(
         positions_df.sort_index(inplace=True)
         positions_df.to_csv(positions_filepath, index_label="stid")
 
+
     logger.info("--------------------------------")
     not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
     not_processed_count = (
         len(skipped)
         + len(no_recent_data)
-        + len(no_valid_data)
         + len(no_entry_latest_timestamps)
         + len(not_processed_wx_pos)
     )
@@ -358,11 +241,63 @@ def get_bufr(
     logger.info("")
     logger.info("skipped: {}".format(skipped))
     logger.info("no_recent_data: {}".format(no_recent_data))
-    logger.info("no_valid_data: {}".format(no_valid_data))
     logger.info("no_entry_latest_timestamps: {}".format(no_entry_latest_timestamps))
     logger.info("failed_min_data_wx: {}".format(failed_min_data_wx))
     logger.info("failed_min_data_pos: {}".format(failed_min_data_pos))
     logger.info("--------------------------------")
+
+
+def filter_skipped_variables(row: pd.Series, stid: str) -> pd.Series:
+    stid_vars_to_skip = vars_to_skip.get(stid, [])
+    for var_key in row.keys():
+        if var_key in stid_vars_to_skip:
+            row[var_key] = np.nan
+            logger.info("----> Skipping var: {} {}".format(stid, var_key))
+    return row
+
+
+def get_bufr_variables(
+        s1_current: pd.Series,
+        temp_rh_height_relative_to_sonic_ranger: float = -.1,
+        anometer_height_relative_to_sonic_ranger: float = .4,
+        barometer_height_relative_to_gps: float = 0,
+) -> pd.Series:
+    output_row = pd.Series(
+        {
+            "stid": s1_current.stid,
+            "time": s1_current.name,
+            # DMI wants non-corrected rh
+            "relativeHumidity": s1_current.rh_i,
+            # Convert air temp, C to Kelvin
+            "airTemperature": s1_current.t_i + 273.15,
+            # Convert pressure, correct the -1000 offset, then hPa to Pa
+            # note that instantaneous pressure has 0.1 hPa precision
+            "pressure": (s1_current.p_i + 1000.0) * 100.0,
+            "windDirection": s1_current.wdir_i,
+            "windSpeed": s1_current.wspd_i,
+            "latitude": s1_current.gps_lat_fit,
+            "longitude": s1_current.gps_lon_fit,
+            "heightOfStationGroundAboveMeanSeaLevel": s1_current['gps_alt_fit'],
+            "heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH": s1_current['z_boom_u_smooth'] + temp_rh_height_relative_to_sonic_ranger,
+            "heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD": s1_current['z_boom_u_smooth'] + anometer_height_relative_to_sonic_ranger,
+            "heightOfBarometerAboveMeanSeaLevel": s1_current['gps_alt_fit'] + barometer_height_relative_to_gps,
+        },
+        name=s1_current.name,
+    )
+    """Enforce precision
+    Note the sensor accuracies listed here:
+    https://essd.copernicus.org/articles/13/3819/2021/#section8
+    In addition to sensor accuracy, WMO requires pressure and heights
+    to be reported at 0.1 precision.
+    """
+    output_row["relativeHumidity"] = np.round(output_row["relativeHumidity"], decimals=0)
+    output_row["windSpeed"] = np.round(output_row["windSpeed"], decimals=1)
+    output_row["windDirection"] = np.round(output_row["windDirection"], decimals=0)
+    output_row["airTemperature"] = np.round(output_row["airTemperature"], decimals=1)
+    output_row["pressure"] = np.round(output_row["pressure"], decimals=1)
+    # gps_lat,gps_lon,gps_alt,z_boom_u are all rounded in linear_fit() or rolling_window()
+
+    return output_row
 
 
 if __name__ == "__main__":
