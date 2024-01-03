@@ -158,7 +158,13 @@ def setStation(ibufr, stid, config_key):
                continue
 
 
-def setAWSvariables(ibufr, row, timestamp, stid):
+def setAWSvariables(
+        ibufr,
+        row,
+        timestamp,
+        stid,
+        barometer_height_relative_to_gps: float = 0,
+):
     '''Set AWS measurements to bufr message.
     
     Parameters
@@ -171,6 +177,8 @@ def setAWSvariables(ibufr, row, timestamp, stid):
         timestamp for this row
     stid : str
         The station ID to be processed. e.g. 'KPC_U'
+    barometer_height_relative_to_gps : float
+        Vertical distance from gps to barometer
     '''
     # Set timestamp fields
     setBUFRvalue(ibufr, 'year', timestamp.year)
@@ -216,9 +224,9 @@ def setAWSvariables(ibufr, row, timestamp, stid):
         codes_set(ibufr,
                   '#7#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform',
                   row['z_boom_u_smooth']+0.4) # For wind speed
-        if math.isnan(row['gps_alt_fit']) is False:
-            codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel',
-                      row['gps_alt_fit']+row['z_boom_u_smooth']) # For pressure
+    if math.isnan(row['gps_alt_fit']) is False:
+        codes_set(ibufr, 'heightOfBarometerAboveMeanSeaLevel',
+                  row['gps_alt_fit'] + barometer_height_relative_to_gps) # For pressure
 
 
 def setBUFRvalue(ibufr, b_name, value):
