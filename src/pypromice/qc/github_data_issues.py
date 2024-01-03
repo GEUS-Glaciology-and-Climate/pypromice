@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def flagNAN(ds_in,
-            flag_url='https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/flags/',
-            flag_dir='local/flags/'):
+            flag_dir='../PROMICE-AWS-data-issues/flags'):
     '''Read flagged data from .csv file. For each variable, and downstream
     dependents, flag as invalid (or other) if set in the flag .csv
 
@@ -26,8 +25,6 @@ def flagNAN(ds_in,
     ----------
     ds_in : xr.Dataset
         Level 0 dataset
-    flag_url : str
-        URL to directory where .csv flag files can be found
     flag_dir : str
         File directory where .csv flag files can be found
 
@@ -39,10 +36,7 @@ def flagNAN(ds_in,
     ds = ds_in.copy(deep=True)
     df = None
 
-    df = _getDF(flag_url + ds.attrs["station_id"] + ".csv",
-                os.path.join(flag_dir, ds.attrs["station_id"] + ".csv"),
-                # download = False,  # only for working on draft local flag'n'fix files
-                )
+    df = _getDF(os.path.join(flag_dir, ds.attrs["station_id"] + ".csv"))
 
     if isinstance(df, pd.DataFrame):
         df.t0 = pd.to_datetime(df.t0).dt.tz_localize(None)
@@ -71,7 +65,7 @@ def flagNAN(ds_in,
 
                 for v in varlist:
                     if v in list(ds.keys()):
-                        logger.info(f'---> flagging {v} between {t0} and {t1}')
+                        logger.info(f'---> flagging {t0} {t1} {v}')
                         ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
                     else:
                         logger.info(f'---> could not flag {v} not in dataset')
@@ -80,8 +74,7 @@ def flagNAN(ds_in,
 
 
 def adjustTime(ds,
-               adj_url="https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/adjustments/",
-               adj_dir='local/adjustments/',
+               adj_dir='../PROMICE-AWS-data-issues/adjustments/',
                var_list=[], skip_var=[]):
     '''Read adjustment data from .csv file. Only applies the "time_shift" adjustment
 
@@ -89,8 +82,6 @@ def adjustTime(ds,
     ----------
     ds : xr.Dataset
         Level 0 dataset
-    adj_url : str
-        URL to directory where .csv adjustment files can be found
     adj_dir : str
         File directory where .csv adjustment files can be found
 
@@ -102,8 +93,7 @@ def adjustTime(ds,
     ds_out = ds.copy(deep=True)
     adj_info=None
 
-    adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
-                      os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"),)
+    adj_info = _getDF(os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"))
 
     if isinstance(adj_info, pd.DataFrame):
 
@@ -145,8 +135,7 @@ def adjustTime(ds,
 
 
 def adjustData(ds,
-               adj_url="https://raw.githubusercontent.com/GEUS-Glaciology-and-Climate/PROMICE-AWS-data-issues/master/adjustments/",
-               adj_dir='local/adjustments/',
+               adj_dir='../PROMICE-AWS-data-issues/adjustments/',
                var_list=[], skip_var=[]):
     '''Read adjustment data from .csv file. For each variable, and downstream
     dependents, adjust data accordingly if set in the adjustment .csv
@@ -155,8 +144,6 @@ def adjustData(ds,
     ----------
     ds : xr.Dataset
         Level 0 dataset
-    adj_url : str
-        URL to directory where .csv adjustment files can be found
     adj_dir : str
         File directory where .csv adjustment files can be found
 
@@ -167,10 +154,7 @@ def adjustData(ds,
     '''
     ds_out = ds.copy(deep=True)
     adj_info=None
-    adj_info = _getDF(adj_url + ds.attrs["station_id"] + ".csv",
-                      os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"),
-                      # download = False,  # only for working on draft local flag'n'fix files
-                      )
+    adj_info = _getDF(os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"))
 
     if isinstance(adj_info, pd.DataFrame):
         # removing potential time shifts from the adjustment list
@@ -227,7 +211,7 @@ def adjustData(ds,
                     logger.info("Time range does not intersect with dataset")
                     continue
 
-                logger.info(f'---> adjusting {var} between {t0} and {t1} ({func} {val})')
+                logger.info(f'---> {t0} {t1} {var} {func} {val}')
 				
                 if func == "add":
                     ds_out[var].loc[index_slice] = ds_out[var].loc[index_slice].values + val
@@ -305,18 +289,14 @@ def adjustData(ds,
     return ds_out
 
 
-def _getDF(flag_url, flag_file, download=True):
+def _getDF(flag_file):
     '''Get dataframe from flag or adjust file. First attempt to retrieve from
     URL. If this fails then attempt to retrieve from local file
 
     Parameters
     ----------
-    flag_url : str
-        URL address to file
     flag_file : str
         Local path to file
-    download : bool
-        Flag to download file from URL
 
     Returns
     -------
@@ -324,17 +304,7 @@ def _getDF(flag_url, flag_file, download=True):
         Flag or adjustment dataframe
     '''
 
-    # Download local copy as csv
-    if download==True:
-        os.makedirs(os.path.dirname(flag_file), exist_ok = True)
-
-        try:
-            urllib.request.urlretrieve(flag_url, flag_file)
-            logger.info(f"Downloaded a {flag_file.split('/')[-2][:-1],} file to {flag_file}")
-        except (HTTPError, URLError) as e:
-            logger.info(f"Unable to download {flag_file.split('/')[-2][:-1],} file, using local file: {flag_file}")
-    else:
-        logger.info(f"Using local {flag_file.split('/')[-2][:-1],} file: {flag_file}")
+    logger.info(f"Using file: {flag_file}")
 
     if os.path.isfile(flag_file):
         df = pd.read_csv(
