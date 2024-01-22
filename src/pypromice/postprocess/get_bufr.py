@@ -5,13 +5,16 @@ Command-line script for running BUFR file generation
 Created: Dec 20, 2022
 Author: Patrick Wright, GEUS
 """
+from typing import List, Dict
+
 import pandas as pd
 import glob, os
 import argparse
 from datetime import datetime, timedelta
-import pickle, unittest
+import pickle
 
-from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, positions_seed, positions_update_timestamp_only
+from pypromice.postprocess import wmo_config
+from pypromice.postprocess.wmo_config import ibufr_settings, positions_seed, positions_update_timestamp_only
 from pypromice.postprocess.csv2bufr import getBUFR, linear_fit, rolling_window, round_values, \
 										   find_positions, min_data_check
 
@@ -64,20 +67,29 @@ def parse_arguments_bufr():
 	args = parser.parse_args()
 	return args
 
-def get_bufr():
-	args = parse_arguments_bufr()
+def get_bufr(
+    bufr_out,
+    l3_filepath,
+    positions_filepath,
+    timestamps_pickle_filepath,
+    now_timestamp: datetime,
+	stid_to_skip: Dict[str, List[str]],
+    dev: bool = False,
+    store_positions: bool = False,
+    time_limit: str = "3M",
+    ):
 
 	# Get list of relative file paths
-	fpaths = glob.glob(args.l3_filepath)
+	fpaths = glob.glob(l3_filepath)
 
 	# Make out dir
-	outFiles = args.bufr_out
+	outFiles = bufr_out
 	if os.path.exists(outFiles) is False:
 		os.mkdir(outFiles)
 
 	# Read existing timestamps pickle to dictionary
-	if os.path.isfile(args.timestamps_pickle_filepath):
-		with open(args.timestamps_pickle_filepath, 'rb') as handle:
+	if os.path.isfile(timestamps_pickle_filepath):
+		with open(timestamps_pickle_filepath, 'rb') as handle:
 			latest_timestamps = pickle.load(handle)
 	else:
 		print('latest_timestamps.pickle not found!')
@@ -86,7 +98,7 @@ def get_bufr():
 	# Initiate a new dict for current timestamps
 	current_timestamps = {}
 
-	if args.positions is True:
+	if store_positions:
 		# Initiate a dict to store station positions
 		# (seeded with initial positions from wmo_config.positions_seed)
 		# Used to retrieve a static set of positions to register stations with DMI/WMO
@@ -122,7 +134,7 @@ def get_bufr():
 			bufrname = stid + '.bufr'
 			print(f'Generating {bufrname} from {f}')
 
-			if (args.positions is True) and (stid not in positions_update_timestamp_only):
+			if (store_positions) and (stid not in positions_update_timestamp_only):
 				positions[stid] = {}
 				# Optionally include source flag columns, useful to indicate if position
 				# comes from current transmission, or older data. This could also be used
@@ -148,7 +160,7 @@ def get_bufr():
 				   'wdir_i': df1['wdir_i'].last_valid_index()
 				   }
 
-			two_days_ago = datetime.utcnow() - timedelta(days=2)
+			two_days_ago = now_timestamp - timedelta(days=2)
 
 			if len(set(lvi.values())) != 1:
 				# instantaneous vars have different timestamps
@@ -159,8 +171,8 @@ def get_bufr():
 				if len(recent) == 0:
 					print('No recent instantaneous timestamps!')
 					no_recent_data.append(stid)
-					if args.positions is True:
-						df1_limited, positions = find_positions(df1, stid, args.time_limit, positions=positions)
+					if store_positions:
+						df1_limited, positions = find_positions(df1, stid, time_limit, positions=positions)
 					continue
 				else:
 					# we have partial data, just use the most recent row
@@ -171,8 +183,8 @@ def get_bufr():
 				if all(i is None for i in lvi.values()) is True:
 					print('All instantaneous timestamps are None!')
 					no_valid_data.append(stid)
-					if args.positions is True:
-						df1_limited, positions = find_positions(df1, stid, args.time_limit, positions=positions)
+					if store_positions:
+						df1_limited, positions = find_positions(df1, stid, time_limit, positions=positions)
 					continue
 				else:
 					# all values are present, with matching timestamps, so just use t_i
@@ -186,7 +198,7 @@ def get_bufr():
 			if stid in latest_timestamps:
 				latest_timestamp = latest_timestamps[stid]
 
-				if args.dev is True:
+				if dev is True:
 					print('----> Running in dev mode!')
 					# If we want to run repeatedly (before another transmission comes in), then don't
 					# check the actual latest timestamp, and just set to two_days_ago
@@ -195,12 +207,12 @@ def get_bufr():
 				if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
 					print('Time checks passed.')
 
-					if args.positions is True:
+					if store_positions:
 						# return positions dict for writing to csv file after processing finished
-						df1_limited, positions = find_positions(df1, stid, args.time_limit, current_timestamp, positions)
+						df1_limited, positions = find_positions(df1, stid, time_limit, current_timestamp, positions)
 					else:
 						# we only need to add positions to the BUFR file
-						df1_limited = find_positions(df1, stid, args.time_limit, current_timestamp)
+						df1_limited, _ = find_positions(df1, stid, time_limit, current_timestamp)
 
 					# Apply smoothing to z_boom_u
 					# require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
@@ -235,21 +247,21 @@ def get_bufr():
 				else:
 					print('----> Time checks failed for {}'.format(stid))
 					print('      current:', current_timestamp)
-					if args.dev is True:
+					if dev is True:
 						print(' latest (DEV):', latest_timestamp)
 					else:
 						print('       latest:', latest_timestamp)
 					no_recent_data.append(stid)
-					if args.positions is True:
+					if store_positions:
 						current_timestamp = None
-						df1_limited, positions = find_positions(df1, stid, args.time_limit, current_timestamp, positions)
+						df1_limited, positions = find_positions(df1, stid, time_limit, current_timestamp, positions)
 			else:
 				print('{} not found in latest_timestamps'.format(stid))
 				no_entry_latest_timestamps.append(stid)
 		else:
 			print('----> Skipping {} as per stid_to_skip config'.format(stid))
 			skipped.append(stid)
-			if args.positions is True and stid not in ('XXX',):
+			if store_positions and stid not in ('XXX',):
 				# still will be useful to have all stations in AWS_station_location.csv,
 				# regardless if they were skipped for the DMI upload
 				if stid not in positions_update_timestamp_only:
@@ -257,14 +269,14 @@ def get_bufr():
 				df_skipped = pd.read_csv(f, delimiter=',')
 				df_skipped.set_index(pd.to_datetime(df_skipped['time']), inplace=True)
 				df_skipped.sort_index(inplace=True) # make sure we are time-sorted
-				df_skipped_limited, positions = find_positions(df_skipped, stid, args.time_limit, positions=positions)
+				df_skipped_limited, positions = find_positions(df_skipped, stid, time_limit, positions=positions)
 
 	# Write the most recent timestamps back to the pickle on disk
 	print('writing latest_timestamps.pickle')
-	with open(args.timestamps_pickle_filepath, 'wb') as handle:
+	with open(timestamps_pickle_filepath, 'wb') as handle:
 		pickle.dump(current_timestamps, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-	if args.positions is True:
+	if store_positions:
 		positions_df = pd.DataFrame.from_dict(
 			positions,
 			orient='index',
@@ -272,7 +284,7 @@ def get_bufr():
 			columns=['timestamp','lat','lon','alt']
 			)
 		positions_df.sort_index(inplace=True)
-		positions_df.to_csv(args.positions_filepath, index_label='stid')
+		positions_df.to_csv(positions_filepath, index_label='stid')
 
 	print('--------------------------------')
 	not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
@@ -287,5 +299,16 @@ def get_bufr():
 	print('failed_min_data_pos: {}'.format(failed_min_data_pos))
 	print('--------------------------------')
 
-if __name__ == "__main__":  
-    get_bufr()
+if __name__ == "__main__":
+	args = parse_arguments_bufr().parse_args()
+	get_bufr(
+	    bufr_out=args.bufr_out,
+	    dev=args.dev,
+	    l3_filepath=args.l3_filepath,
+	    store_positions=args.store_positions,
+	    positions_filepath=args.positions_filepath,
+	    time_limit=args.time_limit,
+	    timestamps_pickle_filepath=args.timestamps_pickle_filepath,
+		now_timestamp=datetime.utcnow(),
+		stid_to_skip=wmo_config.stid_to_skip,
+	)
