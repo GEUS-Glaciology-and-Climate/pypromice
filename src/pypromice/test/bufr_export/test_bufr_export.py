@@ -148,13 +148,15 @@ class GetBufrTestCase(TestCase):
             stid_to_skip=wmo_config.stid_to_skip,
         )
 
-    def test_get_bufr_ignores_datasets_not_in_latests_timestamps(self):
+    def test_get_bufr_includes_datasets_not_in_latests_timestamps(self):
         l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
         l3_src = pd.read_csv(l3_src_filepath)
         stid = "DY2"
         latest_timestamps = {}
         now_timestamp = datetime.datetime(2023, 12, 7)
-        expected_file_hashes = {}
+        expected_file_hashes = {
+            stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
+        }
 
         self._test_get_bufr(
             l3_data=l3_src,

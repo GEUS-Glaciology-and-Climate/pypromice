@@ -202,9 +202,6 @@ def get_bufr(
             logger.info("Current data is not newer than latest")
             continue
 
-        if stid not in latest_timestamps:
-            continue
-
         # Construct and export BUFR file
         outBUFR_path = os.path.join(outFiles, bufrname)
         getBUFR(bufr_variables, outBUFR_path, stid, land_stids)
