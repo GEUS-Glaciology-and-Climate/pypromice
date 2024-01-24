@@ -176,9 +176,15 @@ def get_bufr(
                 # positions[stid]['lon_source'] = ''
 
             # Read csv file
-            df1 = pd.read_csv(file_path, delimiter=",")
-            df1.set_index(pd.to_datetime(df1["time"]), inplace=True)
-            df1.sort_index(inplace=True)  # make sure we are time-sorted
+            df1 = (
+                pd.read_csv(file_path, delimiter=",")
+                .assign(time=lambda df: pd.to_datetime(df["time"]))
+                .set_index("time")
+                .sort_index()
+                .assign(time=lambda df: df.index)
+            )
+            # df1.set_index(pd.to_datetime(df1['time']), inplace=True)
+            # df1.sort_index(inplace=True) # make sure we are time-sorted
 
             # Check that the last valid index for all instantaneous values match
             # Note: we cannot always use the single most-recent timestamp in the dataframe

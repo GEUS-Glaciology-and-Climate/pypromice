@@ -50,7 +50,7 @@ def getBUFR(s1, outBUFR, stid, land_stids):
 
     # Create new bufr message to write to
     ibufr = codes_bufr_new_from_samples('BUFR4')
-    timestamp = datetime.strptime(s1['time'], '%Y-%m-%d %H:%M:%S')
+    timestamp = s1["time"]
     config_key = 'mobile'
     if stid in land_stids:
         config_key = 'land'
