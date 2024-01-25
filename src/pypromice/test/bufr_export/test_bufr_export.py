@@ -73,7 +73,7 @@ class GetBufrTestCase(TestCase):
         stid = "DY2"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 6)
+        now_timestamp = datetime.datetime(2023, 12, 8)
         expected_file_hashes = {
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
@@ -94,7 +94,7 @@ class GetBufrTestCase(TestCase):
         stid = "DY2"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 6)
+        now_timestamp = datetime.datetime(2023, 12, 8)
         expected_file_hashes = {
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
@@ -153,7 +153,7 @@ class GetBufrTestCase(TestCase):
         l3_src = pd.read_csv(l3_src_filepath)
         stid = "DY2"
         latest_timestamps = {}
-        now_timestamp = datetime.datetime(2023, 12, 7)
+        now_timestamp = datetime.datetime(2023, 12, 8)
         expected_file_hashes = {
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
@@ -200,7 +200,7 @@ class GetBufrTestCase(TestCase):
         # Set some of instantanous values to nan
         l3_src.loc[140:, "p_i"] = np.nan
         latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 6)
+        now_timestamp = datetime.datetime(2023, 12, 8)
         expected_file_hashes = {
             stid: "bb951e0245ce3f6fe656b9bb5c85f097753a6969cc60b2cf8b34e0764495e627"
         }
@@ -300,6 +300,29 @@ class GetBufrTestCase(TestCase):
             time_limit="3M",
             stid_to_skip=wmo_config.stid_to_skip,
         )
+
+    def test_ignore_newer_data_than_now_input(self):
+        l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
+        l3_src = pd.read_csv(l3_src_filepath)
+        stid = "DY2"
+        # Newest measurement in DY2_hour: 2023-12-07 23:00:00
+        latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
+        # New is before the latest data
+        now_timestamp = datetime.datetime(2023, 12, 6, )
+        expected_file_hashes = {
+            stid: "976a24edef2d0e6e2f29fa13d6242419fa05b24905db715fe351c19a1aa1d577"
+        }
+        self._test_get_bufr(
+            l3_data=l3_src,
+            now_timestamp=now_timestamp,
+            latest_timestamps=latest_timestamps,
+            expected_file_hashes=expected_file_hashes,
+            stid=stid,
+            store_positions=True,
+            time_limit="3M",
+            stid_to_skip=wmo_config.stid_to_skip,
+        )
+
 
     def test_land_station_export(self):
         l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")

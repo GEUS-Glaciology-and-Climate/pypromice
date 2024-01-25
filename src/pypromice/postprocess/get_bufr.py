@@ -106,6 +106,7 @@ def get_bufr(
     ):
     if earliest_date is None:
         earliest_date = now_timestamp - timedelta(days=2)
+
     # Get list of relative file paths
     fpaths = glob.glob(l3_filepath)
 
@@ -172,6 +173,7 @@ def get_bufr(
             .sort_index()
             .assign(time=lambda df: df.index)
         )
+        df1 = df1[:now_timestamp]
 
         s1_current = get_latest_data(
             df1,
@@ -220,7 +222,6 @@ def get_bufr(
         )
         positions_df.sort_index(inplace=True)
         positions_df.to_csv(positions_filepath, index_label="stid")
-
 
     logger.info("--------------------------------")
     not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
