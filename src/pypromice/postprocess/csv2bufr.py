@@ -3,6 +3,8 @@
 """
 Post-processing functions for AWS station data, such as converting PROMICE and GC-Net data files to WMO-compliant BUFR files
 """
+import logging
+
 import pandas as pd
 import sys, traceback
 import os
@@ -21,6 +23,7 @@ from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, vars_
 # To suppress pandas SettingWithCopyWarning
 pd.options.mode.chained_assignment = None # default='warn'
 
+logger = logging.getLogger(__name__)
 #------------------------------------------------------------------------------
 
 def getBUFR(s1, outBUFR, stid, land_stids):
@@ -69,15 +72,10 @@ def getBUFR(s1, outBUFR, stid, land_stids):
         codes_write(ibufr, fout)
 
     except CodesInternalError as ec:
-        print(traceback.format_exc())
-        # print(ec)
-        print(f'-----> CodesInternalError in getBUFR for {stid}!')
+        logger.exception(f'CodesInternalError in getBUFR for {stid}', exc_info=ec)
         remove_file = True
     except Exception as e:
-        # Catch anything else here...
-        print(traceback.format_exc())
-        # print(e)
-        print(f'-----> ERROR in getBUFR for {stid}')
+        logger.exception(f'ERROR in getBUFR for {stid}', exc_info=e)
         remove_file = True
 
     codes_release(ibufr)
@@ -85,7 +83,7 @@ def getBUFR(s1, outBUFR, stid, land_stids):
     fout.close()
 
     if remove_file is True:
-        print(f'-----> Removing file for {stid}')
+        logger.info(f"Removing file for {stid}")
         os.remove(fout.name)
     return remove_file
 
@@ -108,7 +106,7 @@ def setTemplate(ibufr, timestamp, stid, config_key):
         if codes_is_defined(ibufr, k) == 1:
             codes_set(ibufr, k, v)
         else:
-            print('-----> setTemplate Key not defined: {}'.format(k))
+            logger.warning('-----> setTemplate Key not defined: {}'.format(k))
             continue
 
     codes_set(ibufr, 'typicalYear', timestamp.year)
@@ -297,10 +295,10 @@ def linear_fit(df, column, decimals, stid):
             #         plt.show()
         else:
             # Do not have 10 days of valid data, or all data is NaN.
-            print('----> Insufficient {} data for {}!'.format(column, stid))
+            logger.warning('----> Insufficient {} data for {}!'.format(column, stid))
             pos_valid = False
     else:
-        print('----> {} not found in dataframe!'.format(column))
+        logger.warning('----> {} not found in dataframe!'.format(column))
         pass
     return df, pos_valid
 
@@ -372,9 +370,9 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
         positions[stid]['timestamp'] = df.index.max()
         df_limited = df # just to return something
     else:
-        print(f'finding positions for {stid}')
+        logger.info(f'finding positions for {stid}')
         df_limited = df.last(time_limit).copy()
-        print(f'last transmission: {df_limited.index.max()}')
+        logger.info(f'last transmission: {df_limited.index.max()}')
 
         # Extrapolate recommended for altitude, optional for lat and lon.
         df_limited, lat_valid = linear_fit(df_limited, 'gps_lat', 6, stid)
@@ -387,8 +385,8 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
         check_valid_again = {}
         for k,v in check_valid.items():
             if v is False:
-                print(f'----> Using full history for linear extrapolation: {k}')
-                print(f'first transmission: {df.index.min()}')
+                logger.info(f'----> Using full history for linear extrapolation: {k}')
+                logger.info(f'first transmission: {df.index.min()}')
                 if k == 'gps_alt':
                     df, valid = linear_fit(df, k, 1, stid)
                 else:
@@ -397,7 +395,7 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
                 if check_valid_again[k] is True:
                     df_limited[f'{k}_fit'] = df.last(time_limit)[f'{k}_fit']
                 else:
-                    print(f'----> No data exists for {k}. Stubbing out with NaN.')
+                    logger.info(f'----> No data exists for {k}. Stubbing out with NaN.')
                     df_limited[f'{k}_fit'] = pd.Series(np.nan, index= df.last(time_limit).index)
 
         # SET POSITIONS FOR CSV FILE
@@ -417,7 +415,7 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
                 s = df_limited.loc[last_valid_timestamp]
             else:
                 s = df_limited.loc[current_timestamp]
-            print(f'writing positions for {stid}')
+            logger.info(f'writing positions for {stid}')
             pos_strings = ['lat','lon','alt']
             for p in pos_strings:
                 if (f'gps_{p}_fit' in s) and (pd.isna(s[f'gps_{p}_fit']) is False):
@@ -463,7 +461,7 @@ def min_data_check(s, stid):
     # If both air temp and pressure are nan, do not submit.
     # This will allow the case of having only one or the other.
     if (pd.isna(s['t_i']) is True) and (pd.isna(s['p_i']) is True):
-        print('----> Failed min_data_check for air temp and pressure!')
+        logger.warning('----> Failed min_data_check for air temp and pressure!')
         min_data_wx_result = False
 
     # Missing just elevation OK
@@ -475,7 +473,7 @@ def min_data_check(s, stid):
         (pd.isna(s['gps_alt_fit']) is False)):
         pass
     else:
-        print('----> Failed min_data_check for position!')
+        logger.warning('----> Failed min_data_check for position!')
         min_data_pos_result = False
 
     return min_data_wx_result, min_data_pos_result
