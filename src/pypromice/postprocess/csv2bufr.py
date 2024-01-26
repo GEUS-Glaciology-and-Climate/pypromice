@@ -4,19 +4,22 @@
 Post-processing functions for AWS station data, such as converting PROMICE and GC-Net data files to WMO-compliant BUFR files
 """
 import logging
-
-import pandas as pd
-import sys, traceback
-import os
-from datetime import datetime, timedelta
-from eccodes import codes_set, codes_write, codes_release, \
-                    codes_bufr_new_from_samples, CodesInternalError, \
-                    codes_is_defined
 import math
+import os
+
 import numpy as np
+import pandas as pd
+from eccodes import (
+    codes_set,
+    codes_write,
+    codes_release,
+    codes_bufr_new_from_samples,
+    CodesInternalError,
+    codes_is_defined,
+)
 from sklearn.linear_model import LinearRegression
 
-from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, vars_to_skip, positions_update_timestamp_only
+from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, positions_update_timestamp_only
 
 # from IPython import embed
 
@@ -26,7 +29,7 @@ pd.options.mode.chained_assignment = None # default='warn'
 logger = logging.getLogger(__name__)
 #------------------------------------------------------------------------------
 
-def getBUFR(s1, outBUFR, stid, land_stids):
+def getBUFR(s1, outBUFR, stid):
     '''Construct and export .bufr messages to file from Series or DataFrame.
     PRIMARY DRIVER FUNCTION
 
@@ -38,8 +41,6 @@ def getBUFR(s1, outBUFR, stid, land_stids):
         File path that .bufr file will be exported to
     stid : str
         The station ID to be processed. e.g. 'KPC_U'
-    land_stids : list
-        List of station IDs for land-based stations
 
     Returns
     -------
@@ -54,6 +55,7 @@ def getBUFR(s1, outBUFR, stid, land_stids):
     # Create new bufr message to write to
     ibufr = codes_bufr_new_from_samples('BUFR4')
     timestamp = s1["time"]
+    land_stids = ibufr_settings["land"]["station"]["stationNumber"].keys()
     config_key = 'mobile'
     if stid in land_stids:
         config_key = 'land'

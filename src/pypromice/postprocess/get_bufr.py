@@ -21,10 +21,7 @@ from pypromice.postprocess.csv2bufr import (
     getBUFR,
 )
 from pypromice.postprocess.real_time_utilities import get_latest_data
-from pypromice.postprocess.wmo_config import ibufr_settings, positions_seed
-from pypromice.postprocess.wmo_config import (
-    vars_to_skip,
-)
+from pypromice.postprocess.wmo_config import positions_seed, vars_to_skip
 
 logger = logging.getLogger(__name__)
 
@@ -148,8 +145,6 @@ def get_bufr(
     failed_min_data_wx = []
     failed_min_data_pos = []
 
-    land_stids = ibufr_settings["land"]["station"]["stationNumber"].keys()
-
     # Iterate through csv files
     for file_path in fpaths:
         last_index = file_path.rfind("_")
@@ -206,7 +201,7 @@ def get_bufr(
 
         # Construct and export BUFR file
         outBUFR_path = os.path.join(outFiles, bufrname)
-        getBUFR(bufr_variables, outBUFR_path, stid, land_stids)
+        getBUFR(bufr_variables, outBUFR_path, stid)
 
     # Write the most recent timestamps back to the pickle on disk
     logger.info("writing latest_timestamps.pickle")
