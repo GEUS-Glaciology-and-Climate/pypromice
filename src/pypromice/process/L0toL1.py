@@ -172,14 +172,16 @@ def addTimeShift(ds, vars_df):
     elif ds.attrs['format'] == 'STM':
         # hourly-averaged, non-transmitted
         # shift everything except instantaneous, any logger type
-        df_a = df_a.shift(periods=-1, freq="H")
+        df_a = df_a.shift(periods=-1, freq="h")
         df_out = pd.concat([df_a, df_i], axis=1) # different columns, same datetime indices
+        df_out = df_out.sort_index()
     elif ds.attrs['format'] == 'TX':
         if ds.attrs['logger_type'] == 'CR1000X':
             # v3, data is hourly all year long
             # shift everything except instantaneous
             df_a = df_a.shift(periods=-1, freq="H")
             df_out = pd.concat([df_a, df_i], axis=1) # different columns, same datetime indices
+            df_out = df_out.sort_index()
         elif ds.attrs['logger_type'] == 'CR1000':
             # v2, data is hourly (6-hr for instantaneous) for DOY 100-300, otherwise daily at 00 UTC
             # shift non-instantaneous hourly for DOY 100-300, else do not shift daily
@@ -189,7 +191,7 @@ def addTimeShift(ds, vars_df):
             df_a_daily_2 = df_a.loc[(df_a['doy'] > 300)]
 
             # shift the hourly ave data
-            df_a_hourly = df_a_hourly.shift(periods=-1, freq="H")
+            df_a_hourly = df_a_hourly.shift(periods=-1, freq="h")
 
             # stitch everything back together
             df_concat_u = pd.concat([df_a_daily_1, df_a_daily_2, df_a_hourly], axis=0) # same columns, different datetime indices
