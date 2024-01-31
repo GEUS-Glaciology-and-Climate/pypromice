@@ -11,7 +11,8 @@ import logging
 import os
 import pickle
 from datetime import datetime, timedelta
-from typing import List, Dict
+from pathlib import Path
+from typing import List, Dict, Mapping
 
 import numpy as np
 import pandas as pd
@@ -96,13 +97,17 @@ def get_bufr(
         timestamps_pickle_filepath,
         now_timestamp: datetime,
         stid_to_skip: Dict[str, List[str]],
+        station_dimension_table: Mapping[str, Mapping[str, float]] = None,
         earliest_date: datetime = None,
         dev: bool = False,
         store_positions: bool = False,
         time_limit: str = "3M",
-    ):
+):
     if earliest_date is None:
         earliest_date = now_timestamp - timedelta(days=2)
+
+    if station_dimension_table is None:
+        station_dimension_table = load_station_dimension_table()
 
     # Get list of relative file paths
     fpaths = glob.glob(l3_filepath)
@@ -149,13 +154,21 @@ def get_bufr(
     for file_path in fpaths:
         last_index = file_path.rfind("_")
         first_index = file_path.rfind("/")
-        stid = file_path[first_index + 1 : last_index]
+        stid = file_path[first_index + 1: last_index]
         # stid = f.split('/')[-1].split('.csv')[0][:-5]
         logger.info("####### Processing {} #######".format(stid))
         if ("Roof" in file_path) or (stid in to_skip):
             logger.info(f"----> Skipping {stid} as per stid_to_skip config")
             skipped.append(stid)
             continue
+
+        # TODO: The station dimension related meta data should be fetched from a station spefic configuration file or
+        #  from header data from a NetCDF data source.
+        if stid not in station_dimension_table:
+            logger.info(f"Station id {stid} not in dimensions table")
+            skipped.append(stid)
+            continue
+        station_dimensions = station_dimension_table[stid]
 
         bufrname = stid + ".bufr"
         logger.info(f"Generating {bufrname} from {file_path}")
@@ -182,7 +195,13 @@ def get_bufr(
             continue
 
         s1_current = filter_skipped_variables(s1_current, stid=s1_current["stid"])
-        bufr_variables = get_bufr_variables(s1_current, barometer_height_relative_to_gps=0)
+        bufr_variables = get_bufr_variables(
+            s1_current=s1_current,
+            barometer_height_relative_to_gps=station_dimensions["barometer_from_gps"],
+            anometer_height_relative_to_sonic_ranger=station_dimensions["anometer_from_sonic_ranger"],
+            temp_rh_height_relative_to_sonic_ranger=station_dimensions["temperature_from_sonic_ranger"],
+            height_of_gps_from_station_ground=station_dimensions['height_of_gps_from_station_ground'],
+        )
 
         current_timestamp = s1_current.name
         current_timestamps[stid] = current_timestamp
@@ -201,7 +220,7 @@ def get_bufr(
 
         # Construct and export BUFR file
         outBUFR_path = os.path.join(outFiles, bufrname)
-        getBUFR(bufr_variables, outBUFR_path, stid)
+        getBUFR(s1=bufr_variables, outBUFR=outBUFR_path, stid=stid)
 
     # Write the most recent timestamps back to the pickle on disk
     logger.info("writing latest_timestamps.pickle")
@@ -221,10 +240,10 @@ def get_bufr(
     logger.info("--------------------------------")
     not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
     not_processed_count = (
-        len(skipped)
-        + len(no_recent_data)
-        + len(no_entry_latest_timestamps)
-        + len(not_processed_wx_pos)
+            len(skipped)
+            + len(no_recent_data)
+            + len(no_entry_latest_timestamps)
+            + len(not_processed_wx_pos)
     )
     logger.info(
         "BUFR exported for {} of {} fpaths.".format(
@@ -251,9 +270,10 @@ def filter_skipped_variables(row: pd.Series, stid: str) -> pd.Series:
 
 def get_bufr_variables(
         s1_current: pd.Series,
-        temp_rh_height_relative_to_sonic_ranger: float = -.1,
-        anometer_height_relative_to_sonic_ranger: float = .4,
-        barometer_height_relative_to_gps: float = 0,
+        barometer_height_relative_to_gps: float,
+        height_of_gps_from_station_ground: float,
+        temp_rh_height_relative_to_sonic_ranger: float,
+        anometer_height_relative_to_sonic_ranger: float,
 ) -> pd.Series:
     output_row = pd.Series(
         {
@@ -270,10 +290,19 @@ def get_bufr_variables(
             "windSpeed": s1_current.wspd_i,
             "latitude": s1_current.gps_lat_fit,
             "longitude": s1_current.gps_lon_fit,
-            "heightOfStationGroundAboveMeanSeaLevel": s1_current['gps_alt_fit'],
-            "heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH": s1_current['z_boom_u_smooth'] + temp_rh_height_relative_to_sonic_ranger,
-            "heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD": s1_current['z_boom_u_smooth'] + anometer_height_relative_to_sonic_ranger,
-            "heightOfBarometerAboveMeanSeaLevel": s1_current['gps_alt_fit'] + barometer_height_relative_to_gps,
+            # TODO: This might need to be relative to snow height instaed.
+            "heightOfStationGroundAboveMeanSeaLevel": (
+                    s1_current["gps_alt_fit"] - height_of_gps_from_station_ground
+            ),
+            "heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH": (
+                    s1_current["z_boom_u_smooth"] + temp_rh_height_relative_to_sonic_ranger
+            ),
+            "heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD": (
+                    s1_current["z_boom_u_smooth"] + anometer_height_relative_to_sonic_ranger
+            ),
+            "heightOfBarometerAboveMeanSeaLevel": (
+                    s1_current["gps_alt_fit"] + barometer_height_relative_to_gps
+            ),
         },
         name=s1_current.name,
     )
@@ -283,7 +312,9 @@ def get_bufr_variables(
     In addition to sensor accuracy, WMO requires pressure and heights
     to be reported at 0.1 precision.
     """
-    output_row["relativeHumidity"] = np.round(output_row["relativeHumidity"], decimals=0)
+    output_row["relativeHumidity"] = np.round(
+        output_row["relativeHumidity"], decimals=0
+    )
     output_row["windSpeed"] = np.round(output_row["windSpeed"], decimals=1)
     output_row["windDirection"] = np.round(output_row["windDirection"], decimals=0)
     output_row["airTemperature"] = np.round(output_row["airTemperature"], decimals=1)
@@ -293,8 +324,15 @@ def get_bufr_variables(
     return output_row
 
 
+def load_station_dimension_table() -> Mapping[str, Mapping[str, float]]:
+    station_dimension_table_path = Path(__file__).parent.joinpath("station_dimensions.csv")
+    station_dimension_df = pd.read_csv(station_dimension_table_path, index_col=0, )
+    return station_dimension_df.to_dict('index')
+
+
 if __name__ == "__main__":
     args = parse_arguments_bufr().parse_args()
+
     get_bufr(
         bufr_out=args.bufr_out,
         dev=args.dev,
@@ -305,4 +343,5 @@ if __name__ == "__main__":
         timestamps_pickle_filepath=args.timestamps_pickle_filepath,
         now_timestamp=datetime.utcnow(),
         stid_to_skip=wmo_config.stid_to_skip,
+        station_dimension_table=load_station_dimension_table(),
     )
