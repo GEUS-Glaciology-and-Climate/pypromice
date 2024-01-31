@@ -460,7 +460,7 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
             # Add timestamp
             positions[stid]['timestamp'] = s['time']
 
-    return df_limited, positions if positions else df_limited
+    return df_limited, positions
 
 
 def min_data_check(s, stid):

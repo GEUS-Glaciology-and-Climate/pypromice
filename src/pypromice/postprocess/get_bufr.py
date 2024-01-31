@@ -5,6 +5,8 @@ Command-line script for running BUFR file generation
 Created: Dec 20, 2022
 Author: Patrick Wright, GEUS
 """
+import logging
+
 import pandas as pd
 import glob, os
 import argparse
@@ -15,20 +17,22 @@ from pypromice.postprocess.wmo_config import ibufr_settings, stid_to_skip, posit
 from pypromice.postprocess.csv2bufr import getBUFR, linear_fit, rolling_window, round_values, \
 										   find_positions, min_data_check
 
-# from IPython import embed
+logger = logging.getLogger(__name__)
 
 
-def parse_arguments_bufr():
+def parse_arguments_bufr() -> argparse.ArgumentParser:
 	parser = argparse.ArgumentParser()
 
 	parser.add_argument('--dev',
 	    action='store_true',
 	    required=False,
+		default=True,
 	    help='If included (True), run in dev mode. Useful for repeated runs of script between transmissions.')
 
-	parser.add_argument('--positions',
+	parser.add_argument('--store_positions','--positions',
 	    action='store_true',
 	    required=False,
+		default=False,
 	    help='If included (True), make a positions dict and output AWS_latest_locations.csv file.')
 
 	parser.add_argument('--positions-filepath',
@@ -47,7 +51,7 @@ def parse_arguments_bufr():
 	    default='../aws-l3/tx/*/*_hour.csv',
 	    type=str,
 	    required=False,
-	    help='Path to l3 tx .csv files.')
+	    help='Path to L3 tx .csv files.')
 
 	parser.add_argument('--bufr-out',
 	    default='src/pypromice/postprocess/BUFR_out/',
@@ -61,36 +65,42 @@ def parse_arguments_bufr():
 	    required=False,
 	    help='Path to the latest_timestamps.pickle file.')
 
-	args = parser.parse_args()
-	return args
+	return parser
 
-def get_bufr():
-	args = parse_arguments_bufr()
+def get_bufr(
+	bufr_out,
+	l3_filepath,
+	positions_filepath,
+	timestamps_pickle_filepath,
+	dev: bool=False,
+	store_positions: bool=False,
+	time_limit: str = '3M',
+):
 
 	# Get list of relative file paths
-	fpaths = glob.glob(args.l3_filepath)
+	fpaths = glob.glob(l3_filepath)
 
 	# Make out dir
-	outFiles = args.bufr_out
+	outFiles = bufr_out
 	if os.path.exists(outFiles) is False:
 		os.mkdir(outFiles)
 
 	# Read existing timestamps pickle to dictionary
-	if os.path.isfile(args.timestamps_pickle_filepath):
-		with open(args.timestamps_pickle_filepath, 'rb') as handle:
+	if os.path.isfile(timestamps_pickle_filepath):
+		with open(timestamps_pickle_filepath, 'rb') as handle:
 			latest_timestamps = pickle.load(handle)
 	else:
-		print('latest_timestamps.pickle not found!')
+		logger.info('latest_timestamps.pickle not found!')
 		latest_timestamps = {}
 
 	# Initiate a new dict for current timestamps
 	current_timestamps = {}
 
-	if args.positions is True:
+	if store_positions is True:
 		# Initiate a dict to store station positions
 		# (seeded with initial positions from wmo_config.positions_seed)
 		# Used to retrieve a static set of positions to register stations with DMI/WMO
-		# Also used to write AWS_latest_locations.csv to aws-l3 repo
+		# Also used to write AWS_latest_locations.csv to aws-L3 repo
 		positions = positions_seed
 
 	# Define stations to skip
@@ -99,7 +109,7 @@ def get_bufr():
 		to_skip.extend(v)
 	to_skip = set(to_skip) # Get rid of any duplicates
 
-	# Setup diagnostic lists (print at end)
+	# Setup diagnostic lists (logger.info at end)
 	skipped = []
 	no_recent_data = []
 	no_valid_data = []
@@ -116,13 +126,13 @@ def get_bufr():
 		stid = f[first_index+1:last_index]
 		# stid = f.split('/')[-1].split('.csv')[0][:-5]
 
-		print('####### Processing {} #######'.format(stid))
+		logger.info('####### Processing {} #######'.format(stid))
 		if ('Roof' not in f) and (stid not in to_skip):
 		# if ('v3' not in f) and ('Roof' not in f) and (stid not in to_skip):
 			bufrname = stid + '.bufr'
-			print(f'Generating {bufrname} from {f}')
+			logger.info(f'Generating {bufrname} from {f}')
 
-			if (args.positions is True) and (stid not in positions_update_timestamp_only):
+			if (store_positions is True) and (stid not in positions_update_timestamp_only):
 				positions[stid] = {}
 				# Optionally include source flag columns, useful to indicate if position
 				# comes from current transmission, or older data. This could also be used
@@ -157,9 +167,9 @@ def get_bufr():
 					if (v is not None) and (v >= two_days_ago):
 						recent[k] = v
 				if len(recent) == 0:
-					print('No recent instantaneous timestamps!')
+					logger.info('No recent instantaneous timestamps!')
 					no_recent_data.append(stid)
-					if args.positions is True:
+					if store_positions is True:
 						df1_limited, positions = find_positions(df1, stid, args.time_limit, positions=positions)
 					continue
 				else:
@@ -169,16 +179,16 @@ def get_bufr():
 					# to make sure we have minimum data requirements before writing to BUFR
 			else:
 				if all(i is None for i in lvi.values()) is True:
-					print('All instantaneous timestamps are None!')
+					logger.info('All instantaneous timestamps are None!')
 					no_valid_data.append(stid)
-					if args.positions is True:
+					if store_positions is True:
 						df1_limited, positions = find_positions(df1, stid, args.time_limit, positions=positions)
 					continue
 				else:
 					# all values are present, with matching timestamps, so just use t_i
 					current_timestamp = df1['t_i'].last_valid_index()
 
-			print(f'TIMESTAMP: {current_timestamp}')
+			logger.info(f'TIMESTAMP: {current_timestamp}')
 
 			# set in dict, will be written to disk at end
 			current_timestamps[stid] = current_timestamp
@@ -186,21 +196,21 @@ def get_bufr():
 			if stid in latest_timestamps:
 				latest_timestamp = latest_timestamps[stid]
 
-				if args.dev is True:
-					print('----> Running in dev mode!')
+				if dev is True:
+					logger.info('----> Running in dev mode!')
 					# If we want to run repeatedly (before another transmission comes in), then don't
 					# check the actual latest timestamp, and just set to two_days_ago
 					latest_timestamp = two_days_ago
 
 				if (current_timestamp > latest_timestamp) and (current_timestamp > two_days_ago):
-					print('Time checks passed.')
+					logger.info('Time checks passed.')
 
-					if args.positions is True:
+					if store_positions is True:
 						# return positions dict for writing to csv file after processing finished
-						df1_limited, positions = find_positions(df1, stid, args.time_limit, current_timestamp, positions)
+						df1_limited, positions = find_positions(df1, stid, time_limit, current_timestamp, positions)
 					else:
 						# we only need to add positions to the BUFR file
-						df1_limited = find_positions(df1, stid, args.time_limit, current_timestamp)
+						df1_limited, _ = find_positions(df1, stid, time_limit, current_timestamp)
 
 					# Apply smoothing to z_boom_u
 					# require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
@@ -228,28 +238,29 @@ def get_bufr():
 						continue
 
 					# Construct and export BUFR file
-					file_removed = getBUFR(s1_current, outFiles+bufrname, stid, land_stids)
+					outBUFR_path = os.path.join(outFiles, bufrname)
+					file_removed = getBUFR(s1_current, outBUFR_path, stid, land_stids)
 
 					if file_removed is False:
-						print(f'Successfully exported bufr file to {outFiles+bufrname}')
+						logger.info(f'Successfully exported bufr file to {outFiles+bufrname}')
 				else:
-					print('----> Time checks failed for {}'.format(stid))
-					print('      current:', current_timestamp)
-					if args.dev is True:
-						print(' latest (DEV):', latest_timestamp)
+					logger.info('----> Time checks failed for {}'.format(stid))
+					logger.info(f'      current: {current_timestamp}')
+					if dev is True:
+						logger.info(f' latest (DEV): {latest_timestamp}')
 					else:
-						print('       latest:', latest_timestamp)
+						logger.info(f'       latest: {latest_timestamp}')
 					no_recent_data.append(stid)
-					if args.positions is True:
+					if store_positions is True:
 						current_timestamp = None
-						df1_limited, positions = find_positions(df1, stid, args.time_limit, current_timestamp, positions)
+						df1_limited, positions = find_positions(df1, stid, time_limit, current_timestamp, positions)
 			else:
-				print('{} not found in latest_timestamps'.format(stid))
+				logger.info('{} not found in latest_timestamps'.format(stid))
 				no_entry_latest_timestamps.append(stid)
 		else:
-			print('----> Skipping {} as per stid_to_skip config'.format(stid))
+			logger.info('----> Skipping {} as per stid_to_skip config'.format(stid))
 			skipped.append(stid)
-			if args.positions is True and stid not in ('XXX',):
+			if store_positions is True and stid not in ('XXX',):
 				# still will be useful to have all stations in AWS_station_location.csv,
 				# regardless if they were skipped for the DMI upload
 				if stid not in positions_update_timestamp_only:
@@ -257,14 +268,14 @@ def get_bufr():
 				df_skipped = pd.read_csv(f, delimiter=',')
 				df_skipped.set_index(pd.to_datetime(df_skipped['time']), inplace=True)
 				df_skipped.sort_index(inplace=True) # make sure we are time-sorted
-				df_skipped_limited, positions = find_positions(df_skipped, stid, args.time_limit, positions=positions)
+				df_skipped_limited, positions = find_positions(df_skipped, stid, time_limit, positions=positions)
 
 	# Write the most recent timestamps back to the pickle on disk
-	print('writing latest_timestamps.pickle')
-	with open(args.timestamps_pickle_filepath, 'wb') as handle:
+	logger.info('writing latest_timestamps.pickle')
+	with open(timestamps_pickle_filepath, 'wb') as handle:
 		pickle.dump(current_timestamps, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-	if args.positions is True:
+	if store_positions is True:
 		positions_df = pd.DataFrame.from_dict(
 			positions,
 			orient='index',
@@ -272,20 +283,29 @@ def get_bufr():
 			columns=['timestamp','lat','lon','alt']
 			)
 		positions_df.sort_index(inplace=True)
-		positions_df.to_csv(args.positions_filepath, index_label='stid')
+		positions_df.to_csv(positions_filepath, index_label='stid')
 
-	print('--------------------------------')
+	logger.info('--------------------------------')
 	not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
 	not_processed_count = len(skipped) + len(no_recent_data) + len(no_valid_data) + len(no_entry_latest_timestamps) + len(not_processed_wx_pos)
-	print('BUFR exported for {} of {} fpaths.'.format((len(fpaths) - not_processed_count),len(fpaths)))
-	print('')
-	print('skipped: {}'.format(skipped))
-	print('no_recent_data: {}'.format(no_recent_data))
-	print('no_valid_data: {}'.format(no_valid_data))
-	print('no_entry_latest_timestamps: {}'.format(no_entry_latest_timestamps))
-	print('failed_min_data_wx: {}'.format(failed_min_data_wx))
-	print('failed_min_data_pos: {}'.format(failed_min_data_pos))
-	print('--------------------------------')
+	logger.info('BUFR exported for {} of {} fpaths.'.format((len(fpaths) - not_processed_count),len(fpaths)))
+	logger.info('')
+	logger.info('skipped: {}'.format(skipped))
+	logger.info('no_recent_data: {}'.format(no_recent_data))
+	logger.info('no_valid_data: {}'.format(no_valid_data))
+	logger.info('no_entry_latest_timestamps: {}'.format(no_entry_latest_timestamps))
+	logger.info('failed_min_data_wx: {}'.format(failed_min_data_wx))
+	logger.info('failed_min_data_pos: {}'.format(failed_min_data_pos))
+	logger.info('--------------------------------')
 
-if __name__ == "__main__":  
-    get_bufr()
+if __name__ == "__main__":
+	args = parse_arguments_bufr().parse_args()
+	get_bufr(
+		bufr_out=args.bufr_out,
+		dev=args.dev,
+		l3_filepath=args.l3_filepath,
+		store_positions=args.store_positions,
+		positions_filepath=args.positions_filepath,
+		time_limit=args.time_limit,
+		timestamps_pickle_filepath=args.timestamps_pickle_filepath,
+	)

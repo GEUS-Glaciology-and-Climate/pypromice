@@ -30,8 +30,22 @@ setuptools.setup(
     include_package_data = True,
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.8",
-    package_data={"pypromice.qc.percentiles": ["thresholds.csv"]},
-    install_requires=['numpy>=1.23.0', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'scikit-learn>=1.1.0', 'Bottleneck', 'netcdf4', 'pyDataverse'],
+    package_data={
+        "pypromice.qc.percentiles": ["thresholds.csv"],
+        "pypromice.process": ["variables.csv"],
+    },
+    install_requires=[
+        'numpy>=1.23.0',
+        'pandas>=1.5.0',
+        'xarray>=2022.6.0',
+        'toml',
+        'scipy>=1.9.0',
+        'scikit-learn>=1.1.0',
+        'Bottleneck',
+        'netcdf4',
+        'pyDataverse',
+        'eccodes',
+    ],
     entry_points={
     'console_scripts': [
         'get_promice_data = pypromice.get.get_promice_data:get_promice_data',
