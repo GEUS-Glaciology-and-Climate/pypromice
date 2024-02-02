@@ -1,4 +1,4 @@
-stid,station_site,wigos_id,project,station mounting_type,barometer_from_gps,sonic_ranger_from_gps,anometer_from_sonic_ranger,temperature_from_sonic_ranger,height_of_gps_from_station_ground
+stid,station_site,wigos_id,project,station_mounting_type,barometer_from_gps,sonic_ranger_from_gps,anemometer_from_sonic_ranger,temperature_from_sonic_ranger,height_of_gps_from_station_ground
 CEN,CEN,4407,GC-Net,Mast 100mm aluminimum,.55,.15,.4,.4,1.5
 CP1,CP1,4442,GC-Net,Mast 100mm aluminimum,.55,.15,.4,.4,1.5
 DY2,DY2,4464,GC-Net,Mast 100mm aluminimum,.55,.15,.4,.4,1.5

@@ -31,14 +31,6 @@ def parse_arguments_bufr() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--dev",
-        action="store_true",
-        required=False,
-        default=True,
-        help="If included (True), run in dev mode. Useful for repeated runs of script between transmissions.",
-    )
-
-    parser.add_argument(
         "--store_positions",
         "--positions",
         action="store_true",
@@ -99,7 +91,6 @@ def get_bufr(
         stid_to_skip: Dict[str, List[str]],
         station_dimension_table: Mapping[str, Mapping[str, float]] = None,
         earliest_date: datetime = None,
-        dev: bool = False,
         store_positions: bool = False,
         time_limit: str = "3M",
 ):
@@ -193,15 +184,7 @@ def get_bufr(
         if s1_current is None:
             no_recent_data.append(stid)
             continue
-
         s1_current = filter_skipped_variables(s1_current, stid=s1_current["stid"])
-        bufr_variables = get_bufr_variables(
-            s1_current=s1_current,
-            barometer_height_relative_to_gps=station_dimensions["barometer_from_gps"],
-            anometer_height_relative_to_sonic_ranger=station_dimensions["anometer_from_sonic_ranger"],
-            temp_rh_height_relative_to_sonic_ranger=station_dimensions["temperature_from_sonic_ranger"],
-            height_of_gps_from_station_ground=station_dimensions['height_of_gps_from_station_ground'],
-        )
 
         current_timestamp = s1_current.name
         current_timestamps[stid] = current_timestamp
@@ -219,6 +202,13 @@ def get_bufr(
             continue
 
         # Construct and export BUFR file
+        bufr_variables = get_bufr_variables(
+            s1_current=s1_current,
+            barometer_height_relative_to_gps=station_dimensions["barometer_from_gps"],
+            anemometer_height_relative_to_sonic_ranger=station_dimensions["anemometer_from_sonic_ranger"],
+            temp_rh_height_relative_to_sonic_ranger=station_dimensions["temperature_from_sonic_ranger"],
+            height_of_gps_from_station_ground=station_dimensions['height_of_gps_from_station_ground'],
+        )
         outBUFR_path = os.path.join(outFiles, bufrname)
         getBUFR(s1=bufr_variables, outBUFR=outBUFR_path, stid=stid)
 
@@ -273,7 +263,7 @@ def get_bufr_variables(
         barometer_height_relative_to_gps: float,
         height_of_gps_from_station_ground: float,
         temp_rh_height_relative_to_sonic_ranger: float,
-        anometer_height_relative_to_sonic_ranger: float,
+        anemometer_height_relative_to_sonic_ranger: float,
 ) -> pd.Series:
     output_row = pd.Series(
         {
@@ -298,7 +288,7 @@ def get_bufr_variables(
                     s1_current["z_boom_u_smooth"] + temp_rh_height_relative_to_sonic_ranger
             ),
             "heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD": (
-                    s1_current["z_boom_u_smooth"] + anometer_height_relative_to_sonic_ranger
+                    s1_current["z_boom_u_smooth"] + anemometer_height_relative_to_sonic_ranger
             ),
             "heightOfBarometerAboveMeanSeaLevel": (
                     s1_current["gps_alt_fit"] + barometer_height_relative_to_gps
@@ -335,7 +325,6 @@ if __name__ == "__main__":
 
     get_bufr(
         bufr_out=args.bufr_out,
-        dev=args.dev,
         l3_filepath=args.l3_filepath,
         store_positions=args.store_positions,
         positions_filepath=args.positions_filepath,

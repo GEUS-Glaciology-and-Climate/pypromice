@@ -187,11 +187,11 @@ class BufrVariablesTestCase(TestCase):
 
 class GetBufrTestCase(TestCase):
 
-    def get_origianl_station_dimension_table(self, stid: str) -> dict:
+    def get_original_station_dimension_table(self, stid: str) -> dict:
         return {
             stid: dict(
                 barometer_from_gps=0,
-                anometer_from_sonic_ranger=.4,
+                anemometer_from_sonic_ranger=.4,
                 temperature_from_sonic_ranger=-.1,
                 height_of_gps_from_station_ground=0,
             ),
@@ -207,7 +207,7 @@ class GetBufrTestCase(TestCase):
         expected_file_hashes = {
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -233,7 +233,7 @@ class GetBufrTestCase(TestCase):
         expected_file_hashes = {
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -258,7 +258,7 @@ class GetBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
         skip = {'TEST': [stid]}
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -283,7 +283,7 @@ class GetBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 8)
         expected_file_hashes = {}
 
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -309,7 +309,7 @@ class GetBufrTestCase(TestCase):
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
 
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -334,7 +334,7 @@ class GetBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 20)
         expected_file_hashes = {}
 
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -363,7 +363,7 @@ class GetBufrTestCase(TestCase):
             stid: "bb951e0245ce3f6fe656b9bb5c85f097753a6969cc60b2cf8b34e0764495e627"
         }
 
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -390,7 +390,7 @@ class GetBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
 
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -417,7 +417,7 @@ class GetBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 10)
         expected_file_hashes = {}
 
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -442,7 +442,7 @@ class GetBufrTestCase(TestCase):
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -467,7 +467,7 @@ class GetBufrTestCase(TestCase):
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -494,7 +494,7 @@ class GetBufrTestCase(TestCase):
         expected_file_hashes = {
             stid: "976a24edef2d0e6e2f29fa13d6242419fa05b24905db715fe351c19a1aa1d577"
         }
-        table = self.get_origianl_station_dimension_table(stid)
+        table = self.get_original_station_dimension_table(stid)
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
