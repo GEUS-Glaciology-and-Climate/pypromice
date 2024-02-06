@@ -298,3 +298,6 @@ class GetBufrTestCase(TestCase):
             time_limit="3M",
             stid_to_skip=wmo_config.stid_to_skip,
         )
+
+    def test_land_station_export(self):
+        self.fail("To be implemented and tested before refactoring to obtain hash code")
