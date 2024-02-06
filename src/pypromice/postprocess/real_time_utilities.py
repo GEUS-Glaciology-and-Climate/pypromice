@@ -23,11 +23,11 @@ def get_latest_data(
     # Note: we cannot always use the single most-recent timestamp in the dataframe
     # e.g. for 6-hr transmissions, *_u will have hourly data while *_i is nan
     # Need to check for last valid (non-nan) index instead
-    last_valid_index = df1[earliest_date:][
+    last_valid_index = df1[
         ["t_i", "p_i", "rh_i", "wspd_i", "wdir_i"]
     ].last_valid_index()
 
-    if last_valid_index is None:
+    if last_valid_index is None or last_valid_index < earliest_date:
         logger.info(f"No recent instantaneous timestamps for {stid}!")
         return None
     else:
@@ -53,7 +53,13 @@ def get_latest_data(
     df1_limited = rolling_window(df1_limited, "z_boom_u", "72H", 2, 1)
 
     # limit to single most recent valid row (convert to series)
-    s1_current = df1_limited.loc[current_timestamp]
+    s1_current = (
+        df1_limited
+        # Forward fill nan values to handle variables with nan values at current_timestamp.
+        # Only consider values from the earliest date
+        .loc[earliest_date:].ffill()
+        .loc[current_timestamp]
+    )
     s1_current["stid"] = stid
 
     # Check that we have minimum required valid data
@@ -188,7 +194,7 @@ def find_positions(df, stid, time_limit, current_timestamp=None, positions=None)
                 if (f'gps_{p}_fit' in s) and (pd.isna(s[f'gps_{p}_fit']) is False):
                     positions[stid][p] = s[f'gps_{p}_fit']
             # Add timestamp
-            positions[stid]['timestamp'] = s['time']
+            positions[stid]['timestamp'] = s.name
 
     return df_limited, positions
 
