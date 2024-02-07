@@ -300,4 +300,22 @@ class GetBufrTestCase(TestCase):
         )
 
     def test_land_station_export(self):
-        self.fail("To be implemented and tested before refactoring to obtain hash code")
+        l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
+        l3_src = pd.read_csv(l3_src_filepath)
+        stid = "WEG_B"
+        # Newest measurement in DY2_hour: 2023-12-07 23:00:00
+        latest_timestamps = {"WEG_B": datetime.datetime(2023, 12, 1)}
+        now_timestamp = datetime.datetime(2023, 12, 8)
+        expected_file_hashes = {
+            stid: "eb42044f38326a295bcd18bd42fba5ed88800c5a688f885b87147aacaa5f5001"
+        }
+        self._test_get_bufr(
+            l3_data=l3_src,
+            now_timestamp=now_timestamp,
+            latest_timestamps=latest_timestamps,
+            expected_file_hashes=expected_file_hashes,
+            stid=stid,
+            store_positions=True,
+            time_limit="3M",
+            stid_to_skip=wmo_config.stid_to_skip,
+        )
