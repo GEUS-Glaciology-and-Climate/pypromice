@@ -1,5 +1,12 @@
 """
-Post-processing functions for AWS station data, such as converting PROMICE and GC-Net data files to WMO-compliant BUFR files
+Utility functions writing and reading BUFR files from AWS data
+
+see documentation here:
+https://confluence.ecmwf.int/display/ECC/Documentation
+
+BUFR element table for WMO master table version 32
+https://confluence.ecmwf.int/display/ECC/WMO%3D32+element+table
+
 """
 import datetime
 import logging

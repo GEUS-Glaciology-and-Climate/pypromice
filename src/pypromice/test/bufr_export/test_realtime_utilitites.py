@@ -35,11 +35,8 @@ class GetLatestDataTestCase(unittest.TestCase):
             index_col=0,
         )
 
-    def test_has_new_data(self):
+    def test_1(self):
         data = self.get_data()
-        stid = "a_stid_string"
-        earliest_date = datetime.datetime(2023, 12, 4)
-        positions = dict()
         expected_output = pd.Series(
             data={
                 "p_i": -227.1,
@@ -55,32 +52,27 @@ class GetLatestDataTestCase(unittest.TestCase):
                 "gps_lon_fit": -46.294261,
                 "gps_alt_fit": 2119.6,
                 "z_boom_u_smooth": 4.2,
-                "stid": stid,
             },
             name=datetime.datetime(2023, 12, 7, 6),
         )
 
         latest_data = get_latest_data(
-            df1=data,
-            stid=stid,
-            earliest_date=earliest_date,
-            positions=positions,
+            df=data,
             lin_reg_time_limit="1w",
         )
 
         pd.testing.assert_series_equal(latest_data, expected_output, rtol=1e-8)
-        self.assertDictEqual(
-            positions,
-            {
-                stid: {
-                    "lat": 66.482474,
-                    "lon": -46.294261,
-                    "alt": 2119.6,
-                    "timestamp": pd.Timestamp("2023-12-07 06:00:00"),
-                }
-            },
+
+    def test_has_no_data(self):
+        data = self.get_data()
+        # Remove all rows but keep columns
+        data = data.iloc[0:0]
+
+        latest_data = get_latest_data(
+            df=data,
+            lin_reg_time_limit="1w",
         )
-        return latest_data
+        self.assertIsNone(latest_data)
 
     def test_latest_data_from_multiple_timestamps(self):
         data = self.get_data()
@@ -88,8 +80,6 @@ class GetLatestDataTestCase(unittest.TestCase):
         data.loc["2023-12-07 05:00:00", "p_i"] = 42.0
         # p_i is set to None to test the case multiple valid indices
         data.loc["2023-12-07 06:00:00", "p_i"] = None
-        stid = "a_stid_string"
-        earliest_date = datetime.datetime(2023, 12, 4)
         expected_output = pd.Series(
             data={
                 "p_i": 42.0,  # p_i shall be selected from the previous hour
@@ -105,85 +95,16 @@ class GetLatestDataTestCase(unittest.TestCase):
                 "gps_lon_fit": -46.294261,
                 "gps_alt_fit": 2119.6,
                 "z_boom_u_smooth": 4.2,
-                "stid": stid,
             },
             name=datetime.datetime(2023, 12, 7, 6),
         )
 
         latest_data = get_latest_data(
-            df1=data,
-            stid=stid,
-            earliest_date=earliest_date,
-            positions=dict(),
+            df=data,
             lin_reg_time_limit="1w",
         )
 
         pd.testing.assert_series_equal(latest_data, expected_output, rtol=1e-8)
-
-    def test_latest_timestamps_older_than_earliest_date(self):
-        data = self.get_data()
-        data.loc["2023-12-07 00:00:00":, "p_i"] = None
-        stid = "a_stid_string"
-        earliest_date = datetime.datetime(2023, 12, 7)
-        expected_output = pd.Series(
-            data={
-                "p_i": np.nan,  # The last valid p_i is older than earliest_date
-                "t_i": -16.7,
-                "rh_i": 84.6,
-                "wspd_i": 14.83,
-                "wdir_i": 142.2,
-                "gps_lat": 66.482469,
-                "gps_lon": -46.294232,
-                "gps_alt": 2116.0,
-                "z_boom_u": 4.1901,
-                "gps_lat_fit": 66.482474,
-                "gps_lon_fit": -46.294261,
-                "gps_alt_fit": 2119.6,
-                "z_boom_u_smooth": 4.2,
-                "stid": stid,
-            },
-            name=datetime.datetime(2023, 12, 7, 6),
-        )
-
-        latest_data = get_latest_data(
-            df1=data,
-            stid=stid,
-            earliest_date=earliest_date,
-            positions=dict(),
-            lin_reg_time_limit="1w",
-        )
-
-        pd.testing.assert_series_equal(latest_data, expected_output, rtol=1e-8)
-
-    def test_has_no_new_data(self):
-        data = self.get_data()
-        positions = dict()
-
-        latest_data = get_latest_data(
-            df1=data,
-            stid="a_stid_string",
-            earliest_date=datetime.datetime(2023, 12, 8),
-            positions=positions,
-            lin_reg_time_limit="1w",
-        )
-        self.assertIsNone(latest_data)
-
-    def test_has_new_data_position_is_none(self):
-        data = self.get_data()
-
-        latest_data = get_latest_data(
-            df1=data,
-            stid="a_stid_string",
-            earliest_date=datetime.datetime(2023, 12, 3),
-            positions=None,
-            lin_reg_time_limit="1w",
-        )
-
-        self.assertIsInstance(latest_data, pd.Series)
-        pd.testing.assert_series_equal(
-            latest_data,
-            self.test_has_new_data(),
-        )
 
     def test_all_instantaneous_timestamps_values_are_nan(self):
         data = self.get_data()
@@ -199,39 +120,7 @@ class GetLatestDataTestCase(unittest.TestCase):
         ] = np.nan
 
         latest_data = get_latest_data(
-            df1=data,
-            stid="a_stid_string",
-            earliest_date=datetime.datetime(2023, 12, 3),
-            positions=None,
-            lin_reg_time_limit="1w",
-        )
-
-        self.assertIsNone(latest_data)
-
-    def test_min_data_wx_failed(self):
-        data = self.get_data()
-        data.loc[:, ["t_i", "p_i"]] = np.nan
-
-        latest_data = get_latest_data(
-            df1=data,
-            stid="a_stid_string",
-            earliest_date=datetime.datetime(2023, 12, 3),
-            positions=None,
-            lin_reg_time_limit="1w",
-        )
-
-        self.assertIsNone(latest_data)
-
-    def test_min_data_pos_failed(self):
-        data = self.get_data()
-        # There has to be >=15 samples of the gps variables
-        data.loc[:"2023-12-07 04:00", ["gps_lat"]] = np.nan
-
-        latest_data = get_latest_data(
-            df1=data,
-            stid="a_stid_string",
-            earliest_date=datetime.datetime(2023, 12, 3),
-            positions=None,
+            df=data,
             lin_reg_time_limit="1w",
         )
 
@@ -243,10 +132,7 @@ class GetLatestDataTestCase(unittest.TestCase):
         expected_output = data["auxiliary_data"].iloc[-1]
 
         latest_data = get_latest_data(
-            df1=data,
-            stid="a_stid_string",
-            earliest_date=datetime.datetime(2023, 12, 3),
-            positions=None,
+            df=data,
             lin_reg_time_limit="1w",
         )
 

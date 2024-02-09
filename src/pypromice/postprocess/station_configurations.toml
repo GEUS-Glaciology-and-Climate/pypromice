@@ -1,0 +1,803 @@
+[CEN2]
+stid = "CEN2"
+station_site = "CEN"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04407"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[CP1]
+stid = "CP1"
+station_site = "CP1"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04442"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[DY2]
+stid = "DY2"
+station_site = "DY2"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04464"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[EGP]
+stid = "EGP"
+station_site = "EGP"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04451"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[HUM]
+stid = "HUM"
+station_site = "HUM"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04432"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[NAE]
+stid = "NAE"
+station_site = "NAE"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04420"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[NAU]
+stid = "NAU"
+station_site = "NAU"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04443"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[NEM]
+stid = "NEM"
+station_site = "NEM"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04436"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[NSE]
+stid = "NSE"
+station_site = "NSE"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04488"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[SDL]
+stid = "SDL"
+station_site = "SDL"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04485"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[SDM]
+stid = "SDM"
+station_site = "SDM"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04492"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[TUN]
+stid = "TUN"
+station_site = "TUN"
+project = "GC-Net"
+station_mounting_type = "Mast 100mm aluminimum"
+station_type = "mobile"
+wmo_id = "04425"
+barometer_from_gps = 0.55
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.4
+height_of_gps_from_station_ground = 1.5
+sonic_ranger_from_gps = 0.15
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[KAN_M]
+stid = "KAN_M"
+station_site = "KAN_M"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04411"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[KAN_U]
+stid = "KAN_U"
+station_site = "KAN_U"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04409"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[LYN_L]
+stid = "LYN_L"
+station_site = "LYN_L"
+project = "Disko"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04450"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[LYN_T]
+stid = "LYN_T"
+station_site = "LYN_T"
+project = "Disko"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04429"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[MIT]
+stid = "MIT"
+station_site = "MIT"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04430"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[NUK_K]
+stid = "NUK_K"
+station_site = "NUK_K"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04437"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[NUK_L]
+stid = "NUK_L"
+station_site = "NUK_L"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04403"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[SCO_L]
+stid = "SCO_L"
+station_site = "SCO_L"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04413"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[SCO_U]
+stid = "SCO_U"
+station_site = "SCO_U"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04421"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[TAS_A]
+stid = "TAS_A"
+station_site = "TAS_A"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04408"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[TAS_L]
+stid = "TAS_L"
+station_site = "TAS_L"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04404"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[THU_L]
+stid = "THU_L"
+station_site = "THU_L"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04424"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[THU_L2]
+stid = "THU_L2"
+station_site = "THU_L2"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04453"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[UPE_L]
+stid = "UPE_L"
+station_site = "UPE_L"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04423"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[UPE_U]
+stid = "UPE_U"
+station_site = "UPE_U"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04422"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[KAN_Lv3]
+stid = "KAN_Lv3"
+station_site = "KAN_L"
+project = "Promice"
+station_mounting_type = "Tripod AWS V3"
+station_type = "mobile"
+wmo_id = "04412"
+barometer_from_gps = 1.3
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[NUK_Uv3]
+stid = "NUK_Uv3"
+station_site = "NUK_U"
+project = "Promice"
+station_mounting_type = "Tripod AWS V3"
+station_type = "mobile"
+wmo_id = "04439"
+barometer_from_gps = 1.3
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[QAS_Lv3]
+stid = "QAS_Lv3"
+station_site = "QAS_L"
+project = "Promice"
+station_mounting_type = "Tripod AWS V3"
+station_type = "mobile"
+wmo_id = "04401"
+barometer_from_gps = 1.3
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[QAS_Mv3]
+stid = "QAS_Mv3"
+station_site = "QAS_M"
+project = "Promice"
+station_mounting_type = "Tripod AWS V3"
+station_type = "mobile"
+wmo_id = "04441"
+barometer_from_gps = 1.3
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[QAS_Uv3]
+stid = "QAS_Uv3"
+station_site = "QAS_U"
+project = "Promice"
+station_mounting_type = "Tripod AWS V3"
+station_type = "mobile"
+wmo_id = "04402"
+barometer_from_gps = 1.3
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[ZAK_Lv3]
+stid = "ZAK_Lv3"
+station_site = "ZAK_L"
+project = "GlacioBasis"
+station_mounting_type = "Tripod AWS V3"
+station_type = "mobile"
+wmo_id = "04461"
+barometer_from_gps = 1.3
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[ZAK_Uv3]
+stid = "ZAK_Uv3"
+station_site = "ZAK_U"
+project = "GlacioBasis"
+station_mounting_type = "Tripod AWS V3"
+station_type = "mobile"
+wmo_id = "04462"
+barometer_from_gps = 1.3
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[WEG_B]
+stid = "WEG_B"
+station_site = "NUK_U"
+project = "Wegener"
+station_mounting_type = "Tripod AWS"
+station_type = "land"
+wmo_id = "460"
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[KAN_B]
+stid = "KAN_B"
+station_site = "KAN_B"
+project = "Promice"
+station_type = "land"
+wmo_id = "445"
+export_bufr = false
+comment = "no_instantaneous"
+skipped_variables = []
+positions_update_timestamp_only = true
+
+[CEN1]
+stid = "CEN1"
+station_site = "CEN1"
+project = "GC-Net"
+export_bufr = false
+comment = "discontinued"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[JAR_O]
+stid = "JAR_O"
+station_site = "JAR"
+project = "GC-Net"
+station_mounting_type = "Tripod AWS V3 alpha"
+wmo_id = "04452"
+export_bufr = false
+comment = "discontinued"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[KAN_L]
+stid = "KAN_L"
+station_site = "KAN_L"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+wmo_id = "04412"
+export_bufr = false
+comment = "use_v3"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[KPC_Lv3]
+stid = "KPC_Lv3"
+station_site = "KPC_L"
+project = "Promice"
+station_mounting_type = "Tripod AWS V3 alpha"
+station_type = "mobile"
+wmo_id = "04428"
+export_bufr = false
+comment = "v3_bad"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[NUK_N]
+stid = "NUK_N"
+station_site = "NUK_N"
+export_bufr = false
+comment = "discontinued"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[NUK_U]
+stid = "NUK_U"
+station_site = "NUK_U"
+project = "Promice"
+wmo_id = "04439"
+export_bufr = false
+comment = "use_v3"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[QAS_A]
+stid = "QAS_A"
+station_site = "QAS_A"
+project = "Promice"
+export_bufr = false
+comment = "discontinued"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[QAS_L]
+stid = "QAS_L"
+station_site = "QAS_L"
+project = "Promice"
+wmo_id = "04401"
+export_bufr = false
+comment = "use_v3"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[QAS_M]
+stid = "QAS_M"
+station_site = "QAS_M"
+project = "Promice"
+wmo_id = "04441"
+export_bufr = false
+comment = "use_v3"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[QAS_U]
+stid = "QAS_U"
+station_site = "QAS_U"
+project = "Promice"
+wmo_id = "04402"
+export_bufr = false
+comment = "use_v3"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[SWC_O]
+stid = "SWC_O"
+station_site = "SWC"
+project = "GC-Net"
+wmo_id = "04458"
+export_bufr = false
+comment = "discontinued"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[TAS_U]
+stid = "TAS_U"
+station_site = "TAS_U"
+project = "Promice"
+export_bufr = false
+comment = "discontinued"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[THU_U]
+stid = "THU_U"
+station_site = "THU_U"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04454"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = false
+comment = "discontinued"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[UWN]
+stid = "UWN"
+station_site = "UWN"
+export_bufr = false
+comment = "not_registered"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[WEG_L]
+stid = "WEG_L"
+station_site = "WEG_L"
+project = "Wegener"
+export_bufr = false
+comment = "not_registered"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[XXX]
+stid = "XXX"
+station_site = "XXX"
+export_bufr = false
+comment = "test"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[ZAK_A]
+stid = "ZAK_A"
+station_site = "ZAK_A"
+project = "GlacioBasis"
+export_bufr = false
+comment = "not_registered"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[ZAK_L]
+stid = "ZAK_L"
+station_site = "ZAK_L"
+project = "GlacioBasis"
+wmo_id = "04461"
+export_bufr = false
+comment = "use_v3,no_instantaneous"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[ZAK_U]
+stid = "ZAK_U"
+station_site = "ZAK_U"
+project = "GlacioBasis"
+wmo_id = "04462"
+export_bufr = false
+comment = "use_v3,no_instantaneous"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[KPC_Uv3]
+stid = "KPC_Uv3"
+station_site = "KPC_U"
+project = "Promice"
+station_mounting_type = "Tripod AWS V3 alpha"
+station_type = "mobile"
+wmo_id = "04427"
+export_bufr = false
+comment = "v3_bad"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[KPC_L]
+stid = "KPC_L"
+station_site = "KPC_L"
+project = "Promice"
+wmo_id = "04428"
+export_bufr = false
+comment = "use_v3"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[KPC_U]
+stid = "KPC_U"
+station_site = "KPC_U"
+project = "Promice"
+wmo_id = "04427"
+export_bufr = false
+comment = "use_v3"
+skipped_variables = []
+positions_update_timestamp_only = false
+
+[THU_U2]
+stid = "THU_U2"
+station_site = "THU_U"
+project = "Promice"
+station_mounting_type = "Tripod AWS V2"
+station_type = "mobile"
+wmo_id = "04454"
+barometer_from_gps = -0.25
+anemometer_from_sonic_ranger = 0.4
+temperature_from_sonic_ranger = 0.0
+height_of_gps_from_station_ground = 0.9
+sonic_ranger_from_gps = 1.3
+export_bufr = true
+skipped_variables = []
+positions_update_timestamp_only = false

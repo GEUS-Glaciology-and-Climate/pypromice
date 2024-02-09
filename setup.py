@@ -32,7 +32,7 @@ setuptools.setup(
     python_requires=">=3.8",
     package_data={
         "pypromice.qc.percentiles": ["thresholds.csv"],
-        "pypromice.postprocess": ["station_dimensions.csv"],
+        "pypromice.postprocess": ["station_configurations.toml"],
     },
     install_requires=['numpy>=1.23.0', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'scikit-learn>=1.1.0', 'Bottleneck', 'netcdf4', 'pyDataverse'],
     entry_points={

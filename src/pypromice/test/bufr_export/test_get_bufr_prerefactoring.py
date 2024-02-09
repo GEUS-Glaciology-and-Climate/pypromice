@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import logging
 import pickle
+import shutil
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -11,22 +12,28 @@ from unittest import TestCase
 import numpy as np
 import pandas as pd
 
-from pypromice.postprocess import get_bufr, wmo_config
+from pypromice.postprocess import get_bufr
+from pypromice.postprocess.get_bufr import (
+    DEFAULT_STATION_CONFIGURATION_PATH,
+    StationConfiguration,
+    write_station_configuration_mapping,
+)
 
 logging.basicConfig(
     stream=sys.stdout,
     format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
-    level=logging.WARNING,
+    level=logging.INFO,
 )
 
-DATA_DIR = Path(__file__).parent.parent.joinpath("data").absolute()
+DATA_DIR = Path(__file__).parent.absolute()
 
 
 def run_get_bufr(
-        l3_data: pd.DataFrame,
-        stid: str,
-        latest_timestamps: Optional[Dict[str, datetime.datetime]],
-        **get_bufr_kwargs,
+    l3_data: pd.DataFrame,
+    stid: str,
+    latest_timestamps: Optional[Dict[str, datetime.datetime]],
+    station_configuration_mapping=None,
+    **get_bufr_kwargs,
 ) -> Dict[str, str]:
     """
     Run get_bufr using a temporary folder structure for input and output data
@@ -46,22 +53,34 @@ def run_get_bufr(
     with TemporaryDirectory() as output_path:
         output_path = Path(output_path)
         bufr_out = output_path.joinpath("BUFR_out")
-        timestamps_pickle_filepath = output_path.joinpath(
-            "latest_timestamps.pickle"
-        )
+        timestamps_pickle_filepath = output_path.joinpath("latest_timestamps.pickle")
         positions_filepath = output_path.joinpath("AWS_latest_locations.csv")
+        station_configuration_path = output_path.joinpath("station_configuration.toml")
         l3_filepath = output_path.joinpath(f"{stid}_hour.csv")
         l3_data.to_csv(l3_filepath)
+
+        if station_configuration_mapping is None:
+            shutil.copy(
+                DEFAULT_STATION_CONFIGURATION_PATH,
+                station_configuration_path,
+            )
+        else:
+            with station_configuration_path.open("w") as fp:
+                write_station_configuration_mapping(
+                    station_configuration_mapping,
+                    fp,
+                )
 
         if latest_timestamps is not None:
             with timestamps_pickle_filepath.open("wb") as fp:
                 pickle.dump(latest_timestamps, fp)
 
         get_bufr.get_bufr(
-            bufr_out=bufr_out.as_posix() + "/",
-            l3_filepath=l3_filepath.as_posix(),
-            timestamps_pickle_filepath=timestamps_pickle_filepath.as_posix(),
-            positions_filepath=positions_filepath.as_posix(),
+            bufr_out=bufr_out,
+            input_files=[l3_filepath],
+            timestamps_pickle_filepath=timestamps_pickle_filepath,
+            positions_filepath=positions_filepath,
+            station_configuration_path=station_configuration_path,
             **get_bufr_kwargs,
         )
 
@@ -75,20 +94,23 @@ def run_get_bufr(
 
 
 class PreRefactoringBufrTestCase(TestCase):
-
     @staticmethod
-    def get_station_dimension_table(
-            stid: str,
-            wmo_id: str,
-            station_site: Optional[str] = None,
-            station_type: str = 'mobile',
-            barometer_from_gps: float = 0,
-            anemometer_from_sonic_ranger: float = .4,
-            temperature_from_sonic_ranger: float = -.1,
-            height_of_gps_from_station_ground: float = 0,
+    def get_station_configuration_mapping(
+        stid: str,
+        wmo_id: str,
+        station_site: Optional[str] = None,
+        station_type: str = "mobile",
+        barometer_from_gps: float = 0,
+        anemometer_from_sonic_ranger: float = 0.4,
+        temperature_from_sonic_ranger: float = -0.1,
+        height_of_gps_from_station_ground: float = 0,
+        skipped_variables=(),
+        comment=None,
+        export_bufr=True,
+        positions_update_timestamp_only=False,
     ) -> dict:
         return {
-            stid: dict(
+            stid: StationConfiguration(
                 stid=stid,
                 station_site=stid if station_type is None else station_site,
                 station_type=station_type,
@@ -97,6 +119,10 @@ class PreRefactoringBufrTestCase(TestCase):
                 anemometer_from_sonic_ranger=anemometer_from_sonic_ranger,
                 temperature_from_sonic_ranger=temperature_from_sonic_ranger,
                 height_of_gps_from_station_ground=height_of_gps_from_station_ground,
+                skipped_variables=skipped_variables,
+                comment=comment,
+                export_bufr=export_bufr,
+                positions_update_timestamp_only=positions_update_timestamp_only,
             ),
         }
 
@@ -110,7 +136,7 @@ class PreRefactoringBufrTestCase(TestCase):
         expected_file_hashes = {
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -118,8 +144,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -136,7 +161,7 @@ class PreRefactoringBufrTestCase(TestCase):
         expected_file_hashes = {
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -144,8 +169,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=False,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -160,8 +184,9 @@ class PreRefactoringBufrTestCase(TestCase):
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
-        skip = {'TEST': [stid]}
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(
+            stid, wmo_id="04464", export_bufr=False
+        )
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -169,8 +194,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -186,7 +210,7 @@ class PreRefactoringBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 8)
         expected_file_hashes = {}
 
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -194,8 +218,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -212,7 +235,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
 
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -220,8 +243,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -237,7 +259,7 @@ class PreRefactoringBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 20)
         expected_file_hashes = {}
 
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -245,8 +267,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -266,7 +287,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid: "8fd93d47838d9d9dbec69379556e30048cd0ccc193b55cc8d09783d068f163ff"
         }
 
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -274,8 +295,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -288,12 +308,21 @@ class PreRefactoringBufrTestCase(TestCase):
         l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
         l3_src = pd.read_csv(l3_src_filepath)
         # Set all instantanous values to nan
-        l3_src.loc[:, ["t_i", "p_i", "rh_i", "wspd_i", "wdir_i", ]] = np.nan
+        l3_src.loc[
+            :,
+            [
+                "t_i",
+                "p_i",
+                "rh_i",
+                "wspd_i",
+                "wdir_i",
+            ],
+        ] = np.nan
         latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
 
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -301,8 +330,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -320,7 +348,7 @@ class PreRefactoringBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 10)
         expected_file_hashes = {}
 
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -328,8 +356,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -345,7 +372,7 @@ class PreRefactoringBufrTestCase(TestCase):
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -353,8 +380,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -370,7 +396,7 @@ class PreRefactoringBufrTestCase(TestCase):
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -378,8 +404,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -393,11 +418,15 @@ class PreRefactoringBufrTestCase(TestCase):
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
         # New is before the latest data
-        now_timestamp = datetime.datetime(2023, 12, 6, )
+        now_timestamp = datetime.datetime(
+            2023,
+            12,
+            6,
+        )
         expected_file_hashes = {
             stid: "976a24edef2d0e6e2f29fa13d6242419fa05b24905db715fe351c19a1aa1d577"
         }
-        table = self.get_station_dimension_table(stid, wmo_id='04464')
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -405,8 +434,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
@@ -424,7 +452,9 @@ class PreRefactoringBufrTestCase(TestCase):
             stid: "eb42044f38326a295bcd18bd42fba5ed88800c5a688f885b87147aacaa5f5001"
         }
 
-        table = self.get_station_dimension_table(stid, wmo_id='460', station_type='land')
+        mapping = self.get_station_configuration_mapping(
+            stid, wmo_id="460", station_type="land"
+        )
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -432,8 +462,7 @@ class PreRefactoringBufrTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="3M",
-            stid_to_skip=wmo_config.stid_to_skip,
-            station_dimension_table=table,
+            station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
             expected_file_hashes,
