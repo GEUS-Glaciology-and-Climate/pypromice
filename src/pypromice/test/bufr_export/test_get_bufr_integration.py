@@ -1,3 +1,7 @@
+"""
+Automatic test to verify get_bufr generates exactly the same output files given the same parameters.
+"""
+
 import datetime
 import hashlib
 import logging

@@ -21,7 +21,7 @@ from pypromice.postprocess.get_bufr import (
     write_station_configuration_mapping,
     load_station_configuration_mapping,
 )
-from pypromice.test.bufr_export.test_get_bufr_prerefactoring import (
+from pypromice.test.bufr_export.test_get_bufr_integration import (
     DATA_DIR,
     run_get_bufr,
 )
