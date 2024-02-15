@@ -45,7 +45,7 @@ def parse_arguments_bufr() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--positions-filepath",
-        default="../aws-l3/AWS_latest_locations.csv",
+        "-p",
         type=Path,
         required=False,
         help="Path to write AWS_latest_locations.csv file.",
@@ -62,23 +62,24 @@ def parse_arguments_bufr() -> argparse.ArgumentParser:
     parser.add_argument(
         "--input_files",
         "--l3-filepath",
+        "-i",
         type=Path,
         nargs="+",
+        required=True,
         help="Path to L3 tx .csv files. Can be direct paths or glob patterns",
     )
 
     parser.add_argument(
         "--bufr-out",
-        default="src/pypromice/postprocess/BUFR_out/",
+        "-o",
         type=Path,
-        required=False,
+        required=True,
         help="Path to the BUFR out directory.",
     )
 
     parser.add_argument(
         "--timestamps-pickle-filepath",
-        default="../pypromice/src/pypromice/postprocess/latest_timestamps.pickle",
-        type=str,
+        type=Path,
         required=False,
         help="Path to the latest_timestamps.pickle file.",
     )
@@ -235,6 +236,7 @@ def process_station(
 
         # Store current timest
         if latest_data.name <= latest_timestamp:
+            logger.info(f"No new data {latest_data.name} <= {latest_timestamp}")
             return station_position
 
         # Construct and export BUFR file
@@ -482,6 +484,31 @@ def get_bufr_variables(
     BUFRVariables used by bufr_utilities
 
     """
+    heightOfStationGroundAboveMeanSeaLevel = np.nan
+    if isinstance(station_configuration.height_of_gps_from_station_ground, float):
+        heightOfStationGroundAboveMeanSeaLevel = (
+                data["gps_alt_fit"] - station_configuration.height_of_gps_from_station_ground
+        )
+
+    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = np.nan
+    if isinstance(station_configuration.temperature_from_sonic_ranger, float):
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = (
+                data["z_boom_u_smooth"]+ station_configuration.temperature_from_sonic_ranger
+        )
+
+    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = np.nan
+    if isinstance(station_configuration.anemometer_from_sonic_ranger, float):
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
+                data["z_boom_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
+        )
+
+    heightOfBarometerAboveMeanSeaLevel = np.nan
+    if isinstance(station_configuration.barometer_from_gps, float):
+        heightOfBarometerAboveMeanSeaLevel = (
+                data["gps_alt_fit"] + station_configuration.barometer_from_gps
+        )
+
+
     output_row = BUFRVariables(
         wmo_id=station_configuration.wmo_id,
         station_type=station_configuration.station_type,
@@ -498,20 +525,10 @@ def get_bufr_variables(
         latitude=data.gps_lat_fit,
         longitude=data.gps_lon_fit,
         # TODO: This might need to be relative to snow height instead.
-        heightOfStationGroundAboveMeanSeaLevel=(
-            data["gps_alt_fit"]
-            - station_configuration.height_of_gps_from_station_ground
-        ),
-        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=(
-            data["z_boom_u_smooth"]
-            + station_configuration.temperature_from_sonic_ranger
-        ),
-        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=(
-            data["z_boom_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
-        ),
-        heightOfBarometerAboveMeanSeaLevel=(
-            data["gps_alt_fit"] + station_configuration.barometer_from_gps
-        ),
+        heightOfStationGroundAboveMeanSeaLevel=heightOfStationGroundAboveMeanSeaLevel,
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH,
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD,
+        heightOfBarometerAboveMeanSeaLevel=heightOfBarometerAboveMeanSeaLevel,
     )
     return output_row
 
