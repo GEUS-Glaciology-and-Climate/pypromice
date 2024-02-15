@@ -127,7 +127,7 @@ def find_positions(df, time_limit):
         The station ID, such as NUK_L
     time_limit : str
         Previous time to limit dataframe before applying linear regression.
-        (e.g. '3M')
+        (e.g. '91d')
 
     Returns
     -------
@@ -137,7 +137,11 @@ def find_positions(df, time_limit):
         Modified dict storing most-recent station positions.
     """
     logger.info("finding positions")
-    df_limited = df.last(time_limit).copy()
+    time_delta = pd.Timedelta(time_limit)
+    last_index = df.index.max()
+    last_mask = df.index > last_index - time_delta
+    df_limited = df.loc[last_mask].copy()
+
     logger.info(f"last transmission: {df_limited.index.max()}")
 
     # Extrapolate recommended for altitude, optional for lat and lon.
@@ -159,11 +163,11 @@ def find_positions(df, time_limit):
                 df, valid = linear_fit(df, k, 6)
             check_valid_again[k] = valid
             if check_valid_again[k] is True:
-                df_limited[f"{k}_fit"] = df.last(time_limit)[f"{k}_fit"]
+                df_limited[f"{k}_fit"] = df.loc[df_limited.index, f"{k}_fit"]
             else:
                 logger.info(f"----> No data exists for {k}. Stubbing out with NaN.")
                 df_limited[f"{k}_fit"] = pd.Series(
-                    np.nan, index=df.last(time_limit).index
+                    np.nan, index=df_limited.index
                 )
 
     return df_limited

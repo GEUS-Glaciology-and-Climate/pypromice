@@ -53,7 +53,7 @@ def parse_arguments_bufr() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--time-limit",
-        default="3M",
+        default="91d",
         type=str,
         required=False,
         help="Previous time to limit dataframe before applying linear regression.",
@@ -281,7 +281,7 @@ def get_bufr(
     positions_seed_path: Optional[Path] = None,
     earliest_timestamp: datetime = None,
     store_positions: bool = False,
-    time_limit: str = "3M",
+    time_limit: str = "91d",
 ):
     """
     Main function for generating BUFR files and determine latest positions from a sequence of csv files

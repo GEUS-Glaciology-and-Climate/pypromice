@@ -147,7 +147,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -172,7 +172,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=False,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -197,7 +197,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -221,7 +221,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -246,7 +246,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -270,7 +270,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -298,7 +298,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -333,7 +333,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -359,7 +359,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -383,7 +383,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -407,7 +407,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -437,7 +437,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
@@ -465,7 +465,7 @@ class PreRefactoringBufrTestCase(TestCase):
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="3M",
+            time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertDictEqual(
