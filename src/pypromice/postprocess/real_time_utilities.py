@@ -71,11 +71,7 @@ def get_latest_data(
     df_limited = rolling_window(df_limited, "z_boom_u", "72H", 2, 1)
 
     # limit to single most recent valid row (convert to series)
-    s_current = (
-        df_limited
-        # Forward fill nan values to handle variables with nan values at last_valid_index.
-        .ffill().loc[last_valid_index]
-    )
+    s_current = df_limited.loc[last_valid_index]
 
     return s_current
 

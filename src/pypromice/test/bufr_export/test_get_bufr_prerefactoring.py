@@ -274,7 +274,7 @@ class PreRefactoringBufrTestCase(TestCase):
             file_hashes,
         )
 
-    def test_multiple_last_valid_indices(self):
+    def test_invalid_value_at_last_index(self):
         stid = "DY2"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
@@ -284,7 +284,7 @@ class PreRefactoringBufrTestCase(TestCase):
         latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
         now_timestamp = datetime.datetime(2023, 12, 8)
         expected_file_hashes = {
-            stid: "8fd93d47838d9d9dbec69379556e30048cd0ccc193b55cc8d09783d068f163ff"
+            stid: "bb951e0245ce3f6fe656b9bb5c85f097753a6969cc60b2cf8b34e0764495e627"
         }
 
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")

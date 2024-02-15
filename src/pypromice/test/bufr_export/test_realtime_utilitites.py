@@ -13,6 +13,8 @@ class GetLatestDataTestCase(unittest.TestCase):
         # There has to be >=15 rows for calculating the gps fits
         csv_lines = [
             "time,p_i,t_i,rh_i,wspd_i,wdir_i,gps_lat,gps_lon,gps_alt,z_boom_u",
+            "2023-12-06 14:00:00,-227.3,-15.5,87.5,15.01,127.4,66.482481,-46.294234,2127.0,4.1871",
+            "2023-12-06 15:00:00,-227.7,-15.4,87.4,15.58,139.2,66.482488,-46.294176,2120.0,4.1877",
             "2023-12-06 16:00:00,-227.7,-15.2,87.6,15.41,129.4,66.48253,-46.294227,2142.0,4.1873",
             "2023-12-06 17:00:00,-227.5,-15.4,87.1,13.66,138.6,66.482494,-46.294307,2132.0,4.1907",
             "2023-12-06 18:00:00,-228.0,-15.1,87.7,15.7,141.5,66.482497,-46.294308,2129.0,4.1907",
@@ -48,9 +50,9 @@ class GetLatestDataTestCase(unittest.TestCase):
                 "gps_lon": -46.294232,
                 "gps_alt": 2116.0,
                 "z_boom_u": 4.1901,
-                "gps_lat_fit": 66.482474,
-                "gps_lon_fit": -46.294261,
-                "gps_alt_fit": 2119.6,
+                "gps_lat_fit": 66.482479,
+                "gps_lon_fit": -46.294269,
+                "gps_alt_fit": 2121.4,
                 "z_boom_u_smooth": 4.2,
             },
             name=datetime.datetime(2023, 12, 7, 6),
@@ -74,15 +76,49 @@ class GetLatestDataTestCase(unittest.TestCase):
         )
         self.assertIsNone(latest_data)
 
-    def test_latest_data_from_multiple_timestamps(self):
+    def test_latest_data_row_is_invalid(self):
+        """
+        The last line is invalid. get_latest_data shall therefore return the second last line
+        """
         data = self.get_data()
-        # p_i is set to 42.0 to distinguish from the rest
-        data.loc["2023-12-07 05:00:00", "p_i"] = 42.0
-        # p_i is set to None to test the case multiple valid indices
+        data.loc["2023-12-07 06:00:00", :] = np.nan
+        expected_output_timestamp = datetime.datetime(2023, 12, 7, 5)
+        expected_output = pd.Series(
+            data={
+                "p_i": -227.4,
+                "t_i": -16.4,
+                "rh_i": 85.5,
+                "wspd_i": 15.53,
+                "wdir_i": 144.2,
+                "gps_lat": 66.48246,
+                "gps_lon": -46.294335,
+                "gps_alt": 2125.0,
+                "z_boom_u": 4.1844,
+                "gps_lat_fit": 66.482483,
+                "gps_lon_fit": -46.294275,
+                "gps_alt_fit": 2123.3,
+                "z_boom_u_smooth": 4.2,
+            },
+            name=expected_output_timestamp,
+        )
+
+        latest_data = get_latest_data(
+            df=data,
+            lin_reg_time_limit="1w",
+        )
+
+        pd.testing.assert_series_equal(latest_data, expected_output, rtol=1e-8)
+
+    def test_latest_data_has_some_invalid_values(self):
+        """
+        Return the latest data where there are some valid values.
+        """
+        data = self.get_data()
+        # p_i is set to None to test the case multiple last valid indices
         data.loc["2023-12-07 06:00:00", "p_i"] = None
         expected_output = pd.Series(
             data={
-                "p_i": 42.0,  # p_i shall be selected from the previous hour
+                "p_i": np.nan,  # p_i shall be selected from the previous hour
                 "t_i": -16.7,
                 "rh_i": 84.6,
                 "wspd_i": 14.83,
@@ -91,9 +127,9 @@ class GetLatestDataTestCase(unittest.TestCase):
                 "gps_lon": -46.294232,
                 "gps_alt": 2116.0,
                 "z_boom_u": 4.1901,
-                "gps_lat_fit": 66.482474,
-                "gps_lon_fit": -46.294261,
-                "gps_alt_fit": 2119.6,
+                "gps_lat_fit": 66.482479,
+                "gps_lon_fit": -46.294269,
+                "gps_alt_fit": 2121.4,
                 "z_boom_u_smooth": 4.2,
             },
             name=datetime.datetime(2023, 12, 7, 6),
