@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import numpy as np
 import pandas as pd
 
 
@@ -152,3 +153,31 @@ class BUFRExportTestCase(unittest.TestCase):
             pd.Series(variables_read).sort_index(),
         )
         self.assertEqual(ground_truth_hash, file_hash)
+
+    def test_nan_value_serialization(self):
+        variables_src = BUFRVariables(
+            wmo_id="04464",
+            station_type="mobile",
+            timestamp=datetime.datetime(2023, 12, 19, 10, 0),
+            relativeHumidity=np.nan,
+            airTemperature=np.nan,
+            pressure=np.nan,
+            windDirection=np.nan,
+            windSpeed=np.nan,
+            latitude=np.nan,
+            longitude=np.nan,
+            heightOfStationGroundAboveMeanSeaLevel=np.nan,
+            heightOfBarometerAboveMeanSeaLevel=np.nan,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=np.nan,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=np.nan,
+        )
+
+        with tempfile.TemporaryFile("br+") as fp:
+            write_bufr_message(variables_src, fp)
+            fp.seek(0)
+            variables_read = read_bufr_message(fp)
+
+        self.assertEqual(
+            variables_src,
+            variables_read,
+        )

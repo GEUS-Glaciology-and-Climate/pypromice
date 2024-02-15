@@ -51,7 +51,7 @@ def round_converter(decimals: int):
 # https://essd.copernicus.org/articles/13/3819/2021/#section8
 # In addition to sensor accuracy, WMO requires pressure and heights
 # to be reported at 0.1 precision.
-@attrs.define
+@attrs.define(eq=False)
 class BUFRVariables:
     wmo_id: str
     station_type: str
@@ -75,6 +75,13 @@ class BUFRVariables:
     heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD: float = attrs.field(
         converter=round_converter(4)
     )
+
+    def as_series(self) -> pd.Series:
+        return pd.Series(attrs.asdict(self))
+
+    def __eq__(self, other: "BUFRVariables"):
+        """Use pandas series equals to allow nan values in comparison."""
+        return self.as_series().equals(other.as_series())
 
 
 STATION_CONFIGURATIONS = {
@@ -325,12 +332,36 @@ def set_bufr_value(ibufr, b_name, value):
     if math.isnan(value) is False:
         try:
             codes_set(ibufr, b_name, value)
-        except CodesInternalError as ec:
-            print(f"{ec}: {b_name}")
-            print("-----> CodesInternalError in setBUFRvalue!")
+        except CodesInternalError:
+            logger.exception(f"CodesInternalError for {b_name} == {value}")
             raise  # throw error back to getBUFR where it is handled
     else:
-        print("----> {} {}".format(b_name, value))
+        logger.info(f"Variable {b_name} is {value}. Skipping")
+
+
+def get_bufr_value(msgid: int, key: str) -> float:
+    """
+    Read and convert numeric BUFR values and interpret nan based on value.
+
+    Nan values are skipped in set_bufr_value. This means that they have a default value given by the template.
+
+    * int:  2147483647 == 2**31 -1
+    * float: -1e100
+
+    Note: windDirection and relativeHumidity are serialized as integer in the BUFR message.
+    """
+    value = codes_get(msgid, key)
+
+    if isinstance(value, int):
+        if value > 2**30:
+            return np.nan
+        return value
+    elif isinstance(value, float):
+        if value == -1e100:
+            return np.nan
+        return value
+    else:
+        raise ValueError(f"Unsupported BUFR value type {type(value)} for key {key}")
 
 
 def read_bufr_message(fp: BinaryIO) -> Optional[BUFRVariables]:
@@ -398,23 +429,23 @@ def read_bufr_message(fp: BinaryIO) -> Optional[BUFRVariables]:
 
     variables = BUFRVariables(
         timestamp=timestamp,
-        relativeHumidity=codes_get(ibufr, "relativeHumidity"),
-        airTemperature=codes_get(ibufr, "airTemperature"),
-        pressure=codes_get(ibufr, "pressure"),
-        windDirection=codes_get(ibufr, "windDirection"),
-        windSpeed=codes_get(ibufr, "windSpeed"),
-        latitude=codes_get(ibufr, "latitude"),
-        longitude=codes_get(ibufr, "longitude"),
-        heightOfStationGroundAboveMeanSeaLevel=codes_get(
+        relativeHumidity=get_bufr_value(ibufr, "relativeHumidity"),
+        airTemperature=get_bufr_value(ibufr, "airTemperature"),
+        pressure=get_bufr_value(ibufr, "pressure"),
+        windDirection=get_bufr_value(ibufr, "windDirection"),
+        windSpeed=get_bufr_value(ibufr, "windSpeed"),
+        latitude=get_bufr_value(ibufr, "latitude"),
+        longitude=get_bufr_value(ibufr, "longitude"),
+        heightOfStationGroundAboveMeanSeaLevel=get_bufr_value(
             ibufr, "heightOfStationGroundAboveMeanSeaLevel"
         ),
-        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=codes_get(
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=get_bufr_value(
             ibufr, "#1#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform"
         ),
-        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=codes_get(
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=get_bufr_value(
             ibufr, "#7#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform"
         ),
-        heightOfBarometerAboveMeanSeaLevel=codes_get(
+        heightOfBarometerAboveMeanSeaLevel=get_bufr_value(
             ibufr, "heightOfBarometerAboveMeanSeaLevel"
         ),
         wmo_id=wmo_id,
