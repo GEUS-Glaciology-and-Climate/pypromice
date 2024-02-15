@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from pypromice.postprocess import get_bufr, wmo_config
+from pypromice.postprocess.bufr_utilities import BUFRVariables
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -79,6 +80,8 @@ class BufrVariablesTestCase(TestCase):
     def test_bufr_variables_gcnet(self):
         self._test_bufr_variables(
             stid="DY2",
+            wmo_id='04464',
+            station_type='mobile',
             relativeHumidity=69.,
             airTemperature=256.,
             pressure=77300.0,
@@ -95,6 +98,8 @@ class BufrVariablesTestCase(TestCase):
     def test_bufr_variables_promice_v2(self):
         self._test_bufr_variables(
             stid="NUK_L",
+            wmo_id='04403',
+            station_type='mobile',
             relativeHumidity=69.,
             airTemperature=256.,
             pressure=77300.0,
@@ -111,6 +116,8 @@ class BufrVariablesTestCase(TestCase):
     def test_bufr_variables_promice_v3(self):
         self._test_bufr_variables(
             stid="QAS_Mv3",
+            wmo_id='04441',
+            station_type='mobile',
             relativeHumidity=69.,
             airTemperature=256.,
             pressure=77300.0,
@@ -124,11 +131,12 @@ class BufrVariablesTestCase(TestCase):
             heightOfBarometerAboveMeanSeaLevel=2126,
         )
 
-    @mock.patch("pypromice.postprocess.get_bufr.getBUFR")
+    @mock.patch("pypromice.postprocess.get_bufr.write_bufr_message")
     def _test_bufr_variables(
             self,
-            getBUFR_mock: mock.MagicMock,
+            write_bufr_message_mock: mock.MagicMock,
             stid: str,
+            wmo_id: str,
             relativeHumidity: float,
             airTemperature: float,
             pressure: float,
@@ -140,7 +148,7 @@ class BufrVariablesTestCase(TestCase):
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH: float,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD: float,
             heightOfBarometerAboveMeanSeaLevel: float,
-    ):
+            station_type: str):
         l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
         l3_src = pd.read_csv(l3_src_filepath)
         now_timestamp = datetime.datetime(2023, 12, 8)
@@ -156,44 +164,55 @@ class BufrVariablesTestCase(TestCase):
             stid_to_skip=wmo_config.stid_to_skip,
         )
 
-        getBUFR_mock.assert_called_once()
-        call = getBUFR_mock.call_args_list[0]
+        write_bufr_message_mock.assert_called_once()
+        call = write_bufr_message_mock.call_args_list[0]
         expected_time = datetime.datetime(year=2023, month=12, day=7, hour=23)
-        expected_bufr_variables = pd.Series(
-            dict(
-                stid=stid,
-                time=expected_time,
-                relativeHumidity=relativeHumidity,
-                airTemperature=airTemperature,
-                pressure=pressure,
-                windDirection=windDirection,
-                windSpeed=windSpeed,
-                latitude=latitude,
-                longitude=longitude,
-                heightOfStationGroundAboveMeanSeaLevel=heightOfStationGroundAboveMeanSeaLevel,
-                heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH,
-                heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD,
-                heightOfBarometerAboveMeanSeaLevel=heightOfBarometerAboveMeanSeaLevel,
-            ),
-            name=expected_time,
+        expected_bufr_variables = BUFRVariables(
+            stid=stid,
+            wmo_id=wmo_id,
+            station_type=station_type,
+            timestamp=expected_time,
+            relativeHumidity=relativeHumidity,
+            airTemperature=airTemperature,
+            pressure=pressure,
+            windDirection=windDirection,
+            windSpeed=windSpeed,
+            latitude=latitude,
+            longitude=longitude,
+            heightOfStationGroundAboveMeanSeaLevel=heightOfStationGroundAboveMeanSeaLevel,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD,
+            heightOfBarometerAboveMeanSeaLevel=heightOfBarometerAboveMeanSeaLevel,
         )
         pd.testing.assert_series_equal(
-            expected_bufr_variables,
-            call.kwargs['s1'],
-            check_datetimelike_compat=True,
+            pd.Series(expected_bufr_variables),
+            pd.Series(call.kwargs['variables']),
         )
-        self.assertEqual(stid, call.kwargs['stid'])
 
 
 class GetBufrTestCase(TestCase):
 
-    def get_original_station_dimension_table(self, stid: str) -> dict:
+    @staticmethod
+    def get_station_dimension_table(
+            stid: str,
+            wmo_id: str,
+            station_site: Optional[str] = None,
+            station_type: str = 'mobile',
+            barometer_from_gps: float = 0,
+            anemometer_from_sonic_ranger: float = .4,
+            temperature_from_sonic_ranger: float = -.1,
+            height_of_gps_from_station_ground: float = 0,
+    ) -> dict:
         return {
             stid: dict(
-                barometer_from_gps=0,
-                anemometer_from_sonic_ranger=.4,
-                temperature_from_sonic_ranger=-.1,
-                height_of_gps_from_station_ground=0,
+                stid=stid,
+                station_site=stid if station_type is None else station_site,
+                station_type=station_type,
+                wmo_id=wmo_id,
+                barometer_from_gps=barometer_from_gps,
+                anemometer_from_sonic_ranger=anemometer_from_sonic_ranger,
+                temperature_from_sonic_ranger=temperature_from_sonic_ranger,
+                height_of_gps_from_station_ground=height_of_gps_from_station_ground,
             ),
         }
 
@@ -207,7 +226,7 @@ class GetBufrTestCase(TestCase):
         expected_file_hashes = {
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -233,7 +252,7 @@ class GetBufrTestCase(TestCase):
         expected_file_hashes = {
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -258,7 +277,7 @@ class GetBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
         skip = {'TEST': [stid]}
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -283,7 +302,7 @@ class GetBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 8)
         expected_file_hashes = {}
 
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -309,7 +328,7 @@ class GetBufrTestCase(TestCase):
             stid: "2b94d2ef611cfddb6dd537ca63d0ec4fb5d8e880943f81a6d5e724c042ac8971"
         }
 
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -334,7 +353,7 @@ class GetBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 20)
         expected_file_hashes = {}
 
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -360,10 +379,10 @@ class GetBufrTestCase(TestCase):
         latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
         now_timestamp = datetime.datetime(2023, 12, 8)
         expected_file_hashes = {
-            stid: "bb951e0245ce3f6fe656b9bb5c85f097753a6969cc60b2cf8b34e0764495e627"
+            stid: "8fd93d47838d9d9dbec69379556e30048cd0ccc193b55cc8d09783d068f163ff"
         }
 
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -390,7 +409,7 @@ class GetBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
 
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -417,7 +436,7 @@ class GetBufrTestCase(TestCase):
         now_timestamp = datetime.datetime(2023, 12, 10)
         expected_file_hashes = {}
 
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -442,7 +461,7 @@ class GetBufrTestCase(TestCase):
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -467,7 +486,7 @@ class GetBufrTestCase(TestCase):
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
         now_timestamp = datetime.datetime(2023, 12, 6)
         expected_file_hashes = {}
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -494,7 +513,7 @@ class GetBufrTestCase(TestCase):
         expected_file_hashes = {
             stid: "976a24edef2d0e6e2f29fa13d6242419fa05b24905db715fe351c19a1aa1d577"
         }
-        table = self.get_original_station_dimension_table(stid)
+        table = self.get_station_dimension_table(stid, wmo_id='04464')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,
@@ -510,7 +529,6 @@ class GetBufrTestCase(TestCase):
             file_hashes,
         )
 
-
     def test_land_station_export(self):
         l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
         l3_src = pd.read_csv(l3_src_filepath)
@@ -521,7 +539,8 @@ class GetBufrTestCase(TestCase):
         expected_file_hashes = {
             stid: "eb42044f38326a295bcd18bd42fba5ed88800c5a688f885b87147aacaa5f5001"
         }
-        table = self.get_origianl_station_dimension_table(stid)
+
+        table = self.get_station_dimension_table(stid, wmo_id='460', station_type='land')
         file_hashes = run_get_bufr(
             l3_data=l3_src,
             now_timestamp=now_timestamp,

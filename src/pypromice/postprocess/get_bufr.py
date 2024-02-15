@@ -12,17 +12,14 @@ import os
 import pickle
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Mapping
+from typing import List, Dict, Mapping, Any
 
 import numpy as np
 import pandas as pd
 
 from pypromice.postprocess import wmo_config
-from pypromice.postprocess.csv2bufr import (
-    getBUFR,
-)
+from pypromice.postprocess.bufr_utilities import write_bufr_message, BUFRVariables
 from pypromice.postprocess.real_time_utilities import get_latest_data
-from pypromice.postprocess.wmo_config import positions_seed, vars_to_skip
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +121,7 @@ def get_bufr(
         # (seeded with initial positions from wmo_config.positions_seed)
         # Used to retrieve a static set of positions to register stations with DMI/WMO
         # Also used to write AWS_latest_locations.csv to aws-L3 repo
-        positions = positions_seed
+        positions = wmo_config.positions_seed
     else:
         positions = None
 
@@ -204,13 +201,15 @@ def get_bufr(
         # Construct and export BUFR file
         bufr_variables = get_bufr_variables(
             s1_current=s1_current,
+            station_type=station_dimensions["station_type"],
+            wmo_id=station_dimensions["wmo_id"],
             barometer_height_relative_to_gps=station_dimensions["barometer_from_gps"],
             anemometer_height_relative_to_sonic_ranger=station_dimensions["anemometer_from_sonic_ranger"],
             temp_rh_height_relative_to_sonic_ranger=station_dimensions["temperature_from_sonic_ranger"],
             height_of_gps_from_station_ground=station_dimensions['height_of_gps_from_station_ground'],
         )
-        outBUFR_path = os.path.join(outFiles, bufrname)
-        getBUFR(s1=bufr_variables, outBUFR=outBUFR_path, stid=stid)
+        with Path(outFiles, bufrname).open('bw') as fp:
+            write_bufr_message(variables=bufr_variables, file=fp)
 
     # Write the most recent timestamps back to the pickle on disk
     logger.info("writing latest_timestamps.pickle")
@@ -250,7 +249,7 @@ def get_bufr(
 
 
 def filter_skipped_variables(row: pd.Series, stid: str) -> pd.Series:
-    stid_vars_to_skip = vars_to_skip.get(stid, [])
+    stid_vars_to_skip = wmo_config.vars_to_skip.get(stid, [])
     for var_key in row.keys():
         if var_key in stid_vars_to_skip:
             row[var_key] = np.nan
@@ -260,63 +259,53 @@ def filter_skipped_variables(row: pd.Series, stid: str) -> pd.Series:
 
 def get_bufr_variables(
         s1_current: pd.Series,
+        station_type: str,
+        wmo_id: str,
         barometer_height_relative_to_gps: float,
         height_of_gps_from_station_ground: float,
         temp_rh_height_relative_to_sonic_ranger: float,
         anemometer_height_relative_to_sonic_ranger: float,
-) -> pd.Series:
-    output_row = pd.Series(
-        {
-            "stid": s1_current.stid,
-            "time": s1_current.name,
-            # DMI wants non-corrected rh
-            "relativeHumidity": s1_current.rh_i,
-            # Convert air temp, C to Kelvin
-            "airTemperature": s1_current.t_i + 273.15,
-            # Convert pressure, correct the -1000 offset, then hPa to Pa
-            # note that instantaneous pressure has 0.1 hPa precision
-            "pressure": (s1_current.p_i + 1000.0) * 100.0,
-            "windDirection": s1_current.wdir_i,
-            "windSpeed": s1_current.wspd_i,
-            "latitude": s1_current.gps_lat_fit,
-            "longitude": s1_current.gps_lon_fit,
-            # TODO: This might need to be relative to snow height instaed.
-            "heightOfStationGroundAboveMeanSeaLevel": (
-                    s1_current["gps_alt_fit"] - height_of_gps_from_station_ground
-            ),
-            "heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH": (
-                    s1_current["z_boom_u_smooth"] + temp_rh_height_relative_to_sonic_ranger
-            ),
-            "heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD": (
-                    s1_current["z_boom_u_smooth"] + anemometer_height_relative_to_sonic_ranger
-            ),
-            "heightOfBarometerAboveMeanSeaLevel": (
-                    s1_current["gps_alt_fit"] + barometer_height_relative_to_gps
-            ),
-        },
-        name=s1_current.name,
-    )
-    """Enforce precision
-    Note the sensor accuracies listed here:
-    https://essd.copernicus.org/articles/13/3819/2021/#section8
-    In addition to sensor accuracy, WMO requires pressure and heights
-    to be reported at 0.1 precision.
-    """
-    output_row["relativeHumidity"] = np.round(
-        output_row["relativeHumidity"], decimals=0
-    )
-    output_row["windSpeed"] = np.round(output_row["windSpeed"], decimals=1)
-    output_row["windDirection"] = np.round(output_row["windDirection"], decimals=0)
-    output_row["airTemperature"] = np.round(output_row["airTemperature"], decimals=1)
-    output_row["pressure"] = np.round(output_row["pressure"], decimals=1)
-    # gps_lat,gps_lon,gps_alt,z_boom_u are all rounded in linear_fit() or rolling_window()
+) -> BUFRVariables:
+    output_row = BUFRVariables(
+        wmo_id=wmo_id,
+        station_type=station_type,
+        timestamp = s1_current.name,
+        # DMI wants non-corrected rh
+        relativeHumidity = s1_current.rh_i,
+        # Convert air temp, C to Kelvin
+        airTemperature = s1_current.t_i + 273.15,
+        # Convert pressure, correct the -1000 offset, then hPa to Pa
+        # note that instantaneous pressure has 0.1 hPa precision
+        pressure = (s1_current.p_i + 1000.0) * 100.0,
+        windDirection = s1_current.wdir_i,
+        windSpeed = s1_current.wspd_i,
+        latitude = s1_current.gps_lat_fit,
+        longitude = s1_current.gps_lon_fit,
+        # TODO: This might need to be relative to snow height instead.
+        heightOfStationGroundAboveMeanSeaLevel = (
+                s1_current["gps_alt_fit"] - height_of_gps_from_station_ground
+        ),
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = (
+                s1_current["z_boom_u_smooth"] + temp_rh_height_relative_to_sonic_ranger
+        ),
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
+                s1_current["z_boom_u_smooth"] + anemometer_height_relative_to_sonic_ranger
+        ),
+        heightOfBarometerAboveMeanSeaLevel = (
+                s1_current["gps_alt_fit"] + barometer_height_relative_to_gps
+        ),
 
+    )
     return output_row
 
 
-def load_station_dimension_table() -> Mapping[str, Mapping[str, float]]:
+def load_station_dimension_table() -> Mapping[str, Mapping[str, Any]]:
     station_dimension_table_path = Path(__file__).parent.joinpath("station_dimensions.csv")
-    station_dimension_df = pd.read_csv(station_dimension_table_path, index_col=0, )
+    station_dimension_df = pd.read_csv(
+        station_dimension_table_path, index_col=0,
+        dtype={'wmo_id': str},
+    )
+
     return station_dimension_df.to_dict('index')
 
 
