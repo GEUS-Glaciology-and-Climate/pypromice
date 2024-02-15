@@ -100,6 +100,13 @@ def parse_arguments_bufr() -> argparse.ArgumentParser:
         help="Path to csv file with seed values for output positions.",
     )
 
+    parser.add_argument(
+        '--latest_timestamp',
+        default=datetime.utcnow(),
+        type=pd.Timestamp,
+        help="Timestamp used to determine latest data. Default utcnow."
+    )
+
     parser.add_argument("--verbose", "-v", default=False, action="store_true")
 
     return parser
@@ -614,7 +621,7 @@ if __name__ == "__main__":
         positions_filepath=args.positions_filepath,
         time_limit=args.time_limit,
         timestamps_pickle_filepath=args.timestamps_pickle_filepath,
-        now_timestamp=datetime.utcnow(),
+        now_timestamp=args.latest_timestamp,
         station_configuration_path=args.station_configuration_mapping,
         positions_seed_path=args.position_seed,
     )
