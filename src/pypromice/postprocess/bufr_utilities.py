@@ -246,7 +246,6 @@ def set_station(ibufr, station_type: str, wmo_id: str):
 def set_AWS_variables(
     ibufr,
     variables: BUFRVariables,
-    barometer_height_relative_to_gps: float = 0,
 ):
     """Set AWS measurements to bufr message.
 
@@ -258,8 +257,6 @@ def set_AWS_variables(
         Dict with AWS variable data
     timestamp : datetime.datetime
         timestamp for this row
-    barometer_height_relative_to_gps : float
-        Vertical distance from gps to barometer
     """
     # Set timestamp fields
     timestamp = variables.timestamp
@@ -298,7 +295,6 @@ def set_AWS_variables(
         codes_set(ibufr, "#10#timePeriod", -10)
 
     # Set measurement heights
-    # TODO: the bufr parameters ware previsously set using codes_set. setBUFR skips in case of nan. Is this preferable?
     set_bufr_value(
         ibufr,
         "#1#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform",

@@ -1,5 +1,5 @@
 """
-Utility functions for processing real time / instantanous AWS data.
+Utility functions for processing real time / instantaneous AWS data.
 
 This includes:
 * Select latest data

@@ -250,6 +250,18 @@ def process_station(
 
 
 def load_data(file_path: Path, now_timestamp: datetime) -> pd.DataFrame:
+    """
+    Read AWS data from csv file using time as index and filter all rows after now_timestamp
+
+    Parameters
+    ----------
+    file_path
+    now_timestamp
+
+    Returns
+    -------
+    Dataframe with all columns from csv file and time as index
+    """
     # Read csv file
     df: pd.DataFrame = (
         pd.read_csv(file_path, delimiter=",", parse_dates=["time"])
@@ -431,6 +443,20 @@ def get_bufr(
 def filter_skipped_variables(
     row: pd.Series, vars_to_skip: Collection[str]
 ) -> pd.Series:
+    """
+    Mutate input series by setting var_to_skip to np.nan
+
+    Parameters
+    ----------
+    row
+    vars_to_skip
+        List of variable names to be skipped
+
+    Returns
+    -------
+    Input series
+
+    """
     vars_to_skip = set(row.keys()) & set(vars_to_skip)
     for var_key in vars_to_skip:
         row[var_key] = np.nan
