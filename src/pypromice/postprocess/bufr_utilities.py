@@ -45,7 +45,6 @@ def round_converter(decimals: int):
 
     return round
 
-
 # Enforce precision
 # Note the sensor accuracies listed here:
 # https://essd.copernicus.org/articles/13/3819/2021/#section8
@@ -53,6 +52,18 @@ def round_converter(decimals: int):
 # to be reported at 0.1 precision.
 @attrs.define(eq=False)
 class BUFRVariables:
+    """
+    Helper class for storing variables used for BUFR IO.
+
+    The field names reflect the key names in the BUFR template except:
+
+    * wmo_id: Stored as either as shipOrMobileLandStationIdentifier or stationNumber depending on the station type
+    * station_type: Determine the BUFR template
+    * timestamp: Stored separately as year, month, day, hour and minutes
+    * heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH: Corresponds to "#1#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform" which is height if thermometer and hygrometer relative to ground or deck of marine platform.
+    * heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD: Corresponds to "#7#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform" which is height if anemometer relative to ground or deck of marine platform.
+
+    """
     wmo_id: str
     station_type: str
     timestamp: datetime.datetime
@@ -66,11 +77,12 @@ class BUFRVariables:
     heightOfStationGroundAboveMeanSeaLevel: float = attrs.field(
         converter=round_converter(2)
     )
+    #
     heightOfBarometerAboveMeanSeaLevel: float = attrs.field(
-        converter=round_converter(2)
+        converter=round_converter(2),
     )
     heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH: float = attrs.field(
-        converter=round_converter(4)
+        converter=round_converter(4),
     )
     heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD: float = attrs.field(
         converter=round_converter(4)
