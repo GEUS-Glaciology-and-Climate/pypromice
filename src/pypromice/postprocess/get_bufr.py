@@ -120,7 +120,6 @@ class StationConfiguration:
     stid: str
     station_site: str = None
     project: Optional[str] = None
-    station_mounting_type: Optional[str] = None
     station_type: Optional[str] = None
     wmo_id: Optional[str] = None
     barometer_from_gps: Optional[float] = None
