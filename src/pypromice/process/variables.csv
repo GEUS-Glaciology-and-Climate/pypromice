@@ -81,14 +81,14 @@ fan_dc_l,fan_current,Fan current (lower boom),mA,0,200,,two-boom,all,2,physicalM
 freq_vw,frequency_of_precipitation_wire_vibration,Frequency of vibrating wire in precipitation gauge,Hz,0,10000,precip_u,,all,,physicalMeasurement,time lat lon alt,True,L0 only
 t_log,temperature_of_logger,Logger temperature,degrees_C,-80,40,,one-boom,all,4,physicalMeasurement,time lat lon alt,True,LoggerTemperature(C)
 t_rad,temperature_of_radiation_sensor,Radiation sensor temperature,degrees_C,-80,40,t_surf dlr ulr,all,all,4,physicalMeasurement,time lat lon alt,False,
-p_i,air_pressure,Air pressure (instantaneous) minus 1000,hPa,-350,100,,all,TX,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
-t_i,air_temperature,Air temperature (instantaneous),degrees_C,-80,40,,all,TX,4,physicalMeasurement,time lat lon alt,True,"PT100 temperature at boom, for meteorological observations"
-rh_i,relative_humidity,Relative humidity (instantaneous),%,0,150,rh_i_cor,all,TX,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
-rh_i_cor,relative_humidity_corrected,Relative humidity (instantaneous) – corrected,%,0,100,,all,TX,4,modelResult,time lat lon alt,True,For meteorological observations
-wspd_i,wind_speed,Wind speed (instantaneous),m s-1,0,100,wdir_i wspd_x_i wspd_y_i,all,TX,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
-wdir_i,wind_from_direction,Wind from direction (instantaneous),degrees,1,360,wspd_x_i wspd_y_i,all,TX,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
-wspd_x_i,wind_speed_from_x_direction,Wind speed from x direction (instantaneous),m s-1,-100,100,wdir_i wspd_i,all,TX,4,modelResult,time lat lon alt,True,For meteorological observations
-wspd_y_i,wind_speed_from_y_direction,Wind speed from y direction (instantaneous),m s-1,-100,100,wdir_i wspd_i,all,TX,4,modelResult,time lat lon alt,True,For meteorological observations
+p_i,air_pressure,Air pressure (instantaneous) minus 1000,hPa,-350,100,,all,all,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
+t_i,air_temperature,Air temperature (instantaneous),degrees_C,-80,40,,all,all,4,physicalMeasurement,time lat lon alt,True,"PT100 temperature at boom, for meteorological observations"
+rh_i,relative_humidity,Relative humidity (instantaneous),%,0,150,rh_i_cor,all,all,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
+rh_i_cor,relative_humidity_corrected,Relative humidity (instantaneous) – corrected,%,0,100,,all,all,4,modelResult,time lat lon alt,True,For meteorological observations
+wspd_i,wind_speed,Wind speed (instantaneous),m s-1,0,100,wdir_i wspd_x_i wspd_y_i,all,all,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
+wdir_i,wind_from_direction,Wind from direction (instantaneous),degrees,1,360,wspd_x_i wspd_y_i,all,all,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
+wspd_x_i,wind_speed_from_x_direction,Wind speed from x direction (instantaneous),m s-1,-100,100,wdir_i wspd_i,all,all,4,modelResult,time lat lon alt,True,For meteorological observations
+wspd_y_i,wind_speed_from_y_direction,Wind speed from y direction (instantaneous),m s-1,-100,100,wdir_i wspd_i,all,all,4,modelResult,time lat lon alt,True,For meteorological observations
 msg_i,message,Message string (instantaneous),-,,,,all,TX,,qualityInformation,time lat lon alt,True,For meteorological observations
 msg_lat,message_latitude,latitude from modem (email text),degrees_north,50,83,,all,all,6,coordinate,time lat lon alt,True,
 msg_lon,message_longitude,longitude from modem (email text),degrees_east,-72,13,,all,all,6,coordinate,time lat lon alt,True,
