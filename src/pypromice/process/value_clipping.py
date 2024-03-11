@@ -33,19 +33,10 @@ def clip_values(
         if var not in list(ds.variables):
             continue
 
-        if var in ["rh_u_cor", "rh_l_cor"]:
-            ds[var] = ds[var].where(ds[var] >= row.lo, other=0)
-            ds[var] = ds[var].where(ds[var] <= row.hi, other=100)
-
-            # Mask out invalid corrections based on uncorrected var
-            var_uncor = var.split("_cor")[0]
-            ds[var] = ds[var].where(~np.isnan(ds[var_uncor]), other=np.nan)
-
-        else:
-            if ~np.isnan(row.lo):
-                ds[var] = ds[var].where(ds[var] >= row.lo)
-            if ~np.isnan(row.hi):
-                ds[var] = ds[var].where(ds[var] <= row.hi)
+        if ~np.isnan(row.lo):
+            ds[var] = ds[var].where(ds[var] >= row.lo)
+        if ~np.isnan(row.hi):
+            ds[var] = ds[var].where(ds[var] <= row.hi)
 
         other_vars = row.OOL
         if isinstance(other_vars, str) and ~ds[var].isnull().all():
