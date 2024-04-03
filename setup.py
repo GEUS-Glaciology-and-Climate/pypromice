@@ -32,9 +32,9 @@ setuptools.setup(
     python_requires=">=3.8",
     package_data={
         "pypromice.qc.percentiles": ["thresholds.csv"],
-        "pypromice.postprocess": ["station_configurations.toml"],
+        "pypromice.postprocess": ["station_configurations.toml", "positions_seed.csv"],
     },
-    install_requires=['numpy>=1.23.0', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'scikit-learn>=1.1.0', 'Bottleneck', 'netcdf4', 'pyDataverse'],
+    install_requires=['numpy>=1.23.0', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'scikit-learn>=1.1.0', 'Bottleneck', 'netcdf4', 'pyDataverse', 'eccodes'],
     entry_points={
     'console_scripts': [
         'get_promice_data = pypromice.get.get_promice_data:get_promice_data',
@@ -42,7 +42,7 @@ setuptools.setup(
         'get_l3 = pypromice.process.get_l3:get_l3',
         'join_l3 = pypromice.process.join_l3:join_l3',
         'get_watsontx = pypromice.tx.get_watsontx:get_watsontx',
-        'get_bufr = pypromice.postprocess.get_bufr:get_bufr',
+        'get_bufr = pypromice.postprocess.get_bufr:main',
         'get_msg = pypromice.tx.get_msg:get_msg'
     ],
 },
