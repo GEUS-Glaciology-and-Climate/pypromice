@@ -29,7 +29,7 @@ DEFAULT_STATION_CONFIGURATION_PATH = Path(__file__).parent.joinpath(
     "station_configurations.toml"
 )
 DEFAULT_POSITION_SEED_PATH = Path(__file__).parent.joinpath("positions_seed.csv")
-
+DEFAULT_LIN_REG_TIME_LIMIT = "91d"
 
 def parse_arguments_bufr() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -53,7 +53,7 @@ def parse_arguments_bufr() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--time-limit",
-        default="91d",
+        default=DEFAULT_LIN_REG_TIME_LIMIT,
         type=str,
         required=False,
         help="Previous time to limit dataframe before applying linear regression.",
@@ -283,7 +283,7 @@ def load_data(file_path: Path, now_timestamp: datetime) -> pd.DataFrame:
 def get_bufr(
     bufr_out: Path,
     input_files: Sequence[Path],
-    positions_filepath: Path,
+    positions_filepath: Optional[Path],
     timestamps_pickle_filepath: Optional[Path],
     station_configuration_path: Optional[Path],
     now_timestamp: Optional[datetime] = None,
@@ -477,7 +477,7 @@ def get_bufr_variables(
     station_configuration: StationConfiguration,
 ) -> BUFRVariables:
     """
-    Helper function for converting our l3 variables to the variables needed for bufr export.
+    Helper function for converting our  variables to the variables needed for bufr export.
 
     Parameters
     ----------
@@ -592,8 +592,7 @@ def min_data_check(s):
 
     return min_data_wx_result, min_data_pos_result
 
-
-if __name__ == "__main__":
+def main():
     args = parse_arguments_bufr().parse_args()
 
     log_level = logging.INFO
@@ -625,3 +624,6 @@ if __name__ == "__main__":
         station_configuration_path=args.station_configuration_mapping,
         positions_seed_path=args.position_seed,
     )
+
+if __name__ == "__main__":
+    main()

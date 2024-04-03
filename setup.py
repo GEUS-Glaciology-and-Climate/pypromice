@@ -42,7 +42,7 @@ setuptools.setup(
         'get_l3 = pypromice.process.get_l3:get_l3',
         'join_l3 = pypromice.process.join_l3:join_l3',
         'get_watsontx = pypromice.tx.get_watsontx:get_watsontx',
-        'get_bufr = pypromice.postprocess.get_bufr:get_bufr',
+        'get_bufr = pypromice.postprocess.get_bufr:main',
         'get_msg = pypromice.tx.get_msg:get_msg'
     ],
 },
