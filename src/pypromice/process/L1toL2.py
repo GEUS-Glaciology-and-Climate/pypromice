@@ -323,6 +323,7 @@ def correctHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO f
 
     # Set to Groff & Gratch values when freezing, otherwise just rh
     rh_cor = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))
+    rh_cor = rh_cor.where(T.notnull())
     return rh_cor
 
 
