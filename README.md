@@ -27,7 +27,7 @@ $ conda install pypromice -c conda-forge
 $ pip install pypromice
 ```
 
-The eccodes package for pypromice's post-processing functionality ([eccodes](https://confluence.ecmwf.int/display/ECC/ecCodes+installation) and [scikit-learn](https://scikit-learn.org/stable/)) needs to be installed specifically in the pip distribution:
+The [eccodes](https://confluence.ecmwf.int/display/ECC/ecCodes+installation) package for pypromice's post-processing functionality needs to be installed specifically in the pip distribution:
 
 ```
 $ conda install eccodes -c conda-forge
