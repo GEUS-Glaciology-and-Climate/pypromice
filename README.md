@@ -27,7 +27,14 @@ $ conda install pypromice -c conda-forge
 $ pip install pypromice
 ```
 
-For the most up-to-date version, pypromice can be installed directly from the repo: 
+The [eccodes](https://confluence.ecmwf.int/display/ECC/ecCodes+installation) package for pypromice's post-processing functionality needs to be installed specifically in the pip distribution:
+
+```
+$ conda install eccodes -c conda-forge
+$ pip install pypromice
+```
+
+And for the most up-to-date version of pypromice, the package can be cloned and installed directly from the repo: 
 
 ```
 $ pip install --upgrade git+http://github.com/GEUS-Glaciology-and-Climate/pypromice.git
@@ -43,21 +50,5 @@ $ conda activate pypromice
 $ git clone git@github.com:GEUS-Glaciology-and-Climate/pypromice.git
 $ cd pypromice/
 $ pip install .
-```
-
-### Additional dependencies
-
-Additional packages are required if you wish to use pypromice's post-processing functionality. 
-
-[eccodes](https://confluence.ecmwf.int/display/ECC/ecCodes+installation) is the official package for BUFR encoding and decoding. Try firstly to install with conda-forge like so:
-
-```
-$ conda install -c conda-forge eccodes
-```
-
-If the environment cannot resolve the eccodes installation then follow the steps documented [here](https://gist.github.com/MHBalsmeier/a01ad4e07ecf467c90fad2ac7719844a) to download eccodes and then install eccodes' python bindings using pip.
-
-```
-$ pip3 install eccodes-python
 ```
 

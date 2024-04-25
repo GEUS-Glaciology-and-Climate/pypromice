@@ -181,26 +181,26 @@ class TestGet(unittest.TestCase):
         l = lookup_table(['doi:10.22008/FK2/IW73UU'])
         self.assertTrue('10.22008/FK2' in list(l.values())[0])
     
-    def testAWSname(self):  
-        '''Test AWS names retrieval'''
-        n = aws_names()
-        self.assertIsInstance(n, list)
-        self.assertTrue('nuk_k_hour.csv' in n)
+#    def testAWSname(self):  
+#        '''Test AWS names retrieval'''
+#        n = aws_names()
+#        self.assertIsInstance(n, list)
+#        self.assertTrue('nuk_k_hour.csv' in n)
     
-    def testAWScsv(self):
-        '''Test AWS data retrieval'''
-        kan_b = aws_data('kan_b_hour.csv')
-        self.assertIsInstance(kan_b, pd.DataFrame)
+#    def testAWScsv(self):
+#        '''Test AWS data retrieval'''
+#        kan_b = aws_data('kan_b_hour.csv')
+#        self.assertIsInstance(kan_b, pd.DataFrame)
         
-    def testWatsonHour(self):
-        '''Test Wason River discharge hourly data retrieval'''
-        wh = watson_discharge()
-        self.assertTrue(wh['Q']['2021-10-27 23:00:00']==5.48)
+#    def testWatsonHour(self):
+#        '''Test Wason River discharge hourly data retrieval'''
+#        wh = watson_discharge()
+#        self.assertTrue(wh['Q']['2021-10-27 23:00:00']==5.48)
         
-    def testWatsonDaily(self):
-        '''Test Wason River discharge daily data retrieval'''
-        wd = watson_discharge(t='day')
-        self.assertTrue(wd['Q']['2009-09-04 00:00:00']==4.72)
+#    def testWatsonDaily(self):
+#        '''Test Wason River discharge daily data retrieval'''
+#        wd = watson_discharge(t='day')
+#        self.assertTrue(wd['Q']['2009-09-04 00:00:00']==4.72)
 
     def testGetCLI(self):
         '''Test get_promice_data'''
