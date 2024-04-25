@@ -31,7 +31,7 @@ The eccodes package for pypromice's post-processing functionality ([eccodes](htt
 
 ```
 $ conda install eccodes -c conda-forge
-$ pip install pypromice[postprocess]
+$ pip install pypromice
 ```
 
 And for the most up-to-date version of pypromice, the package can be cloned and installed directly from the repo: 
