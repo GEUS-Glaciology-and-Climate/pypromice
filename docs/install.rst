@@ -13,12 +13,13 @@ The latest release of pypromice can installed using conda or pip:
 	$ pip install pypromice
 
 
-Dependencies for pypromice's post-processing functionality `eccodes <https://confluence.ecmwf.int/display/ECC/ecCodes+installation>`_ and `scikit-learn <https://scikit-learn.org/stable/>`_ are included in the conda release. However, these need to be installed specifically in the pip distribution:
+The `eccodes <https://confluence.ecmwf.int/display/ECC/ecCodes+installation>`_ package for pypromice's post-processing functionality ([eccodes](https://confluence.ecmwf.int/display/ECC/ecCodes+installation) and [scikit-learn](https://scikit-learn.org/stable/)) needs to be installed specifically in the pip distribution:
 
 .. code:: console
 
 	$ conda install eccodes -c conda-forge
-	$ pip install pypromice[postprocess]
+	$ pip install pypromice
+
 
 And for the most up-to-date version of pypromice, the package can be cloned and installed directly from the repo: 
 
