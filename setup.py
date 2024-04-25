@@ -36,8 +36,8 @@ setuptools.setup(
         "pypromice.qc.percentiles": ["thresholds.csv"],
         "pypromice.postprocess": ["station_configurations.toml", "positions_seed.csv"],
     },
-    install_requires=['numpy>=1.23.0', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'Bottleneck', 'netcdf4', 'pyDataverse'],
-    extras_require={'postprocess': ['eccodes','scikit-learn>=1.1.0']},
+    install_requires=['numpy>=1.23.0', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'Bottleneck', 'netcdf4', 'pyDataverse', 'eccodes','scikit-learn>=1.1.0'],
+#    extras_require={'postprocess': ['eccodes','scikit-learn>=1.1.0']},
     entry_points={
     'console_scripts': [
         'get_promice_data = pypromice.get.get_promice_data:get_promice_data',
