@@ -19,6 +19,7 @@ DEFAULT_VARIABLE_THRESHOLDS = {
     "p": {"max_diff": 0.0001, "period": 2},
     'gps_lat_lon':{"max_diff": 0.000001, "period": 12},
     'gps_alt':{"max_diff": 0.0001, "period": 12},
+    't_rad':{"max_diff": 0.0001, "period": 2},
     # Relative humidity can be very stable around 100%.
     #"rh": {"max_diff": 0.0001, "period": 2},
 }
