@@ -76,7 +76,7 @@ def toL2(
     # right now baseline elevation is gapfilled monthly median elevation
     baseline_elevation = (ds.gps_alt.to_series().resample('M').median()
                           .interpolate(method='nearest')
-                          .ffill().bfill()
+                          .ffill().bfill())
     mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) & ds.gps_alt.notnull()
     ds[['gps_alt','gps_lon', 'gps_lat']] = ds[['gps_alt','gps_lon', 'gps_lat']].where(mask)
     
