@@ -78,8 +78,13 @@ def toL2(
                           .interp(time=ds.time,method='nearest')
                           .ffill(dim='time').bfill(dim='time'))
     mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) & ds.gps_alt.notnull()
-    ds[['gps_alt','gps_lon', 'gps_lat']] = ds4[['gps_alt','gps_lon', 'gps_lat']].where(mask)
-        
+    ds[['gps_alt','gps_lon', 'gps_lat']] = ds[['gps_alt','gps_lon', 'gps_lat']].where(mask)
+    
+    # removing dlr and ulr that are missing t_rad
+    # this is done now becasue t_rad can be filtered either manually or with persistence
+    ds['dlr'] = ds.dlr.where(ds.t_rad.notnull())
+    ds['ulr'] = ds.ulr.where(ds.t_rad.notnull())
+
     T_100 = _getTempK(T_0)
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],
                                      T_0, T_100, ews, ei0)

@@ -734,6 +734,7 @@ def resampleL3(ds_h, t):
         L3 AWS hourly dataset
     '''
     df_d = ds_h.to_dataframe().resample(t).mean()
+    
     # recalculating wind direction from averaged directional wind speeds
     for var in ['wdir_u','wdir_l','wdir_i']:
         if var in df_d.columns:
@@ -742,10 +743,67 @@ def resampleL3(ds_h, t):
                                    df_d['wspd_y_'+var.split('_')[1]])
             else:
                 logger.info(var,'in dataframe but not','wspd_x_'+var.split('_')[1],'wspd_x_'+var.split('_')[1])
+    
+    # recalculating relative humidity from average vapour pressure and average
+    # saturation vapor pressure
+    for var in ['rh_u','rh_l']:
+        lvl = var.split('_')[1]
+        if var in df_d.columns:
+            if ('t_'+lvl in ds_h.keys()):
+                es_wtr, es_cor = calculateSaturationVaporPressure(ds_h['t_'+lvl])
+                p_vap = ds_h[var] / 100 * es_wtr
+                p_vap_cor = ds_h[var+'_cor'] / 100 * es_cor
+                
+                df_d[var] = (p_vap.to_dataframe(name='p_vap').p_vap.resample(t).mean() \
+                           / es_wtr.to_dataframe(name='es_wtr').es_wtr.resample(t).mean())*100
+                df_d[var+'_cor'] = (p_vap_cor.to_dataframe(name='p_vap_cor').p_vap_cor.resample(t).mean() \
+                           / es_cor.to_dataframe(name='es_cor').es_cor.resample(t).mean())*100
+            
     vals = [xr.DataArray(data=df_d[c], dims=['time'],
            coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
     ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)
     return ds_d
+
+
+def calculateSaturationVaporPressure(t, T_0=273.15, T_100=373.15, es_0=6.1071,
+                                     es_100=1013.246, eps=0.622):            
+    '''Calculate specific humidity
+    
+    Parameters
+    ----------
+    T_0 : float 
+        Steam point temperature. Default is 273.15.
+    T_100 : float
+        Steam point temperature in Kelvin
+    t : xarray.DataArray
+        Air temperature
+    es_0 : float
+        Saturation vapour pressure at the melting point (hPa)
+    es_100 : float
+        Saturation vapour pressure at steam point temperature (hPa)
+    
+    Returns
+    -------
+    xarray.DataArray
+        Specific humidity data array
+    '''                                                         
+    # Saturation vapour pressure above 0 C (hPa)
+    es_wtr = 10**(-7.90298 * (T_100 / (t + T_0) - 1) + 5.02808 * np.log10(T_100 / (t + T_0))
+                  - 1.3816E-7 * (10**(11.344 * (1 - (t + T_0) / T_100)) - 1)
+                  + 8.1328E-3 * (10**(-3.49149 * (T_100 / (t + T_0) -1)) - 1) + np.log10(es_100))
+
+    # Saturation vapour pressure below 0 C (hPa)
+    es_ice = 10**(-9.09718 * (T_0 / (t + T_0) - 1) - 3.56654
+                  * np.log10(T_0 / (t + T_0)) + 0.876793
+                  * (1 - (t + T_0) / T_0)
+                  + np.log10(es_0)) 
+    
+    # Saturation vapour pressure (hPa)
+    es_cor = es_wtr
+    freezing = t < 0
+    es_cor[freezing] = es_ice[freezing]
+    
+    return es_wtr, es_cor
 
 
 def _calcWindDir(wspd_x, wspd_y):

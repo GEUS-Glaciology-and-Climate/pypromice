@@ -161,7 +161,7 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
     es_0 : int 
         Saturation vapour pressure at the melting point (hPa). Default is 6.1071.        
     eps : int 
-        Default is 0.622.
+        Ratio of molar masses of vapor and dry air (0.622).
     gamma : int
         Flux profile correction (Paulson & Dyer). Default is 16..
     L_sub : int  
@@ -313,7 +313,7 @@ def calcHumid(T_0, T_100, T_h, es_0, es_100, eps, p_h, RH_cor_h):
     T_h : xarray.DataArray
         Air temperature
     eps : int 
-        DESCRIPTION
+        ratio of molar masses of vapor and dry air (0.622)
     es_0 : float
         Saturation vapour pressure at the melting point (hPa)
     es_100 : float
