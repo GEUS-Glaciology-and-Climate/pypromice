@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_VARIABLE_THRESHOLDS = {
     "t": {"max_diff": 0.0001, "period": 2},
     "p": {"max_diff": 0.0001, "period": 2},
+    'gps_lat_lon':{"max_diff": 0.000001, "period": 12},
+    'gps_alt':{"max_diff": 0.0001, "period": 12},
     # Relative humidity can be very stable around 100%.
     #"rh": {"max_diff": 0.0001, "period": 2},
 }
@@ -58,27 +60,43 @@ def persistence_qc(
     if variable_thresholds is None:
         variable_thresholds = DEFAULT_VARIABLE_THRESHOLDS
 
-    logger.debug(f"Running persistence_qc using {variable_thresholds}")
+    logger.info(f"Running persistence_qc using {variable_thresholds}")
 
     for k in variable_thresholds.keys():
-        var_all = [
-            k + "_u",
-            k + "_l",
-            k + "_i",
-        ]  # apply to upper, lower boom, and instant
+        if k in ['t','p','rh','wspd','wdir', 'z_boom']:
+            var_all = [
+                k + "_u",
+                k + "_l",
+                k + "_i",
+            ]  # apply to upper, lower boom, and instant
+        else:
+            var_all = [k]
         max_diff = variable_thresholds[k]["max_diff"]  # loading persistent limit
         period = variable_thresholds[k]["period"]  # loading diff period
 
         for v in var_all:
-            if v in df:
-                mask = find_persistent_regions(df[v], period, max_diff)
-                n_masked = mask.sum()
-                n_samples = len(mask)
-                logger.debug(
-                    f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
-                )
-                # setting outliers to NaN
-                df.loc[mask, v] = np.nan
+            if (v in df) | (v == 'gps_lat_lon'):
+                if v != 'gps_lat_lon':
+                    mask = find_persistent_regions(df[v], period, max_diff)
+                    n_masked = mask.sum()
+                    n_samples = len(mask)
+                    logger.info(
+                        f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
+                    )
+                    # setting outliers to NaN
+                    df.loc[mask, v] = np.nan
+                else:
+                    mask = (find_persistent_regions(df['gps_lon'], period, max_diff) \
+                                & find_persistent_regions(df['gps_lat'], period, max_diff) )
+
+                    n_masked = mask.sum()
+                    n_samples = len(mask)
+                    logger.info(
+                        f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
+                    )
+                    # setting outliers to NaN
+                    df.loc[mask, 'gps_lon'] = np.nan
+                    df.loc[mask, 'gps_lat'] = np.nan
 
     # Back to xarray, and re-assign the original attrs
     ds_out = df.to_xarray()

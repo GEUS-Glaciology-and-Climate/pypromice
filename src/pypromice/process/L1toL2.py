@@ -66,12 +66,20 @@ def toL2(
     except Exception:
         logger.exception('Flagging and fixing failed:')
 
+    ds = persistence_qc(ds)                                               # Flag and remove persistence outliers
     if ds.attrs['format'] == 'TX':
-        ds = persistence_qc(ds)                                               # Flag and remove persistence outliers
         # TODO: The configuration should be provided explicitly
         outlier_detector = ThresholdBasedOutlierDetector.default()
         ds = outlier_detector.filter_data(ds)                                 # Flag and remove percentile outliers
 
+    # filtering gps_lat, gps_lon and gps_alt based on the difference to a baseline elevation
+    # right now baseline elevation is gapfilled monthly median elevation
+    baseline_elevation = (ds.gps_alt.resample(time='M').median()
+                          .interp(time=ds.time,method='nearest')
+                          .ffill(dim='time').bfill(dim='time'))
+    mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) & ds.gps_alt.notnull()
+    ds[['gps_alt','gps_lon', 'gps_lat']] = ds4[['gps_alt','gps_lon', 'gps_lat']].where(mask)
+        
     T_100 = _getTempK(T_0)
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],
                                      T_0, T_100, ews, ei0)
