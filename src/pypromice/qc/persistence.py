@@ -1,9 +1,9 @@
 import logging
+from typing import Mapping, Optional, Union, List, TypedDict
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-from typing import Mapping, Optional, Union
 
 __all__ = [
     "persistence_qc",
@@ -14,17 +14,25 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_VARIABLE_THRESHOLDS = {
-    "t": {"max_diff": 0.0001, "period": 2},
-    "p": {"max_diff": 0.0001, "period": 2},
+
+class FilterConfig(TypedDict):
+    variable: str  # Regular expression for selecting variable
+    max_diff: float
+    period: int
+
+
+DEFAULT_VARIABLE_THRESHOLDS: List[FilterConfig] = [
+    {"variable": "^t_[uil]$", "max_diff": 0.0001, "period": 2},
+    {"variable": "^p_i$", "max_diff": 0.0001, "period": 2},
+    {"variable": "^p_[ul]$", "max_diff": 0.0001, "period": 24},
     # Relative humidity can be very stable around 100%.
-    #"rh": {"max_diff": 0.0001, "period": 2},
-}
+    # "rh": {"max_diff": 0.0001, "period": 2},
+]
 
 
 def persistence_qc(
     ds: xr.Dataset,
-    variable_thresholds: Optional[Mapping] = None,
+    variable_thresholds: Optional[List[FilterConfig]] = None,
 ) -> xr.Dataset:
     """
     Detect and filter data points that seems to be persistent within a certain period.
@@ -60,14 +68,11 @@ def persistence_qc(
 
     logger.debug(f"Running persistence_qc using {variable_thresholds}")
 
-    for k in variable_thresholds.keys():
-        var_all = [
-            k + "_u",
-            k + "_l",
-            k + "_i",
-        ]  # apply to upper, lower boom, and instant
-        max_diff = variable_thresholds[k]["max_diff"]  # loading persistent limit
-        period = variable_thresholds[k]["period"]  # loading diff period
+    for config in variable_thresholds:
+        var_all = df.filter(regex=config["variable"]).columns
+        logger.info('Apply filter "{}" on {}'.format(config, var_all))
+        max_diff = config["max_diff"]  # loading persistent limit
+        period = config["period"]  # loading diff period
 
         for v in var_all:
             if v in df:
