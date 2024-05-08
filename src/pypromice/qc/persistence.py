@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_VARIABLE_THRESHOLDS = {
     "t": {"max_diff": 0.0001, "period": 2},
     "p": {"max_diff": 0.0001, "period": 2},
-    'gps_lat_lon':{"max_diff": 0.000001, "period": 12},
+    'gps_lat_lon':{"max_diff": 0.000001, "period": 12}, # gets special handling to remove simultaneously constant gps_lat and gps_lon
     'gps_alt':{"max_diff": 0.0001, "period": 12},
     't_rad':{"max_diff": 0.0001, "period": 2},
-    # Relative humidity can be very stable around 100%.
-    #"rh": {"max_diff": 0.0001, "period": 2},
+    "rh": {"max_diff": 0.0001, "period": 2}, # gets special handling to allow constant 100%
+    "wspd": {"max_diff": 0.0001, "period": 6},
 }
 
 
@@ -79,6 +79,8 @@ def persistence_qc(
             if (v in df) | (v == 'gps_lat_lon'):
                 if v != 'gps_lat_lon':
                     mask = find_persistent_regions(df[v], period, max_diff)
+                    if 'rh' in v:
+                        mask = mask & (df[v]<99)
                     n_masked = mask.sum()
                     n_samples = len(mask)
                     logger.info(
