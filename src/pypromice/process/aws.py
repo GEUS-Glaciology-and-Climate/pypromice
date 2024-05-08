@@ -723,7 +723,7 @@ def resampleL3(ds_h, t):
     Parameters
     ----------
     ds_h : xarray.Dataset
-        L3 AWS daily dataset
+        L3 AWS dataset either at 10 min (for raw data) or hourly (for tx data)
     t : str
         Resample factor, same variable definition as in
         pandas.DataFrame.resample()
@@ -731,7 +731,7 @@ def resampleL3(ds_h, t):
     Returns
     -------
     ds_d : xarray.Dataset
-        L3 AWS hourly dataset
+        L3 AWS dataset resampled to the frequency defined by t
     '''
     df_d = ds_h.to_dataframe().resample(t).mean()
     
