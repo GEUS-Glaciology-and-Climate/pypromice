@@ -67,10 +67,10 @@ def toL2(
         logger.exception('Flagging and fixing failed:')
 
     ds = persistence_qc(ds)                                               # Flag and remove persistence outliers
-    if ds.attrs['format'] == 'TX':
-        # TODO: The configuration should be provided explicitly
-        outlier_detector = ThresholdBasedOutlierDetector.default()
-        ds = outlier_detector.filter_data(ds)                                 # Flag and remove percentile outliers
+    # if ds.attrs['format'] == 'TX':
+    #     # TODO: The configuration should be provided explicitly
+    #     outlier_detector = ThresholdBasedOutlierDetector.default()
+    #     ds = outlier_detector.filter_data(ds)                                 # Flag and remove percentile outliers
 
     # filtering gps_lat, gps_lon and gps_alt based on the difference to a baseline elevation
     # right now baseline elevation is gapfilled monthly median elevation
