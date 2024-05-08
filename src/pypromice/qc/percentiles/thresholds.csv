@@ -122,8 +122,8 @@ JAR,p_[ul],881.00,929.00,
 JAR,p_i,-119.00,-71.00,
 JAR,wspd_[uli],-11.62,29.82,
 JAR,t_[uli],-14.60,13.30,summer
-FRE,p_[ul],638.31,799.82,
-FRE,p_i,-361.69,-200.18,
+FRE,p_[ul],800,1000,
+FRE,p_i,-200,0,
 FRE,wspd_[uli],-12.00,22.62,
 FRE,t_[uli],-38.20,10.02,winter
 FRE,t_[uli],-36.55,18.07,spring
