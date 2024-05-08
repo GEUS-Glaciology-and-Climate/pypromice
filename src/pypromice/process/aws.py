@@ -798,9 +798,7 @@ def calculateSaturationVaporPressure(t, T_0=273.15, T_100=373.15, es_0=6.1071,
                   + np.log10(es_0)) 
     
     # Saturation vapour pressure (hPa)
-    es_cor = es_wtr
-    freezing = t < 0
-    es_cor[freezing] = es_ice[freezing]
+    es_cor = xr.where(t < 0, es_ice, es_wtr)
     
     return es_wtr, es_cor
 

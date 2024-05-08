@@ -331,11 +331,8 @@ def correctHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO f
                    + 0.876793 * (1 - (T + T_0) / T_0)
                    + np.log10(ei0))
 
-    # Define freezing point. Why > -100?
-    freezing = (T < 0) & (T > -100).values
-
     # Set to Groff & Gratch values when freezing, otherwise just rh
-    rh_cor = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))
+    rh_cor = xr.where(T>=0, rh, rh*(e_s_wtr / e_s_ice))
     rh_cor = rh_cor.where(T.notnull())
     return rh_cor
 
