@@ -89,4 +89,4 @@ wspd_i,wind_speed,Wind speed (instantaneous),m s-1,0,100,wdir_i wspd_x_i wspd_y_
 wdir_i,wind_from_direction,Wind from direction (instantaneous),degrees,1,360,wspd_x_i wspd_y_i,all,all,4,physicalMeasurement,time lat lon alt,True,For meteorological observations
 wspd_x_i,wind_speed_from_x_direction,Wind speed from x direction (instantaneous),m s-1,-100,100,wdir_i wspd_i,all,all,4,modelResult,time lat lon alt,True,For meteorological observations
 wspd_y_i,wind_speed_from_y_direction,Wind speed from y direction (instantaneous),m s-1,-100,100,wdir_i wspd_i,all,all,4,modelResult,time lat lon alt,True,For meteorological observations
-msg_i,message,Message string (instantaneous),-,,,,all,all,,qualityInformation,time lat lon alt,True,For meteorological observations
+msg_i,message,Message string (instantaneous),-,,,,all,all,,qualityInformation,time lat lon alt,True,L0 only
