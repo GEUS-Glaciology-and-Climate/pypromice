@@ -752,12 +752,11 @@ def resampleL3(ds_h, t):
             if ('t_'+lvl in ds_h.keys()):
                 es_wtr, es_cor = calculateSaturationVaporPressure(ds_h['t_'+lvl])
                 p_vap = ds_h[var] / 100 * es_wtr
-                p_vap_cor = ds_h[var+'_cor'] / 100 * es_cor
                 
-                df_d[var] = (p_vap.to_dataframe(name='p_vap').p_vap.resample(t).mean() \
-                           / es_wtr.to_dataframe(name='es_wtr').es_wtr.resample(t).mean())*100
-                df_d[var+'_cor'] = (p_vap_cor.to_dataframe(name='p_vap_cor').p_vap_cor.resample(t).mean() \
-                           / es_cor.to_dataframe(name='es_cor').es_cor.resample(t).mean())*100
+                df_d[var] = (p_vap.to_series().resample(t).mean() \
+                           / es_wtr.to_series().resample(t).mean())*100
+                df_d[var+'_cor'] = (p_vap.to_series().resample(t).mean() \
+                           / es_cor.to_series().resample(t).mean())*100
             
     vals = [xr.DataArray(data=df_d[c], dims=['time'],
            coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
