@@ -122,24 +122,23 @@ def toL2(
     for v in ['tilt_x','tilt_y']:
         threshold = 0.2
 
-        ds[v] = (ds[v].where(
-            (ds[v].resample(time='H').median().rolling(
-                time= 3*24, center=True, min_periods=2
-                ).std().reindex(time=ds.time, method='bfill'))<threshold
-            ).ffill(dim='time')
-            )
+        ds[v] = ds[v].where(
+                    ds[v].to_series().resample('H').median().rolling(
+                        3*24, center=True, min_periods=2
+                        ).std().reindex(ds.time, method='bfill').values <threshold
+                    ).ffill(dim='time').bfill(dim='time')
 
     # rotation gets harsher treatment
     v = 'rot'
-    ds[v] = (ds[v].where(
-        (ds[v].resample(time='H').median().rolling(
-            time= 3*24, center=True, min_periods=2
-            ).std().reindex(time=ds.time, method='bfill'))<4
-        ).ffill(dim='time')
-        .resample(time='D').median()
-        .rolling(time=7*2,center=True,min_periods=2).median()
-        .reindex(time=ds.time, method='bfill')
-        )
+    ds[v] = ('time', (ds[v].where(
+                        ds[v].to_series().resample('H').median().rolling(
+                            3*24, center=True, min_periods=2
+                            ).std().reindex(ds.time, method='bfill').values <4
+                        ).ffill(dim='time')
+            .to_series().resample('D').median()
+            .rolling(7*2,center=True,min_periods=2).median()
+            .reindex(ds.time, method='bfill').values
+            ))
 
     deg2rad, rad2deg = _getRotation()                                          # Get degree-radian conversions
     phi_sensor_rad, theta_sensor_rad = calcTilt(ds['tilt_x'], ds['tilt_y'],    # Calculate station tilt
