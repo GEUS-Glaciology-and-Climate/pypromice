@@ -132,6 +132,7 @@ def toL2(
                                       theta_sensor_rad, HourAngle_rad,
                                       ZenithAngle_rad, ZenithAngle_deg,
                                       lat, DifFrac, deg2rad)
+    # CorFac_all = xr.where(cc.notnull(), CorFac_all, 1)
     ds['dsr_cor'] = ds['dsr'].copy(deep=True) * CorFac_all                     # Apply correction
 
     AngleDif_deg = calcAngleDiff(ZenithAngle_rad, HourAngle_rad,               # Calculate angle between sun and sensor
@@ -158,9 +159,9 @@ def toL2(
     TOA_crit_nopass = (ds['dsr_cor'] > (0.9 * isr_toa + 10))                   # Determine filter
     ds['dsr_cor'][TOA_crit_nopass] = np.nan                                    # Apply filter and interpolate
     ds['usr_cor'][TOA_crit_nopass] = np.nan
-    ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time', use_coordinate=False)
-    ds['usr_cor'] = ds['usr_cor'].interpolate_na(dim='time', use_coordinate=False)
-
+    
+    ds['dsr_cor'] = ds.dsr_cor.where(ds.dsr.notnull())  
+    ds['usr_cor'] = ds.usr_cor.where(ds.usr.notnull())  
     # # Check sun position
     # sundown = ZenithAngle_deg >= 90
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)
@@ -331,9 +332,11 @@ def correctHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO f
                    + 0.876793 * (1 - (T + T_0) / T_0)
                    + np.log10(ei0))
 
+    # Define freezing point. Why > -100?
+    freezing = (T < 0) & (T > -100).values
+
     # Set to Groff & Gratch values when freezing, otherwise just rh
-    rh_cor = xr.where(T>=0, rh, rh*(e_s_wtr / e_s_ice))
-    rh_cor = rh_cor.where(T.notnull())
+    rh_cor = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))
     return rh_cor
 
 

@@ -224,7 +224,7 @@ class AWS(object):
 
             except pd.errors.ParserError as e:
                 # ParserError: Too many columns specified: expected 40 and found 38
-                logger.info(f'-----> No msg_lat or msg_lon for {k}')
+                # logger.info(f'-----> No msg_lat or msg_lon for {k}')
                 for item in ['msg_lat', 'msg_lon']:
                     target['columns'].remove(item)                           # Also removes from self.config
                 ds_list.append(self.readL0file(target))
