@@ -90,13 +90,15 @@ def toL2(
                                      T_0, T_100, ews, ei0)
 
     # Determiune cloud cover for on-ice stations
-    if not ds.attrs['bedrock']:
-        cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,        # Calculate cloud coverage
-                               ds['dlr'], ds.attrs['station_id'])
-        ds['cc'] = (('time'), cc.data)
-    else:
-        # Default cloud cover for bedrock station for which tilt should be 0 anyway.
-        cc = 0.8
+    cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,        # Calculate cloud coverage
+                           ds['dlr'], ds.attrs['station_id'])
+    ds['cc'] = (('time'), cc.data)
+    
+    # removed by bav: station on bedrock can tilt
+    # anyways cc cannot be either a dataArray and a float
+    # if not ds.attrs['bedrock']:
+    #     # Default cloud cover for bedrock station for which tilt should be 0 anyway.
+    #     cc = 0.8
 
     # Determine surface temperature
     ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],           # Calculate surface temperature
@@ -116,6 +118,29 @@ def toL2(
         lat = ds['gps_lat'].mean()
         lon = ds['gps_lon'].mean()
 
+    # smoothing tilt
+    for v in ['tilt_x','tilt_y']:
+        threshold = 0.2
+
+        ds[v] = (ds[v].where(
+            (ds[v].resample(time='H').median().rolling(
+                time= 3*24, center=True, min_periods=2
+                ).std().reindex(time=ds.time, method='bfill'))<threshold
+            ).ffill(dim='time')
+            )
+
+    # rotation gets harsher treatment
+    v = 'rot'
+    ds[v] = (ds[v].where(
+        (ds[v].resample(time='H').median().rolling(
+            time= 3*24, center=True, min_periods=2
+            ).std().reindex(time=ds.time, method='bfill'))<4
+        ).ffill(dim='time')
+        .resample(time='D').median()
+        .rolling(time=7*2,center=True,min_periods=2).median()
+        .reindex(time=ds.time, method='bfill')
+        )
+
     deg2rad, rad2deg = _getRotation()                                          # Get degree-radian conversions
     phi_sensor_rad, theta_sensor_rad = calcTilt(ds['tilt_x'], ds['tilt_y'],    # Calculate station tilt
                                                 deg2rad)
@@ -125,14 +150,15 @@ def toL2(
     ZenithAngle_rad, ZenithAngle_deg = calcZenith(lat, Declination_rad,        # Calculate zenith
                                                   HourAngle_rad, deg2rad,
                                                   rad2deg)
-
+    
+    
     # Correct Downwelling shortwave radiation
     DifFrac = 0.2 + 0.8 * cc
     CorFac_all = calcCorrectionFactor(Declination_rad, phi_sensor_rad,         # Calculate correction
                                       theta_sensor_rad, HourAngle_rad,
                                       ZenithAngle_rad, ZenithAngle_deg,
                                       lat, DifFrac, deg2rad)
-    # CorFac_all = xr.where(cc.notnull(), CorFac_all, 1)
+    CorFac_all = xr.where(ds['cc'].notnull(), CorFac_all, 1)
     ds['dsr_cor'] = ds['dsr'].copy(deep=True) * CorFac_all                     # Apply correction
 
     AngleDif_deg = calcAngleDiff(ZenithAngle_rad, HourAngle_rad,               # Calculate angle between sun and sensor
