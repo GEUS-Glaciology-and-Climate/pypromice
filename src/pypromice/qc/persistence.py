@@ -76,30 +76,31 @@ def persistence_qc(
         period = variable_thresholds[k]["period"]  # loading diff period
 
         for v in var_all:
-            if (v in df) | (v == 'gps_lat_lon'):
-                if v != 'gps_lat_lon':
-                    mask = find_persistent_regions(df[v], period, max_diff)
-                    if 'rh' in v:
-                        mask = mask & (df[v]<99)
-                    n_masked = mask.sum()
-                    n_samples = len(mask)
-                    logger.info(
-                        f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
-                    )
-                    # setting outliers to NaN
-                    df.loc[mask, v] = np.nan
-                else:
-                    mask = (find_persistent_regions(df['gps_lon'], period, max_diff) \
-                                & find_persistent_regions(df['gps_lat'], period, max_diff) )
+            if v in df:
+                mask = find_persistent_regions(df[v], period, max_diff)
+                if 'rh' in v:
+                    mask = mask & (df[v]<99)
+                n_masked = mask.sum()
+                n_samples = len(mask)
+                logger.info(
+                    f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
+                )
+                # setting outliers to NaN
+                df.loc[mask, v] = np.nan
+            elif v == 'gps_lat_lon':
+                mask = (
+                    find_persistent_regions(df['gps_lon'], period, max_diff)
+                    & find_persistent_regions(df['gps_lat'], period, max_diff) 
+                )
 
-                    n_masked = mask.sum()
-                    n_samples = len(mask)
-                    logger.info(
-                        f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
-                    )
-                    # setting outliers to NaN
-                    df.loc[mask, 'gps_lon'] = np.nan
-                    df.loc[mask, 'gps_lat'] = np.nan
+                n_masked = mask.sum()
+                n_samples = len(mask)
+                logger.info(
+                    f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
+                )
+                # setting outliers to NaN
+                df.loc[mask, 'gps_lon'] = np.nan
+                df.loc[mask, 'gps_lat'] = np.nan
 
     # Back to xarray, and re-assign the original attrs
     ds_out = df.to_xarray()
@@ -131,7 +132,8 @@ def count_consecutive_persistent_values(
 ) -> pd.Series:
     diff = data.ffill().diff().abs()  # forward filling all NaNs!
     mask: pd.Series = diff < max_diff
-    return count_consecutive_true(mask)
+    # return count_consecutive_true(mask)
+    return duration_consecutive_true(mask)
 
 
 def count_consecutive_true(
@@ -161,3 +163,33 @@ def count_consecutive_true(
     is_first = series.astype("int").diff() == 1
     offset = (is_first * cumsum).replace(0, np.nan).fillna(method="ffill").fillna(0)
     return ((cumsum - offset + 1) * series).astype("int")
+
+
+def duration_consecutive_true(
+    series: Union[pd.Series, pd.DataFrame]
+) -> Union[pd.Series, pd.DataFrame]:
+    """
+    Froma a boolean series, calculates the duration, in hours, of the periods with connective true values.
+
+    Examples
+    --------
+    >>> duration_consecutive_true(pd.Series([False, True, False, False, True, True, True, False, True]))
+    pd.Series([0, 1, 0, 0, 1, 2, 3, 0, 1])
+
+    Parameters
+    ----------
+    series
+        Boolean pandas Series or DataFrame
+
+    Returns
+    -------
+    consecutive_true_duration
+        Integer pandas Series or DataFrame with values representing the number of connective true values.
+
+    """
+    # assert series.dtype == bool
+    cumsum = ((series.index - series.index[0]).total_seconds()/3600).to_series(index=series.index)
+    is_first = series.astype("int").diff() == 1
+    offset = (is_first * cumsum).replace(0, np.nan).fillna(method="ffill").fillna(0)
+
+    return (cumsum - offset) * series
