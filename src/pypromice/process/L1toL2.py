@@ -111,28 +111,11 @@ def toL2(
     else:
         lat = ds['gps_lat'].mean()
         lon = ds['gps_lon'].mean()
-
-    # smoothing tilt
-    for v in ['tilt_x','tilt_y']:
-        threshold = 0.2
-
-        ds[v] = ds[v].where(
-                    ds[v].to_series().resample('H').median().rolling(
-                        3*24, center=True, min_periods=2
-                        ).std().reindex(ds.time, method='bfill').values <threshold
-                    ).ffill(dim='time').bfill(dim='time')
-
-    # rotation gets harsher treatment
-    v = 'rot'
-    ds[v] = ('time', (ds[v].where(
-                        ds[v].to_series().resample('H').median().rolling(
-                            3*24, center=True, min_periods=2
-                            ).std().reindex(ds.time, method='bfill').values <4
-                        ).ffill(dim='time')
-            .to_series().resample('D').median()
-            .rolling(7*2,center=True,min_periods=2).median()
-            .reindex(ds.time, method='bfill').values
-            ))
+    
+    # smoothing tilt and rot
+    ds['tilt_x'] = smoothTilt(ds['tilt_x'])
+    ds['tilt_y'] = smoothTilt(ds['tilt_y'])
+    ds['rot'] = smoothRot(ds['rot'])
 
     deg2rad, rad2deg = _getRotation()                                          # Get degree-radian conversions
     phi_sensor_rad, theta_sensor_rad = calcTilt(ds['tilt_x'], ds['tilt_y'],    # Calculate station tilt
@@ -272,6 +255,65 @@ def calcSurfaceTemperature(T_0, ulr, dlr, emissivity):
     '''
     t_surf = ((ulr - (1 - emissivity) * dlr) / emissivity / 5.67e-8)**0.25 - T_0
     return t_surf
+
+
+def smoothTilt(da: xr.DataArray, threshold=0.2):
+    '''Smooth the station tilt
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        either X or Y tilt inclinometer measurements
+    threshold : float
+        threshold used in a standrad.-deviation based filter
+
+    Returns
+    -------
+    xarray.DataArray
+        either X or Y smoothed tilt inclinometer measurements
+    '''
+    # we caluclate the moving standard deviation over a 3-day sliding window
+    # hourly resampling is necessary to make sure the same threshold can be used 
+    # for 10 min and hourly data
+    moving_std_gap_filled = da.to_series().resample('H').median().rolling(
+                    3*24, center=True, min_periods=2
+                    ).std().reindex(da.time, method='bfill').values
+    # we select the good timestamps and gapfill assuming that
+    # - when tilt goes missing the last available value is used
+    # - when tilt is not available for the very first time steps, the first
+    #   good value is used for backfill
+    return da.where(
+                moving_std_gap_filled < threshold
+                ).ffill(dim='time').bfill(dim='time')
+
+
+def smoothRot(da: xr.DataArray, threshold=4):
+    '''Smooth the station rotation
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        rotation measurements from inclinometer
+    threshold : float
+        threshold used in a standrad-deviation based filter
+
+    Returns
+    -------
+    xarray.DataArray
+        smoothed rotation measurements from inclinometer
+    '''
+    moving_std_gap_filled = da.to_series().resample('H').median().rolling(
+                    3*24, center=True, min_periods=2
+                    ).std().reindex(da.time, method='bfill').values
+    # same as for tilt with, in addition:
+    #     - a resampling to daily values
+    #     - a two week median smoothing
+    #     - a resampling from these daily values to the original temporal resolution
+    return ('time', (da.where(moving_std_gap_filled <4).ffill(dim='time')
+            .to_series().resample('D').median()
+            .rolling(7*2,center=True,min_periods=2).median()
+            .reindex(da.time, method='bfill').values
+            ))
 
 
 def calcTilt(tilt_x, tilt_y, deg2rad):
