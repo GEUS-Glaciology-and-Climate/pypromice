@@ -784,7 +784,9 @@ def calculateSaturationVaporPressure(t, T_0=273.15, T_100=373.15, es_0=6.1071,
     Returns
     -------
     xarray.DataArray
-        Specific humidity data array
+        Saturation vapour pressure with regard to water above 0 C (hPa)
+    xarray.DataArray
+        Saturation vapour pressure where subfreezing timestamps are with regards to ice (hPa)
     '''                                                         
     # Saturation vapour pressure above 0 C (hPa)
     es_wtr = 10**(-7.90298 * (T_100 / (t + T_0) - 1) + 5.02808 * np.log10(T_100 / (t + T_0))

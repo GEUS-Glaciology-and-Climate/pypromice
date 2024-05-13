@@ -94,12 +94,6 @@ def toL2(
                            ds['dlr'], ds.attrs['station_id'])
     ds['cc'] = (('time'), cc.data)
     
-    # removed by bav: station on bedrock can tilt
-    # anyways cc cannot be either a dataArray and a float
-    # if not ds.attrs['bedrock']:
-    #     # Default cloud cover for bedrock station for which tilt should be 0 anyway.
-    #     cc = 0.8
-
     # Determine surface temperature
     ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],           # Calculate surface temperature
                                           emissivity)
