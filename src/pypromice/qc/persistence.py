@@ -133,44 +133,14 @@ def count_consecutive_persistent_values(
 ) -> pd.Series:
     diff = data.ffill().diff().abs()  # forward filling all NaNs!
     mask: pd.Series = diff < max_diff
-    # return count_consecutive_true(mask)
     return duration_consecutive_true(mask)
 
 
-def count_consecutive_true(
-    series: Union[pd.Series, pd.DataFrame]
-) -> Union[pd.Series, pd.DataFrame]:
-    """
-    Convert boolean series to integer series where the values represent the number of connective true values.
-
-    Examples
-    --------
-    >>> count_consecutive_true(pd.Series([False, True, False, False, True, True, True, False, True]))
-    pd.Series([0, 1, 0, 0, 1, 2, 3, 0, 1])
-
-    Parameters
-    ----------
-    series
-        Boolean pandas Series or DataFrame
-
-    Returns
-    -------
-    consecutive_true_count
-        Integer pandas Series or DataFrame with values representing the number of connective true values.
-
-    """
-    # assert series.dtype == bool
-    cumsum = series.cumsum()
-    is_first = series.astype("int").diff() == 1
-    offset = (is_first * cumsum).replace(0, np.nan).fillna(method="ffill").fillna(0)
-    return ((cumsum - offset + 1) * series).astype("int")
-
-
 def duration_consecutive_true(
-    series: Union[pd.Series, pd.DataFrame]
-) -> Union[pd.Series, pd.DataFrame]:
+    series: pd.Series,
+) -> pd.Series:
     """
-    Froma a boolean series, calculates the duration, in hours, of the periods with connective true values.
+    From a boolean series, calculates the duration, in hours, of the periods with connective true values.
 
     Examples
     --------
@@ -179,12 +149,12 @@ def duration_consecutive_true(
 
     Parameters
     ----------
-    series
+    pd.Series
         Boolean pandas Series or DataFrame
 
     Returns
     -------
-    consecutive_true_duration
+    pd.Series
         Integer pandas Series or DataFrame with values representing the number of connective true values.
 
     """

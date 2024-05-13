@@ -272,7 +272,7 @@ def smoothTilt(da: xr.DataArray, threshold=0.2):
     xarray.DataArray
         either X or Y smoothed tilt inclinometer measurements
     '''
-    # we caluclate the moving standard deviation over a 3-day sliding window
+    # we calculate the moving standard deviation over a 3-day sliding window
     # hourly resampling is necessary to make sure the same threshold can be used 
     # for 10 min and hourly data
     moving_std_gap_filled = da.to_series().resample('H').median().rolling(
