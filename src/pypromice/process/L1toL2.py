@@ -66,25 +66,34 @@ def toL2(
     except Exception:
         logger.exception('Flagging and fixing failed:')
 
-    if ds.attrs['format'] == 'TX':
-        ds = persistence_qc(ds)                                               # Flag and remove persistence outliers
-        # TODO: The configuration should be provided explicitly
-        outlier_detector = ThresholdBasedOutlierDetector.default()
-        ds = outlier_detector.filter_data(ds)                                 # Flag and remove percentile outliers
+    ds = persistence_qc(ds)                                               # Flag and remove persistence outliers
+    # if ds.attrs['format'] == 'TX':
+    #     # TODO: The configuration should be provided explicitly
+    #     outlier_detector = ThresholdBasedOutlierDetector.default()
+    #     ds = outlier_detector.filter_data(ds)                                 # Flag and remove percentile outliers
+
+    # filtering gps_lat, gps_lon and gps_alt based on the difference to a baseline elevation
+    # right now baseline elevation is gapfilled monthly median elevation
+    baseline_elevation = (ds.gps_alt.to_series().resample('M').median()
+                          .reindex(ds.time.to_series().index, method='nearest')
+                          .ffill().bfill())
+    mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) & ds.gps_alt.notnull()
+    ds[['gps_alt','gps_lon', 'gps_lat']] = ds[['gps_alt','gps_lon', 'gps_lat']].where(mask)
+    
+    # removing dlr and ulr that are missing t_rad
+    # this is done now becasue t_rad can be filtered either manually or with persistence
+    ds['dlr'] = ds.dlr.where(ds.t_rad.notnull())
+    ds['ulr'] = ds.ulr.where(ds.t_rad.notnull())
 
     T_100 = _getTempK(T_0)
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],
                                      T_0, T_100, ews, ei0)
 
     # Determiune cloud cover for on-ice stations
-    if not ds.attrs['bedrock']:
-        cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,        # Calculate cloud coverage
-                               ds['dlr'], ds.attrs['station_id'])
-        ds['cc'] = (('time'), cc.data)
-    else:
-        # Default cloud cover for bedrock station for which tilt should be 0 anyway.
-        cc = 0.8
-
+    cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,        # Calculate cloud coverage
+                           ds['dlr'], ds.attrs['station_id'])
+    ds['cc'] = (('time'), cc.data)
+    
     # Determine surface temperature
     ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],           # Calculate surface temperature
                                           emissivity)
@@ -102,6 +111,11 @@ def toL2(
     else:
         lat = ds['gps_lat'].mean()
         lon = ds['gps_lon'].mean()
+    
+    # smoothing tilt and rot
+    ds['tilt_x'] = smoothTilt(ds['tilt_x'])
+    ds['tilt_y'] = smoothTilt(ds['tilt_y'])
+    ds['rot'] = smoothRot(ds['rot'])
 
     deg2rad, rad2deg = _getRotation()                                          # Get degree-radian conversions
     phi_sensor_rad, theta_sensor_rad = calcTilt(ds['tilt_x'], ds['tilt_y'],    # Calculate station tilt
@@ -112,13 +126,15 @@ def toL2(
     ZenithAngle_rad, ZenithAngle_deg = calcZenith(lat, Declination_rad,        # Calculate zenith
                                                   HourAngle_rad, deg2rad,
                                                   rad2deg)
-
+    
+    
     # Correct Downwelling shortwave radiation
     DifFrac = 0.2 + 0.8 * cc
     CorFac_all = calcCorrectionFactor(Declination_rad, phi_sensor_rad,         # Calculate correction
                                       theta_sensor_rad, HourAngle_rad,
                                       ZenithAngle_rad, ZenithAngle_deg,
                                       lat, DifFrac, deg2rad)
+    CorFac_all = xr.where(ds['cc'].notnull(), CorFac_all, 1)
     ds['dsr_cor'] = ds['dsr'].copy(deep=True) * CorFac_all                     # Apply correction
 
     AngleDif_deg = calcAngleDiff(ZenithAngle_rad, HourAngle_rad,               # Calculate angle between sun and sensor
@@ -145,9 +161,9 @@ def toL2(
     TOA_crit_nopass = (ds['dsr_cor'] > (0.9 * isr_toa + 10))                   # Determine filter
     ds['dsr_cor'][TOA_crit_nopass] = np.nan                                    # Apply filter and interpolate
     ds['usr_cor'][TOA_crit_nopass] = np.nan
-    ds['dsr_cor'] = ds['dsr_cor'].interpolate_na(dim='time', use_coordinate=False)
-    ds['usr_cor'] = ds['usr_cor'].interpolate_na(dim='time', use_coordinate=False)
-
+    
+    ds['dsr_cor'] = ds.dsr_cor.where(ds.dsr.notnull())  
+    ds['usr_cor'] = ds.usr_cor.where(ds.usr.notnull())  
     # # Check sun position
     # sundown = ZenithAngle_deg >= 90
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)
@@ -241,6 +257,65 @@ def calcSurfaceTemperature(T_0, ulr, dlr, emissivity):
     return t_surf
 
 
+def smoothTilt(da: xr.DataArray, threshold=0.2):
+    '''Smooth the station tilt
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        either X or Y tilt inclinometer measurements
+    threshold : float
+        threshold used in a standrad.-deviation based filter
+
+    Returns
+    -------
+    xarray.DataArray
+        either X or Y smoothed tilt inclinometer measurements
+    '''
+    # we calculate the moving standard deviation over a 3-day sliding window
+    # hourly resampling is necessary to make sure the same threshold can be used 
+    # for 10 min and hourly data
+    moving_std_gap_filled = da.to_series().resample('H').median().rolling(
+                    3*24, center=True, min_periods=2
+                    ).std().reindex(da.time, method='bfill').values
+    # we select the good timestamps and gapfill assuming that
+    # - when tilt goes missing the last available value is used
+    # - when tilt is not available for the very first time steps, the first
+    #   good value is used for backfill
+    return da.where(
+                moving_std_gap_filled < threshold
+                ).ffill(dim='time').bfill(dim='time')
+
+
+def smoothRot(da: xr.DataArray, threshold=4):
+    '''Smooth the station rotation
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        rotation measurements from inclinometer
+    threshold : float
+        threshold used in a standrad-deviation based filter
+
+    Returns
+    -------
+    xarray.DataArray
+        smoothed rotation measurements from inclinometer
+    '''
+    moving_std_gap_filled = da.to_series().resample('H').median().rolling(
+                    3*24, center=True, min_periods=2
+                    ).std().reindex(da.time, method='bfill').values
+    # same as for tilt with, in addition:
+    #     - a resampling to daily values
+    #     - a two week median smoothing
+    #     - a resampling from these daily values to the original temporal resolution
+    return ('time', (da.where(moving_std_gap_filled <4).ffill(dim='time')
+            .to_series().resample('D').median()
+            .rolling(7*2,center=True,min_periods=2).median()
+            .reindex(da.time, method='bfill').values
+            ))
+
+
 def calcTilt(tilt_x, tilt_y, deg2rad):
     '''Calculate station tilt
 
@@ -323,7 +398,6 @@ def correctHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO f
 
     # Set to Groff & Gratch values when freezing, otherwise just rh
     rh_cor = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))
-    rh_cor = rh_cor.where(T.notnull())
     return rh_cor
 
 

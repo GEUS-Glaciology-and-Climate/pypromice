@@ -14,11 +14,15 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+# period is given in hours, 2 persistent 10 min values will be flagged if period < 0.333
 DEFAULT_VARIABLE_THRESHOLDS = {
     "t": {"max_diff": 0.0001, "period": 2},
     "p": {"max_diff": 0.0001, "period": 2},
-    # Relative humidity can be very stable around 100%.
-    #"rh": {"max_diff": 0.0001, "period": 2},
+    'gps_lat_lon':{"max_diff": 0.000001, "period": 6}, # gets special handling to remove simultaneously constant gps_lat and gps_lon
+    'gps_alt':{"max_diff": 0.0001, "period": 6},
+    't_rad':{"max_diff": 0.0001, "period": 2},
+    "rh": {"max_diff": 0.0001, "period": 2}, # gets special handling to allow constant 100%
+    "wspd": {"max_diff": 0.0001, "period": 6},
 }
 
 
@@ -58,27 +62,46 @@ def persistence_qc(
     if variable_thresholds is None:
         variable_thresholds = DEFAULT_VARIABLE_THRESHOLDS
 
-    logger.debug(f"Running persistence_qc using {variable_thresholds}")
+    logger.info(f"Running persistence_qc using {variable_thresholds}")
 
     for k in variable_thresholds.keys():
-        var_all = [
-            k + "_u",
-            k + "_l",
-            k + "_i",
-        ]  # apply to upper, lower boom, and instant
+        if k in ['t','p','rh','wspd','wdir', 'z_boom']:
+            var_all = [
+                k + "_u",
+                k + "_l",
+                k + "_i",
+            ]  # apply to upper, lower boom, and instant
+        else:
+            var_all = [k]
         max_diff = variable_thresholds[k]["max_diff"]  # loading persistent limit
         period = variable_thresholds[k]["period"]  # loading diff period
 
         for v in var_all:
             if v in df:
                 mask = find_persistent_regions(df[v], period, max_diff)
+                if 'rh' in v:
+                    mask = mask & (df[v]<99)
                 n_masked = mask.sum()
                 n_samples = len(mask)
-                logger.debug(
+                logger.info(
                     f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
                 )
                 # setting outliers to NaN
                 df.loc[mask, v] = np.nan
+            elif v == 'gps_lat_lon':
+                mask = (
+                    find_persistent_regions(df['gps_lon'], period, max_diff)
+                    & find_persistent_regions(df['gps_lat'], period, max_diff) 
+                )
+
+                n_masked = mask.sum()
+                n_samples = len(mask)
+                logger.info(
+                    f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
+                )
+                # setting outliers to NaN
+                df.loc[mask, 'gps_lon'] = np.nan
+                df.loc[mask, 'gps_lat'] = np.nan
 
     # Back to xarray, and re-assign the original attrs
     ds_out = df.to_xarray()
@@ -110,33 +133,34 @@ def count_consecutive_persistent_values(
 ) -> pd.Series:
     diff = data.ffill().diff().abs()  # forward filling all NaNs!
     mask: pd.Series = diff < max_diff
-    return count_consecutive_true(mask)
+    return duration_consecutive_true(mask)
 
 
-def count_consecutive_true(
-    series: Union[pd.Series, pd.DataFrame]
-) -> Union[pd.Series, pd.DataFrame]:
+def duration_consecutive_true(
+    series: pd.Series,
+) -> pd.Series:
     """
-    Convert boolean series to integer series where the values represent the number of connective true values.
+    From a boolean series, calculates the duration, in hours, of the periods with connective true values.
 
     Examples
     --------
-    >>> count_consecutive_true(pd.Series([False, True, False, False, True, True, True, False, True]))
+    >>> duration_consecutive_true(pd.Series([False, True, False, False, True, True, True, False, True]))
     pd.Series([0, 1, 0, 0, 1, 2, 3, 0, 1])
 
     Parameters
     ----------
-    series
+    pd.Series
         Boolean pandas Series or DataFrame
 
     Returns
     -------
-    consecutive_true_count
+    pd.Series
         Integer pandas Series or DataFrame with values representing the number of connective true values.
 
     """
     # assert series.dtype == bool
-    cumsum = series.cumsum()
+    cumsum = ((series.index - series.index[0]).total_seconds()/3600).to_series(index=series.index)
     is_first = series.astype("int").diff() == 1
     offset = (is_first * cumsum).replace(0, np.nan).fillna(method="ffill").fillna(0)
-    return ((cumsum - offset + 1) * series).astype("int")
+
+    return (cumsum - offset) * series
