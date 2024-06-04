@@ -3,8 +3,8 @@ import logging, os, sys, unittest
 from argparse import ArgumentParser
 from pypromice.process.aws import AWS
 
-def parse_arguments_l3():
-    parser = ArgumentParser(description="AWS L3 processor")
+def parse_arguments_l2():
+    parser = ArgumentParser(description="AWS L2 processor")
 
     parser.add_argument('-c', '--config_file', type=str, required=True,
                         help='Path to config (TOML) file')
@@ -19,8 +19,8 @@ def parse_arguments_l3():
     args = parser.parse_args()
     return args
 
-def get_l3():
-    args = parse_arguments_l3()
+def get_l2():
+    args = parse_arguments_l2()
 
     logging.basicConfig(
         format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
@@ -42,5 +42,5 @@ def get_l3():
         aws.write(args.outpath)
         
 if __name__ == "__main__":  
-    get_l3()
+    get_l2()
         

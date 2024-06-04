@@ -76,7 +76,6 @@ class AWS(object):
             logger.info(f'Commencing {self.L0[0].attrs["number_of_booms"]}-boom processing...')
         self.getL1()
         self.getL2()
-        self.getL3()
 
     def write(self, outpath):
         '''Write L3 data to .csv and .nc file'''
@@ -97,37 +96,38 @@ class AWS(object):
         '''Perform L1 to L2 data processing'''
         logger.info('Level 2 processing...')
         self.L2 = toL2(self.L1A, vars_df=self.vars)
+        
+        # Resample L2 product
+        f = [l.attrs['format'] for l in self.L0]
+        if 'raw' in f or 'STM' in f:
+            logger.info('Resampling to 10 minute')
+            self.L2 = resampleL2(self.L2, '10min')
+        else:
+            self.L2 = resampleL2(self.L2, '60min')
+            logger.info('Resampling to hour')
+
+        # Re-format time
+        t = self.L2['time'].values
+        self.L2['time'] = list(t)
+
+        # Switch gps_lon to negative (degrees_east)
+        # Do this here, and NOT in addMeta, otherwise we switch back to positive
+        # when calling getMeta in joinL2! PJW
+        if self.L2.attrs['station_id'] not in ['UWN', 'Roof_GEUS', 'Roof_PROMICE']:
+            self.L2['gps_lon'] = self.L2['gps_lon'] * -1
+
+        # Add variable attributes and metadata
+        self.L2 = self.addAttributes(self.L2)
+
+        # Round all values to specified decimals places
+        self.L2 = roundValues(self.L2, self.vars)
+
 
     def getL3(self):
         '''Perform L2 to L3 data processing, including resampling and metadata
         and attribute population'''
         logger.info('Level 3 processing...')
         self.L3 = toL3(self.L2)
-
-        # Resample L3 product
-        f = [l.attrs['format'] for l in self.L0]
-        if 'raw' in f or 'STM' in f:
-            logger.info('Resampling to 10 minute')
-            self.L3 = resampleL3(self.L3, '10min')
-        else:
-            self.L3 = resampleL3(self.L3, '60min')
-            logger.info('Resampling to hour')
-
-        # Re-format time
-        t = self.L3['time'].values
-        self.L3['time'] = list(t)
-
-        # Switch gps_lon to negative (degrees_east)
-        # Do this here, and NOT in addMeta, otherwise we switch back to positive
-        # when calling getMeta in joinL3! PJW
-        if self.L3.attrs['station_id'] not in ['UWN', 'Roof_GEUS', 'Roof_PROMICE']:
-            self.L3['gps_lon'] = self.L3['gps_lon'] * -1
-
-        # Add variable attributes and metadata
-        self.L3 = self.addAttributes(self.L3)
-
-        # Round all values to specified decimals places
-        self.L3 = roundValues(self.L3, self.vars)
 
     def addAttributes(self, L3):
         '''Add variable and attribute metadata
@@ -712,8 +712,8 @@ def getMeta(m_file=None, delimiter=','):                                        
             pass
     return meta
 
-def resampleL3(ds_h, t):
-    '''Resample L3 AWS data, e.g. hourly to daily average. This uses pandas
+def resampleL2(ds_h, t):
+    '''Resample L2 AWS data, e.g. hourly to daily average. This uses pandas
     DataFrame resampling at the moment as a work-around to the xarray Dataset
     resampling. As stated, xarray resampling is a lengthy process that takes
     ~2-3 minutes per operation: ds_d = ds_h.resample({'time':"1D"}).mean()
