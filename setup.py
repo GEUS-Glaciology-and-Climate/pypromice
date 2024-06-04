@@ -31,7 +31,7 @@ setuptools.setup(
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.8",
     package_data={
-    	"pypromice.process": ["metadata.csv", "variables.csv"],
+    	"pypromice.process": ["metadata.csv", "variables.csv", "variable_aliases_GC-Net.csv"],
     	"pypromice.tx": ["payload_formats.csv", "payload_types.csv"],
         "pypromice.qc.percentiles": ["thresholds.csv"],
         "pypromice.postprocess": ["station_configurations.toml", "positions_seed.csv"],
