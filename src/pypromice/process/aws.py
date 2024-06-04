@@ -894,12 +894,12 @@ class TestProcess(unittest.TestCase):
         self.assertTrue(pAWS.L2.attrs['station_id']=='TEST1')
 
     def testCLIgetl2(self):
-        '''Test get_l3 CLI'''
+        '''Test get_l2 CLI'''
         exit_status = os.system('get_l2 -h')
         self.assertEqual(exit_status, 0)
 
     def testCLIjoinl2(self):
-        '''Test join_l3 CLI'''
+        '''Test join_l2 CLI'''
         exit_status = os.system('join_l2 -h')
         self.assertEqual(exit_status, 0)
         
