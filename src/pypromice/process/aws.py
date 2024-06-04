@@ -881,7 +881,7 @@ class TestProcess(unittest.TestCase):
         self.assertTrue(d.attrs['station_id']=='TEST')
         self.assertIsInstance(d.attrs['references'], str)
 
-    def testL0toL3(self):
+    def testL0toL2(self):
         '''Test L0 to L3 processing'''
         try:
             import pypromice
@@ -890,19 +890,23 @@ class TestProcess(unittest.TestCase):
         except:
             pAWS = AWS('../test/test_config1.toml', '../test/')
         pAWS.process()
-        self.assertIsInstance(pAWS.L3, xr.Dataset)
-        self.assertTrue(pAWS.L3.attrs['station_id']=='TEST1')
+        self.assertIsInstance(pAWS.L2, xr.Dataset)
+        self.assertTrue(pAWS.L2.attrs['station_id']=='TEST1')
 
+    def testCLIgetl2(self):
+        '''Test get_l3 CLI'''
+        exit_status = os.system('get_l2 -h')
+        self.assertEqual(exit_status, 0)
+
+    def testCLIjoinl2(self):
+        '''Test join_l3 CLI'''
+        exit_status = os.system('join_l2 -h')
+        self.assertEqual(exit_status, 0)
+        
     def testCLIgetl3(self):
         '''Test get_l3 CLI'''
         exit_status = os.system('get_l3 -h')
         self.assertEqual(exit_status, 0)
-
-    def testCLIjoinl3(self):
-        '''Test join_l3 CLI'''
-        exit_status = os.system('join_l3 -h')
-        self.assertEqual(exit_status, 0)
-        
 #------------------------------------------------------------------------------
 
 if __name__ == "__main__":
