@@ -37,11 +37,11 @@ def toL2(
         - custom filter: gps_alt filter, NaN t_rad removed from dlr & ulr
         - smoothing of tilt and rot
         - calculation of rh with regards to ice in subfreezin conditions
-        - caluclation of cloud coverage
+        - calculation of cloud coverage
         - correction of dsr and usr for tilt
         - filtering of dsr based on a theoritical TOA irradiance and grazing light
         - calculation of albedo
-        - caluclation of directional wind speed
+        - calculation of directional wind speed
 
     Parameters
     ----------
