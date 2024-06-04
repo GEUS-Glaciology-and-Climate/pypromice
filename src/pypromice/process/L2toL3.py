@@ -7,10 +7,7 @@ import xarray as xr
 
 def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071, 
          es_100=1013.246):
-    '''Process one Level 2 (L2) product to Level 3 (L3) meaning calculating all
-    derived variables:
-        - Sensible fluxes
-    
+    '''Process one Level 2 (L2) product to Level 3 (L3) 
     
     Parameters
     ----------
@@ -35,6 +32,9 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
 
     T_100 = _getTempK(T_0)                                                     # Get steam point temperature as K 
     
+    ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                       # Get directional wind speed                    
+    ds['wspd_x_u'], ds['wspd_y_u'] = calcDirWindSpeeds(ds['wspd_u'], ds['wdir_u']) 
+
     # Upper boom bulk calculation
     T_h_u = ds['t_u'].copy()                                                   # Copy for processing
     p_h_u = ds['p_u'].copy()
@@ -85,7 +85,39 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
         q_h_l = cleanSpHumid(q_h_l, T_h_l, Tsurf_h, p_h_l, RH_cor_h_l)         # Clean sp.humid values
         ds['qh_l'] = (('time'), q_h_l.data)    
 
+        ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0)                   # Get directional wind speed    
+        ds['wspd_x_l'], ds['wspd_y_l'] = calcDirWindSpeeds(ds['wspd_l'], ds['wdir_l'])
+     
+    if hasattr(ds, 'wdir_i'):    
+        if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():      # Instantaneous msg processing
+            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)               # Get directional wind speed                    
+            ds['wspd_x_i'], ds['wspd_y_i'] = calcDirWindSpeeds(ds['wspd_i'], ds['wdir_i'])   
+    
     return ds
+
+
+def calcDirWindSpeeds(wspd, wdir, deg2rad=np.pi/180):
+    '''Calculate directional wind speed from wind speed and direction
+    
+    Parameters
+    ----------
+    wspd : xr.Dataarray
+        Wind speed data array
+    wdir : xr.Dataarray
+        Wind direction data array
+    deg2rad : float
+        Degree to radians coefficient. The default is np.pi/180
+    
+    Returns
+    -------
+    wspd_x : xr.Dataarray
+        Wind speed in X direction
+    wspd_y : xr.Datarray
+        Wind speed in Y direction
+    '''        
+    wspd_x = wspd * np.sin(wdir * deg2rad)
+    wspd_y = wspd * np.cos(wdir * deg2rad) 
+    return wspd_x, wspd_y
 
 
 def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h, 
