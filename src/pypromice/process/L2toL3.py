@@ -117,9 +117,9 @@ def toL3(L2, T_0=273.15):
         ds[var_out] = \
             ('time',  piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks))
         
-        ds['lat_avg'] = ds['lat'].mean()
-        ds['lon_avg'] = ds['lon'].mean()
-        ds['alt_avg'] = ds['alt'].mean()
+    ds['lat_avg'] = ds['lat'].mean()
+    ds['lon_avg'] = ds['lon'].mean()
+    ds['alt_avg'] = ds['alt'].mean()
     return ds
 
 
