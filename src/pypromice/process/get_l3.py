@@ -40,7 +40,7 @@ def get_l3():
         m = os.path.join(os.path.dirname(pypromice.__file__),'process/metadata.csv')
     else:
         m = args.metadata
-    
+
     # Define input path
     station_name = args.config_file.split('/')[-1].split('.')[0] 
     station_path = os.path.join(args.inpath, station_name)
