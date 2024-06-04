@@ -91,12 +91,30 @@ class AWS(object):
         logger.info('Level 1 processing...')
         self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
         self.L1 = [toL1(item, self.vars) for item in self.L0]
-        self.L1A = reduce(xr.Dataset.combine_first, self.L1)
+
+        if self.merge_flag:
+            self.L1A = self.hard_merge(self.L1)
+        else:
+            self.L1A = reduce(xr.Dataset.combine_first, self.L1)
 
     def getL2(self):
         '''Perform L1 to L2 data processing'''
         logger.info('Level 2 processing...')
         self.L2 = toL2(self.L1A, vars_df=self.vars)
+        self.L2 = self.resample(self.L2)
+        self.L2 = reformat_time(self.L2)
+
+        # Switch gps_lon to negative (degrees_east)
+        # Do this here, and NOT in addMeta, otherwise we switch back to positive
+        # when calling getMeta in joinL2! PJW
+        if self.L2.attrs['station_id'] not in ['UWN', 'Roof_GEUS', 'Roof_PROMICE']:
+            self.L2['gps_lon'] = self.L2['gps_lon'] * -1
+
+        # Add variable attributes and metadata
+        self.L2 = self.addAttributes(self.L2)
+
+        # Round all values to specified decimals places
+        self.L2 = roundValues(self.L2, self.vars)
 
     def getL3(self):
         '''Perform L2 to L3 data processing, including resampling and metadata
@@ -104,31 +122,48 @@ class AWS(object):
         logger.info('Level 3 processing...')
         self.L3 = toL3(self.L2)
 
-        # Resample L3 product
+    def resample(self, dataset):       
+        '''Resample dataset to specific temporal resolution (based on input
+        data type)'''
         f = [l.attrs['format'] for l in self.L0]
         if 'raw' in f or 'STM' in f:
             logger.info('Resampling to 10 minute')
-            self.L3 = resampleL3(self.L3, '10min')
+            resampled = resampleL2(dataset, '10min')
         else:
-            self.L3 = resampleL3(self.L3, '60min')
+            resampled = resampleL2(dataset, '60min')
             logger.info('Resampling to hour')
+        return resampled
 
-        # Re-format time
-        t = self.L3['time'].values
-        self.L3['time'] = list(t)
-
-        # Switch gps_lon to negative (degrees_east)
-        # Do this here, and NOT in addMeta, otherwise we switch back to positive
-        # when calling getMeta in joinL3! PJW
-        if self.L3.attrs['station_id'] not in ['UWN', 'Roof_GEUS', 'Roof_PROMICE']:
-            self.L3['gps_lon'] = self.L3['gps_lon'] * -1
-
-        # Add variable attributes and metadata
-        self.L3 = self.addAttributes(self.L3)
-
-        # Round all values to specified decimals places
-        self.L3 = roundValues(self.L3, self.vars)
-
+    def merge_flag(self):
+        '''Determine if hard merging is needed, based on whether a hard 
+        merge_type flag is defined in any of the configs'''
+        f = [l.attrs['merge_type'] for l in self.L0]
+        if 'hard' in f:
+            return True
+        else:
+            return False
+        
+    def hard_merge(self, dataset_list):
+        '''Determine positions where hard merging should occur, combine 
+        data and append to list of combined data chunks, then hard merge all 
+        combined data chunks. This should be called in instances where there 
+        needs to be a clear break between input datasets, such as when a station
+        is moved (and we do not want the GPS position jumping)'''
+        # Define positions where hard merging should occur
+        m=[]
+        f = [l.attrs['merge_type'] for l in self.L0]
+        [m.append(i) for i, item in enumerate(f) if item=='hard']
+        
+        # Perform combine between hard merge breaks and append to list of combined data
+        combined=[]
+        for i in range(len(m[:-1])):        
+            combined.append(reduce(xr.Dataset.combine_first, dataset_list[m[i]:m[i+1]]))
+        combined.append(reduce(xr.Dataset.combine_first, dataset_list[m[-1]:]))
+        
+        # Hard merge all combined datasets together
+        return reduce(xr.Dataset.update, combined)
+        
+            
     def addAttributes(self, L3):
         '''Add variable and attribute metadata
 
@@ -364,6 +399,12 @@ def getL0(infile, nodata, cols, skiprows, file_version,
     # Carry relevant metadata with ds
     ds = xr.Dataset.from_dataframe(df)
     return ds
+
+def reformat_time(dataset):
+    '''Re-format time'''
+    t = dataset['time'].values
+    dataset['time'] = list(t)
+    return dataset
 
 def addBasicMeta(ds, vars_df):
     ''' Use a variable lookup table DataFrame to add the basic metadata
@@ -712,8 +753,8 @@ def getMeta(m_file=None, delimiter=','):                                        
             pass
     return meta
 
-def resampleL3(ds_h, t):
-    '''Resample L3 AWS data, e.g. hourly to daily average. This uses pandas
+def resampleL2(ds_h, t):
+    '''Resample L2 AWS data, e.g. hourly to daily average. This uses pandas
     DataFrame resampling at the moment as a work-around to the xarray Dataset
     resampling. As stated, xarray resampling is a lengthy process that takes
     ~2-3 minutes per operation: ds_d = ds_h.resample({'time':"1D"}).mean()
@@ -881,7 +922,7 @@ class TestProcess(unittest.TestCase):
         self.assertTrue(d.attrs['station_id']=='TEST')
         self.assertIsInstance(d.attrs['references'], str)
 
-    def testL0toL3(self):
+    def testL0toL2(self):
         '''Test L0 to L3 processing'''
         try:
             import pypromice
@@ -890,19 +931,23 @@ class TestProcess(unittest.TestCase):
         except:
             pAWS = AWS('../test/test_config1.toml', '../test/')
         pAWS.process()
-        self.assertIsInstance(pAWS.L3, xr.Dataset)
-        self.assertTrue(pAWS.L3.attrs['station_id']=='TEST1')
+        self.assertIsInstance(pAWS.L2, xr.Dataset)
+        self.assertTrue(pAWS.L2.attrs['station_id']=='TEST1')
 
+    def testCLIgetl2(self):
+        '''Test get_l2 CLI'''
+        exit_status = os.system('get_l2 -h')
+        self.assertEqual(exit_status, 0)
+
+    def testCLIjoinl2(self):
+        '''Test join_l2 CLI'''
+        exit_status = os.system('join_l2 -h')
+        self.assertEqual(exit_status, 0)
+        
     def testCLIgetl3(self):
         '''Test get_l3 CLI'''
         exit_status = os.system('get_l3 -h')
         self.assertEqual(exit_status, 0)
-
-    def testCLIjoinl3(self):
-        '''Test join_l3 CLI'''
-        exit_status = os.system('join_l3 -h')
-        self.assertEqual(exit_status, 0)
-        
 #------------------------------------------------------------------------------
 
 if __name__ == "__main__":
