@@ -70,12 +70,12 @@ gps_geounit,gps_geounit,GeoUnit,-,,,,all,,,qualityInformation,time lat lon alt,T
 gps_hdop,gps_hdop,GPS horizontal dillution of precision (HDOP),m,,,,all,,2,qualityInformation,time lat lon alt,True,NMEA: Horizontal dilution of precision
 gps_numsat,gps_numsat,GPS number of satellites,-,,,,,,0,qualityInformation,time lat lon alt,True,L0 only
 gps_q,gps_q,Quality,-,,,,,all,,qualityInformation,time lat lon alt,True,L0 only
+lat,latitude,latitude,degrees_N,,,,all,all,6,modelResult,time lat lon alt,False,smoothed and interpolated latitude of station (best estimate)
+lon,longitude,longitude,degrees_E,,,,all,all,6,modelResult,time lat lon alt,False,smoothed and interpolated longitude of station (best estimate)
+alt,altitude,altitude,m,,,,all,all,2,modelResult,time lat lon alt,False,smoothed and interpolated altitude of station (best estimate)
 lat_avg,mean_latitude,GPS mean latitude (from all time-series),degrees,,,,all,,6,modelResult,time lat lon alt,True,
 lon_avg,mean_longitude,GPS mean longitude (from all time-series),degrees,,,,all,,6,modelResult,time lat lon alt,True,
 alt_avg,mean_altitude,GPS mean altitude (from all time-series),degrees,,,,all,,2,modelResult,time lat lon alt,True,
-lat,latitude,latitude,degrees_N,,,,all,all,6,modelResult,time lat lon alt,False,smoothed and interpolated latitude of station (best estimate)
-lon,longitude,longitude,degrees_E,,,,all,all,6,modelResult,time lat lon alt,False,smoothed and interpolated longitude of station (best estimate)
-elev,elevation,elevation,m a.s.l. (WGS84),,,,all,all,2,modelResult,time lat lon alt,False,smoothed and interpolated elevation of station (best estimate)
 batt_v,battery_voltage,Battery voltage,V,0,30,,all,all,2,physicalMeasurement,time lat lon alt,True,
 batt_v_ini,,,-,0,30,,,all,2,physicalMeasurement,time lat lon alt,True,L0 only
 batt_v_ss,battery_voltage_at_sample_start,Battery voltage (sample start),V,0,30,,,all,2,physicalMeasurement,time lat lon alt,True,L0 only
