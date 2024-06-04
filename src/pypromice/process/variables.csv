@@ -47,17 +47,17 @@ precip_u_rate,precipitation_rate,Precipitation rate (upper boom) (cumulative sol
 precip_l,precipitation,Precipitation (lower boom) (cumulative solid & liquid),mm,0,,precip_l_cor precip_l_rate,two-boom,all,4,physicalMeasurement,time lat lon alt,True,Without wind/undercatch correction
 precip_l_cor,precipitation_corrected,Precipitation (lower boom) (cumulative solid & liquid) – corrected,mm,0,,,two-boom,all,4,modelResult,time lat lon alt,True,With wind/undercatch correction
 precip_l_rate,precipitation_rate,Precipitation rate (lower boom) (cumulative solid & liquid) – corrected,mm,0,,,two-boom,all,4,modelResult,time lat lon alt,True,L0 only
-t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,t1 is installed @ 1 m depth
-t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_3,ice_temperature_at_t3,Ice temperature at sensor 3,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_4,ice_temperature_at_t4,Ice temperature at sensor 4,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_5,ice_temperature_at_t5,Ice temperature at sensor 5,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_6,ice_temperature_at_t6,Ice temperature at sensor 6,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_7,ice_temperature_at_t7,Ice temperature at sensor 7,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_8,ice_temperature_at_t8,Ice temperature at sensor 8,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,t8 is installed @ 10 m depth
-t_i_9,ice_temperature_at_t9,Ice temperature at sensor 9,degrees_C,-80,1,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_10,ice_temperature_at_t10,Ice temperature at sensor 10,degrees_C,-80,1,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
-t_i_11,ice_temperature_at_t11,Ice temperature at sensor 11,degrees_C,-80,1,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_1,ice_temperature_at_t1,Ice temperature at thermistor 1,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_2,ice_temperature_at_t2,Ice temperature at thermistor 2,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_3,ice_temperature_at_t3,Ice temperature at thermistor 3,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_4,ice_temperature_at_t4,Ice temperature at thermistor 4,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_5,ice_temperature_at_t5,Ice temperature at thermistor 5,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_6,ice_temperature_at_t6,Ice temperature at thermistor 6,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_7,ice_temperature_at_t7,Ice temperature at thermistor 7,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_8,ice_temperature_at_t8,Ice temperature at thermistor 8,degrees_C,-80,1,,all,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_9,ice_temperature_at_t9,Ice temperature at thermistor 9,degrees_C,-80,1,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_10,ice_temperature_at_t10,Ice temperature at thermistor 10,degrees_C,-80,1,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
+t_i_11,ice_temperature_at_t11,Ice temperature at thermistor 11,degrees_C,-80,1,,two-boom,all,4,physicalMeasurement,time lat lon alt,False,
 tilt_x,platform_view_angle_x,Tilt to east,degrees,-30,30,dsr_cor usr_cor albedo,all,all,4,physicalMeasurement,time lat lon alt,False,
 tilt_y,platform_view_angle_y,Tilt to north,degrees,-30,30,dsr_cor usr_cor albedo,all,all,4,physicalMeasurement,time lat lon alt,False,
 rot,platform_azimuth_angle,Station rotation from true North,degrees,0,360,,all,all,2,physicalMeasurement,time lat lon alt,False,v4 addition
@@ -93,3 +93,19 @@ wdir_i,wind_from_direction,Wind from direction (instantaneous),degrees,1,360,wsp
 wspd_x_i,wind_speed_from_x_direction,Wind speed from x direction (instantaneous),m s-1,-100,100,wdir_i wspd_i,all,all,4,modelResult,time lat lon alt,True,For meteorological observations
 wspd_y_i,wind_speed_from_y_direction,Wind speed from y direction (instantaneous),m s-1,-100,100,wdir_i wspd_i,all,all,4,modelResult,time lat lon alt,True,For meteorological observations
 msg_i,message,Message string (instantaneous),-,,,,all,,,qualityInformation,time lat lon alt,True,L0 only
+z_surf_1,height_of_surface_1,Surface height 1,m,,,,all,all,4,modelResult,time lat lon alt,True,relative to surface height at installation and calculated from boom (upper one if two)
+z_surf_2,height_of_surface_2,Surface height 2,m,,,,all,all,4,modelResult,time lat lon alt,True,relative to surface height at installation and calculated from stake or lower boom (if two)
+z_surf_combined,height_of_surface_combined,Surface height combined from multiple sensors,m,,,,all,all,4,modelResult,time lat lon alt,True,relative to surface height at installation and calculated from stake booms and pt
+z_ice_surf,height_of_ice_surface,Ice surface height 2,m,,,,all,all,4,modelResult,time lat lon alt,True,relative to ice surface height at installation and calculated from pt_cor
+d_t_i_1,depth_of_thermistor_1,Depth of thermistor 1,m,,,,all,all,4,modelResult,time lat lon alt,False,
+d_t_i_2,depth_of_thermistor_2,Depth of thermistor 2,m,,,,all,all,4,modelResult,time lat lon alt,False,
+d_t_i_3,depth_of_thermistor_3,Depth of thermistor 3,m,,,,all,all,4,modelResult,time lat lon alt,False,
+d_t_i_4,depth_of_thermistor_4,Depth of thermistor 4,m,,,,all,all,4,modelResult,time lat lon alt,False,
+d_t_i_5,depth_of_thermistor_5,Depth of thermistor 5,m,,,,all,all,4,modelResult,time lat lon alt,False,
+d_t_i_6,depth_of_thermistor_6,Depth of thermistor 6,m,,,,all,all,4,modelResult,time lat lon alt,False,
+d_t_i_7,depth_of_thermistor_7,Depth of thermistor 7,m,,,,all,all,4,modelResult,time lat lon alt,False,
+d_t_i_8,depth_of_thermistor_8,Depth of thermistor 8,m,,,,all,all,4,modelResult,time lat lon alt,False,
+d_t_i_9,depth_of_thermistor_9,Depth of thermistor 9,m,,,,two-boom,all,4,modelResult,time lat lon alt,False,
+d_t_i_10,depth_of_thermistor_10,Depth of thermistor 10,m,,,,two-boom,all,4,modelResult,time lat lon alt,False,
+d_t_i_11,depth_of_thermistor_11,Depth of thermistor 11,m,,,,two-boom,all,4,modelResult,time lat lon alt,False,
+t_i_10m,10m_subsurface_temperature,10 m subsurface temperature,degrees_C,,,,all,all,4,modelResult,time lat lon alt,False,
