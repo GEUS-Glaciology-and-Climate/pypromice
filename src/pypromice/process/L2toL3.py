@@ -4,6 +4,9 @@ AWS Level 2 (L2) to Level 3 (L3) data processing
 """
 import numpy as np
 import xarray as xr
+from statsmodels.nonparametric.smoothers_lowess import lowess
+import logging
+logger = logging.getLogger(__name__)
 
 def toL3(L2, T_0=273.15):
     '''Process one Level 2 (L2) product to Level 3 (L3) meaning calculating all
@@ -65,9 +68,129 @@ def toL3(L2, T_0=273.15):
         q_h_l = 1000 * q_h_l                                                   # Convert sp.humid from kg/kg to g/kg
 
         ds['qh_l'] = (('time'), q_h_l.data)    
+    
+    # Smoothing and inter/extrapolation of GPS coordinates
 
+    for var in ['gps_lat', 'gps_lon', 'gps_alt']:
+        logger.info('Postprocessing '+var)
+
+        # saving the static value and droping 'lat','lon' or 'alt' as they are 
+        # being reassigned as timeseries
+        var_out = var.replace('gps_','')
+        
+        if var_out == 'alt':
+            if 'altitude' in list(ds.attrs.keys()):
+                static_value = float(ds.attrs['altitude'])
+            else:
+                print('no standard altitude for', ds.station_id)
+                static_value = np.nan
+        elif  var_out == 'lat':
+            static_value = float(ds.attrs['latitude'])
+        elif  var_out == 'lon':
+            static_value = float(ds.attrs['longitude'])
+        ds=ds.drop_vars(var_out)
+        
+        # if there is no gps observations, then we use the static value repeated
+        # for each time stamp
+        if var not in ds.data_vars: 
+            print('no',var,'at', ds.station_id)
+            ds[var_out] = ('time', np.ones_like(ds['t_u'].data)*static_value)
+            ds[var_out+'_avg'] = static_value
+            continue
+        
+        if ds[var].isnull().all():
+            print('no',var,'at',ds.station_id)
+            ds[var_out] = ('time', np.ones_like(ds['t_u'].data)*static_value)
+            ds[var_out+'_avg'] = static_value
+            continue
+        
+        # here we detect potential relocation of the station in the form of a 
+        # break in the general trend of the latitude, longitude and altitude
+        # in the future, this could/should be listed in an external file to 
+        # avoid missed relocations or sensor issues interpreted as a relocation
+        if var == 'gps_alt':
+            _, breaks = find_breaks(ds[var].to_series(), alpha=8)
+        else:
+            _, breaks = find_breaks(ds[var].to_series(), alpha=6)
+        
+        # smoothing and inter/extrapolation of the coordinate
+        ds[var_out] = \
+            ('time',  piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks))
+        
+        ds['lat_avg'] = ds['lat'].mean()
+        ds['lon_avg'] = ds['lon'].mean()
+        ds['alt_avg'] = ds['alt'].mean()
     return ds
 
+
+def find_breaks(df,alpha):
+    '''Detects potential relocation of the station from the GPS measurements.
+    The code first makes a forward linear interpolation of the coordinates and
+    then looks for important jumps in latitude, longitude and altitude. The jumps
+    that are higher than a given threshold (expressed as a multiple of the 
+    standard deviation) are mostly caused by the station being moved during
+    maintenance. To avoid misclassification, only the jumps detected in May-Sept. 
+    are kept.
+    
+    Parameters
+    ----------
+    df : pandas.Series
+        series of observed latitude, longitude or elevation
+    alpha: float
+        coefficient to be applied to the the standard deviation of the daily
+        coordinate fluctuation
+    '''
+    diff = df.resample('D').median().interpolate(
+        method='linear', limit_area='inside', limit_direction='forward').diff()        
+    thresh = diff.std() * alpha
+    list_diff = diff.loc[diff.abs()>thresh].reset_index()
+    list_diff = list_diff.loc[list_diff.time.dt.month.isin([5,6,7,8,9])]
+    list_diff['year']=list_diff.time.dt.year
+    list_diff=list_diff.groupby('year').max()
+    return diff, [None]+list_diff.time.to_list()+[None]
+
+
+def piecewise_smoothing_and_interpolation(df_in, breaks):
+    '''Smoothes, inter- or extrapolate the gps observations. The processing is 
+    done piecewise so that each period between station relocation are done 
+    separately (no smoothing of the jump due to relocation). Locally Weighted
+    Scatterplot Smoothing (lowess) is then used to smooth the available
+    observations. Then this smoothed curve is interpolated linearly over internal
+    gaps. Eventually, this interpolated curve is extrapolated linearly for 
+    timestamps before the first valid measurement and after the last valid
+    measurement.
+    
+    Parameters
+    ----------
+    df_in : pandas.Series
+        series of observed latitude, longitude or elevation
+    breaks: list
+        List of timestamps of station relocation. First and last item should be
+        None so that they can be used in slice(breaks[i], breaks[i+1])
+    '''
+    df_all = pd.Series() # dataframe gathering all the smoothed pieces
+    for i in range(len(breaks)-1):
+        df = df_in.loc[slice(breaks[i], breaks[i+1])].copy()
+        
+        y_sm = lowess(df,
+                      pd.to_numeric(df.index),
+                      is_sorted=True, frac=1/3, it=0,
+                      )
+        df.loc[df.notnull()] = y_sm[:,1]
+        df = df.interpolate(method='linear', limit_area='inside')
+        
+        last_valid_6_months = slice(df.last_valid_index()-pd.to_timedelta('180D'),None)
+        df.loc[last_valid_6_months] = (df.loc[last_valid_6_months].interpolate( axis=0,
+            method='spline',order=1, limit_direction='forward', fill_value="extrapolate")).values
+        
+        first_valid_6_months = slice(None, df.first_valid_index()+pd.to_timedelta('180D'))
+        df.loc[first_valid_6_months] = (df.loc[first_valid_6_months].interpolate( axis=0,
+            method='spline',order=1, limit_direction='backward', fill_value="extrapolate")).values
+        df_all=pd.concat((df_all, df))
+        
+    df_all = df_all[~df_all.index.duplicated(keep='first')]
+    return df_all.values  
+    
 
 def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h, 
                 kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622, 
