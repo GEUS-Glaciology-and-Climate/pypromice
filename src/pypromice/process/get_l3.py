@@ -1,108 +1,76 @@
 #!/usr/bin/env python
-import os, unittest, pkg_resources
-import pandas as pd
-import numpy as np
-import xarray as xr
+import logging, os, sys, unittest
 from argparse import ArgumentParser
-from pypromice.process import getVars, getMeta, addMeta, getColNames, \
-    roundValues, resampleL2, writeAll
-from pypromice.process.L1toL2 import correctPrecip
-from pypromice.process.L2toL3 import toL3
-from sys import exit
+import pypromice
+from pypromice.process.aws import AWS
 
-def parse_arguments_getl3(debug_args=None):
-    parser = ArgumentParser(description="AWS L3 script for the processing L3 data from L2 and merging the L3 data with its historical site. An hourly, daily and monthly L3 data product is outputted to the defined output path")
-    parser.add_argument('-s', '--file1', type=str, required=True, nargs='+',
-                        help='Path to source L2 file')
-    # here will come additional arguments for the merging with historical stations
-    parser.add_argument('-v', '--variables', default=None, type=str, required=False, 
-    			 help='Path to variables look-up table .csv file for variable name retained'''),
-    parser.add_argument('-m', '--metadata', default=None, type=str, required=False, 
-    			 help='Path to metadata table .csv file for metadata information'''),
-    parser.add_argument('-d', '--datatype', default='raw', type=str, required=False, 
-    			 help='Data type to output, raw or tx')
-    args = parser.parse_args(args=debug_args)
-    args.file1 = ' '.join(args.file1)
-    args.folder_gcnet = ' '.join(args.folder_gcnet)
-    args.folder_promice = ' '.join(args.folder_promice)
+def parse_arguments_level():
+    parser = ArgumentParser(description="AWS L2 processor")
+
+    parser.add_argument('-c', '--config_file', type=str, required=True,
+                        help='Path to config (TOML) file')
+    parser.add_argument('-i', '--inpath', default='data', type=str, required=True, 
+                        help='Path to input data')
+    parser.add_argument('-o', '--outpath', default=None, type=str, required=False, 
+                        help='Path where to write output')
+    parser.add_argument('-l', '--level', default=3, type=int, required=False, 
+                        help='Processing level')
+    parser.add_argument('-v', '--variables', default=None, type=str, 
+                        required=False, help='File path to variables look-up table')
+    parser.add_argument('-m', '--metadata', default=None, type=str, 
+                        required=False, help='File path to metadata')
+    args = parser.parse_args()
     return args
 
+def get_level():
+    args = parse_arguments_level()
 
-def loadArr(infile):
-    if infile.split('.')[-1].lower() in 'csv':
-        df = pd.read_csv(infile)
-        df['time'] = pd.to_datetime(df['time']).dt.tz_localize(None)
-        df = df.set_index('time')
-        ds = xr.Dataset.from_dataframe(df)
+    logging.basicConfig(
+        format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
+        level=logging.INFO,
+        stream=sys.stdout,
+    )
 
-    elif infile.split('.')[-1].lower() in 'nc':
-        ds = xr.open_dataset(infile)
-    
-    try:
-        name = ds.attrs['station_name'] 
-    except:
-        name = infile.split('/')[-1].split('.')[0].split('_hour')[0].split('_10min')[0]
-        
-    print(f'{name} array loaded from {infile}')
-    return ds, name
-
-def get_l3():
-    args = parse_arguments_getl3()
-                    
-    # Check files    
-    if os.path.isfile(args.file1): 
-        # Load L2 data arrays
-        ds1, n1 = loadArr(args.file1)
-        
-        # converts to L3:
-        # - derives sensible heat fluxes
-        # - more to come
-        ds1 = toL3(ds1)
-        
-        # here will come the merging with historical data    
+    # Define variables (either from file or pypromice package defaults)
+    if args.variables is None:
+        v = os.path.join(os.path.dirname(pypromice.__file__),'process/variables.csv')
     else:
-        print(f'Invalid file {args.file1}')
-        exit()
-
-    # Get hourly, daily and monthly datasets
-    print('Resampling L3 data to hourly, daily and monthly resolutions...')
-    l3_h = resampleL2(ds1, '60min')
-    l3_d = resampleL2(ds1, '1D')
-    l3_m = resampleL2(ds1, 'M')
-    
-    print(f'Adding variable information from {args.variables}...')
+        v = args.variables
         
-    # Load variables look-up table
-    var = getVars(args.variables)
-        	
-    # Round all values to specified decimals places
-    l3_h = roundValues(l3_h, var)
-    l3_d = roundValues(l3_d, var)
-    l3_m = roundValues(l3_m, var)
-        
-    # Get columns to keep
-    if hasattr(ds1, 'p_l'):
-        col_names = getColNames(var, 2, args.datatype.lower())  
+    # Define metadata (either from file or pypromice package defaults)
+    if args.variables is None:
+        m = os.path.join(os.path.dirname(pypromice.__file__),'process/metadata.csv')
     else:
-        col_names = getColNames(var, 1, args.datatype.lower())    
+        m = args.metadata
+    
+    # Define output path
+    station_name = args.config_file.split('/')[-1].split('.')[0] 
+    station_path = os.path.join(args.inpath, station_name)
+    if os.path.exists(station_path):
+        aws = AWS(args.config_file, station_path, v, m)
+    else:
+        aws = AWS(args.config_file, args.inpath, v, m)
 
-    # Assign station id
-    for l in [l3_h, l3_d, l3_m]:
-        l.attrs['station_id'] = n1
+    # Perform level 1 and 2 processing
+    aws.getL1()
+    aws.getL2() 
     
-    # Assign metadata
-    print(f'Adding metadata from {args.metadata}...')
-    m = getMeta(args.metadata)
-    l3_h = addMeta(l3_h, m)
-    l3_d = addMeta(l3_d, m)
-    l3_m = addMeta(l3_m, m)
-      
-    # Set up output path
-    out = os.path.join(args.outpath, site_id)
+    # Write out level 2 
+    if int(args.level)==2:
+        if args.outpath is not None:
+            aws.writeL2(args.outpath)
     
-    # Write to files
-    writeAll(out, site_id, l3_h, l3_d, l3_m, col_names)
-    print(f'Files saved to {os.path.join(out, site_id)}...')
-# %%
+    # Perform level 3 processing and write out
+    elif int(args.level)==3:
+        aws.getL3()
+        if args.outpath is not None:
+            aws.writeL3(args.outpath)
+    
+    # Do nothing else if different level number is given (potential to expand to
+    # level 4 processing option) - PHO
+    else:
+        print('Invalid level number given')
+        
 if __name__ == "__main__":  
-    get_l3()
+    get_level()
+        

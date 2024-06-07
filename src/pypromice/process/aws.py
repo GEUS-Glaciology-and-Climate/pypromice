@@ -926,11 +926,6 @@ class TestProcess(unittest.TestCase):
         self.assertIsInstance(pAWS.L2, xr.Dataset)
         self.assertTrue(pAWS.L2.attrs['station_id']=='TEST1')
 
-    def testCLIgetl2(self):
-        '''Test get_l2 CLI'''
-        exit_status = os.system('get_l2 -h')
-        self.assertEqual(exit_status, 0)
-
     def testCLIgetl3(self):
         '''Test get_l3 CLI'''
         exit_status = os.system('get_l3 -h')
