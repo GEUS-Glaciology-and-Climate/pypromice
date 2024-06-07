@@ -5,11 +5,11 @@ import pypromice
 from pypromice.process.aws import AWS
 
 def parse_arguments_level():
-    parser = ArgumentParser(description="AWS L2 processor")
+    parser = ArgumentParser(description="AWS L2/L3 processor")
 
     parser.add_argument('-c', '--config_file', type=str, required=True,
                         help='Path to config (TOML) file')
-    parser.add_argument('-i', '--inpath', default='data', type=str, required=True, 
+    parser.add_argument('-i', '--inpath', type=str, required=True, 
                         help='Path to input data')
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, 
                         help='Path where to write output')
@@ -22,7 +22,7 @@ def parse_arguments_level():
     args = parser.parse_args()
     return args
 
-def get_level():
+def get_l3():
     args = parse_arguments_level()
 
     logging.basicConfig(
@@ -43,7 +43,7 @@ def get_level():
     else:
         m = args.metadata
     
-    # Define output path
+    # Define input path
     station_name = args.config_file.split('/')[-1].split('.')[0] 
     station_path = os.path.join(args.inpath, station_name)
     if os.path.exists(station_path):

@@ -4,7 +4,7 @@ import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
 from pypromice.process import getVars, getMeta, addMeta, getColNames, \
-    roundValues, resampleL2, writeAll
+    roundValues, resample_dataset, writeAll
 from pypromice.process.L1toL2 import correctPrecip
 
 def parse_arguments_join():
@@ -88,9 +88,9 @@ def join_l2():
     
     # Get hourly, daily and monthly datasets
     print('Resampling L2 data to hourly, daily and monthly resolutions...')
-    l2_h = resampleL2(all_ds, '60min')
-    l2_d = resampleL2(all_ds, '1D')
-    l2_m = resampleL2(all_ds, 'M')
+    l2_h = resample_dataset(all_ds, '60min')
+    l2_d = resample_dataset(all_ds, '1D')
+    l2_m = resample_dataset(all_ds, 'M')
     
     print(f'Adding variable information from {args.variables}...')
         
