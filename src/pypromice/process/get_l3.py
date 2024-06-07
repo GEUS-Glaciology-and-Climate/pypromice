@@ -72,5 +72,5 @@ def get_l3():
         print('Invalid level number given')
         
 if __name__ == "__main__":  
-    get_level()
+    get_l3()
         
