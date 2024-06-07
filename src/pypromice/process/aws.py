@@ -78,43 +78,33 @@ class AWS(object):
         self.getL2()
         self.getL3()
 
-    def write(self, outpath):
-        '''Write L3 data to .csv and .nc file'''
+    def writeL2(self, outpath):
+        '''Write L2 data to .csv and .nc file'''
         if os.path.isdir(outpath):
-            self.writeArr(outpath)
+            self.writeArr(self.L2, outpath)
         else:
             logger.info(f'Outpath f{outpath} does not exist. Unable to save to file')
             pass
 
+    def writeL3(self, outpath):
+        '''Write L3 data to .csv and .nc file'''
+        if os.path.isdir(outpath):
+            self.writeArr(self.L3, outpath)
+        else:
+            logger.info(f'Outpath f{outpath} does not exist. Unable to save to file')
+            pass
+        
     def getL1(self):
         '''Perform L0 to L1 data processing'''
         logger.info('Level 1 processing...')
         self.L0 = [addBasicMeta(item, self.vars) for item in self.L0]
         self.L1 = [toL1(item, self.vars) for item in self.L0]
-
-        if self.merge_flag:
-            self.L1A = self.hard_merge(self.L1)
-        else:
-            self.L1A = reduce(xr.Dataset.combine_first, self.L1)
+        self.L1A = reduce(xr.Dataset.combine_first, self.L1)
 
     def getL2(self):
         '''Perform L1 to L2 data processing'''
         logger.info('Level 2 processing...')
         self.L2 = toL2(self.L1A, vars_df=self.vars)
-        self.L2 = self.resample(self.L2)
-        self.L2 = reformat_time(self.L2)
-
-        # Switch gps_lon to negative (degrees_east)
-        # Do this here, and NOT in addMeta, otherwise we switch back to positive
-        # when calling getMeta in joinL2! PJW
-        if self.L2.attrs['station_id'] not in ['UWN', 'Roof_GEUS', 'Roof_PROMICE']:
-            self.L2['gps_lon'] = self.L2['gps_lon'] * -1
-
-        # Add variable attributes and metadata
-        self.L2 = self.addAttributes(self.L2)
-
-        # Round all values to specified decimals places
-        self.L2 = roundValues(self.L2, self.vars)
 
     def getL3(self):
         '''Perform L2 to L3 data processing, including resampling and metadata
@@ -128,93 +118,114 @@ class AWS(object):
         f = [l.attrs['format'] for l in self.L0]
         if 'raw' in f or 'STM' in f:
             logger.info('Resampling to 10 minute')
-            resampled = resampleL2(dataset, '10min')
+            resampled = resample_dataset(dataset, '10min')
         else:
-            resampled = resampleL2(dataset, '60min')
+            resampled = resample_dataset(dataset, '60min')
             logger.info('Resampling to hour')
         return resampled
 
-    def merge_flag(self):
-        '''Determine if hard merging is needed, based on whether a hard 
-        merge_type flag is defined in any of the configs'''
-        f = [l.attrs['merge_type'] for l in self.L0]
-        if 'hard' in f:
-            return True
-        else:
-            return False
-        
-    def hard_merge(self, dataset_list):
-        '''Determine positions where hard merging should occur, combine 
-        data and append to list of combined data chunks, then hard merge all 
-        combined data chunks. This should be called in instances where there 
-        needs to be a clear break between input datasets, such as when a station
-        is moved (and we do not want the GPS position jumping)'''
-        # Define positions where hard merging should occur
-        m=[]
-        f = [l.attrs['merge_type'] for l in self.L0]
-        [m.append(i) for i, item in enumerate(f) if item=='hard']
-        
-        # Perform combine between hard merge breaks and append to list of combined data
-        combined=[]
-        for i in range(len(m[:-1])):        
-            combined.append(reduce(xr.Dataset.combine_first, dataset_list[m[i]:m[i+1]]))
-        combined.append(reduce(xr.Dataset.combine_first, dataset_list[m[-1]:]))
-        
-        # Hard merge all combined datasets together
-        return reduce(xr.Dataset.update, combined)
-        
-            
-    def addAttributes(self, L3):
-        '''Add variable and attribute metadata
-
-        Parameters
-        ----------
-        L3 : xr.Dataset
-            Level-3 data object
-
-        Returns
-        -------
-        L3 : xr.Dataset
-            Level-3 data object with attributes
-        '''
-        L3 = addVars(L3, self.vars)
-        L3 = addMeta(L3, self.meta)
-        return L3
-
-    def writeArr(self, outpath):
+    def writeArr(self, dataset, outpath):
         '''Write L3 data to .nc and .csv hourly and daily files
 
         Parameters
         ----------
+        dataset : xarray.Dataset
+            Dataset to write to file
         outpath : str
             Output directory
-        L3 : AWS.L3
-            Level-3 data object
         '''
-        outdir = os.path.join(outpath, self.L3.attrs['station_id'])
+        # Resample dataset based on data type (tx/raw)
+        d2 = self.resample(dataset)
+        
+        # Reformat time
+        d2 = reformat_time(d2)
+        
+        # Reformat longitude (to negative values)
+        d2 = reformat_lon(d2)
+        
+        # Add variable attributes and metadata
+        d2 = self.addAttributes(d2)
+
+        # Round all values to specified decimals places
+        d2 = roundValues(d2, self.vars)
+        
+        # Create out directory
+        outdir = os.path.join(outpath, d2.attrs['station_id'])
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
-
+        
+        # Get variable names to write out
         col_names = getColNames(
             self.vars,
-            self.L3.attrs['number_of_booms'],
-            self.L3.attrs['format'],
-            self.L3.attrs['bedrock'],
+            d2.attrs['number_of_booms'],
+            d2.attrs['format'],
+            d2.attrs['bedrock'],
         )
-
-        t = int(pd.Timedelta((self.L3['time'][1] - self.L3['time'][0]).values).total_seconds())
-        logger.info('Writing to files...')
+        
+        # Define filename based on resample rate
+        t = int(pd.Timedelta((d2['time'][1] - d2['time'][0]).values).total_seconds())
         if t == 600:
-            out_csv = os.path.join(outdir, self.L3.attrs['station_id']+'_10min.csv')
-            out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_10min.nc')
+            out_csv = os.path.join(outdir, d2.attrs['station_id']+'_10min.csv')
+            out_nc = os.path.join(outdir, d2.attrs['station_id']+'_10min.nc')
         else:
-            out_csv = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.csv')
-            out_nc = os.path.join(outdir, self.L3.attrs['station_id']+'_hour.nc')
-        writeCSV(out_csv, self.L3, col_names)
+            out_csv = os.path.join(outdir, d2.attrs['station_id']+'_hour.csv')
+            out_nc = os.path.join(outdir, d2.attrs['station_id']+'_hour.nc')
+        
+        # Write to csv file
+        logger.info('Writing to files...')
+        writeCSV(out_csv, d2, col_names)
+        
+        # Write to netcdf file
         col_names = col_names + ['lat', 'lon', 'alt']
-        writeNC(out_nc, self.L3, col_names)
+        writeNC(out_nc, d2, col_names)
         logger.info(f'Written to {out_csv}')
         logger.info(f'Written to {out_nc}')
+        
+    # def merge_flag(self):
+    #     '''Determine if hard merging is needed, based on whether a hard 
+    #     merge_type flag is defined in any of the configs'''
+    #     f = [l.attrs['merge_type'] for l in self.L0]
+    #     if 'hard' in f:
+    #         return True
+    #     else:
+    #         return False
+        
+    # def hard_merge(self, dataset_list):
+    #     '''Determine positions where hard merging should occur, combine 
+    #     data and append to list of combined data chunks, then hard merge all 
+    #     combined data chunks. This should be called in instances where there 
+    #     needs to be a clear break between input datasets, such as when a station
+    #     is moved (and we do not want the GPS position jumping)'''
+    #     # Define positions where hard merging should occur
+    #     m=[]
+    #     f = [l.attrs['merge_type'] for l in self.L0]
+    #     [m.append(i) for i, item in enumerate(f) if item=='hard']
+        
+    #     # Perform combine between hard merge breaks and append to list of combined data
+    #     combined=[]
+    #     for i in range(len(m[:-1])):        
+    #         combined.append(reduce(xr.Dataset.combine_first, dataset_list[m[i]:m[i+1]]))
+    #     combined.append(reduce(xr.Dataset.combine_first, dataset_list[m[-1]:]))
+        
+    #     # Hard merge all combined datasets together
+    #     return reduce(xr.Dataset.update, combined)
+                
+    def addAttributes(self, dataset):
+        '''Add variable and attribute metadata
+
+        Parameters
+        ----------
+        dataset : xr.Dataset
+            Dataset (i.e. L2 or L3) object
+
+        Returns
+        -------
+        d2 : xr.Dataset
+            Data object with attributes
+        '''
+        d2 = addVars(dataset, self.vars)
+        d2 = addMeta(dataset, self.meta)
+        return d2
 
     def loadConfig(self, config_file, inpath):
         '''Load configuration from .toml file
@@ -406,6 +417,14 @@ def reformat_time(dataset):
     dataset['time'] = list(t)
     return dataset
 
+def reformat_lon(dataset, exempt=['UWN', 'Roof_GEUS', 'Roof_PROMICE']):
+    '''Switch gps_lon to negative values (degrees_east). We do this here, and 
+    NOT in addMeta, otherwise we switch back to positive when calling getMeta 
+    in joinL2'''
+    if dataset.attrs['station_id'] not in exempt:
+        dataset['gps_lon'] = dataset['gps_lon'] * -1
+    return dataset
+
 def addBasicMeta(ds, vars_df):
     ''' Use a variable lookup table DataFrame to add the basic metadata
     to the xarray dataset. This is later amended to finalise L3
@@ -489,33 +508,6 @@ def writeNC(outfile, Lx, col_names=None):
     else:
         names = list(Lx.keys())
     Lx[names].to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)
-
-def writeAll(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
-    '''Write L3 hourly, daily and monthly datasets to .nc and .csv
-    files
-
-    outpath : str
-        Output file path
-    station_id : str
-        Station name
-    l3_h : xr.Dataset
-        L3 hourly data
-    l3_d : xr.Dataset
-        L3 daily data
-    l3_m : xr.Dataset
-        L3 monthly data
-    csv_order : list, optional
-        List order of variables
-    '''
-    if not os.path.isdir(outpath):
-        os.mkdir(outpath)
-    outfile_h = os.path.join(outpath, station_id + '_hour')
-    outfile_d = os.path.join(outpath, station_id + '_day')
-    outfile_m = os.path.join(outpath, station_id + '_month')
-    for o,l in zip([outfile_h, outfile_d, outfile_m], [l3_h ,l3_d, l3_m]):
-        writeCSV(o+'.csv',l, csv_order)
-        writeNC(o+'.nc',l)
-
 
 def popCols(ds, names):
     '''Populate dataset with all given variable names
@@ -753,7 +745,7 @@ def getMeta(m_file=None, delimiter=','):                                        
             pass
     return meta
 
-def resampleL2(ds_h, t):
+def resample_dataset(ds_h, t):
     '''Resample L2 AWS data, e.g. hourly to daily average. This uses pandas
     DataFrame resampling at the moment as a work-around to the xarray Dataset
     resampling. As stated, xarray resampling is a lengthy process that takes
@@ -922,7 +914,7 @@ class TestProcess(unittest.TestCase):
         self.assertTrue(d.attrs['station_id']=='TEST')
         self.assertIsInstance(d.attrs['references'], str)
 
-    def testL0toL2(self):
+    def testL0toL3(self):
         '''Test L0 to L3 processing'''
         try:
             import pypromice
@@ -939,15 +931,21 @@ class TestProcess(unittest.TestCase):
         exit_status = os.system('get_l2 -h')
         self.assertEqual(exit_status, 0)
 
+    def testCLIgetl3(self):
+        '''Test get_l3 CLI'''
+        exit_status = os.system('get_l3 -h')
+        self.assertEqual(exit_status, 0)
+        
     def testCLIjoinl2(self):
         '''Test join_l2 CLI'''
         exit_status = os.system('join_l2 -h')
         self.assertEqual(exit_status, 0)
         
-    def testCLIgetl3(self):
-        '''Test get_l3 CLI'''
-        exit_status = os.system('get_l3 -h')
+    def testCLIjoinl3(self):
+        '''Test join_l2 CLI'''
+        exit_status = os.system('join_l3 -h')
         self.assertEqual(exit_status, 0)
+        
 #------------------------------------------------------------------------------
 
 if __name__ == "__main__":
