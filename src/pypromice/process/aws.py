@@ -106,17 +106,17 @@ class AWS(object):
         logger.info('Level 3 processing...')
         self.L3 = toL3(self.L2)
 
-    def resample(self, dataset):       
-        '''Resample dataset to specific temporal resolution (based on input
-        data type)'''
-        f = [l.attrs['format'] for l in self.L0]
-        if 'raw' in f or 'STM' in f:
-            logger.info('Resampling to 10 minute')
-            resampled = resample_dataset(dataset, '10min')
-        else:
-            resampled = resample_dataset(dataset, '60min')
-            logger.info('Resampling to hour')
-        return resampled
+    # def resample(self, dataset):       
+    #     '''Resample dataset to specific temporal resolution (based on input
+    #     data type)'''
+    #     f = [l.attrs['format'] for l in self.L0]
+    #     if 'raw' in f or 'STM' in f:
+    #         logger.info('Resampling to 10 minute')
+    #         resampled = resample_dataset(dataset, '10min')
+    #     else:
+    #         resampled = resample_dataset(dataset, '60min')
+    #         logger.info('Resampling to hour')
+    #     return resampled
 
     def writeArr(self, dataset, outpath):
         '''Write L3 data to .nc and .csv hourly and daily files
@@ -127,99 +127,31 @@ class AWS(object):
             Dataset to write to file
         outpath : str
             Output directory
+        t : str
+            Resampling string
         '''
-        # Resample dataset based on data type (tx/raw)
-        d2 = self.resample(dataset)
-        
-        # Reformat time
-        d2 = utilities.reformat_time(d2)
-        
-        # Reformat longitude (to negative values)
-        d2 = utilities.reformat_lon(d2)
-        
-        # Add variable attributes and metadata
-        d2 = self.addAttributes(d2)
-
-        # Round all values to specified decimals places
-        d2 = utilities.roundValues(d2, self.vars)
-        
-        # Create out directory
-        outdir = os.path.join(outpath, d2.attrs['station_id'])
-        if not os.path.isdir(outdir):
-            os.mkdir(outdir)
-        
-        # Get variable names to write out
-        col_names = write.getColNames(
-            self.vars,
-            d2.attrs['number_of_booms'],
-            d2.attrs['format'],
-            d2.attrs['bedrock'],
-        )
-        
-        # Define filename based on resample rate
-        t = int(pd.Timedelta((d2['time'][1] - d2['time'][0]).values).total_seconds())
-        if t == 600:
-            out_csv = os.path.join(outdir, d2.attrs['station_id']+'_10min.csv')
-            out_nc = os.path.join(outdir, d2.attrs['station_id']+'_10min.nc')
+        f = [l.attrs['format'] for l in self.L0]
+        if 'raw' in f or 'STM' in f:
+            write.prepare_and_write(dataset, outpath, self.vars, self.meta, t='10min')
         else:
-            out_csv = os.path.join(outdir, d2.attrs['station_id']+'_hour.csv')
-            out_nc = os.path.join(outdir, d2.attrs['station_id']+'_hour.nc')
-        
-        # Write to csv file
-        logger.info('Writing to files...')
-        write.writeCSV(out_csv, d2, col_names)
-        
-        # Write to netcdf file
-        col_names = col_names + ['lat', 'lon', 'alt']
-        write.writeNC(out_nc, d2, col_names)
-        logger.info(f'Written to {out_csv}')
-        logger.info(f'Written to {out_nc}')
-        
-    # def merge_flag(self):
-    #     '''Determine if hard merging is needed, based on whether a hard 
-    #     merge_type flag is defined in any of the configs'''
-    #     f = [l.attrs['merge_type'] for l in self.L0]
-    #     if 'hard' in f:
-    #         return True
-    #     else:
-    #         return False
-        
-    # def hard_merge(self, dataset_list):
-    #     '''Determine positions where hard merging should occur, combine 
-    #     data and append to list of combined data chunks, then hard merge all 
-    #     combined data chunks. This should be called in instances where there 
-    #     needs to be a clear break between input datasets, such as when a station
-    #     is moved (and we do not want the GPS position jumping)'''
-    #     # Define positions where hard merging should occur
-    #     m=[]
-    #     f = [l.attrs['merge_type'] for l in self.L0]
-    #     [m.append(i) for i, item in enumerate(f) if item=='hard']
-        
-    #     # Perform combine between hard merge breaks and append to list of combined data
-    #     combined=[]
-    #     for i in range(len(m[:-1])):        
-    #         combined.append(reduce(xr.Dataset.combine_first, dataset_list[m[i]:m[i+1]]))
-    #     combined.append(reduce(xr.Dataset.combine_first, dataset_list[m[-1]:]))
-        
-    #     # Hard merge all combined datasets together
-    #     return reduce(xr.Dataset.update, combined)
+            write.prepare_and_write(dataset, outpath, self.vars, self.meta, t='60min')
                 
-    def addAttributes(self, dataset):
-        '''Add variable and attribute metadata
+    # def addAttributes(self, dataset):
+    #     '''Add variable and attribute metadata
 
-        Parameters
-        ----------
-        dataset : xr.Dataset
-            Dataset (i.e. L2 or L3) object
+    #     Parameters
+    #     ----------
+    #     dataset : xr.Dataset
+    #         Dataset (i.e. L2 or L3) object
 
-        Returns
-        -------
-        d2 : xr.Dataset
-            Data object with attributes
-        '''
-        d2 = utilities.addVars(dataset, self.vars)
-        d2 = utilities.addMeta(dataset, self.meta)
-        return d2
+    #     Returns
+    #     -------
+    #     d2 : xr.Dataset
+    #         Data object with attributes
+    #     '''
+    #     d2 = utilities.addVars(dataset, self.vars)
+    #     d2 = utilities.addMeta(d2, self.meta)
+    #     return d2
 
     def loadConfig(self, config_file, inpath):
         '''Load configuration from .toml file
