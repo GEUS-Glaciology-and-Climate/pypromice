@@ -3,8 +3,10 @@ import os, unittest
 import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
-from pypromice.process import getVars, getMeta, addMeta, getColNames, \
-    roundValues, resample_dataset, writeAll
+from pypromice.process.load import getVars, getMeta
+from pypromice.process.utilities import addMeta, roundValues
+from pypromice.process.resample import resample_dataset
+from pypromice.process.write import getColNames, writeAll
 from pypromice.process.L1toL2 import correctPrecip
 
 def parse_arguments_join():

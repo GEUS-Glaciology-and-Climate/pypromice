@@ -3,7 +3,9 @@
 """
 Processing test module
 """
-from pypromice.process.aws import AWS, getVars, getMeta, addVars, addMeta
+from pypromice.process.aws import AWS
+from pypromice.process.load import getVars, getMeta
+from pypromice.process.utilities import addVars, addMeta
 import xarray as xr
 import pandas as pd
 import unittest, datetime, os
