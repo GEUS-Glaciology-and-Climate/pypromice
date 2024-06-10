@@ -29,4 +29,3 @@ src/pypromice/postprocess/positions.csv
 
 # sqlite db files
 *.db
-*.bak
