@@ -31,19 +31,24 @@ jobs:
         run: | 
           cd $GITHUB_WORKSPACE
           git clone --depth 1 https://oauth2:${{ env.GITLAB_TOKEN }}@geusgitlab.geus.dk/glaciology-and-climate/promice/aws-l0.git
-      - name: Run data processing
+      - name: Run L0 to L2 processing
         env:
           TEST_STATION: KAN_U HUM
         shell: bash
         run: |
-          mkdir $GITHUB_WORKSPACE/L2/
+          mkdir $GITHUB_WORKSPACE/out/
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do
-            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2.py -c $GITHUB_WORKSPACE/aws-l0/tx/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/tx -o $GITHUB_WORKSPACE/L2/
+            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2.py -c $GITHUB_WORKSPACE/aws-l0/tx/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/tx -o $GITHUB_WORKSPACE/out/
+      - name: Run L2 to L3 processing
+        env:
+          TEST_STATION: KAN_U HUM
+        shell: bash
+        run: |
           mkdir $GITHUB_WORKSPACE/L3/            
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do           
-            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2tol3.py -i $GITHUB_WORKSPACE/L2/$i_10min.nc -o $GITHUB_WORKSPACE/L3 -t 60min
+            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2tol3.py -i $GITHUB_WORKSPACE/out/$i_10min.nc -o $GITHUB_WORKSPACE/L3/ -t 60min
       - name: Upload test output
         uses: actions/upload-artifact@v3
         with:
           name: result
-          path: out
+          path: L3
