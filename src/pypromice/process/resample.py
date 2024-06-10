@@ -5,7 +5,7 @@ Created on Mon Jun 10 10:58:39 2024
 
 @author: pho
 """
-import logger
+import logging
 import numpy as np
 import xarray as xr
 

@@ -3,7 +3,7 @@
 """
 Load module
 """
-import pkg_resources, toml, os, logging
+import pkg_resources, toml, os
 import pandas as pd
 import xarray as xr
 from typing import Sequence, Optional
