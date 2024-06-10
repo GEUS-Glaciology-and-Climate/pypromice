@@ -33,7 +33,7 @@ jobs:
           git clone --depth 1 https://oauth2:${{ env.GITLAB_TOKEN }}@geusgitlab.geus.dk/glaciology-and-climate/promice/aws-l0.git
       - name: Run data processing
         env:
-          TEST_STATION: KPC_U CEN2 JAR
+          TEST_STATION: KPC_U CEN2
         shell: bash
         run: |
           mkdir $GITHUB_WORKSPACE/out/
