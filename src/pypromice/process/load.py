@@ -3,10 +3,11 @@
 """
 Load module
 """
-import pkg_resources, toml, os
+import pkg_resources, toml, os, logging
 import pandas as pd
 import xarray as xr
 from typing import Sequence, Optional
+logger = logging.getLogger(__name__)
 
 def getConfig(config_file, inpath, default_columns: Sequence[str] = ('msg_lat', 'msg_lon')):
     '''Load configuration from .toml file. PROMICE .toml files support defining

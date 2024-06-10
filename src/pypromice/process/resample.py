@@ -8,6 +8,7 @@ Created on Mon Jun 10 10:58:39 2024
 import logging
 import numpy as np
 import xarray as xr
+logger = logging.getLogger(__name__)
 
 def resample_dataset(ds_h, t):
     '''Resample L2 AWS data, e.g. hourly to daily average. This uses pandas
