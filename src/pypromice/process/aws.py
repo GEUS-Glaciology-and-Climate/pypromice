@@ -132,9 +132,9 @@ class AWS(object):
         '''
         f = [l.attrs['format'] for l in self.L0]
         if 'raw' in f or 'STM' in f:
-            write.prepare_and_write(dataset, outpath, self.vars, self.meta, t='10min')
+            write.prepare_and_write(dataset, outpath, self.vars, self.meta, '10min')
         else:
-            write.prepare_and_write(dataset, outpath, self.vars, self.meta, t='60min')
+            write.prepare_and_write(dataset, outpath, self.vars, self.meta, '60min')
                 
     # def addAttributes(self, dataset):
     #     '''Add variable and attribute metadata
