@@ -37,9 +37,11 @@ jobs:
         shell: bash
         run: |
           mkdir $GITHUB_WORKSPACE/out/
+          mkdir $GITHUB_WORKSPACE/out/L2/
+          mkdir $GITHUB_WORKSPACE/out/L3/
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do
-            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l3.py -v $GITHUB_WORKSPACE/main/src/pypromice/process/variables.csv -m $GITHUB_WORKSPACE/main/src/pypromice/process/metadata.csv -c $GITHUB_WORKSPACE/aws-l0/raw/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/raw -o $GITHUB_WORKSPACE/out/ -l 3
-          done
+            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2.py -v -c $GITHUB_WORKSPACE/aws-l0/raw/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/raw -o $GITHUB_WORKSPACE/out/L2
+            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/l2_to_l3.py -c $GITHUB_WORKSPACE/aws-l0/raw/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/raw -l $GITHUB_WORKSPACE/out/L2/$i_10min.nc  -o $GITHUB_WORKSPACE/out/L3
       - name: Upload test output
         uses: actions/upload-artifact@v3
         with:
