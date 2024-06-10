@@ -48,7 +48,7 @@ jobs:
         run: |
           mkdir $GITHUB_WORKSPACE/out/L3/            
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do           
-            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2tol3.py -i $GITHUB_WORKSPACE/L2/$i_hour.nc -o $GITHUB_WORKSPACE/L3/ -t 60min
+            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2tol3.py -i $GITHUB_WORKSPACE/out/L2/$i_hour.nc -o $GITHUB_WORKSPACE/out/L3/ -t 60min
           done
       - name: Upload test output
         uses: actions/upload-artifact@v3
