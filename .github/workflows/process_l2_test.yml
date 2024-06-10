@@ -37,20 +37,21 @@ jobs:
         shell: bash
         run: |
           mkdir $GITHUB_WORKSPACE/out/
+          mkdir $GITHUB_WORKSPACE/out/L2          
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do
-            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2.py -c $GITHUB_WORKSPACE/aws-l0/tx/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/tx -o $GITHUB_WORKSPACE/out/
+            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2.py -c $GITHUB_WORKSPACE/aws-l0/tx/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/tx -o $GITHUB_WORKSPACE/out/L2/
           done
       - name: Run L2 to L3 processing
         env:
           TEST_STATION: KAN_U HUM
         shell: bash
         run: |
-          mkdir $GITHUB_WORKSPACE/L3/            
+          mkdir $GITHUB_WORKSPACE/out/L3/            
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do           
-            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2tol3.py -i $GITHUB_WORKSPACE/out/$i_10min.nc -o $GITHUB_WORKSPACE/L3/ -t 60min
+            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2tol3.py -i $GITHUB_WORKSPACE/L2/$i_hour.nc -o $GITHUB_WORKSPACE/L3/ -t 60min
           done
       - name: Upload test output
         uses: actions/upload-artifact@v3
         with:
           name: result
-          path: L3
+          path: out
