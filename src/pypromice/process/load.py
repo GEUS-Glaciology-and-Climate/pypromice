@@ -7,6 +7,7 @@ import pkg_resources, toml, os, logging
 import pandas as pd
 import xarray as xr
 from typing import Sequence, Optional
+from datetime import timedelta
 logger = logging.getLogger(__name__)
 
 def getConfig(config_file, inpath, default_columns: Sequence[str] = ('msg_lat', 'msg_lon')):
@@ -120,6 +121,7 @@ def getL0(infile, nodata, cols, skiprows, file_version,
     # Carry relevant metadata with ds
     ds = xr.Dataset.from_dataframe(df)
     return ds
+
 def getVars(v_file=None):
    '''Load variables.csv file
 

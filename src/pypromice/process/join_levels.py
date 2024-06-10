@@ -5,8 +5,7 @@ import xarray as xr
 from argparse import ArgumentParser
 from pypromice.process.load import getVars, getMeta
 from pypromice.process.utilities import addMeta, roundValues
-from pypromice.process.resample import resample_dataset
-from pypromice.process.write import getColNames, writeAll
+from pypromice.process.write import prepare_and_write
 from pypromice.process.L1toL2 import correctPrecip
 
 def parse_arguments_join():
@@ -21,8 +20,6 @@ def parse_arguments_join():
     			 help='Path to variables look-up table .csv file for variable name retained'''),
     parser.add_argument('-m', '--metadata', default=None, type=str, required=False, 
     			 help='Path to metadata table .csv file for metadata information'''),
-    parser.add_argument('-d', '--datatype', default='raw', type=str, required=False, 
-    			 help='Data type to output, raw or tx')
     args = parser.parse_args()
     return args
 
@@ -43,9 +40,13 @@ def loadArr(infile):
     return ds, name
     
 
-def join_l2():
+def join_levels():
     args = parse_arguments_join()
-    
+
+    # Define variables and metadata (either from file or pypromice package defaults)
+    v = getVars(args.variables)
+    m = getMeta(args.metadata)
+            
     # Check files
     if os.path.isfile(args.file1) and os.path.isfile(args.file2): 
 
@@ -88,45 +89,15 @@ def join_l2():
         print(f'Invalid files {args.file1}, {args.file2}')
         exit()
     
-    # Get hourly, daily and monthly datasets
-    print('Resampling L2 data to hourly, daily and monthly resolutions...')
-    l2_h = resample_dataset(all_ds, '60min')
-    l2_d = resample_dataset(all_ds, '1D')
-    l2_m = resample_dataset(all_ds, 'M')
+    # Define output directory subfolder
+    out = os.path.join(args.output, name)
     
-    print(f'Adding variable information from {args.variables}...')
-        
-    # Load variables look-up table
-    var = getVars(args.variables)
-        	
-    # Round all values to specified decimals places
-    l2_h = roundValues(l2_h, var)
-    l2_d = roundValues(l2_d, var)
-    l2_m = roundValues(l2_m, var)
-        
-    # Get columns to keep
-    if hasattr(all_ds, 'p_l'):
-        col_names = getColNames(var, 2, args.datatype.lower())  
-    else:
-        col_names = getColNames(var, 1, args.datatype.lower())    
-
-    # Assign station id
-    for l in [l2_h, l2_d, l2_m]:
-        l.attrs['station_id'] = name
-    
-    # Assign metadata
-    print(f'Adding metadata from {args.metadata}...')
-    m = getMeta(args.metadata)
-    l2_h = addMeta(l2_h, m)
-    l2_d = addMeta(l2_d, m)
-    l2_m = addMeta(l2_m, m)
-      
-    # Set up output path
-    out = os.path.join(args.outpath, name)
-    
-    # Write to files
-    writeAll(out, name, l2_h, l2_d, l2_m, col_names)
+    # Resample to hourly, daily and monthly datasets and write to file
+    prepare_and_write(all_ds, out, v, m, '60min')
+    prepare_and_write(all_ds, out, v, m, '1D')
+    prepare_and_write(all_ds, out, v, m, 'M')
+           
     print(f'Files saved to {os.path.join(out, name)}...')
 
 if __name__ == "__main__":  
-    join_l2()
+    join_levels()
