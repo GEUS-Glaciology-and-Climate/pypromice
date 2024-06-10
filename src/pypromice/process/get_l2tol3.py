@@ -45,7 +45,7 @@ def get_l2tol3():
     l2 = xr.open_dataset(args.inpath)
     
     # Perform Level 3 processing
-    l3 = l2.toL3()
+    l3 = toL3(l2)
     
     # Write Level 3 dataset to file if output directory given
     if args.outpath is not None:
