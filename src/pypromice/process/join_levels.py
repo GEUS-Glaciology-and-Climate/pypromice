@@ -90,7 +90,7 @@ def join_levels():
         exit()
     
     # Define output directory subfolder
-    out = os.path.join(args.output, name)
+    out = os.path.join(args.outpath, name)
     
     # Resample to hourly, daily and monthly datasets and write to file
     prepare_and_write(all_ds, out, v, m, '60min')
