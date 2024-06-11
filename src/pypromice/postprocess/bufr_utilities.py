@@ -487,5 +487,6 @@ def read_bufr_file(path: PathLike) -> pd.DataFrame:
             message_vars = read_bufr_message(fp)
             if message_vars is None:
                 break
-            lines.append(message_vars)
-    return pd.DataFrame(lines).rename_axis("message_index")
+            lines.append(message_vars.as_series())
+    data_frame = pd.DataFrame(lines).set_index("wmo_id")
+    return data_frame
