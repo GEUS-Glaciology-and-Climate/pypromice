@@ -47,6 +47,7 @@ setuptools.setup(
         'get_l2tol3 = pypromice.process.get_l2tol3:main',
         'get_watsontx = pypromice.tx.get_watsontx:get_watsontx',
         'get_bufr = pypromice.postprocess.get_bufr:main',
+        'bufr_to_csv = pypromice.postprocess.bufr_to_csv:main',
         'get_msg = pypromice.tx.get_msg:get_msg'
     ],
 },
