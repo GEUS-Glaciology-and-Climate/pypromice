@@ -66,6 +66,10 @@ def get_latest_data(
         lin_reg_time_limit,
     )
 
+    if last_valid_index not in df_limited.index:
+        logger.info("No valid data limited period")
+        return None
+
     # Apply smoothing to z_boom_u
     # require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
     df_limited = rolling_window(df_limited, "z_boom_u", "72H", 2, 1)
