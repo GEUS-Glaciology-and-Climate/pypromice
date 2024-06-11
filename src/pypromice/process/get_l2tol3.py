@@ -44,6 +44,11 @@ def get_l2tol3():
     # Define Level 2 dataset from file
     l2 = xr.open_dataset(args.inpath)
     
+    if 'bedrock' in l2.attrs.keys():
+        l2.attrs['bedrock'] = l2.attrs['bedrock'] == 'True'
+    if 'number_of_booms' in l2.attrs.keys():
+        l2.attrs['number_of_booms'] = int(l2.attrs['number_of_booms'])
+    
     # Perform Level 3 processing
     l3 = toL3(l2)
     

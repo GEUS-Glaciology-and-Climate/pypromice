@@ -3,6 +3,8 @@ import logging, os, sys, unittest
 from argparse import ArgumentParser
 import pypromice
 from pypromice.process.aws import AWS
+from pypromice.process.write import prepare_and_write
+from pypromice.process.load import getVars, getMeta
 
 def parse_arguments_l2():
     parser = ArgumentParser(description="AWS L2 processor")
@@ -55,8 +57,10 @@ def get_l2():
     
     # Write out level 2
     if args.outpath is not None:
-    	aws.writeL2(args.outpath)
-    
+        if aws.L2.attrs['format'] == 'raw':
+            prepare_and_write(aws.L2, args.outpath, getVars(), getMeta(), '10min')
+        prepare_and_write(aws.L2, args.outpath, getVars(), getMeta(), '60min')
+
 
 if __name__ == "__main__":  
     get_l2()

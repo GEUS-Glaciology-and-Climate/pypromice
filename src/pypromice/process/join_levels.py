@@ -24,18 +24,23 @@ def parse_arguments_join():
     return args
 
 def loadArr(infile):
-    if infile.split('.')[-1].lower() in 'csv':
+    print(infile)
+    if infile.split('.')[-1].lower() == 'csv':
         df = pd.read_csv(infile, index_col=0, parse_dates=True)
         ds = xr.Dataset.from_dataframe(df)  
-    
-    elif infile.split('.')[-1].lower() in 'nc':
+    elif infile.split('.')[-1].lower() == 'nc':
         ds = xr.open_dataset(infile)
-    
+
     try:
-        name = ds.attrs['station_name'] 
+        name = ds.attrs['station_id'] 
     except:
         name = infile.split('/')[-1].split('.')[0].split('_hour')[0].split('_10min')[0]
-        
+        ds.attrs['station_id'] = name
+    if 'bedrock' in ds.attrs.keys():
+        ds.attrs['bedrock'] = ds.attrs['bedrock'] == 'True'
+    if 'number_of_booms' in ds.attrs.keys():
+        ds.attrs['number_of_booms'] = int(ds.attrs['number_of_booms'])
+
     print(f'{name} array loaded from {infile}')
     return ds, name
     
@@ -88,16 +93,13 @@ def join_levels():
     else:
         print(f'Invalid files {args.file1}, {args.file2}')
         exit()
-    
-    # Define output directory subfolder
-    out = os.path.join(args.outpath, name)
-    
+
+
     # Resample to hourly, daily and monthly datasets and write to file
-    prepare_and_write(all_ds, out, v, m, '60min')
-    prepare_and_write(all_ds, out, v, m, '1D')
-    prepare_and_write(all_ds, out, v, m, 'M')
-           
-    print(f'Files saved to {os.path.join(out, name)}...')
+    prepare_and_write(all_ds, args.outpath, v, m, '60min')
+    # prepare_and_write(all_ds, out, v, m, '1D')
+    # prepare_and_write(all_ds, out, v, m, 'M')
+    print(f'Files saved to {os.path.join(args.outpath, name)}...')
 
 if __name__ == "__main__":  
     join_levels()
