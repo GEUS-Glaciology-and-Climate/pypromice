@@ -300,6 +300,7 @@ def get_bufr(
     earliest_timestamp: datetime = None,
     store_positions: bool = False,
     time_limit: str = "91d",
+    break_on_error: bool = False,
 ):
     """
     Main function for generating BUFR files and determine latest positions from a sequence of csv files
@@ -330,6 +331,8 @@ def get_bufr(
         Flag determine if latest positions are exported.
     time_limit
         Previous time to limit dataframe before applying linear regression.
+    break_on_error
+        If True, the function will raise an exception if an error occurs during processing.
 
     """
     if now_timestamp is None:
@@ -378,6 +381,7 @@ def get_bufr(
 
     # Iterate through csv files
     for file_path in input_files:
+        # TODO: This split is explicitly requiring the filename to have sampleate at suffix. This shuld be more robust
         stid = file_path.stem.rsplit("_", 1)[0]
         logger.info("####### Processing {} #######".format(stid))
 
@@ -405,6 +409,8 @@ def get_bufr(
             )
         except Exception:
             logger.exception(f"Failed processing {stid}")
+            if break_on_error:
+                raise
             continue
 
         if station_position is None:
