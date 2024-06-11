@@ -158,6 +158,44 @@ class StationConfiguration:
 
     positions_update_timestamp_only: bool = False
 
+    @property
+    def anemometer_from_station_ground(self) -> Optional[float]:
+        if self.anemometer_from_sonic_ranger is None:
+            return None
+        if self.sonic_ranger_from_gps is None:
+            return None
+        if self.height_of_gps_from_station_ground is None:
+            return None
+
+        return (
+            self.anemometer_from_sonic_ranger
+            + self.sonic_ranger_from_gps
+            + self.height_of_gps_from_station_ground
+        )
+
+    @property
+    def barometer_from_station_ground(self) -> Optional[float]:
+        if self.barometer_from_gps is None:
+            return None
+        if self.height_of_gps_from_station_ground is None:
+            return None
+
+        return self.barometer_from_gps + self.height_of_gps_from_station_ground
+
+    @property
+    def temperature_from_station_ground(self) -> Optional[float]:
+        if self.temperature_from_sonic_ranger is None:
+            return None
+        if self.sonic_ranger_from_gps is None:
+            return None
+        if self.height_of_gps_from_station_ground is None:
+            return None
+        return (
+            self.temperature_from_sonic_ranger
+            + self.sonic_ranger_from_gps
+            + self.height_of_gps_from_station_ground
+        )
+
     def as_dict(self) -> Dict:
         return attrs.asdict(self)
 
@@ -514,20 +552,25 @@ def get_bufr_variables(
             - station_configuration.height_of_gps_from_station_ground
         )
 
-    if station_configuration.temperature_from_sonic_ranger is None:
+    # TODO: Consider to use dynamic height of sensor above ground based in sonic ranger
+    # heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = (
+    #         data["z_boom_u_smooth"]+ station_configuration.temperature_from_sonic_ranger
+    # )
+    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = (
+        station_configuration.temperature_from_station_ground
+    )
+    if heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH is None:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = np.nan
-    else:
-        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = (
-            data["z_boom_u_smooth"]
-            + station_configuration.temperature_from_sonic_ranger
-        )
 
-    if station_configuration.anemometer_from_sonic_ranger is None:
+    # TODO: Consider to use dynamic height of sensor above ground based in sonic ranger
+    # heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
+    #         data["z_boom_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
+    # )
+    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
+        station_configuration.anemometer_from_station_ground
+    )
+    if heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD is None:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = np.nan
-    else:
-        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
-            data["z_boom_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
-        )
 
     if station_configuration.barometer_from_gps is None:
         heightOfBarometerAboveMeanSeaLevel = np.nan

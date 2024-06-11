@@ -158,8 +158,8 @@ class BufrVariablesTestCase(TestCase):
             latitude=66.482488,
             longitude=-46.294266,
             heightOfStationGroundAboveMeanSeaLevel=2123.2,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.6,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=2.05,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=2.05,
             heightOfBarometerAboveMeanSeaLevel=2125.25,
         )
 
@@ -176,8 +176,8 @@ class BufrVariablesTestCase(TestCase):
             latitude=66.482488,
             longitude=-46.294266,
             heightOfStationGroundAboveMeanSeaLevel=2123.8,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.2,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=2.2,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=2.6,
             heightOfBarometerAboveMeanSeaLevel=2124.45,
         )
 
@@ -194,8 +194,8 @@ class BufrVariablesTestCase(TestCase):
             latitude=66.482488,
             longitude=-46.294266,
             heightOfStationGroundAboveMeanSeaLevel=2123.8,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.2,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=2.2,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=2.6,
             heightOfBarometerAboveMeanSeaLevel=2126,
         )
 
