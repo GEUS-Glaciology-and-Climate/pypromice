@@ -96,7 +96,6 @@ def run_get_bufr(
             return read_bufr_message(fp)
 
 
-
 class PreRefactoringBufrTestCase(TestCase):
     @staticmethod
     def get_station_configuration_mapping(
@@ -107,7 +106,8 @@ class PreRefactoringBufrTestCase(TestCase):
         barometer_from_gps: float = 0.0,
         anemometer_from_sonic_ranger: float = 0.4,
         temperature_from_sonic_ranger: float = -0.1,
-        height_of_gps_from_station_ground: float = 0.0,
+        height_of_gps_from_station_ground: float = 1.0,
+        sonic_ranger_from_gps: float = 1.5,
         skipped_variables=(),
         comment=None,
         export_bufr=True,
@@ -122,6 +122,7 @@ class PreRefactoringBufrTestCase(TestCase):
                 barometer_from_gps=barometer_from_gps,
                 anemometer_from_sonic_ranger=anemometer_from_sonic_ranger,
                 temperature_from_sonic_ranger=temperature_from_sonic_ranger,
+                sonic_ranger_from_gps=sonic_ranger_from_gps,
                 height_of_gps_from_station_ground=height_of_gps_from_station_ground,
                 skipped_variables=skipped_variables,
                 comment=comment,
@@ -159,7 +160,7 @@ class PreRefactoringBufrTestCase(TestCase):
             windSpeed=14.9,
             latitude=66.48249,
             longitude=-46.29427,
-            heightOfStationGroundAboveMeanSeaLevel=2124.7,
+            heightOfStationGroundAboveMeanSeaLevel=2123.7,
             heightOfBarometerAboveMeanSeaLevel=2124.7,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
@@ -168,7 +169,6 @@ class PreRefactoringBufrTestCase(TestCase):
             bufr_data.as_series(),
             expected_bufr_variables.as_series(),
         )
-
 
     def test_get_bufr_has_new_data_dont_store_position(self):
         l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
@@ -199,7 +199,7 @@ class PreRefactoringBufrTestCase(TestCase):
             windSpeed=14.9,
             latitude=66.48249,
             longitude=-46.29427,
-            heightOfStationGroundAboveMeanSeaLevel=2124.7,
+            heightOfStationGroundAboveMeanSeaLevel=2123.7,
             heightOfBarometerAboveMeanSeaLevel=2124.7,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
@@ -208,7 +208,6 @@ class PreRefactoringBufrTestCase(TestCase):
             bufr_data.as_series(),
             expected_bufr_variables.as_series(),
         )
-
 
     def test_get_bufr_stid_to_skip(self):
         l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
@@ -280,7 +279,7 @@ class PreRefactoringBufrTestCase(TestCase):
             windSpeed=14.9,
             latitude=66.48249,
             longitude=-46.29427,
-            heightOfStationGroundAboveMeanSeaLevel=2124.7,
+            heightOfStationGroundAboveMeanSeaLevel=2123.7,
             heightOfBarometerAboveMeanSeaLevel=2124.7,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
@@ -341,7 +340,7 @@ class PreRefactoringBufrTestCase(TestCase):
             windSpeed=14.9,
             latitude=66.48249,
             longitude=-46.29427,
-            heightOfStationGroundAboveMeanSeaLevel=2124.7,
+            heightOfStationGroundAboveMeanSeaLevel=2123.7,
             heightOfBarometerAboveMeanSeaLevel=2124.7,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
@@ -479,7 +478,7 @@ class PreRefactoringBufrTestCase(TestCase):
             windSpeed=10.4,
             latitude=66.48249,
             longitude=-46.29426,
-            heightOfStationGroundAboveMeanSeaLevel=2124.3,
+            heightOfStationGroundAboveMeanSeaLevel=2123.3,
             heightOfBarometerAboveMeanSeaLevel=2124.3,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
@@ -520,7 +519,7 @@ class PreRefactoringBufrTestCase(TestCase):
             windSpeed=14.9,
             latitude=66.48249,
             longitude=-46.29427,
-            heightOfStationGroundAboveMeanSeaLevel=2124.7,
+            heightOfStationGroundAboveMeanSeaLevel=2123.7,
             heightOfBarometerAboveMeanSeaLevel=2124.7,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
