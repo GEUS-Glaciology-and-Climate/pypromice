@@ -886,13 +886,13 @@ def sortLines(in_file, out_file, replace_unsorted=True):                       #
         lines = in_f.readlines()
     
     # Remove duplicate lines and sort
-    unique_lines = findDuplicates(lines)
+    unique_lines = findDuplicates(lines.copy())
     unique_lines.sort()
-    
-    # Write sorted file
-    with open(out_file, 'w') as out_f:
-        # out_f.write(headers)
-        out_f.writelines(unique_lines)
+    if lines != unique_lines:
+        # Write sorted file
+        with open(out_file, 'w') as out_f:
+            # out_f.write(headers)
+            out_f.writelines(unique_lines)
     
     # Replace input file with new sorted file
     if replace_unsorted:

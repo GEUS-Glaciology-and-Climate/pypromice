@@ -20,8 +20,6 @@ def parse_arguments_l2tol3(debug_args=None):
                         required=False, help='File path to variables look-up table')
     parser.add_argument('-m', '--metadata', default=None, type=str, 
                         required=False, help='File path to metadata')
-    parser.add_argument('-t', '--time', default='60min', type=str, 
-                        required=False, help='Time interval to resample dataset. The default is "60min"')
     parser.add_argument('-g', '--gcnet_historical', default=None, type=str, 
                         required=False, help='File path to historical GC-Net data file')
 
@@ -54,7 +52,9 @@ def get_l2tol3():
     
     # Write Level 3 dataset to file if output directory given
     if args.outpath is not None:
-        prepare_and_write(l3, args.outpath, v, m, args.time)
+        prepare_and_write(l3, args.outpath, v, m, '60min')
+        prepare_and_write(l3, args.outpath, v, m, 'D')
+        prepare_and_write(l3, args.outpath, v, m, 'M')
 
 if __name__ == "__main__":  
     get_l2tol3()

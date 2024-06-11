@@ -68,7 +68,8 @@ def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min'):
     else:
         out_csv = os.path.join(outdir, d2.attrs['station_id']+'_month.csv')
         out_nc = os.path.join(outdir, d2.attrs['station_id']+'_month.nc')
-        
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
     # Write to csv file
     logger.info('Writing to files...')
     write.writeCSV(out_csv, d2, col_names)
