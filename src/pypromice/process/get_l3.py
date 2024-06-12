@@ -17,6 +17,8 @@ def parse_arguments_l3():
                         required=False, help='File path to variables look-up table')
     parser.add_argument('-m', '--metadata', default=None, type=str, 
                         required=False, help='File path to metadata')
+    parser.add_argument('-t', '--time', default=None, type=str, 
+                        required=False, help='Resampling frequency')
     args = parser.parse_args()
     return args
 
@@ -54,9 +56,11 @@ def get_l3():
     aws.getL2()
     aws.getL3()
     
-    # Write out Level 3
+    # Write out level 3
     if args.outpath is not None:
-    	aws.writeL3(args.outpath)
+        if not os.path.isdir(args.outpath):
+            os.mkdir(args.outpath)
+        aws.writeArr(aws.L3, args.outpath, args.time)
         
 if __name__ == "__main__":  
     get_l3()
