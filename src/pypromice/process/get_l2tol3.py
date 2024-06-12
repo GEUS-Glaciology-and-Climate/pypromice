@@ -53,7 +53,7 @@ def get_l2tol3():
     # Write Level 3 dataset to file if output directory given
     if args.outpath is not None:
         prepare_and_write(l3, args.outpath, v, m, '60min')
-        prepare_and_write(l3, args.outpath, v, m, 'D')
+        prepare_and_write(l3, args.outpath, v, m, '1D')
         prepare_and_write(l3, args.outpath, v, m, 'M')
 
 if __name__ == "__main__":  
