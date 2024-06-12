@@ -24,7 +24,6 @@ def parse_arguments_join():
     return args
 
 def loadArr(infile):
-    print(infile)
     if infile.split('.')[-1].lower() == 'csv':
         df = pd.read_csv(infile, index_col=0, parse_dates=True)
         ds = xr.Dataset.from_dataframe(df)  
@@ -97,8 +96,7 @@ def join_levels():
 
     # Resample to hourly, daily and monthly datasets and write to file
     prepare_and_write(all_ds, args.outpath, v, m, '60min')
-    # prepare_and_write(all_ds, out, v, m, '1D')
-    # prepare_and_write(all_ds, out, v, m, 'M')
+    
     print(f'Files saved to {os.path.join(args.outpath, name)}...')
 
 if __name__ == "__main__":  
