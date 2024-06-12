@@ -65,6 +65,9 @@ def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min'):
     elif t == 3600:
         out_csv = os.path.join(outdir, d2.attrs['station_id']+'_hour.csv')
         out_nc = os.path.join(outdir, d2.attrs['station_id']+'_hour.nc')
+    elif t == 86400:
+        out_csv = os.path.join(outdir, d2.attrs['station_id']+'_day.csv')
+        out_nc = os.path.join(outdir, d2.attrs['station_id']+'_day.nc')
     else:
         out_csv = os.path.join(outdir, d2.attrs['station_id']+'_month.csv')
         out_nc = os.path.join(outdir, d2.attrs['station_id']+'_month.nc')
