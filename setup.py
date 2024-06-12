@@ -42,7 +42,7 @@ setuptools.setup(
     'console_scripts': [
         'get_promice_data = pypromice.get.get_promice_data:get_promice_data',
         'get_l0tx = pypromice.tx.get_l0tx:get_l0tx',
-        'join_l2 = pypromice.process.join_levels:join_l2',
+        'join_l2 = pypromice.process.join_l2:join_l2',
         'get_l2 = pypromice.process.get_l2:get_l2',
         'get_l3 = pypromice.process.get_l3:get_l3',
         'get_l2tol3 = pypromice.process.get_l2tol3:get_l2tol3',

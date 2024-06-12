@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 from pypromice.process.resample import resample_dataset
 from pypromice.process import utilities, write
 
-def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min'):
+def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min', resample=True):
     '''Prepare data with resampling, formating and metadata population; then
     write data to .nc and .csv hourly and daily files
 
@@ -28,9 +28,12 @@ def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min'):
         Resampling interval for output dataset
     '''
     # Resample dataset
-    d2 = resample_dataset(dataset, time)
-    logger.info('Resampling to '+str(time))
-
+    if resample:
+        d2 = resample_dataset(dataset, time)
+        logger.info('Resampling to '+str(time))
+    else:
+        d2 = dataset.copy()
+        
     # Reformat time
     d2 = utilities.reformat_time(d2)
     
@@ -76,7 +79,7 @@ def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min'):
     # Write to csv file
     logger.info('Writing to files...')
     write.writeCSV(out_csv, d2, col_names)
-    
+
     # Write to netcdf file
     col_names = col_names + ['lat', 'lon', 'alt']
     write.writeNC(out_nc, d2, col_names)
