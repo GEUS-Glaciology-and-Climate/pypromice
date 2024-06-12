@@ -3,8 +3,6 @@ import logging, os, sys, unittest
 from argparse import ArgumentParser
 import pypromice
 from pypromice.process.aws import AWS
-from pypromice.process.write import prepare_and_write
-from pypromice.process.load import getVars, getMeta
 
 def parse_arguments_l2():
     parser = ArgumentParser(description="AWS L2 processor")
@@ -19,6 +17,8 @@ def parse_arguments_l2():
                         required=False, help='File path to variables look-up table')
     parser.add_argument('-m', '--metadata', default=None, type=str, 
                         required=False, help='File path to metadata')
+    parser.add_argument('-t', '--time', default=None, type=str, 
+                        required=False, help='Resampling frequency')
     args = parser.parse_args()
     return args
 
@@ -59,10 +59,7 @@ def get_l2():
     if args.outpath is not None:
         if not os.path.isdir(args.outpath):
             os.mkdir(args.outpath)
-        if aws.L2.attrs['format'] == 'raw':
-            prepare_and_write(aws.L2, args.outpath, getVars(), getMeta(), '10min')
-        prepare_and_write(aws.L2, args.outpath, getVars(), getMeta(), '60min')
-
+        aws.writeArr(aws.L2, args.outpath, args.time)
 
 if __name__ == "__main__":  
     get_l2()

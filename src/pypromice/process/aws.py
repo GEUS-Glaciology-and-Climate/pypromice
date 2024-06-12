@@ -118,7 +118,7 @@ class AWS(object):
     #         logger.info('Resampling to hour')
     #     return resampled
 
-    def writeArr(self, dataset, outpath):
+    def writeArr(self, dataset, outpath, t=None):
         '''Write L3 data to .nc and .csv hourly and daily files
 
         Parameters
@@ -128,13 +128,19 @@ class AWS(object):
         outpath : str
             Output directory
         t : str
-            Resampling string
+            Resampling string. This is automatically defined based
+            on the data type if not given. The default is None.
         '''
-        f = [l.attrs['format'] for l in self.L0]
-        if 'raw' in f or 'STM' in f:
-            write.prepare_and_write(dataset, outpath, self.vars, self.meta, '10min')
+        if t is not None:
+            write.prepare_and_write(dataset, outpath, self.vars, self.meta, t)
         else:
-            write.prepare_and_write(dataset, outpath, self.vars, self.meta, '60min')
+            f = [l.attrs['format'] for l in self.L0]
+            if 'raw' in f or 'STM' in f:
+                write.prepare_and_write(dataset, outpath, self.vars, 
+                                        self.meta, '10min')
+            else:
+                write.prepare_and_write(dataset, outpath, self.vars, 
+                                        self.meta, '60min')
                 
     # def addAttributes(self, dataset):
     #     '''Add variable and attribute metadata
