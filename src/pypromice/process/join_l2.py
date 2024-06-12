@@ -95,7 +95,7 @@ def join_levels():
 
 
     # Resample to hourly, daily and monthly datasets and write to file
-    prepare_and_write(all_ds, args.outpath, v, m, '60min')
+    prepare_and_write(all_ds, args.outpath, v, m, resample = False)
     
     print(f'Files saved to {os.path.join(args.outpath, name)}...')
 
