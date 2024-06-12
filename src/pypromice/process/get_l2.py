@@ -57,7 +57,7 @@ def get_l2():
     
     # Write out level 2
     if args.outpath is not None:
-        if not os.pat.isdir(arg.outpath):
+        if not os.path.isdir(arg.outpath):
             os.mkdir(arg.outpath)
         if aws.L2.attrs['format'] == 'raw':
             prepare_and_write(aws.L2, args.outpath, getVars(), getMeta(), '10min')
