@@ -28,7 +28,8 @@ def loadArr(infile):
         df = pd.read_csv(infile, index_col=0, parse_dates=True)
         ds = xr.Dataset.from_dataframe(df)  
     elif infile.split('.')[-1].lower() == 'nc':
-        ds = xr.open_dataset(infile)
+        with xr.open_dataset(infile) as ds:
+            ds.load()
 
     try:
         name = ds.attrs['station_id'] 
@@ -44,7 +45,7 @@ def loadArr(infile):
     return ds, name
     
 
-def join_levels():
+def join_l2():
     args = parse_arguments_join()
 
     # Define variables and metadata (either from file or pypromice package defaults)

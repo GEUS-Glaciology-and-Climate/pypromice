@@ -40,8 +40,8 @@ def get_l2tol3():
     m = getMeta(args.metadata)
   
     # Define Level 2 dataset from file
-    l2 = xr.open_dataset(args.inpath)
-    
+    with xr.open_dataset(args.inpath) as l2:
+        l2.load()    
     if 'bedrock' in l2.attrs.keys():
         l2.attrs['bedrock'] = l2.attrs['bedrock'] == 'True'
     if 'number_of_booms' in l2.attrs.keys():
