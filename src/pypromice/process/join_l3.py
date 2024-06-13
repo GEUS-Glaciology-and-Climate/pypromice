@@ -1,36 +1,30 @@
 #!/usr/bin/env python
-import logging, os, sys, unittest
+import logging, os, sys, unittest, toml, pkg_resources
 from argparse import ArgumentParser
 import pypromice
 from pypromice.process.aws import AWS
+from pypromice.process import load
+from pypromice.process.write import prepare_and_write
+import numpy as np
+import pandas as pd
+import xarray as xr
+from pypromice.process.load import getVars, getMeta
 
-old_name = {
-                'CEN2': ['GITS'],
-                'CP1': ['CrawfordPoint1'],
-                'DY2': ['DYE-2'],
-                'JAR': ['JAR1'],
-                'HUM': ['Humboldt'],
-                'NAU': ['NASA-U'],
-                'NAE': ['NASA-E'],
-                'NEM': ['NEEM'],
-                'NSE': ['NASA-SE'],
-                'EGP': ['EastGRIP'],
-                'SDL': ['Saddle'],
-                'SDM': ['SouthDome'],
-                'SWC': ['SwissCamp', 'SwissCamp10m'],
-                'TUN': ['Tunu-N'],
-                }
-
-def parse_arguments_getl3(debug_args=None):
+def parse_arguments_joinl3(debug_args=None):
     parser = ArgumentParser(description="AWS L3 script for the processing L3 data from L2 and merging the L3 data with its historical site. An hourly, daily and monthly L3 data product is outputted to the defined output path")
-    parser.add_argument('-s', '--file1', type=str, required=True, nargs='+',
-                        help='Path to source L2 file')
-    parser.add_argument('-g', '--folder_gcnet', type=str, required=True, nargs='+',
-                        help='Path to GC-Net historical L1 folder')
-    parser.add_argument('-p', '--folder_l2', type=str, required=True, nargs='+',
+    parser.add_argument('-c', '--config_folder', type=str, required=True,
+                        help='Path to folder with sites configuration (TOML) files')
+    parser.add_argument('-s', '--site',  default=None, type=str, required=False,
+                        help='Name of site to process (default: all sites are processed)')
+
+    parser.add_argument('-p', '--folder_l2', type=str, required=True, 
                         help='Path to level 2 folder')
+    parser.add_argument('-g', '--folder_gcnet', type=str, required=False, 
+                        help='Path to GC-Net historical L1 folder')
+
     parser.add_argument('-o', '--outpath', default=os.getcwd(), type=str, required=True,
                         help='Path where to write output')
+    
     parser.add_argument('-v', '--variables', default=None, type=str, required=False, 
     			 help='Path to variables look-up table .csv file for variable name retained'''),
     parser.add_argument('-m', '--metadata', default=None, type=str, required=False, 
@@ -38,9 +32,6 @@ def parse_arguments_getl3(debug_args=None):
     parser.add_argument('-d', '--datatype', default='raw', type=str, required=False, 
     			 help='Data type to output, raw or tx')
     args = parser.parse_args(args=debug_args)
-    args.file1 = ' '.join(args.file1)
-    args.folder_gcnet = ' '.join(args.folder_gcnet)
-    args.folder_l2 = ' '.join(args.folder_l2)
     return args
 
 def readNead(infile):
@@ -130,23 +121,23 @@ def loadArr(infile):
     return ds, name
 
 
-def gcnet_postprocessing(ds2):
-    file_path = pkg_resources.resource_stream('pypromice', 'process/variable_aliases_GC-Net.csv')
+def gcnet_postprocessing(l3):
+    file_path = pkg_resources.resource_stream('pypromice', 'ressources/variable_aliases_GC-Net.csv')
      
     var_name = pd.read_csv(file_path)
     var_name = var_name.set_index('old_name').GEUS_name
-    msk = [v for v in var_name.index if v in ds2.data_vars]
+    msk = [v for v in var_name.index if v in l3.data_vars]
     var_name = var_name.loc[msk].to_dict()
     
-    ds2['TA1'] =  ds2['TA1'].combine_first(ds2['TA3'])
-    ds2['TA2'] =  ds2['TA2'].combine_first(ds2['TA4'])
+    l3['TA1'] =  l3['TA1'].combine_first(l3['TA3'])
+    l3['TA2'] =  l3['TA2'].combine_first(l3['TA4'])
     
-    ds2=ds2.rename(var_name)
-    ds2=ds2.rename({'timestamp':'time'})
-    return ds2
+    l3=l3.rename(var_name)
+    l3=l3.rename({'timestamp':'time'})
+    return l3
 
 # will be used in the future
-# def aligning_surface_heights(ds1, ds2):
+# def aligning_surface_heights(l3m, l3):
     # df_aux['z_surf_combined'] = \
     #     df_aux['z_surf_combined'] \
     #         - df_aux.loc[df_aux.z_surf_combined.last_valid_index(), 'z_surf_combined'] \
@@ -169,127 +160,106 @@ def gcnet_postprocessing(ds2):
     #     - fit_fn(
     #         df_in.loc[[df_in.z_surf_combined.first_valid_index()],:].index.astype('int64')[0]
     #     )  +  df_in.loc[df_in.z_surf_combined.first_valid_index(), 'z_surf_combined']
-    # return ds1
+    # return l3m
 
-def get_l3():
-    args = parse_arguments_getl3()
-                    
-    # Check files    
-    if os.path.isfile(args.file1): 
-        # Load L2 data arrays
-        ds1, n1 = loadArr(args.file1)
+def join_l3():
+    args = parse_arguments_joinl3()
+    _join_l3()
+                  
+def _join_l3(config_folder='C:/Users/bav/GitHub/PROMICE data/aws-l0/configurations/sites',
+             site='CEN',
+             folder_l3='C:/Users/bav/GitHub/PROMICE data/aws-l3-dev/level_3',
+             folder_gcnet='C:/Users/bav/OneDrive - GEUS/Code/PROMICE/GC-Net-Level-1-data-processing/L1/hourly',
+             outpath='level_3_merged', variables=None, metadata=None, datatype=None):
+    # %% 
+    config_file = os.path.join(config_folder,site+'.toml')
+    conf = toml.load(config_file)
+    plt.figure()
+    l3m = xr.Dataset()
+    for stid in conf['list_station_id']:
+        print(stid)
         
-        # converts to L3:
-        # - derives sensible heat fluxes
-        # - appends historical data
-        
-        ds1 = toL3(ds1)
-        
-        if n1 in old_name.keys():
-            n2 = old_name[n1]
-            # for all secondary stations
-            for n in n2:
-                # loading secondary file, either from GC-Net or PROMICE folders
-                file2 = args.folder_gcnet+n+'.csv'
+        is_promice = False
+        is_gcnet = False
+        filepath = os.path.join(folder_l3, stid, stid+'_hour.nc')
+        if os.path.isfile(filepath):
+            is_promice = True
+        else:
+            filepath = os.path.join(folder_gcnet, stid+'.csv')
+            if os.path.isfile(filepath):
                 is_gcnet = True
-                if not os.path.isfile(file2):
-                    file2 = args.folder_l2+'/'+n+'/'+n+'_hour.csv'
-                    if not os.path.isfile(file2):
-                        print('could not find',n, 'in',args.folder_gcnet,'nor',args.folder_l2)
-                        continue
-                    else:
-                        is_gcnet = False
-    
-                ds2, n2 = loadArr(file2)
+        if not is_promice and not is_gcnet:            
+            print(stid, 'not found either in', folder_l3, 'or', folder_gcnet)
+            continue
+
+        l3, _ = loadArr(filepath)
+        
+        if is_gcnet:
+            l3 = gcnet_postprocessing(l3)
+        
+        # lat, lon and alt should be just variables, not coordinates
+        if 'lat' in l3.keys():
+            l3 = l3.reset_coords(['lat', 'lon', 'alt'])
+
+        if len(l3m)==0:
+            # saving attributes of station under an attribute called $stid
+            l3m.attrs[stid] = l3.attrs.copy()
+            # then stripping attributes
+            attrs_list = list(l3.attrs.keys())
+            for k in attrs_list:
+                del l3.attrs[k]
                 
-                if is_gcnet:
-                    ds2 = gcnet_postprocessing(ds2)
-                    ds2 = ds2[[v for v in ds1.data_vars if v in ds2.data_vars]]
-                else:
-                    # then it is a GEUS L2 file that needs to be processed into L3
-                    # converts to L3
-                    ds2 = toL3(ds2)
-                
-                # prepairing for the merging
-                for v in ds1.data_vars:
-                    if  v not in ds2.data_vars:
-                        ds2[v] = ds2.t_u*np.nan
-                        
-                print('dropping')
-                for v in ds2.data_vars:
-                    if  v not in ds1.data_vars:
+            l3m = l3.copy()
+            l3.t_u.plot(ax=plt.gca())
+        else:
+            # if l3 (older data) is missing variables compared to l3m (newer data)
+            # , then we fill them with nan
+            for v in l3m.data_vars:
+                if  v not in l3.data_vars:
+                    l3[v] = l3.t_u*np.nan
+                    
+            # if l3 (older data) has variables that does not have l3m (newer data)
+            # then they are removed from l3
+            print('dropping')
+            for v in l3.data_vars:
+                if v not in l3m.data_vars:
+                    if v != 'z_stake':
                         print(v)
-                        ds2 = ds2.drop(v)
+                        l3 = l3.drop(v)
+                        
 
-                # merging by time block
-                ds1 = xr.concat((ds2.sel(
-                            time=slice(ds2.time.isel(time=0),
-                                       ds1.time.isel(time=0))
-                            ), ds1), dim='time')
+            l3.sel(
+                        time=slice(l3.time.isel(time=0),
+                                   l3m.time.isel(time=0))).t_u.plot(ax=plt.gca())
 
-    elif os.path.isfile(args.file1):  
-        ds1, name = loadArr(args.file1)
-        print(f'No historical station for {n1}...')
-    
-    else:
-        print(f'Invalid file {args.file1}')
-        exit()
-    all_values = []
-    for l in old_name.values():
-        for ll in l:
-            all_values.append(ll)
-    if n1 in all_values:
-        print(n1, 'is used as auxilary at another site')
-        exit()
-    # Get hourly, daily and monthly datasets
-    print('Resampling L3 data to hourly, daily and monthly resolutions...')
-    l3_h = resampleL2(ds1, '60min')
-    l3_d = resampleL2(ds1, '1D')
-    l3_m = resampleL2(ds1, 'M')
-    
-    print(f'Adding variable information from {args.variables}...')
-        
-    # Load variables look-up table
-    var = getVars(args.variables)
-        	
-    # Round all values to specified decimals places
-    l3_h = roundValues(l3_h, var)
-    l3_d = roundValues(l3_d, var)
-    l3_m = roundValues(l3_m, var)
-        
-    # Get columns to keep
-    if hasattr(ds1, 'p_l'):
-        col_names = getColNames(var, 2, args.datatype.lower())  
-    else:
-        col_names = getColNames(var, 1, args.datatype.lower())    
+            # saving attributes of station under an attribute called $stid
+            l3m = l3m.assign_attrs({stid : l3.attrs.copy()})
+            # then stripping attributes
+            attrs_list = list(l3.attrs.keys())
+            for k in attrs_list:
+                del l3.attrs[k]
+            
+            l3m.attrs[stid]['first_timestamp'] = l3.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+            l3m.attrs[stid]['last_timestamp'] = l3m.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+
+            # merging by time block
+            l3m = xr.concat((l3.sel(
+                        time=slice(l3.time.isel(time=0),
+                                   l3m.time.isel(time=0))
+                        ), l3m), dim='time')
+            
 
     # Assign site id
-    site_id = n1.replace('v3','').replace('CEN2','CEN')
-    for l in [l3_h, l3_d, l3_m]:
-        l.attrs['site_id'] = site_id
-        l.attrs['station_id'] = site_id
-        if n1 in old_name.keys():
-            l.attrs['list_station_id'] = '('+n1+', '+', '.join(old_name[n1])+')'
-        else:
-            l.attrs['list_station_id'] = '('+n1+')'
-    
-    # Define input path
-    station_name = args.config_file.split('/')[-1].split('.')[0] 
-    station_path = os.path.join(args.inpath, station_name)
-    if os.path.exists(station_path):
-        aws = AWS(args.config_file, station_path, v, m)
-    else:
-        aws = AWS(args.config_file, args.inpath, v, m)
-
-    # Perform level 1 to 3 processing
-    aws.getL1()
-    aws.getL2()
-    aws.getL3()
-    
-    # Write out Level 3
-    if args.outpath is not None:
-    	aws.writeL3(args.outpath)
+    l3m.attrs['site_id'] = site
+    l3m.attrs['list_station_id'] = conf['list_station_id']
+    v = getVars()
+    m = getMeta()
+    if outpath is not None:
+        prepare_and_write(l3m, outpath, v, m, '60min')
+        prepare_and_write(l3m, outpath, v, m, '1D')
+        prepare_and_write(l3m, outpath, v, m, 'M')
+    # %% 
         
 if __name__ == "__main__":  
-    get_l3()
+    join_l3()
         
