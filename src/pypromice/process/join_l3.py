@@ -165,16 +165,12 @@ def gcnet_postprocessing(l3):
 def join_l3():
     args = parse_arguments_joinl3()
                   
+                      
     config_file = os.path.join(args.config_folder, args.site+'.toml')
     conf = toml.load(config_file)
-    
-    if not site:
-        site_list=conf['list_station_id']
-    else:
-        site_list=site
 
     l3m = xr.Dataset()
-    for stid in site_list:
+    for stid in conf['stations']:
         print(stid)
         
         is_promice = False
@@ -221,8 +217,10 @@ def join_l3():
             for v in l3.data_vars:
                 if v not in l3m.data_vars:
                     if v != 'z_stake':
-                        print(v)
-                        l3 = l3.drop(v)
+                       print(v)
+                       l3 = l3.drop(v)
+                    else:
+                       l3m[v] = ('time', l3m.t_u.data*np.nan)
                         
             # saving attributes of station under an attribute called $stid
             l3m = l3m.assign_attrs({stid : l3.attrs.copy()})
@@ -243,7 +241,7 @@ def join_l3():
 
     # Assign site id
     l3m.attrs['site_id'] = args.site
-    l3m.attrs['list_station_id'] = conf['list_station_id']
+    l3m.attrs['stations'] = conf['stations']
     v = getVars()
     m = getMeta()
     if args.outpath is not None:
