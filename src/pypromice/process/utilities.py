@@ -41,7 +41,12 @@ def reformat_lon(dataset, exempt=['UWN', 'Roof_GEUS', 'Roof_PROMICE']):
     '''Switch gps_lon to negative values (degrees_east). We do this here, and 
     NOT in addMeta, otherwise we switch back to positive when calling getMeta 
     in joinL2'''
-    if dataset.attrs['station_id'] not in exempt:
+    if 'station_id' in dataset.attrs.keys():
+        id = dataset.attrs['station_id']
+    else:
+        id = dataset.attrs['site_id']
+
+    if id not in exempt:
         dataset['gps_lon'] = dataset['gps_lon'] * -1
     return dataset
 
@@ -163,7 +168,10 @@ def addMeta(ds, meta):
     #             ds[k].attrs['units'] = 'degrees_C'
 
     # https://wiki.esipfed.org/Attribute_Convention_for_Data_Discovery_1-3#geospatial_bounds
-    ds.attrs['id'] = 'dk.geus.promice:' + str(uuid.uuid3(uuid.NAMESPACE_DNS, ds.attrs['station_id']))
+    if 'station_id' in ds.attrs.keys():
+        ds.attrs['id'] = 'dk.geus.promice:' + str(uuid.uuid3(uuid.NAMESPACE_DNS, ds.attrs['station_id']))
+    else:
+        ds.attrs['id'] = 'dk.geus.promice:' + str(uuid.uuid3(uuid.NAMESPACE_DNS, ds.attrs['site_id']))
     ds.attrs['history'] = 'Generated on ' + datetime.datetime.utcnow().isoformat()
     ds.attrs['date_created'] = str(datetime.datetime.now().isoformat())
     ds.attrs['date_modified'] = ds.attrs['date_created']

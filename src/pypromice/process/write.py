@@ -46,34 +46,36 @@ def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min', resamp
 
     # Round all values to specified decimals places
     d2 = utilities.roundValues(d2, vars_df)
-    
-    # Create out directory
-    outdir = os.path.join(outpath, d2.attrs['station_id'])
-    if not os.path.isdir(outdir):
-        os.mkdir(outdir)
-    
+
     # Get variable names to write out
     col_names = write.getColNames(
         vars_df,
-        d2.attrs['number_of_booms'],
-        d2.attrs['format'],
-        d2.attrs['bedrock'],
-    )
-    
+        d2)
+
     # Define filename based on resample rate
     t = int(pd.Timedelta((d2['time'][1] - d2['time'][0]).values).total_seconds())
-    if t == 600:
-        out_csv = os.path.join(outdir, d2.attrs['station_id']+'_10min.csv')
-        out_nc = os.path.join(outdir, d2.attrs['station_id']+'_10min.nc')
-    elif t == 3600:
-        out_csv = os.path.join(outdir, d2.attrs['station_id']+'_hour.csv')
-        out_nc = os.path.join(outdir, d2.attrs['station_id']+'_hour.nc')
-    elif t == 86400:
-        out_csv = os.path.join(outdir, d2.attrs['station_id']+'_day.csv')
-        out_nc = os.path.join(outdir, d2.attrs['station_id']+'_day.nc')
+    if 'station_id' in d2.attrs.keys():
+        name = d2.attrs['station_id']
     else:
-        out_csv = os.path.join(outdir, d2.attrs['station_id']+'_month.csv')
-        out_nc = os.path.join(outdir, d2.attrs['station_id']+'_month.nc')
+        name = d2.attrs['site_id']
+
+    # Create out directory
+    outdir = os.path.join(outpath, name)
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
+
+    if t == 600:
+        out_csv = os.path.join(outdir, name+'_10min.csv')
+        out_nc = os.path.join(outdir, name+'_10min.nc')
+    elif t == 3600:
+        out_csv = os.path.join(outdir, name+'_hour.csv')
+        out_nc = os.path.join(outdir, name+'_hour.nc')
+    elif t == 86400:
+        out_csv = os.path.join(outdir, name+'_day.csv')
+        out_nc = os.path.join(outdir, name+'_day.nc')
+    else:
+        out_csv = os.path.join(outdir, name+'_month.csv')
+        out_nc = os.path.join(outdir, name+'_month.nc')
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
     # Write to csv file
@@ -150,7 +152,38 @@ def writeNC(outfile, Lx, col_names=None):
         names = list(Lx.keys())
     Lx[names].to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)
 
-def getColNames(vars_df, booms=None, data_type=None, bedrock=False):
+def getColNames(vars_df, ds):
+    '''Get all variable names for a given data type, based on a variables
+    look-up table. This is mainly for exporting purposes
+
+    Parameters
+    ----------
+    vars_df : pd.DataFrame
+        Variables look-up table
+    ds: xr.dataset
+        Dataset to write
+    Returns
+    -------
+    list
+        Variable names
+    '''
+    if 'data_type' in ds.attrs.keys():
+        if ds.attrs['data_type']=='TX':
+            vars_df = vars_df.loc[vars_df['data_type'].isin(['TX','all'])]
+        elif ds.attrs['data_type']=='STM' or ds.attrs['data_type']=='raw':
+            vars_df = vars_df.loc[vars_df['data_type'].isin(['raw','all'])]
+
+    var_list = list(vars_df.index)
+    for v in var_list:
+         if v not in ds.keys():
+             var_list.remove(v)
+             continue
+         if ds[v].isnull().all():
+             var_list.remove(v)
+    return var_list
+
+
+def getColNames_old(vars_df, booms=None, data_type=None, bedrock=False):
     '''Get all variable names for a given data type, based on a variables
     look-up table. This is mainly for exporting purposes
 
