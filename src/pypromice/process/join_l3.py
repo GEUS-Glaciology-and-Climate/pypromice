@@ -164,32 +164,25 @@ def gcnet_postprocessing(l3):
 
 def join_l3():
     args = parse_arguments_joinl3()
-    _join_l3()
                   
-def _join_l3(config_folder='C:/Users/bav/GitHub/PROMICE data/aws-l0/configurations/sites',
-             site='CEN',
-             folder_l3='C:/Users/bav/GitHub/PROMICE data/aws-l3-dev/level_3',
-             folder_gcnet='C:/Users/bav/OneDrive - GEUS/Code/PROMICE/GC-Net-Level-1-data-processing/L1/hourly',
-             outpath='level_3_merged', variables=None, metadata=None, datatype=None):
-    # %% 
-    config_file = os.path.join(config_folder,site+'.toml')
+    config_file = os.path.join(args.config_folder, args.site+'.toml')
     conf = toml.load(config_file)
-    plt.figure()
+
     l3m = xr.Dataset()
     for stid in conf['list_station_id']:
         print(stid)
         
         is_promice = False
         is_gcnet = False
-        filepath = os.path.join(folder_l3, stid, stid+'_hour.nc')
+        filepath = os.path.join(args.folder_l3, stid, stid+'_hour.nc')
         if os.path.isfile(filepath):
             is_promice = True
         else:
-            filepath = os.path.join(folder_gcnet, stid+'.csv')
+            filepath = os.path.join(args.folder_gcnet, stid+'.csv')
             if os.path.isfile(filepath):
                 is_gcnet = True
         if not is_promice and not is_gcnet:            
-            print(stid, 'not found either in', folder_l3, 'or', folder_gcnet)
+            print(stid, 'not found either in', args.folder_l3, 'or', args.folder_gcnet)
             continue
 
         l3, _ = loadArr(filepath)
@@ -210,7 +203,6 @@ def _join_l3(config_folder='C:/Users/bav/GitHub/PROMICE data/aws-l0/configuratio
                 del l3.attrs[k]
                 
             l3m = l3.copy()
-            l3.t_u.plot(ax=plt.gca())
         else:
             # if l3 (older data) is missing variables compared to l3m (newer data)
             # , then we fill them with nan
@@ -227,11 +219,6 @@ def _join_l3(config_folder='C:/Users/bav/GitHub/PROMICE data/aws-l0/configuratio
                         print(v)
                         l3 = l3.drop(v)
                         
-
-            l3.sel(
-                        time=slice(l3.time.isel(time=0),
-                                   l3m.time.isel(time=0))).t_u.plot(ax=plt.gca())
-
             # saving attributes of station under an attribute called $stid
             l3m = l3m.assign_attrs({stid : l3.attrs.copy()})
             # then stripping attributes
@@ -250,14 +237,14 @@ def _join_l3(config_folder='C:/Users/bav/GitHub/PROMICE data/aws-l0/configuratio
             
 
     # Assign site id
-    l3m.attrs['site_id'] = site
+    l3m.attrs['site_id'] = args.site
     l3m.attrs['list_station_id'] = conf['list_station_id']
     v = getVars()
     m = getMeta()
-    if outpath is not None:
-        prepare_and_write(l3m, outpath, v, m, '60min')
-        prepare_and_write(l3m, outpath, v, m, '1D')
-        prepare_and_write(l3m, outpath, v, m, 'M')
+    if args.outpath is not None:
+        prepare_and_write(l3m, args.outpath, v, m, '60min')
+        prepare_and_write(l3m, args.outpath, v, m, '1D')
+        prepare_and_write(l3m, args.outpath, v, m, 'M')
     # %% 
         
 if __name__ == "__main__":  
