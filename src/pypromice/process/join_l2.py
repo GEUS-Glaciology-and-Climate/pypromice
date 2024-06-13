@@ -101,4 +101,4 @@ def join_l2():
     print(f'Files saved to {os.path.join(args.outpath, name)}...')
 
 if __name__ == "__main__":  
-    join_levels()
+    join_l2()
