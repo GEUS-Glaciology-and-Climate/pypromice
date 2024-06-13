@@ -17,9 +17,9 @@ def parse_arguments_joinl3(debug_args=None):
     parser.add_argument('-s', '--site',  default=None, type=str, required=False,
                         help='Name of site to process (default: all sites are processed)')
 
-    parser.add_argument('-p', '--folder_l2', type=str, required=True, 
-                        help='Path to level 2 folder')
-    parser.add_argument('-g', '--folder_gcnet', type=str, required=False, 
+    parser.add_argument('-l3', '--folder_l3', type=str, required=True, 
+                        help='Path to level 3 folder')
+    parser.add_argument('-gc', '--folder_gcnet', type=str, required=False, 
                         help='Path to GC-Net historical L1 folder')
 
     parser.add_argument('-o', '--outpath', default=os.getcwd(), type=str, required=True,
@@ -167,9 +167,14 @@ def join_l3():
                   
     config_file = os.path.join(args.config_folder, args.site+'.toml')
     conf = toml.load(config_file)
+    
+    if not site:
+        site_list=conf['list_station_id']
+    else:
+        site_list=site
 
     l3m = xr.Dataset()
-    for stid in conf['list_station_id']:
+    for stid in site_list:
         print(stid)
         
         is_promice = False
