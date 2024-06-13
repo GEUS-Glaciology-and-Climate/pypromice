@@ -67,9 +67,9 @@ class TestProcess(unittest.TestCase):
         exit_status = os.system('get_l3 -h')
         self.assertEqual(exit_status, 0)
         
-    def testCLIjoinlevels(self):
+    def testCLIjoinl2(self):
         '''Test join_l2 CLI'''
-        exit_status = os.system('join_levels -h')
+        exit_status = os.system('join_l2 -h')
         self.assertEqual(exit_status, 0)
         
     def testCLIjoinl3(self):
