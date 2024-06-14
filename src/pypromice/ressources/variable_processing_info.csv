@@ -1,0 +1,91 @@
+field,lo,hi,OOL,station_type,write_in_l0,write_in_l2,write_in_l3,max_decimals,coverage_content_type,coordinates,instantaneous_hourly,comment
+time,,,,all,1,1,1,,physicalMeasurement,time lat lon alt,,
+rec,,,,all,1,1,0,0,referenceInformation,time lat lon alt,,L0 only
+p_u,650,1100,z_pt z_pt_cor dshf_u dlhf_u qh_u,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+p_l,650,1100,dshf_l dlhf_l qh_l,two-boom,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+t_u,-80,40,rh_u_cor cc dsr_cor usr_cor z_boom z_stake dshf_u dlhf_u qh_u,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+t_l,-80,40,rh_l_cor z_boom_l dshf_l dlhf_l qh_l,two-boom,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,PT100 temperature at boom
+rh_u,0,100,rh_u_cor,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+rh_u_cor,0,150,dshf_u dlhf_u qh_u,all,0,1,1,4,modelResult,time lat lon alt,FALSE,
+qh_u,0,100,,all,0,1,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+rh_l,0,100,rh_l_cor,two-boom,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+rh_l_cor,0,150,dshf_l dlhf_l qh_l,two-boom,0,1,1,4,modelResult,time lat lon alt,FALSE,
+qh_l,0,100,,two-boom,0,1,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+wspd_u,0,100,"wdir_u wspd_x_u wspd_y_u dshf_u dlhf_u qh_u, precip_u",all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+wspd_l,0,100,"wdir_l wspd_x_l wspd_y_l dshf_l dlhf_l qh_l , precip_l",two-boom,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+wdir_u,1,360,wspd_x_u wspd_y_u,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+wdir_std_u,,,,one-boom,1,1,0,4,qualityInformation,time lat lon alt,FALSE,L0 only
+wdir_l,1,360,wspd_x_l wspd_y_l,two-boom,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+wspd_x_u,-100,100,wdir_u wspd_u,all,0,1,1,4,modelResult,time lat lon alt,FALSE,L0 only
+wspd_y_u,-100,100,wdir_u wspd_u,all,0,1,1,4,modelResult,time lat lon alt,FALSE,L0 only
+wspd_x_l,-100,100,wdir_l wspd_l,two-boom,0,1,1,4,modelResult,time lat lon alt,FALSE,L0 only
+wspd_y_l,-100,100,wdir_l wspd_l,two-boom,0,1,1,4,modelResult,time lat lon alt,FALSE,L0 only
+dsr,-10,1500,albedo dsr_cor usr_cor,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,"Actually radiation_at_sensor, not flux. Units 1E-5 V. Engineering units."
+dsr_cor,,,,all,0,1,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+usr,-10,1000,albedo dsr_cor usr_cor,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+usr_cor,0,1000,,all,0,1,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+albedo,,,,all,0,1,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+dlr,50,500,albedo dsr_cor usr_cor cc t_surf,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+ulr,50,500,t_surf,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+cc,,,,all,0,1,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+t_surf,-80,40,dshf_u dlhf_u qh_u,all,0,1,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+dlhf_u,,,,all,0,0,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+dlhf_l,,,,two-boom,0,0,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+dshf_u,,,,all,0,0,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+dshf_l,,,,two-boom,0,0,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+z_boom_u,0.3,10,dshf_u dlhf_u qh_u,all,1,1,1,4,physicalMeasurement,time lat lon alt,TRUE,
+z_boom_q_u,,,,all,1,1,0,4,qualityInformation,time lat lon alt,TRUE,L0 only
+z_boom_l,0.3,5,dshf_l dlhf_l qh_l,two-boom,1,1,1,4,physicalMeasurement,time lat lon alt,TRUE,
+z_boom_q_l,,,,two-boom,1,1,0,4,qualityInformation,time lat lon alt,TRUE,L0 only
+z_stake,0.3,8,,one-boom,1,1,1,4,physicalMeasurement,time lat lon alt,TRUE,HeightStakes(m)
+z_stake_q,,,,one-boom,1,1,0,4,qualityInformation,time lat lon alt,TRUE,L0 only
+z_pt,0,30,z_pt_cor,one-boom,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,DepthPressureTransducer(m)
+z_pt_cor,0,30,,one-boom,0,1,1,4,modelResult,time lat lon alt,FALSE,Derived value (L2 or later)
+precip_u,0,,precip_u_cor precip_u_rate,all,1,1,1,4,physicalMeasurement,time lat lon alt,TRUE,Without wind/undercatch correction
+precip_u_cor,0,,,all,0,1,1,4,modelResult,time lat lon alt,TRUE,With wind/undercatch correction
+precip_u_rate,0,,,all,0,1,1,4,modelResult,time lat lon alt,TRUE,L0 only
+precip_l,0,,precip_l_cor precip_l_rate,two-boom,1,1,1,4,physicalMeasurement,time lat lon alt,TRUE,Without wind/undercatch correction
+precip_l_cor,0,,,two-boom,0,1,1,4,modelResult,time lat lon alt,TRUE,With wind/undercatch correction
+precip_l_rate,0,,,two-boom,0,1,1,4,modelResult,time lat lon alt,TRUE,L0 only
+t_i_1,-80,1,,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,t1 is installed @ 1 m depth
+t_i_2,-80,1,,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+t_i_3,-80,1,,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+t_i_4,-80,1,,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+t_i_5,-80,1,,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+t_i_6,-80,1,,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+t_i_7,-80,1,,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+t_i_8,-80,1,,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,t8 is installed @ 10 m depth
+t_i_9,-80,1,,two-boom,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+t_i_10,-80,1,,two-boom,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+t_i_11,-80,1,,two-boom,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+tilt_x,-30,30,dsr_cor usr_cor albedo,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+tilt_y,-30,30,dsr_cor usr_cor albedo,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+rot,0,360,,all,1,1,1,2,physicalMeasurement,time lat lon alt,FALSE,v4 addition
+gps_lat,50,83,,all,1,1,1,6,coordinate,time lat lon alt,TRUE,
+gps_lon,5,70,,all,1,1,1,6,coordinate,time lat lon alt,TRUE,
+gps_alt,0,3000,,all,1,1,1,2,coordinate,time lat lon alt,TRUE,
+gps_time,0,240000,,all,1,1,0,,physicalMeasurement,time lat lon alt,TRUE,
+gps_geoid,,,,one-boom,1,1,0,,physicalMeasurement,time lat lon alt,TRUE,
+gps_geounit,,,,all,1,1,0,,qualityInformation,time lat lon alt,TRUE,L0 only
+gps_hdop,,,,all,1,1,0,2,qualityInformation,time lat lon alt,TRUE,NMEA: Horizontal dilution of precision
+gps_numsat,,,,,1,1,0,0,qualityInformation,time lat lon alt,TRUE,L0 only
+gps_q,,,,,1,1,0,,qualityInformation,time lat lon alt,TRUE,L0 only
+lat,,,,all,1,1,1,6,modelResult,time lat lon alt,TRUE,
+lon,,,,all,1,1,1,6,modelResult,time lat lon alt,TRUE,
+alt,,,,all,1,1,1,6,modelResult,time lat lon alt,TRUE,
+batt_v,0,30,,all,1,1,1,2,physicalMeasurement,time lat lon alt,TRUE,
+batt_v_ini,0,30,,,1,1,0,2,physicalMeasurement,time lat lon alt,TRUE,L0 only
+batt_v_ss,0,30,,,1,1,0,2,physicalMeasurement,time lat lon alt,TRUE,L0 only
+fan_dc_u,0,200,,all,1,1,0,2,physicalMeasurement,time lat lon alt,TRUE,
+fan_dc_l,0,200,,two-boom,1,1,0,2,physicalMeasurement,time lat lon alt,TRUE,
+freq_vw,0,10000,precip_u,,1,1,0,,physicalMeasurement,time lat lon alt,TRUE,L0 only
+t_log,-80,40,,one-boom,1,1,0,4,physicalMeasurement,time lat lon alt,TRUE,LoggerTemperature(C)
+t_rad,-80,40,t_surf dlr ulr,all,1,1,1,4,physicalMeasurement,time lat lon alt,FALSE,
+p_i,-350,100,,all,1,1,1,4,physicalMeasurement,time lat lon alt,TRUE,For meteorological observations
+t_i,-80,40,,all,1,1,1,4,physicalMeasurement,time lat lon alt,TRUE,"PT100 temperature at boom, for meteorological observations"
+rh_i,0,150,rh_i_cor,all,1,1,1,4,physicalMeasurement,time lat lon alt,TRUE,For meteorological observations
+rh_i_cor,0,100,,all,0,1,1,4,modelResult,time lat lon alt,TRUE,For meteorological observations
+wspd_i,0,100,wdir_i wspd_x_i wspd_y_i,all,1,1,1,4,physicalMeasurement,time lat lon alt,TRUE,For meteorological observations
+wdir_i,1,360,wspd_x_i wspd_y_i,all,1,1,1,4,physicalMeasurement,time lat lon alt,TRUE,For meteorological observations
+wspd_x_i,-100,100,wdir_i wspd_i,all,0,1,1,4,modelResult,time lat lon alt,TRUE,For meteorological observations
+wspd_y_i,-100,100,wdir_i wspd_i,all,0,1,1,4,modelResult,time lat lon alt,TRUE,For meteorological observations
