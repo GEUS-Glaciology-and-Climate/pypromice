@@ -111,6 +111,9 @@ def loadArr(infile):
         f.close()
     elif infile.split('.')[-1].lower() in 'nc':
         ds = xr.open_dataset(infile)
+        for varname in ds.variables:
+            if 'encoding' in ds[varname].attrs:
+                del ds[varname].attrs['encoding']
     
     try:
         name = ds.attrs['station_name'] 

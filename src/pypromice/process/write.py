@@ -8,7 +8,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 from pypromice.process.resample import resample_dataset
-from pypromice.process import utilities, write
+from pypromice.process import utilities
 
 def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min', resample=True):
     '''Prepare data with resampling, formating and metadata population; then
@@ -37,9 +37,17 @@ def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min', resamp
     # Reformat time
     d2 = utilities.reformat_time(d2)
     
+    # finding station/site name
+    if 'station_id' in d2.attrs.keys():
+        name = d2.attrs['station_id']
+    else:
+        name = d2.attrs['site_id']
+        
     # Reformat longitude (to negative values)
-    d2 = utilities.reformat_lon(d2)
-    
+    if 'gps_lon' in d2.keys():
+        d2 = utilities.reformat_lon(d2)
+    else:
+        logger.info('%s does not have gpd_lon'%name)
     # Add variable attributes and metadata
     d2 = utilities.addVars(d2, vars_df)
     d2 = utilities.addMeta(d2, meta_dict)
@@ -48,16 +56,10 @@ def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min', resamp
     d2 = utilities.roundValues(d2, vars_df)
 
     # Get variable names to write out
-    col_names = write.getColNames(
-        vars_df,
-        d2)
+    col_names = getColNames(vars_df, d2, remove_nan_fields=True)
 
     # Define filename based on resample rate
     t = int(pd.Timedelta((d2['time'][1] - d2['time'][0]).values).total_seconds())
-    if 'station_id' in d2.attrs.keys():
-        name = d2.attrs['station_id']
-    else:
-        name = d2.attrs['site_id']
 
     # Create out directory
     outdir = os.path.join(outpath, name)
@@ -80,11 +82,11 @@ def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min', resamp
         os.mkdir(outdir)
     # Write to csv file
     logger.info('Writing to files...')
-    write.writeCSV(out_csv, d2, col_names)
+    writeCSV(out_csv, d2, col_names)
 
     # Write to netcdf file
     col_names = col_names + ['lat', 'lon', 'alt']
-    write.writeNC(out_nc, d2, col_names)
+    writeNC(out_nc, d2, col_names)
     logger.info(f'Written to {out_csv}')
     logger.info(f'Written to {out_nc}')
 
@@ -152,7 +154,7 @@ def writeNC(outfile, Lx, col_names=None):
         names = list(Lx.keys())
     Lx[names].to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)
 
-def getColNames(vars_df, ds):
+def getColNames(vars_df, ds, remove_nan_fields=False):
     '''Get all variable names for a given data type, based on a variables
     look-up table. This is mainly for exporting purposes
 
@@ -172,55 +174,18 @@ def getColNames(vars_df, ds):
             vars_df = vars_df.loc[vars_df['data_type'].isin(['TX','all'])]
         elif ds.attrs['data_type']=='STM' or ds.attrs['data_type']=='raw':
             vars_df = vars_df.loc[vars_df['data_type'].isin(['raw','all'])]
-
+    if 'number_of_booms' in ds.attrs.keys():
+        if ds.attrs['number_of_booms']==1:
+            vars_df = vars_df.loc[vars_df['station_type'].isin(['one-boom','all'])]
+        elif ds.attrs['number_of_booms']==2:
+            vars_df = vars_df.loc[vars_df['station_type'].isin(['two-boom','all'])]
     var_list = list(vars_df.index)
-    for v in var_list:
-         if v not in ds.keys():
-             var_list.remove(v)
-             continue
-         if ds[v].isnull().all():
-             var_list.remove(v)
+    if remove_nan_fields:
+        for v in var_list:
+             if v not in ds.keys():
+                 var_list.remove(v)
+                 continue
+             if ds[v].isnull().all():
+                 var_list.remove(v)
     return var_list
 
-
-def getColNames_old(vars_df, booms=None, data_type=None, bedrock=False):
-    '''Get all variable names for a given data type, based on a variables
-    look-up table. This is mainly for exporting purposes
-
-    Parameters
-    ----------
-    vars_df : pd.DataFrame
-        Variables look-up table
-    booms : int, optional
-        Number of booms. If this parameter is empty then all variables
-        regardless of boom type will be passed. The default is None.
-    data_type : str, optional
-        Data type, "tx", "STM" or "raw". If this parameter is empty then all
-        variables regardless of data type will be passed. The default is None.
-
-    Returns
-    -------
-    list
-        Variable names
-    '''
-    if booms==1:
-        vars_df = vars_df.loc[vars_df['station_type'].isin(['one-boom','all'])]
-    elif booms==2:
-        vars_df = vars_df.loc[vars_df['station_type'].isin(['two-boom','all'])]
-
-    if data_type=='TX':
-        vars_df = vars_df.loc[vars_df['data_type'].isin(['TX','all'])]
-    elif data_type=='STM' or data_type=='raw':
-        vars_df = vars_df.loc[vars_df['data_type'].isin(['raw','all'])]
-
-    col_names = list(vars_df.index)
-    if isinstance(bedrock, str):
-        bedrock = (bedrock.lower() == 'true')
-    if bedrock == True:
-        col_names.remove('cc')
-        for v in ['dlhf_u', 'dlhf_l', 'dshf_u', 'dshf_l']:
-            try:
-                col_names.remove(v)
-            except:
-                pass
-    return col_names

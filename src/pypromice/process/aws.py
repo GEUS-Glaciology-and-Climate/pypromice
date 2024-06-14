@@ -52,9 +52,7 @@ class AWS(object):
         L0 = self.loadL0()
         self.L0=[]
         for l in L0:
-            n = write.getColNames(self.vars, 
-                                  l.attrs['number_of_booms'], 
-                                  l.attrs['format'])
+            n = write.getColNames(self.vars, l)
             self.L0.append(utilities.popCols(l, n))
 
         self.L1 = None
@@ -106,18 +104,6 @@ class AWS(object):
         logger.info('Level 3 processing...')
         self.L3 = toL3(self.L2)
 
-    # def resample(self, dataset):       
-    #     '''Resample dataset to specific temporal resolution (based on input
-    #     data type)'''
-    #     f = [l.attrs['format'] for l in self.L0]
-    #     if 'raw' in f or 'STM' in f:
-    #         logger.info('Resampling to 10 minute')
-    #         resampled = resample_dataset(dataset, '10min')
-    #     else:
-    #         resampled = resample_dataset(dataset, '60min')
-    #         logger.info('Resampling to hour')
-    #     return resampled
-
     def writeArr(self, dataset, outpath, t=None):
         '''Write L3 data to .nc and .csv hourly and daily files
 
@@ -141,23 +127,6 @@ class AWS(object):
             else:
                 write.prepare_and_write(dataset, outpath, self.vars, 
                                         self.meta, '60min')
-                
-    # def addAttributes(self, dataset):
-    #     '''Add variable and attribute metadata
-
-    #     Parameters
-    #     ----------
-    #     dataset : xr.Dataset
-    #         Dataset (i.e. L2 or L3) object
-
-    #     Returns
-    #     -------
-    #     d2 : xr.Dataset
-    #         Data object with attributes
-    #     '''
-    #     d2 = utilities.addVars(dataset, self.vars)
-    #     d2 = utilities.addMeta(d2, self.meta)
-    #     return d2
 
     def loadConfig(self, config_file, inpath):
         '''Load configuration from .toml file
