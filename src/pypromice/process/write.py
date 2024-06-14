@@ -8,9 +8,9 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 from pypromice.process.resample import resample_dataset
-from pypromice.process import utilities
+from pypromice.process import utilities, load
 
-def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min', resample=True):
+def prepare_and_write(dataset, outpath, vars_df=None, meta_dict=None, time='60min', resample=True):
     '''Prepare data with resampling, formating and metadata population; then
     write data to .nc and .csv hourly and daily files
 
@@ -48,7 +48,13 @@ def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min', resamp
         d2 = utilities.reformat_lon(d2)
     else:
         logger.info('%s does not have gpd_lon'%name)
+        
     # Add variable attributes and metadata
+    if vars_df is None:
+        vars_df = load.getVars()
+    if meta_dict is None:
+        meta_dict = load.getMeta()
+        
     d2 = utilities.addVars(d2, vars_df)
     d2 = utilities.addMeta(d2, meta_dict)
 
@@ -90,6 +96,8 @@ def prepare_and_write(dataset, outpath, vars_df, meta_dict, time='60min', resamp
     logger.info(f'Written to {out_csv}')
     logger.info(f'Written to {out_nc}')
 
+
+        
 def writeAll(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
     '''Write L3 hourly, daily and monthly datasets to .nc and .csv
     files
@@ -169,16 +177,16 @@ def getColNames(vars_df, ds, remove_nan_fields=False):
     list
         Variable names
     '''
-    if 'data_type' in ds.attrs.keys():
-        if ds.attrs['data_type']=='TX':
-            vars_df = vars_df.loc[vars_df['data_type'].isin(['TX','all'])]
-        elif ds.attrs['data_type']=='STM' or ds.attrs['data_type']=='raw':
-            vars_df = vars_df.loc[vars_df['data_type'].isin(['raw','all'])]
-    if 'number_of_booms' in ds.attrs.keys():
+    # selecting variable list based on level
+    vars_df = vars_df.loc[vars_df[ds.attrs['level']] == 1]
+
+    # selecting variable list based on geometry
+    if ds.attrs['level'] in ['L0', 'L1', 'L2']:
         if ds.attrs['number_of_booms']==1:
             vars_df = vars_df.loc[vars_df['station_type'].isin(['one-boom','all'])]
         elif ds.attrs['number_of_booms']==2:
             vars_df = vars_df.loc[vars_df['station_type'].isin(['two-boom','all'])]
+            
     var_list = list(vars_df.index)
     if remove_nan_fields:
         for v in var_list:

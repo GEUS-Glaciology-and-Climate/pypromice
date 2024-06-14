@@ -32,6 +32,7 @@ def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071,
         1013.246.
     '''
     ds = L2
+    ds.attrs['level'] = 'L3'
 
     T_100 = _getTempK(T_0)                                                     # Get steam point temperature as K 
     

@@ -31,6 +31,7 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     '''
     assert(type(L0) == xr.Dataset)
     ds = L0
+    ds.attrs['level'] = 'L1'
 
     for l in list(ds.keys()):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:

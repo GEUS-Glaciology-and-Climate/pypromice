@@ -3,7 +3,6 @@ import os, logging, sys
 import xarray as xr
 from argparse import ArgumentParser
 import pypromice
-from pypromice.process.load import getVars, getMeta
 from pypromice.process.L2toL3 import toL3
 from pypromice.process.write import prepare_and_write
 
@@ -34,10 +33,6 @@ def get_l2tol3():
         level=logging.INFO,
         stream=sys.stdout,
     )
-
-    # Define variables and metadata (either from file or pypromice package defaults)
-    v = getVars(args.variables)
-    m = getMeta(args.metadata)
   
     # Define Level 2 dataset from file
     with xr.open_dataset(args.inpath) as l2:
@@ -55,9 +50,9 @@ def get_l2tol3():
     
     # Write Level 3 dataset to file if output directory given
     if args.outpath is not None:
-        prepare_and_write(l3, args.outpath, v, m, '60min')
-        prepare_and_write(l3, args.outpath, v, m, '1D')
-        prepare_and_write(l3, args.outpath, v, m, 'M')
+        prepare_and_write(l3, args.outpath, args.variables, args.metadata, '60min')
+        prepare_and_write(l3, args.outpath, args.variables, args.metadata, '1D')
+        prepare_and_write(l3, args.outpath, args.variables, args.metadata, 'M')
 
 if __name__ == "__main__":  
     get_l2tol3()
