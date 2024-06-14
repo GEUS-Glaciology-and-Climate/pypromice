@@ -1,14 +1,10 @@
 #!/usr/bin/env python
 import logging, os, sys, unittest, toml, pkg_resources
 from argparse import ArgumentParser
-import pypromice
-from pypromice.process.aws import AWS
-from pypromice.process import load
 from pypromice.process.write import prepare_and_write
 import numpy as np
 import pandas as pd
 import xarray as xr
-from pypromice.process.load import getVars, getMeta
 
 def parse_arguments_joinl3(debug_args=None):
     parser = ArgumentParser(description="AWS L3 script for the processing L3 data from L2 and merging the L3 data with its historical site. An hourly, daily and monthly L3 data product is outputted to the defined output path")
@@ -173,6 +169,7 @@ def join_l3():
     conf = toml.load(config_file)
 
     l3m = xr.Dataset()
+    l3m.attrs['level'] = 'L3'
     for stid in conf['stations']:
         print(stid)
         
@@ -245,13 +242,11 @@ def join_l3():
     # Assign site id
     l3m.attrs['site_id'] = args.site
     l3m.attrs['stations'] = conf['stations']
-    v = getVars()
-    m = getMeta()
+
     if args.outpath is not None:
-        prepare_and_write(l3m, args.outpath, v, m, '60min')
-        prepare_and_write(l3m, args.outpath, v, m, '1D')
-        prepare_and_write(l3m, args.outpath, v, m, 'M')
-    # %% 
+        prepare_and_write(l3m, args.outpath, args.variables, args.metadata, '60min')
+        prepare_and_write(l3m, args.outpath, args.variables, args.metadata, '1D')
+        prepare_and_write(l3m, args.outpath, args.variables, args.metadata, 'M')
         
 if __name__ == "__main__":  
     join_l3()

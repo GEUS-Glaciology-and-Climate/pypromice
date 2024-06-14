@@ -70,6 +70,7 @@ def toL2(
         Level 2 dataset
     '''
     ds = L1.copy(deep=True)                                                    # Reassign dataset
+    ds.attrs['level'] = 'L2'
     try:
         ds = adjustTime(ds)                                                    # Adjust time after a user-defined csv files
         ds = flagNAN(ds)                                                       # Flag NaNs after a user-defined csv files

@@ -3,7 +3,6 @@ import os, unittest
 import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
-from pypromice.process.load import getVars, getMeta
 from pypromice.process.utilities import addMeta, roundValues
 from pypromice.process.write import prepare_and_write
 from pypromice.process.L1toL2 import correctPrecip
@@ -51,10 +50,6 @@ def loadArr(infile):
 def join_l2():
     args = parse_arguments_join()
 
-    # Define variables and metadata (either from file or pypromice package defaults)
-    v = getVars(args.variables)
-    m = getMeta(args.metadata)
-            
     # Check files
     if os.path.isfile(args.file1) and os.path.isfile(args.file2): 
 
@@ -99,7 +94,7 @@ def join_l2():
 
 
     # Resample to hourly, daily and monthly datasets and write to file
-    prepare_and_write(all_ds, args.outpath, v, m, resample = False)
+    prepare_and_write(all_ds, args.outpath, args.variables, args.metadata, resample = False)
     
     print(f'Files saved to {os.path.join(args.outpath, name)}...')
 

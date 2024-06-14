@@ -109,11 +109,9 @@ def populateMeta(ds, conf, skip):
     ds : xarray.Dataset
         L0 dataset with metadata populated as Dataset attributes
     '''
-    meta = {}
     # skip = ["columns", "skiprows"]
     for k in conf.keys():
-        if k not in skip: meta[k] = conf[k]
-    ds.attrs = meta
+        if k not in skip: ds.attrs[k] = conf[k]
     return ds
 
 
