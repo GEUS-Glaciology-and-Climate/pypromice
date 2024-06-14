@@ -47,6 +47,9 @@ def reformat_lon(dataset, exempt=['UWN', 'Roof_GEUS', 'Roof_PROMICE']):
         id = dataset.attrs['site_id']
 
     if id not in exempt:
+        if 'gps_lon' not in dataset.keys():
+            print("?????????", id, "missing gps_lon")
+            return dataset
         dataset['gps_lon'] = dataset['gps_lon'] * -1
     return dataset
 
