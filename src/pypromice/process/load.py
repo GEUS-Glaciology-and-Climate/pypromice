@@ -98,7 +98,7 @@ def getL0(infile, nodata, cols, skiprows, file_version,
         try:
             df.index = pd.to_datetime(df.index)
         except  ValueError as e:
-            logger.info("\n", infile)
+            logger.info("\n"+ infile)
             logger.info("\nValueError:")
             logger.info(e)
             logger.info('\t\t> Trying pd.to_datetime with format=mixed')

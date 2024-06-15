@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 import pypromice
 from pypromice.process.L2toL3 import toL3
 from pypromice.process.write import prepare_and_write
+logger = logging.getLogger(__name__)
 
 def parse_arguments_l2tol3(debug_args=None):
     parser = ArgumentParser(description="AWS L3 script for the processing L3 "+

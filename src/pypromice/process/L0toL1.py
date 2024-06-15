@@ -5,9 +5,9 @@ AWS Level 0 (L0) to Level 1 (L1) data processing
 import numpy as np
 import pandas as pd
 import xarray as xr
-import re
-
+import re, logging
 from pypromice.process.value_clipping import clip_values
+logger = logging.getLogger(__name__)
 
 
 def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
@@ -28,7 +28,7 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     -------
     ds : xarray.Dataset
         Level 1 dataset
-    '''
+    '''    
     assert(type(L0) == xr.Dataset)
     ds = L0
     ds.attrs['level'] = 'L1'

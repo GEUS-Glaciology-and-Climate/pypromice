@@ -45,7 +45,6 @@ setuptools.setup(
         'join_l2 = pypromice.process.join_l2:join_l2',
         'join_l3 = pypromice.process.join_l3:join_l3',
         'get_l2 = pypromice.process.get_l2:get_l2',
-        'get_l3 = pypromice.process.get_l3:get_l3',
         'get_l2tol3 = pypromice.process.get_l2tol3:get_l2tol3',
         'get_watsontx = pypromice.tx.get_watsontx:get_watsontx',
         'get_bufr = pypromice.postprocess.get_bufr:main',

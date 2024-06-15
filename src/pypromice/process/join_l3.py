@@ -5,6 +5,7 @@ from pypromice.process.write import prepare_and_write
 import numpy as np
 import pandas as pd
 import xarray as xr
+logger = logging.getLogger(__name__)
 
 def parse_arguments_joinl3(debug_args=None):
     parser = ArgumentParser(description="AWS L3 script for the processing L3 data from L2 and merging the L3 data with its historical site. An hourly, daily and monthly L3 data product is outputted to the defined output path")
@@ -194,7 +195,6 @@ def join_l3():
     station_dict = build_station_dict(args.config_folder)
 
     l3m = xr.Dataset()
-    l3m.attrs['level'] = 'L3'
     for stid in  station_dict[args.site]:
         logger.info(stid)
         
@@ -208,7 +208,7 @@ def join_l3():
             if os.path.isfile(filepath):
                 is_gcnet = True
         if not is_promice and not is_gcnet:            
-            logger.info(stid, 'not found either in', args.folder_l3, 'or', args.folder_gcnet)
+            logger.info(stid+' not found either in '+args.folder_l3+' or '+args.folder_gcnet)
             continue
 
         l3, _ = loadArr(filepath)
@@ -246,17 +246,20 @@ def join_l3():
                        l3 = l3.drop(v)
                     else:
                        l3m[v] = ('time', l3m.t_u.data*np.nan)
-            logger.info('Unused variables in older dataset:',list_dropped)
+            logger.info('Unused variables in older dataset: '+' '.join(list_dropped))
                         
             # saving attributes of station under an attribute called $stid
-            l3m = l3m.assign_attrs({stid : l3.attrs.copy()})
+            st_attrs = l3m.attrs.get('stations_attributes', {})
+            st_attrs[stid] = l3.attrs.copy()
+            l3m.attrs["stations_attributes"] = st_attrs
+
             # then stripping attributes
             attrs_list = list(l3.attrs.keys())
             for k in attrs_list:
                 del l3.attrs[k]
             
-            l3m.attrs[stid]['first_timestamp'] = l3.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
-            l3m.attrs[stid]['last_timestamp'] = l3m.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+            l3m.attrs['stations_attributes'][stid]['first_timestamp'] = l3.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+            l3m.attrs['stations_attributes'][stid]['last_timestamp'] = l3m.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
 
             # merging by time block
             l3m = xr.concat((l3.sel(
@@ -268,7 +271,7 @@ def join_l3():
     # Assign site id
     l3m.attrs['site_id'] = args.site
     l3m.attrs['stations'] = station_dict[args.site]
-
+    l3m.attrs['level'] = 'L3'
     if args.outpath is not None:
         prepare_and_write(l3m, args.outpath, args.variables, args.metadata, '60min')
         prepare_and_write(l3m, args.outpath, args.variables, args.metadata, '1D')

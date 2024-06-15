@@ -154,14 +154,15 @@ def addMeta(ds, meta):
     ds : xarray.Dataset
         Dataset with metadata
    '''
-    ds['lon'] = ds['gps_lon'].mean()
-    ds['lon'].attrs = ds['gps_lon'].attrs
+    if 'gps_lon' in ds.keys():
+        ds['lon'] = ds['gps_lon'].mean()
+        ds['lon'].attrs = ds['gps_lon'].attrs
 
-    ds['lat'] = ds['gps_lat'].mean()
-    ds['lat'].attrs = ds['gps_lat'].attrs
+        ds['lat'] = ds['gps_lat'].mean()
+        ds['lat'].attrs = ds['gps_lat'].attrs
 
-    ds['alt'] = ds['gps_alt'].mean()
-    ds['alt'].attrs = ds['gps_alt'].attrs
+        ds['alt'] = ds['gps_alt'].mean()
+        ds['alt'].attrs = ds['gps_alt'].attrs
 
     # for k in ds.keys(): # for each var
     #     if 'units' in ds[k].attrs:

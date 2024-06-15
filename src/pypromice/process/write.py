@@ -79,9 +79,17 @@ def prepare_and_write(dataset, outpath, vars_df=None, meta_dict=None, time='60mi
         out_csv = os.path.join(outdir, name+'_hour.csv')
         out_nc = os.path.join(outdir, name+'_hour.nc')
     elif t == 86400:
+        # removing instantaneous values from daily and monthly files
+        for v in col_names:
+            if ('_i' in v) and ('_i_' not in v):
+                col_names.remove(v)
         out_csv = os.path.join(outdir, name+'_day.csv')
         out_nc = os.path.join(outdir, name+'_day.nc')
     else:
+        # removing instantaneous values from daily and monthly files
+        for v in col_names:
+            if ('_i' in v) and ('_i_' not in v):
+                col_names.remove(v)
         out_csv = os.path.join(outdir, name+'_month.csv')
         out_nc = os.path.join(outdir, name+'_month.nc')
     if not os.path.isdir(outdir):
@@ -160,6 +168,8 @@ def writeNC(outfile, Lx, col_names=None):
         names = [c for c in col_names if c in list(Lx.keys())]
     else:
         names = list(Lx.keys())
+    for var in names:
+        Lx[var].encoding = {}
     Lx[names].to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)
 
 def getColNames(vars_df, ds, remove_nan_fields=False):
