@@ -160,18 +160,43 @@ def gcnet_postprocessing(l3):
     #         df_in.loc[[df_in.z_surf_combined.first_valid_index()],:].index.astype('int64')[0]
     #     )  +  df_in.loc[df_in.z_surf_combined.first_valid_index(), 'z_surf_combined']
     # return l3m
-
+    
+def build_station_dict(config_folder):
+    station_dict = {}
+    
+    # Iterate through all files in the given folder
+    for filename in os.listdir(config_folder):
+        if filename.endswith(".toml"):
+            # Construct full file path
+            file_path = os.path.join(config_folder, filename)
+            
+            # Load TOML file
+            with open(file_path, 'r') as file:
+                data = toml.load(file)
+                station_key = next(iter(data))
+                station_data = data[station_key]
+               
+                if station_data["station_site"] in station_dict:
+                    station_dict[station_data["station_site"]].append(station_key)
+                else:
+                    station_dict[station_data["station_site"]] = [station_key]
+    
+    return station_dict
+    
 def join_l3():
     args = parse_arguments_joinl3()
-                  
-                      
-    config_file = os.path.join(args.config_folder, args.site+'.toml')
-    conf = toml.load(config_file)
+    logging.basicConfig(
+        format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
+        level=logging.INFO,
+        stream=sys.stdout,
+    )
+    
+    station_dict = build_station_dict(args.config_folder)
 
     l3m = xr.Dataset()
     l3m.attrs['level'] = 'L3'
-    for stid in conf['stations']:
-        print(stid)
+    for stid in  station_dict[args.site]:
+        logger.info(stid)
         
         is_promice = False
         is_gcnet = False
@@ -183,7 +208,7 @@ def join_l3():
             if os.path.isfile(filepath):
                 is_gcnet = True
         if not is_promice and not is_gcnet:            
-            print(stid, 'not found either in', args.folder_l3, 'or', args.folder_gcnet)
+            logger.info(stid, 'not found either in', args.folder_l3, 'or', args.folder_gcnet)
             continue
 
         l3, _ = loadArr(filepath)
@@ -213,14 +238,15 @@ def join_l3():
                     
             # if l3 (older data) has variables that does not have l3m (newer data)
             # then they are removed from l3
-            print('dropping')
+            list_dropped = []
             for v in l3.data_vars:
                 if v not in l3m.data_vars:
                     if v != 'z_stake':
-                       print(v)
+                       list_dropped.append(v)
                        l3 = l3.drop(v)
                     else:
                        l3m[v] = ('time', l3m.t_u.data*np.nan)
+            logger.info('Unused variables in older dataset:',list_dropped)
                         
             # saving attributes of station under an attribute called $stid
             l3m = l3m.assign_attrs({stid : l3.attrs.copy()})
@@ -241,7 +267,7 @@ def join_l3():
 
     # Assign site id
     l3m.attrs['site_id'] = args.site
-    l3m.attrs['stations'] = conf['stations']
+    l3m.attrs['stations'] = station_dict[args.site]
 
     if args.outpath is not None:
         prepare_and_write(l3m, args.outpath, args.variables, args.metadata, '60min')

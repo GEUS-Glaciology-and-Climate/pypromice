@@ -43,13 +43,17 @@ def loadArr(infile):
     if 'number_of_booms' in ds.attrs.keys():
         ds.attrs['number_of_booms'] = int(ds.attrs['number_of_booms'])
 
-    print(f'{name} array loaded from {infile}')
+    logger.info(f'{name} array loaded from {infile}')
     return ds, name
     
 
 def join_l2():
     args = parse_arguments_join()
-
+    logging.basicConfig(
+        format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
+        level=logging.INFO,
+        stream=sys.stdout,
+    )
     # Check files
     if os.path.isfile(args.file1) and os.path.isfile(args.file2): 
 
@@ -61,7 +65,7 @@ def join_l2():
         if n1.lower() == n2.lower():
             
         	# Merge arrays
-            print(f'Combining {args.file1} with {args.file2}...')
+            logger.info(f'Combining {args.file1} with {args.file2}...')
             name = n1
             all_ds = ds1.combine_first(ds2)
             
@@ -75,28 +79,28 @@ def join_l2():
                     all_ds['precip_l_cor'],  _ = correctPrecip(all_ds['precip_l'], 
                                                                 all_ds['wspd_l'])                    
         else:
-            print(f'Mismatched station names {n1}, {n2}')
+            logger.info(f'Mismatched station names {n1}, {n2}')
             exit()            
     
     elif os.path.isfile(args.file1):  
         ds1, name = loadArr(args.file1)
-        print(f'Only one file found {args.file1}...')
+        logger.info(f'Only one file found {args.file1}...')
         all_ds = ds1  
 
     elif os.path.isfile(args.file2):
         ds2, name = loadArr(args.file2)
-        print(f'Only one file found {args.file2}...')
+        logger.info(f'Only one file found {args.file2}...')
         all_ds = ds2  
     
     else:
-        print(f'Invalid files {args.file1}, {args.file2}')
+        logger.info(f'Invalid files {args.file1}, {args.file2}')
         exit()
 
 
     # Resample to hourly, daily and monthly datasets and write to file
     prepare_and_write(all_ds, args.outpath, args.variables, args.metadata, resample = False)
     
-    print(f'Files saved to {os.path.join(args.outpath, name)}...')
+    logger.info(f'Files saved to {os.path.join(args.outpath, name)}...')
 
 if __name__ == "__main__":  
     join_l2()
