@@ -248,7 +248,7 @@ def getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef):
         rho_af = 1145
     else:
         rho_af = np.nan
-        print('ERROR: Incorrect metadata: "pt_antifreeze" = ' +
+        logger.info('ERROR: Incorrect metadata: "pt_antifreeze" = ' +
               f'{pt_antifreeze}. Antifreeze mix only supported at 50% or 100%')
         # assert(False)
                 
