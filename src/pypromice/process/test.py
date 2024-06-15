@@ -61,20 +61,20 @@ class TestProcess(unittest.TestCase):
         '''Test get_l2 CLI'''
         exit_status = os.system('get_l2 -h')
         self.assertEqual(exit_status, 0)
-
-    def testCLIgetl3(self):
-        '''Test get_l3 CLI'''
-        exit_status = os.system('get_l3 -h')
-        self.assertEqual(exit_status, 0)
         
     def testCLIjoinl2(self):
         '''Test join_l2 CLI'''
         exit_status = os.system('join_l2 -h')
         self.assertEqual(exit_status, 0)
         
-    def testCLIjoinl3(self):
-        '''Test join_l2 CLI'''
+    def testCLIgetl2tol3(self):
+        '''Test get_l2tol3 CLI'''
         exit_status = os.system('get_l2tol3 -h')
+        self.assertEqual(exit_status, 0)
+        
+    def testCLIjoinl3(self):
+        '''Test join_l3 CLI'''
+        exit_status = os.system('join_l3 -h')
         self.assertEqual(exit_status, 0)
 
 if __name__ == "__main__":

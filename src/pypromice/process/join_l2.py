@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-import os, unittest
+import logging, sys, os, unittest
 import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
 from pypromice.process.utilities import addMeta, roundValues
 from pypromice.process.write import prepare_and_write
 from pypromice.process.L1toL2 import correctPrecip
+logger = logging.getLogger(__name__)
 
 def parse_arguments_join():
     parser = ArgumentParser(description="AWS L2 joiner for merging together two L2 products, for example an L2 RAW and L2 TX data product. An hourly, daily and monthly L2 data product is outputted to the defined output path")
@@ -96,6 +97,7 @@ def join_l2():
         logger.info(f'Invalid files {args.file1}, {args.file2}')
         exit()
 
+    all_ds.attrs['format'] = 'merged RAW and TX'
 
     # Resample to hourly, daily and monthly datasets and write to file
     prepare_and_write(all_ds, args.outpath, args.variables, args.metadata, resample = False)
