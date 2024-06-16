@@ -2,13 +2,14 @@
 import logging, os, sys, unittest
 from argparse import ArgumentParser
 from pypromice.process.aws import AWS
+from pypromice.process.write import prepare_and_write
 
 def parse_arguments_l2():
     parser = ArgumentParser(description="AWS L2 processor")
 
     parser.add_argument('-c', '--config_file', type=str, required=True,
                         help='Path to config (TOML) file')
-    parser.add_argument('-i', '--inpath', default='data', type=str, required=True, 
+    parser.add_argument('-i', '--inpath', type=str, required=True, 
                         help='Path to input data')
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, 
                         help='Path where to write output')
@@ -27,7 +28,8 @@ def get_l2():
         level=logging.INFO,
         stream=sys.stdout,
     )
-
+    
+    # Define input path
     station_name = args.config_file.split('/')[-1].split('.')[0] 
     station_path = os.path.join(args.inpath, station_name)
 
@@ -36,11 +38,19 @@ def get_l2():
     else:
         aws = AWS(args.config_file, args.inpath, args.variables, args.metadata)
 
-    aws.process() 
-     
+    # Perform level 1 and 2 processing
+    aws.getL1()
+    aws.getL2() 
+    
+    # Write out level 2
     if args.outpath is not None:
-        aws.write(args.outpath)
-        
+        if not os.path.isdir(args.outpath):
+            os.mkdir(args.outpath)
+        if aws.L2.attrs['format'] == 'raw':
+            prepare_and_write(aws.L2, args.outpath, args.variables, args.metadata, '10min')
+        prepare_and_write(aws.L2, args.outpath, args.variables, args.metadata, '60min')
+
+
 if __name__ == "__main__":  
     get_l2()
         

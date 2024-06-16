@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-import os, unittest
+import logging, sys, os, unittest
 import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
-from pypromice.process import getVars, getMeta, addMeta, getColNames, \
-    roundValues, resampleL2, writeAll
+from pypromice.process.utilities import addMeta, roundValues
+from pypromice.process.write import prepare_and_write
 from pypromice.process.L1toL2 import correctPrecip
+logger = logging.getLogger(__name__)
 
 def parse_arguments_join():
     parser = ArgumentParser(description="AWS L2 joiner for merging together two L2 products, for example an L2 RAW and L2 TX data product. An hourly, daily and monthly L2 data product is outputted to the defined output path")
@@ -19,31 +20,41 @@ def parse_arguments_join():
     			 help='Path to variables look-up table .csv file for variable name retained'''),
     parser.add_argument('-m', '--metadata', default=None, type=str, required=False, 
     			 help='Path to metadata table .csv file for metadata information'''),
-    parser.add_argument('-d', '--datatype', default='raw', type=str, required=False, 
-    			 help='Data type to output, raw or tx')
     args = parser.parse_args()
     return args
 
 def loadArr(infile):
-    if infile.split('.')[-1].lower() in 'csv':
+    if infile.split('.')[-1].lower() == 'csv':
         df = pd.read_csv(infile, index_col=0, parse_dates=True)
         ds = xr.Dataset.from_dataframe(df)  
-    
-    elif infile.split('.')[-1].lower() in 'nc':
-        ds = xr.open_dataset(infile)
-    
+    elif infile.split('.')[-1].lower() == 'nc':
+        with xr.open_dataset(infile) as ds:
+            ds.load()
+        for varname in ds.variables:
+            if 'encoding' in ds[varname].attrs:
+                del ds[varname].attrs['encoding']
+
     try:
-        name = ds.attrs['station_name'] 
+        name = ds.attrs['station_id'] 
     except:
         name = infile.split('/')[-1].split('.')[0].split('_hour')[0].split('_10min')[0]
-        
-    print(f'{name} array loaded from {infile}')
+        ds.attrs['station_id'] = name
+    if 'bedrock' in ds.attrs.keys():
+        ds.attrs['bedrock'] = ds.attrs['bedrock'] == 'True'
+    if 'number_of_booms' in ds.attrs.keys():
+        ds.attrs['number_of_booms'] = int(ds.attrs['number_of_booms'])
+
+    logger.info(f'{name} array loaded from {infile}')
     return ds, name
     
 
 def join_l2():
     args = parse_arguments_join()
-    
+    logging.basicConfig(
+        format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
+        level=logging.INFO,
+        stream=sys.stdout,
+    )
     # Check files
     if os.path.isfile(args.file1) and os.path.isfile(args.file2): 
 
@@ -55,7 +66,7 @@ def join_l2():
         if n1.lower() == n2.lower():
             
         	# Merge arrays
-            print(f'Combining {args.file1} with {args.file2}...')
+            logger.info(f'Combining {args.file1} with {args.file2}...')
             name = n1
             all_ds = ds1.combine_first(ds2)
             
@@ -69,62 +80,29 @@ def join_l2():
                     all_ds['precip_l_cor'],  _ = correctPrecip(all_ds['precip_l'], 
                                                                 all_ds['wspd_l'])                    
         else:
-            print(f'Mismatched station names {n1}, {n2}')
+            logger.info(f'Mismatched station names {n1}, {n2}')
             exit()            
     
     elif os.path.isfile(args.file1):  
         ds1, name = loadArr(args.file1)
-        print(f'Only one file found {args.file1}...')
+        logger.info(f'Only one file found {args.file1}...')
         all_ds = ds1  
 
     elif os.path.isfile(args.file2):
         ds2, name = loadArr(args.file2)
-        print(f'Only one file found {args.file2}...')
+        logger.info(f'Only one file found {args.file2}...')
         all_ds = ds2  
     
     else:
-        print(f'Invalid files {args.file1}, {args.file2}')
+        logger.info(f'Invalid files {args.file1}, {args.file2}')
         exit()
-    
-    # Get hourly, daily and monthly datasets
-    print('Resampling L2 data to hourly, daily and monthly resolutions...')
-    l2_h = resampleL2(all_ds, '60min')
-    l2_d = resampleL2(all_ds, '1D')
-    l2_m = resampleL2(all_ds, 'M')
-    
-    print(f'Adding variable information from {args.variables}...')
-        
-    # Load variables look-up table
-    var = getVars(args.variables)
-        	
-    # Round all values to specified decimals places
-    l2_h = roundValues(l2_h, var)
-    l2_d = roundValues(l2_d, var)
-    l2_m = roundValues(l2_m, var)
-        
-    # Get columns to keep
-    if hasattr(all_ds, 'p_l'):
-        col_names = getColNames(var, 2, args.datatype.lower())  
-    else:
-        col_names = getColNames(var, 1, args.datatype.lower())    
 
-    # Assign station id
-    for l in [l2_h, l2_d, l2_m]:
-        l.attrs['station_id'] = name
+    all_ds.attrs['format'] = 'merged RAW and TX'
+
+    # Resample to hourly, daily and monthly datasets and write to file
+    prepare_and_write(all_ds, args.outpath, args.variables, args.metadata, resample = False)
     
-    # Assign metadata
-    print(f'Adding metadata from {args.metadata}...')
-    m = getMeta(args.metadata)
-    l2_h = addMeta(l2_h, m)
-    l2_d = addMeta(l2_d, m)
-    l2_m = addMeta(l2_m, m)
-      
-    # Set up output path
-    out = os.path.join(args.outpath, name)
-    
-    # Write to files
-    writeAll(out, name, l2_h, l2_d, l2_m, col_names)
-    print(f'Files saved to {os.path.join(out, name)}...')
+    logger.info(f'Files saved to {os.path.join(args.outpath, name)}...')
 
 if __name__ == "__main__":  
     join_l2()

@@ -5,9 +5,9 @@ AWS Level 0 (L0) to Level 1 (L1) data processing
 import numpy as np
 import pandas as pd
 import xarray as xr
-import re
-
+import re, logging
 from pypromice.process.value_clipping import clip_values
+logger = logging.getLogger(__name__)
 
 
 def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
@@ -28,9 +28,10 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     -------
     ds : xarray.Dataset
         Level 1 dataset
-    '''
+    '''    
     assert(type(L0) == xr.Dataset)
     ds = L0
+    ds.attrs['level'] = 'L1'
 
     for l in list(ds.keys()):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
@@ -247,7 +248,7 @@ def getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef):
         rho_af = 1145
     else:
         rho_af = np.nan
-        print('ERROR: Incorrect metadata: "pt_antifreeze" = ' +
+        logger.info('ERROR: Incorrect metadata: "pt_antifreeze" = ' +
               f'{pt_antifreeze}. Antifreeze mix only supported at 50% or 100%')
         # assert(False)
                 
