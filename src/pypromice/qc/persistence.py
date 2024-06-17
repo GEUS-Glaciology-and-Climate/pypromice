@@ -161,6 +161,6 @@ def duration_consecutive_true(
     # assert series.dtype == bool
     cumsum = ((series.index - series.index[0]).total_seconds()/3600).to_series(index=series.index)
     is_first = series.astype("int").diff() == 1
-    offset = (is_first * cumsum).replace(0, np.nan).fillna(method="ffill").fillna(0)
+    offset = (is_first * cumsum).replace(0, np.nan).ffill().fillna(0)
 
     return (cumsum - offset) * series
