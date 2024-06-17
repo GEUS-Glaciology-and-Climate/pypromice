@@ -86,7 +86,7 @@ def toL2(
 
     # filtering gps_lat, gps_lon and gps_alt based on the difference to a baseline elevation
     # right now baseline elevation is gapfilled monthly median elevation
-    baseline_elevation = (ds.gps_alt.to_series().resample('M').median()
+    baseline_elevation = (ds.gps_alt.to_series().resample('MS').median()
                           .reindex(ds.time.to_series().index, method='nearest')
                           .ffill().bfill())
     mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) & ds.gps_alt.notnull()
@@ -327,7 +327,7 @@ def smoothTilt(da: xr.DataArray, threshold=0.2):
     # we calculate the moving standard deviation over a 3-day sliding window
     # hourly resampling is necessary to make sure the same threshold can be used 
     # for 10 min and hourly data
-    moving_std_gap_filled = da.to_series().resample('H').median().rolling(
+    moving_std_gap_filled = da.to_series().resample('h').median().rolling(
                     3*24, center=True, min_periods=2
                     ).std().reindex(da.time, method='bfill').values
     # we select the good timestamps and gapfill assuming that
@@ -354,7 +354,7 @@ def smoothRot(da: xr.DataArray, threshold=4):
     xarray.DataArray
         smoothed rotation measurements from inclinometer
     '''
-    moving_std_gap_filled = da.to_series().resample('H').median().rolling(
+    moving_std_gap_filled = da.to_series().resample('h').median().rolling(
                     3*24, center=True, min_periods=2
                     ).std().reindex(da.time, method='bfill').values
     # same as for tilt with, in addition:
