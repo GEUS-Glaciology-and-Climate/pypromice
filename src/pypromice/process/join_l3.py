@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import logging, os, sys, unittest, toml, pkg_resources
 from argparse import ArgumentParser
+from pypromice.process.load import getVars, getMeta
 from pypromice.process.write import prepare_and_write
 import numpy as np
 import pandas as pd
@@ -137,7 +138,7 @@ def gcnet_postprocessing(l3):
     return l3
 
 # will be used in the future
-# def aligning_surface_heights(l3m, l3):
+# def aligning_surface_heights(l3_merged, l3):
     # df_aux['z_surf_combined'] = \
     #     df_aux['z_surf_combined'] \
     #         - df_aux.loc[df_aux.z_surf_combined.last_valid_index(), 'z_surf_combined'] \
@@ -160,7 +161,7 @@ def gcnet_postprocessing(l3):
     #     - fit_fn(
     #         df_in.loc[[df_in.z_surf_combined.first_valid_index()],:].index.astype('int64')[0]
     #     )  +  df_in.loc[df_in.z_surf_combined.first_valid_index(), 'z_surf_combined']
-    # return l3m
+    # return l3_merged
     
 def build_station_list(config_folder: str, target_station_site: str):
     """
@@ -206,7 +207,7 @@ def join_l3():
     
     station_list = build_station_list(args.config_folder, args.site)
 
-    l3m = xr.Dataset()
+    l3_merged = xr.Dataset()
     for stid in  station_list:
         logger.info(stid)
         
@@ -232,62 +233,65 @@ def join_l3():
         if 'lat' in l3.keys():
             l3 = l3.reset_coords(['lat', 'lon', 'alt'])
 
-        if len(l3m)==0:
+        if len(l3_merged)==0:
             # saving attributes of station under an attribute called $stid
-            l3m.attrs[stid] = l3.attrs.copy()
+            l3_merged.attrs[stid] = l3.attrs.copy()
             # then stripping attributes
             attrs_list = list(l3.attrs.keys())
             for k in attrs_list:
                 del l3.attrs[k]
                 
-            l3m = l3.copy()
+            l3_merged = l3.copy()
         else:
-            # if l3 (older data) is missing variables compared to l3m (newer data)
+            # if l3 (older data) is missing variables compared to l3_merged (newer data)
             # , then we fill them with nan
-            for v in l3m.data_vars:
+            for v in l3_merged.data_vars:
                 if  v not in l3.data_vars:
                     l3[v] = l3.t_u*np.nan
                     
-            # if l3 (older data) has variables that does not have l3m (newer data)
+            # if l3 (older data) has variables that does not have l3_merged (newer data)
             # then they are removed from l3
             list_dropped = []
             for v in l3.data_vars:
-                if v not in l3m.data_vars:
+                if v not in l3_merged.data_vars:
                     if v != 'z_stake':
                        list_dropped.append(v)
                        l3 = l3.drop(v)
                     else:
-                       l3m[v] = ('time', l3m.t_u.data*np.nan)
+                       l3_merged[v] = ('time', l3_merged.t_u.data*np.nan)
             logger.info('Unused variables in older dataset: '+' '.join(list_dropped))
                         
             # saving attributes of station under an attribute called $stid
-            st_attrs = l3m.attrs.get('stations_attributes', {})
+            st_attrs = l3_merged.attrs.get('stations_attributes', {})
             st_attrs[stid] = l3.attrs.copy()
-            l3m.attrs["stations_attributes"] = st_attrs
+            l3_merged.attrs["stations_attributes"] = st_attrs
 
             # then stripping attributes
             attrs_list = list(l3.attrs.keys())
             for k in attrs_list:
                 del l3.attrs[k]
             
-            l3m.attrs['stations_attributes'][stid]['first_timestamp'] = l3.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
-            l3m.attrs['stations_attributes'][stid]['last_timestamp'] = l3m.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+            l3_merged.attrs['stations_attributes'][stid]['first_timestamp'] = l3.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+            l3_merged.attrs['stations_attributes'][stid]['last_timestamp'] = l3_merged.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
 
             # merging by time block
-            l3m = xr.concat((l3.sel(
+            l3_merged = xr.concat((l3.sel(
                         time=slice(l3.time.isel(time=0),
-                                   l3m.time.isel(time=0))
-                        ), l3m), dim='time')
+                                   l3_merged.time.isel(time=0))
+                        ), l3_merged), dim='time')
             
 
     # Assign site id
-    l3m.attrs['site_id'] = args.site
-    l3m.attrs['stations'] = station_dict[args.site]
-    l3m.attrs['level'] = 'L3'
+    l3_merged.attrs['site_id'] = args.site
+    l3_merged.attrs['stations'] = ' '.join(station_list)
+    l3_merged.attrs['level'] = 'L3'
+    
+    v = getVars(args.variables)
+    m = getMeta(args.metadata)
     if args.outpath is not None:
-        prepare_and_write(l3m, args.outpath, args.variables, args.metadata, '60min')
-        prepare_and_write(l3m, args.outpath, args.variables, args.metadata, '1D')
-        prepare_and_write(l3m, args.outpath, args.variables, args.metadata, 'M')
+        prepare_and_write(l3_merged, args.outpath, v, m, '60min')
+        prepare_and_write(l3_merged, args.outpath, v, m, '1D')
+        prepare_and_write(l3_merged, args.outpath, v, m, 'M')
         
 if __name__ == "__main__":  
     join_l3()
