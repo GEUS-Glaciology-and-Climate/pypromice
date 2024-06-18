@@ -89,7 +89,21 @@ def readNead(infile):
         df['timestamp'] = pd.to_datetime(df.timestamp).dt.tz_localize(None)
         df = df.set_index('timestamp')
         ds = df.to_xarray()
-        ds.attrs = meta   
+        ds.attrs = meta
+        
+        # renaming variables
+        file_path = pkg_resources.resource_stream('pypromice', 'ressources/variable_aliases_GC-Net.csv')
+        var_name = pd.read_csv(file_path)
+        var_name = var_name.set_index('old_name').GEUS_name
+        msk = [v for v in var_name.index if v in ds.data_vars]
+        var_name = var_name.loc[msk].to_dict()
+        
+        # combining thermocouple and CS100 temperatures
+        ds['TA1'] =  ds['TA1'].combine_first(ds['TA3'])
+        ds['TA2'] =  ds['TA2'].combine_first(ds['TA4'])
+        
+        ds=ds.rename(var_name)
+        ds=ds.rename({'timestamp':'time'})
     return ds
 
 
@@ -120,22 +134,6 @@ def loadArr(infile):
         
     print(f'{name} array loaded from {infile}')
     return ds, name
-
-
-def gcnet_postprocessing(l3):
-    file_path = pkg_resources.resource_stream('pypromice', 'ressources/variable_aliases_GC-Net.csv')
-     
-    var_name = pd.read_csv(file_path)
-    var_name = var_name.set_index('old_name').GEUS_name
-    msk = [v for v in var_name.index if v in l3.data_vars]
-    var_name = var_name.loc[msk].to_dict()
-    
-    l3['TA1'] =  l3['TA1'].combine_first(l3['TA3'])
-    l3['TA2'] =  l3['TA2'].combine_first(l3['TA4'])
-    
-    l3=l3.rename(var_name)
-    l3=l3.rename({'timestamp':'time'})
-    return l3
 
 # will be used in the future
 # def aligning_surface_heights(l3_merged, l3):
@@ -225,9 +223,6 @@ def join_l3():
             continue
 
         l3, _ = loadArr(filepath)
-        
-        if is_gcnet:
-            l3 = gcnet_postprocessing(l3)
         
         # lat, lon and alt should be just variables, not coordinates
         if 'lat' in l3.keys():
