@@ -229,17 +229,27 @@ def join_l3():
     sorted_stids = [stid for _, _, stid in sorted_list_station_data]
     logger.info('joining %s' % ' '.join(sorted_stids))
     
-    l3_merged = xr.Dataset()
+    l3_merged = None
     for l3, _, stid in sorted_list_station_data:
-        if len(l3_merged)==0:
-            # saving attributes of station under an attribute called $stid
-            l3_merged.attrs[stid] = l3.attrs.copy()
+        if l3_merged is None:
+            # saving attributes of stid
+            st_attrs = {}
+            st_attrs[stid] = l3.attrs.copy()
+            # adding timestamps info
+            st_attrs[stid]['first_timestamp'] = l3.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+            st_attrs[stid]['last_timestamp'] = l3.time.isel(time=-1).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+            
             # then stripping attributes
             attrs_list = list(l3.attrs.keys())
             for k in attrs_list:
                 del l3.attrs[k]
-                
+          
+            # initializing l3_merged with l3
             l3_merged = l3.copy()
+            
+            # creating the station_attributes attribute in l3_merged
+            l3_merged.attrs["stations_attributes"] = st_attrs
+
         else:
             # if l3 (older data) is missing variables compared to l3_merged (newer data)
             # , then we fill them with nan
