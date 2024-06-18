@@ -160,8 +160,8 @@ def loadArr(infile):
     #         df_in.loc[[df_in.z_surf_combined.first_valid_index()],:].index.astype('int64')[0]
     #     )  +  df_in.loc[df_in.z_surf_combined.first_valid_index(), 'z_surf_combined']
     # return l3_merged
-    
-def build_station_list(config_folder: str, target_station_site: str):
+
+def build_station_list(config_folder: str, target_station_site: str) -> list:
     """
     Get a list of unique station IDs (stid) for a given station site.
 
@@ -194,7 +194,6 @@ def build_station_list(config_folder: str, target_station_site: str):
     
     return unique_stids
 
-    
 def join_l3():
     args = parse_arguments_joinl3()
     logging.basicConfig(
@@ -203,12 +202,12 @@ def join_l3():
         stream=sys.stdout,
     )
     
-    station_list = build_station_list(args.config_folder, args.site)
-
-    l3_merged = xr.Dataset()
-    for stid in  station_list:
-        logger.info(stid)
-        
+    # Get the list of stations associated with the given site
+    list_stations = build_station_list(args.config_folder, args.site)
+    
+    # Read the datasets and store them into a list along with their latest timestamp
+    list_station_data = []
+    for stid in list_stations:       
         is_promice = False
         is_gcnet = False
         filepath = os.path.join(args.folder_l3, stid, stid+'_hour.nc')
@@ -222,12 +221,16 @@ def join_l3():
             logger.info(stid+' not found either in '+args.folder_l3+' or '+args.folder_gcnet)
             continue
 
-        l3, _ = loadArr(filepath)
-        
-        # lat, lon and alt should be just variables, not coordinates
-        if 'lat' in l3.keys():
-            l3 = l3.reset_coords(['lat', 'lon', 'alt'])
-
+        l3, _ = loadArr(filepath)            
+        list_station_data.append((l3, l3.time.max().values, stid))
+    
+    # Sort the list in reverse chronological order so that we start with the latest data
+    sorted_list_station_data = sorted(list_station_data, key=lambda x: x[1], reverse=True)
+    sorted_stids = [stid for _, _, stid in sorted_list_station_data]
+    logger.info('joining %s' % ' '.join(sorted_stids))
+    
+    l3_merged = xr.Dataset()
+    for l3, _, stid in sorted_list_station_data:
         if len(l3_merged)==0:
             # saving attributes of station under an attribute called $stid
             l3_merged.attrs[stid] = l3.attrs.copy()
