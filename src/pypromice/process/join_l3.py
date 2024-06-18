@@ -162,27 +162,39 @@ def gcnet_postprocessing(l3):
     #     )  +  df_in.loc[df_in.z_surf_combined.first_valid_index(), 'z_surf_combined']
     # return l3m
     
-def build_station_dict(config_folder):
-    station_dict = {}
+def build_station_list(config_folder: str, target_station_site: str):
+    """
+    Get a list of unique station IDs (stid) for a given station site.
+
+    Parameters
+    ----------
+    config_folder : str
+        Path to the folder containing the station configuration TOML files.
+    target_station_site : str
+        The station site to filter the station IDs by.
+
+    Returns
+    -------
+    list
+        A list of unique station IDs that have the specified station site.
+    """
+    unique_stids = []  # Initialize an empty list to store unique station IDs
     
-    # Iterate through all files in the given folder
     for filename in os.listdir(config_folder):
         if filename.endswith(".toml"):
-            # Construct full file path
             file_path = os.path.join(config_folder, filename)
             
-            # Load TOML file
             with open(file_path, 'r') as file:
-                data = toml.load(file)
-                station_key = next(iter(data))
-                station_data = data[station_key]
-               
-                if station_data["station_site"] in station_dict:
-                    station_dict[station_data["station_site"]].append(station_key)
-                else:
-                    station_dict[station_data["station_site"]] = [station_key]
+                data = toml.load(file)  # Load the TOML file
+                station_site = data.get("station_site")  # Get the station site
+                stid = data.get("stid")  # Get the station ID
+                
+                # Check if the station site matches the target and stid is unique
+                if station_site == target_station_site and stid and stid not in unique_stids:
+                    unique_stids.append(stid)  # Add the stid to the list if unique
     
-    return station_dict
+    return unique_stids
+
     
 def join_l3():
     args = parse_arguments_joinl3()
@@ -192,10 +204,10 @@ def join_l3():
         stream=sys.stdout,
     )
     
-    station_dict = build_station_dict(args.config_folder)
+    station_list = build_station_list(args.config_folder, args.site)
 
     l3m = xr.Dataset()
-    for stid in  station_dict[args.site]:
+    for stid in  station_list:
         logger.info(stid)
         
         is_promice = False
