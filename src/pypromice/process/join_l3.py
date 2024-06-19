@@ -213,15 +213,15 @@ def join_l3():
             continue
 
         l3, _ = loadArr(filepath, isNead)            
-        list_station_data.append((l3, l3.time.max().values, station_info))
+        list_station_data.append((l3, station_info))
     
     # Sort the list in reverse chronological order so that we start with the latest data
-    sorted_list_station_data = sorted(list_station_data, key=lambda x: x[1], reverse=True)
-    sorted_stids = [info["stid"] for _, _, info in sorted_list_station_data]
+    sorted_list_station_data = sorted(list_station_data, key=lambda x: x[0].time.max(), reverse=True)
+    sorted_stids = [info["stid"] for _, info in sorted_list_station_data]
     logger.info('joining %s' % ' '.join(sorted_stids))
     
     l3_merged = None
-    for l3, _, station_info in sorted_list_station_data:
+    for l3, station_info in sorted_list_station_data:
         stid = station_info["stid"]
         
         if l3_merged is None:
