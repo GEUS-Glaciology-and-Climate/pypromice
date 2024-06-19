@@ -92,7 +92,7 @@ def readNead(infile):
         ds.attrs = meta
         
         # renaming variables
-        file_path = pkg_resources.resource_stream('pypromice', 'ressources/variable_aliases_GC-Net.csv')
+        file_path = pkg_resources.resource_stream('pypromice', 'resources/variable_aliases_GC-Net.csv')
         var_name = pd.read_csv(file_path)
         var_name = var_name.set_index('old_name').GEUS_name
         msk = [v for v in var_name.index if v in ds.data_vars]
