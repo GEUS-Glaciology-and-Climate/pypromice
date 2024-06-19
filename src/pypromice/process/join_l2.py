@@ -3,8 +3,6 @@ import logging, sys, os, unittest
 import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
-from pypromice.process.utilities import addMeta, roundValues
-from pypromice.process.write import prepare_and_write
 from pypromice.process.L1toL2 import correctPrecip
 logger = logging.getLogger(__name__)
 
