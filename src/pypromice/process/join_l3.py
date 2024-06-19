@@ -107,20 +107,16 @@ def readNead(infile):
     return ds
 
 
-def loadArr(infile):
+def loadArr(infile, isNead):
     if infile.split('.')[-1].lower() in 'csv':
-        with open(infile) as f:
-            text_splitted = f.read().splitlines()
-            first_char =  text_splitted[0][0]
-            
-        if first_char != '#':
+        if isNead:
+            ds = readNead(infile)
+        else:
             df = pd.read_csv(infile)
             df['time'] = pd.to_datetime(df['time']).dt.tz_localize(None)
             df = df.set_index('time')
             ds = xr.Dataset.from_dataframe(df)
-        else:
-            ds = readNead(infile)
-        f.close()
+            
     elif infile.split('.')[-1].lower() in 'nc':
         ds = xr.open_dataset(infile)
         # Remove encoding attributes from NetCDF
@@ -206,20 +202,17 @@ def join_l3():
     list_station_data = []
     for station_info in list_station_info:       
         stid = station_info["stid"]
-        is_promice = False
-        is_gcnet = False
+        
         filepath = os.path.join(args.folder_l3, stid, stid+'_hour.nc')
-        if os.path.isfile(filepath):
-            is_promice = True
-        else:
+        isNead = False
+        if station_info["project"].lower() in ["historical gc-net", "glaciobasis"]:
             filepath = os.path.join(args.folder_gcnet, stid+'.csv')
-            if os.path.isfile(filepath):
-                is_gcnet = True
-        if not is_promice and not is_gcnet:            
-            logger.info(stid+' not found either in '+args.folder_l3+' or '+args.folder_gcnet)
+            isNead = True
+        if not os.path.isfile(filepath):            
+            logger.info(stid+' is from an project '+args.folder_l3+' or '+args.folder_gcnet)
             continue
 
-        l3, _ = loadArr(filepath)            
+        l3, _ = loadArr(filepath, isNead)            
         list_station_data.append((l3, l3.time.max().values, station_info))
     
     # Sort the list in reverse chronological order so that we start with the latest data
@@ -230,6 +223,7 @@ def join_l3():
     l3_merged = None
     for l3, _, station_info in sorted_list_station_data:
         stid = station_info["stid"]
+        
         if l3_merged is None:
             # saving attributes of stid
             st_attrs = {}
