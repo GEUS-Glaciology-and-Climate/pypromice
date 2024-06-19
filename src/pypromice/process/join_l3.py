@@ -161,24 +161,24 @@ def loadArr(infile):
     #         df_in.loc[[df_in.z_surf_combined.first_valid_index()],:].index.astype('int64')[0]
     #     )  +  df_in.loc[df_in.z_surf_combined.first_valid_index(), 'z_surf_combined']
     # return l3_merged
-
+    
 def build_station_list(config_folder: str, target_station_site: str) -> list:
     """
-    Get a list of unique station IDs (stid) for a given station site.
+    Get a list of unique station information dictionaries for a given station site.
 
     Parameters
     ----------
     config_folder : str
         Path to the folder containing the station configuration TOML files.
     target_station_site : str
-        The station site to filter the station IDs by.
+        The station site to filter the station information by.
 
     Returns
     -------
     list
-        A list of unique station IDs that have the specified station site.
+        A list of dictionaries containing station information that have the specified station site.
     """
-    unique_stids = []  # Initialize an empty list to store unique station IDs
+    station_info_list = []  # Initialize an empty list to store station information
     
     for filename in os.listdir(config_folder):
         if filename.endswith(".toml"):
@@ -190,25 +190,22 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
                 stid = data.get("stid")  # Get the station ID
                 
                 # Check if the station site matches the target and stid is unique
-                if station_site == target_station_site and stid and stid not in unique_stids:
-                    unique_stids.append(stid)  # Add the stid to the list if unique
+                if station_site == target_station_site and stid:
+                    station_info = data.copy()  # Copy all attributes from the TOML file
+                    station_info_list.append(station_info)  # Add the station info to the list
     
-    return unique_stids
+    return station_info_list
 
 def join_l3():
     args = parse_arguments_joinl3()
-    logging.basicConfig(
-        format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
-        level=logging.INFO,
-        stream=sys.stdout,
-    )
     
-    # Get the list of stations associated with the given site
-    list_stations = build_station_list(args.config_folder, args.site)
+    # Get the list of station information dictionaries associated with the given site
+    list_station_info = build_station_list(args.config_folder, args.site)
     
-    # Read the datasets and store them into a list along with their latest timestamp
+    # Read the datasets and store them into a list along with their latest timestamp and station info
     list_station_data = []
-    for stid in list_stations:       
+    for station_info in list_station_info:       
+        stid = station_info["stid"]
         is_promice = False
         is_gcnet = False
         filepath = os.path.join(args.folder_l3, stid, stid+'_hour.nc')
@@ -223,15 +220,16 @@ def join_l3():
             continue
 
         l3, _ = loadArr(filepath)            
-        list_station_data.append((l3, l3.time.max().values, stid))
+        list_station_data.append((l3, l3.time.max().values, station_info))
     
     # Sort the list in reverse chronological order so that we start with the latest data
     sorted_list_station_data = sorted(list_station_data, key=lambda x: x[1], reverse=True)
-    sorted_stids = [stid for _, _, stid in sorted_list_station_data]
+    sorted_stids = [info["stid"] for _, _, info in sorted_list_station_data]
     logger.info('joining %s' % ' '.join(sorted_stids))
     
     l3_merged = None
-    for l3, _, stid in sorted_list_station_data:
+    for l3, _, station_info in sorted_list_station_data:
+        stid = station_info["stid"]
         if l3_merged is None:
             # saving attributes of stid
             st_attrs = {}
