@@ -137,7 +137,7 @@ def getVars(v_file=None):
        Variables dataframe
    '''
    if v_file is None:
-        with pkg_resources.resource_stream('pypromice', 'ressources/variables.csv') as stream:
+        with pkg_resources.resource_stream('pypromice', 'resources/variables.csv') as stream:
             return pd.read_csv(stream, index_col=0, comment="#", encoding='utf-8')
    else:
         return pd.read_csv(v_file, index_col=0, comment="#")
@@ -160,7 +160,7 @@ def getMeta(m_file=None, delimiter=','):                                        
     '''
     meta={}
     if m_file is None:
-        with pkg_resources.resource_stream('pypromice', 'ressources/file_attributes.csv') as stream:
+        with pkg_resources.resource_stream('pypromice', 'resources/file_attributes.csv') as stream:
             lines = stream.read().decode("utf-8")
             lines = lines.split("\n")
     else:
