@@ -266,7 +266,7 @@ def addMeta(ds, meta):
         sample_rate  = "hourly"
     elif time_diff == pd.Timedelta('1D'):
         sample_rate  = "daily"
-    elif time_diff == pd.Timedelta('1M'):
+    elif  28 <= time_diff.days <= 31:
         sample_rate  = "monthly"
     else:
         sample_rate  = "unknown_sample_rate"
