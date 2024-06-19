@@ -5,6 +5,7 @@ Module containing all the functions needed to prepare and AWS data
 """
 import os, logging, datetime, uuid
 import pandas as pd
+import numpy as np
 from importlib import metadata
 from pypromice.process.resample import resample_dataset
 from pypromice.process import load
