@@ -39,9 +39,12 @@ def get_l2tol3():
     # Define Level 2 dataset from file
     with xr.open_dataset(args.inpath) as l2:
         l2.load()
+    
+    # Remove encoding attributes from NetCDF
     for varname in l2.variables:
         if 'encoding' in l2[varname].attrs:
-            del l2[varname].attrs['encoding']        
+            del l2[varname].attrs['encoding']     
+            
     if 'bedrock' in l2.attrs.keys():
         l2.attrs['bedrock'] = l2.attrs['bedrock'] == 'True'
     if 'number_of_booms' in l2.attrs.keys():

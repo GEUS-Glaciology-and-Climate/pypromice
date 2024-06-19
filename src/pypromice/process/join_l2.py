@@ -30,6 +30,7 @@ def loadArr(infile):
     elif infile.split('.')[-1].lower() == 'nc':
         with xr.open_dataset(infile) as ds:
             ds.load()
+         # Remove encoding attributes from NetCDF
         for varname in ds.variables:
             if 'encoding' in ds[varname].attrs:
                 del ds[varname].attrs['encoding']
