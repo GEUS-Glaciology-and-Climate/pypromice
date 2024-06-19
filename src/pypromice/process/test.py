@@ -39,6 +39,7 @@ class TestProcess(unittest.TestCase):
         d['time'] = [datetime.datetime.now(),
                      datetime.datetime.now()-timedelta(days=365)]
         d.attrs['station_id']='TEST'
+        d.attrs['level']='L2_test'
         meta = getMeta()
         d = addVars(d, v)
         d = addMeta(d, meta)
