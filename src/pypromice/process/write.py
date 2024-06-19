@@ -167,8 +167,7 @@ def writeNC(outfile, Lx, col_names=None):
         names = [c for c in col_names if c in list(Lx.keys())]
     else:
         names = list(Lx.keys())
-    for var in names:
-        Lx[var].encoding = {}
+
     Lx[names].to_netcdf(outfile, mode='w', format='NETCDF4', compute=True)
 
 def getColNames(vars_df, ds, remove_nan_fields=False):
