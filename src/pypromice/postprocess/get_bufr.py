@@ -492,7 +492,13 @@ def get_bufr_variables(
     station_configuration: StationConfiguration,
 ) -> BUFRVariables:
     """
-    Helper function for converting our  variables to the variables needed for bufr export.
+    Helper function for converting our variables to the variables needed for bufr export.
+
+    Raises AttributeError if station_configuration dont have the minimum dimension fields since they are required to determine barometer heights.
+    * height_of_gps_from_station_ground
+    * barometer_from_gps
+
+
 
     Parameters
     ----------
@@ -506,13 +512,21 @@ def get_bufr_variables(
     BUFRVariables used by bufr_utilities
 
     """
+
     if station_configuration.height_of_gps_from_station_ground is None:
-        heightOfStationGroundAboveMeanSeaLevel = np.nan
-    else:
-        heightOfStationGroundAboveMeanSeaLevel = (
-            data["gps_alt_fit"]
-            - station_configuration.height_of_gps_from_station_ground
+        raise AttributeError(
+            "height_of_gps_from_station_ground is required for BUFR export"
         )
+    if station_configuration.barometer_from_gps is None:
+        raise AttributeError("barometer_from_gps is required for BUFR export")
+
+    heightOfStationGroundAboveMeanSeaLevel = (
+        data["gps_alt_fit"] - station_configuration.height_of_gps_from_station_ground
+    )
+
+    heightOfBarometerAboveMeanSeaLevel = (
+        data["gps_alt_fit"] + station_configuration.barometer_from_gps
+    )
 
     if station_configuration.temperature_from_sonic_ranger is None:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = np.nan
@@ -527,13 +541,6 @@ def get_bufr_variables(
     else:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
             data["z_boom_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
-        )
-
-    if station_configuration.barometer_from_gps is None:
-        heightOfBarometerAboveMeanSeaLevel = np.nan
-    else:
-        heightOfBarometerAboveMeanSeaLevel = (
-            data["gps_alt_fit"] + station_configuration.barometer_from_gps
         )
 
     output_row = BUFRVariables(
