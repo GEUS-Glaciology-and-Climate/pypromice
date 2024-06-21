@@ -45,6 +45,7 @@ def round_converter(decimals: int):
 
     return round
 
+
 # Enforce precision
 # Note the sensor accuracies listed here:
 # https://essd.copernicus.org/articles/13/3819/2021/#section8
@@ -64,6 +65,7 @@ class BUFRVariables:
     * heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD: Corresponds to "#7#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform" which is height if anemometer relative to ground or deck of marine platform.
 
     """
+
     wmo_id: str
     station_type: str
     timestamp: datetime.datetime
