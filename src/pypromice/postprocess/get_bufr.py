@@ -24,11 +24,11 @@ from pypromice.postprocess.bufr_utilities import write_bufr_message, BUFRVariabl
 from pypromice.postprocess.real_time_utilities import get_latest_data
 
 __all__ = [
-    'get_bufr',
-    'main',
-    'DEFAULT_STATION_CONFIGURATION_PATH',
-    'DEFAULT_POSITION_SEED_PATH',
-    'DEFAULT_LIN_REG_TIME_LIMIT',
+    "get_bufr",
+    "main",
+    "DEFAULT_STATION_CONFIGURATION_PATH",
+    "DEFAULT_POSITION_SEED_PATH",
+    "DEFAULT_LIN_REG_TIME_LIMIT",
 ]
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,7 @@ DEFAULT_STATION_CONFIGURATION_PATH = Path(__file__).parent.joinpath(
 )
 DEFAULT_POSITION_SEED_PATH = Path(__file__).parent.joinpath("positions_seed.csv")
 DEFAULT_LIN_REG_TIME_LIMIT = "91d"
+
 
 def parse_arguments_bufr() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -109,10 +110,10 @@ def parse_arguments_bufr() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        '--latest_timestamp',
+        "--latest_timestamp",
         default=datetime.utcnow(),
         type=pd.Timestamp,
-        help="Timestamp used to determine latest data. Default utcnow."
+        help="Timestamp used to determine latest data. Default utcnow.",
     )
 
     parser.add_argument("--verbose", "-v", default=False, action="store_true")
@@ -503,30 +504,31 @@ def get_bufr_variables(
         heightOfStationGroundAboveMeanSeaLevel = np.nan
     else:
         heightOfStationGroundAboveMeanSeaLevel = (
-                data["gps_alt_fit"] - station_configuration.height_of_gps_from_station_ground
+            data["gps_alt_fit"]
+            - station_configuration.height_of_gps_from_station_ground
         )
 
     if station_configuration.temperature_from_sonic_ranger is None:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = np.nan
     else:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = (
-                data["z_boom_u_smooth"]+ station_configuration.temperature_from_sonic_ranger
+            data["z_boom_u_smooth"]
+            + station_configuration.temperature_from_sonic_ranger
         )
 
     if station_configuration.anemometer_from_sonic_ranger is None:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = np.nan
     else:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
-                data["z_boom_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
+            data["z_boom_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
         )
 
     if station_configuration.barometer_from_gps is None:
         heightOfBarometerAboveMeanSeaLevel = np.nan
     else:
         heightOfBarometerAboveMeanSeaLevel = (
-                data["gps_alt_fit"] + station_configuration.barometer_from_gps
+            data["gps_alt_fit"] + station_configuration.barometer_from_gps
         )
-
 
     output_row = BUFRVariables(
         wmo_id=station_configuration.wmo_id,
@@ -604,6 +606,7 @@ def min_data_check(s):
 
     return min_data_wx_result, min_data_pos_result
 
+
 def main():
     args = parse_arguments_bufr().parse_args()
 
@@ -636,6 +639,7 @@ def main():
         station_configuration_path=args.station_configuration_mapping,
         positions_seed_path=args.position_seed,
     )
+
 
 if __name__ == "__main__":
     main()
