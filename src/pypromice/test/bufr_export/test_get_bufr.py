@@ -199,7 +199,10 @@ class BufrVariablesTestCase(TestCase):
             heightOfBarometerAboveMeanSeaLevel=2126,
         )
 
-    def test_none_values_in_config(self):
+    def test_fails_on_missing_dimension_values(self):
+        """
+        Test that get_bufr_variables raises an AttributeError if the data is missing
+        """
         timestamp = datetime.datetime.now()
         data = pd.Series(
             data=dict(
@@ -220,36 +223,14 @@ class BufrVariablesTestCase(TestCase):
             stid="A_STID",
             station_type="land",
             wmo_id="4201",
-            barometer_from_gps=0.2,
-            anemometer_from_sonic_ranger=0.1,
-            temperature_from_sonic_ranger=1.3,
-            height_of_gps_from_station_ground=2.1,
+            export_bufr=True,
         )
 
-        output = get_bufr_variables(
-            data,
-            station_configuration=station_config,
-        )
-
-        self.assertEqual(
-            BUFRVariables(
-                wmo_id=station_config.wmo_id,
-                station_type=station_config.station_type,
-                timestamp=timestamp,
-                relativeHumidity=1.0,
-                airTemperature=252.2,  # Converted to kelvin
-                pressure=199300.0,
-                windDirection=32.0,
-                windSpeed=5.3,
-                latitude=66.0,
-                longitude=-46.0,
-                heightOfStationGroundAboveMeanSeaLevel=1091.9,
-                heightOfBarometerAboveMeanSeaLevel=1094.2,
-                heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=3.4,
-                heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=2.2,
-            ),
-            output,
-        )
+        with self.assertRaises(AttributeError) as context:
+            get_bufr_variables(
+                data,
+                station_configuration=station_config,
+            )
 
     @mock.patch("pypromice.postprocess.get_bufr.write_bufr_message")
     def _test_bufr_variables(
