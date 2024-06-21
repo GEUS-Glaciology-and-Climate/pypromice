@@ -166,9 +166,7 @@ def find_positions(df, time_limit):
                 df_limited[f"{k}_fit"] = df.loc[df_limited.index, f"{k}_fit"]
             else:
                 logger.info(f"----> No data exists for {k}. Stubbing out with NaN.")
-                df_limited[f"{k}_fit"] = pd.Series(
-                    np.nan, index=df_limited.index
-                )
+                df_limited[f"{k}_fit"] = pd.Series(np.nan, index=df_limited.index)
 
     return df_limited
 
