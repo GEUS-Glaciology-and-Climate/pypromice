@@ -491,26 +491,30 @@ def get_bufr_variables(
     BUFRVariables used by bufr_utilities
 
     """
-    heightOfStationGroundAboveMeanSeaLevel = np.nan
-    if isinstance(station_configuration.height_of_gps_from_station_ground, float):
+    if station_configuration.height_of_gps_from_station_ground is None:
+        heightOfStationGroundAboveMeanSeaLevel = np.nan
+    else:
         heightOfStationGroundAboveMeanSeaLevel = (
                 data["gps_alt_fit"] - station_configuration.height_of_gps_from_station_ground
         )
 
-    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = np.nan
-    if isinstance(station_configuration.temperature_from_sonic_ranger, float):
+    if station_configuration.temperature_from_sonic_ranger is None:
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = np.nan
+    else:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = (
                 data["z_boom_u_smooth"]+ station_configuration.temperature_from_sonic_ranger
         )
 
-    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = np.nan
-    if isinstance(station_configuration.anemometer_from_sonic_ranger, float):
+    if station_configuration.anemometer_from_sonic_ranger is None:
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = np.nan
+    else:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
                 data["z_boom_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
         )
 
-    heightOfBarometerAboveMeanSeaLevel = np.nan
-    if isinstance(station_configuration.barometer_from_gps, float):
+    if station_configuration.barometer_from_gps is None:
+        heightOfBarometerAboveMeanSeaLevel = np.nan
+    else:
         heightOfBarometerAboveMeanSeaLevel = (
                 data["gps_alt_fit"] + station_configuration.barometer_from_gps
         )
