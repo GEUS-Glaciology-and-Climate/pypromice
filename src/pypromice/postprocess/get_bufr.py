@@ -144,6 +144,7 @@ class StationConfiguration:
     temperature_from_sonic_ranger: Optional[float] = None
     height_of_gps_from_station_ground: Optional[float] = None
     sonic_ranger_from_gps: Optional[float] = None
+    static_height_of_gps_from_mean_sea_level: Optional[float] = None
 
     # The station data will be exported to BUFR if True. Otherwise, it will only export latest position
     export_bufr: bool = False
@@ -520,13 +521,21 @@ def get_bufr_variables(
     if station_configuration.barometer_from_gps is None:
         raise AttributeError("barometer_from_gps is required for BUFR export")
 
+    if station_configuration.static_height_of_gps_from_mean_sea_level is None:
+        height_of_gps_above_mean_sea_level = data["gps_alt_fit"]
+    else:
+        height_of_gps_above_mean_sea_level = (
+            station_configuration.static_height_of_gps_from_mean_sea_level
+        )
+
     heightOfStationGroundAboveMeanSeaLevel = (
-        data["gps_alt_fit"] - station_configuration.height_of_gps_from_station_ground
+        height_of_gps_above_mean_sea_level - station_configuration.height_of_gps_from_station_ground
     )
 
     heightOfBarometerAboveMeanSeaLevel = (
-        data["gps_alt_fit"] + station_configuration.barometer_from_gps
+        height_of_gps_above_mean_sea_level + station_configuration.barometer_from_gps
     )
+
 
     if station_configuration.temperature_from_sonic_ranger is None:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = np.nan
