@@ -4,6 +4,7 @@ import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
 from pypromice.process.L1toL2 import correctPrecip
+from pypromice.process.write import prepare_and_write
 logger = logging.getLogger(__name__)
 
 def parse_arguments_join():
@@ -47,7 +48,7 @@ def loadArr(infile):
     return ds, name
     
 
-def join_l2():
+def join_l2(file1,file2,outpath,variables,metadata):
     args = parse_arguments_join()
     logging.basicConfig(
         format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
@@ -99,9 +100,13 @@ def join_l2():
     all_ds.attrs['format'] = 'merged RAW and TX'
 
     # Resample to hourly, daily and monthly datasets and write to file
-    prepare_and_write(all_ds, args.outpath, args.variables, args.metadata, resample = False)
+    prepare_and_write(all_ds, outpath, variables, metadata, resample = False)
     
-    logger.info(f'Files saved to {os.path.join(args.outpath, name)}...')
+    logger.info(f'Files saved to {os.path.join(outpath, name)}...')
 
+def main():
+    args = parse_arguments_join()
+    join_l2(args.file1, args.file2, args.outpath, args.variables, args.metadata)
+    
 if __name__ == "__main__":  
-    join_l2()
+    main()

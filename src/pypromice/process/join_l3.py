@@ -27,8 +27,7 @@ def parse_arguments_joinl3(debug_args=None):
     			 help='Path to variables look-up table .csv file for variable name retained'''),
     parser.add_argument('-m', '--metadata', default=None, type=str, required=False, 
     			 help='Path to metadata table .csv file for metadata information'''),
-    parser.add_argument('-d', '--datatype', default='raw', type=str, required=False, 
-    			 help='Data type to output, raw or tx')
+
     args = parser.parse_args(args=debug_args)
     return args
 
@@ -106,7 +105,6 @@ def readNead(infile):
         ds=ds.rename({'timestamp':'time'})
     return ds
 
-
 def loadArr(infile, isNead):
     if infile.split('.')[-1].lower() in 'csv':
         if isNead:
@@ -132,7 +130,7 @@ def loadArr(infile, isNead):
     print(f'{name} array loaded from {infile}')
     return ds, name
 
-# will be used in the future
+# %%  will be used in the future
 # def aligning_surface_heights(l3_merged, l3):
     # df_aux['z_surf_combined'] = \
     #     df_aux['z_surf_combined'] \
@@ -157,7 +155,7 @@ def loadArr(infile, isNead):
     #         df_in.loc[[df_in.z_surf_combined.first_valid_index()],:].index.astype('int64')[0]
     #     )  +  df_in.loc[df_in.z_surf_combined.first_valid_index(), 'z_surf_combined']
     # return l3_merged
-    
+ # %%    
 def build_station_list(config_folder: str, target_station_site: str) -> list:
     """
     Get a list of unique station information dictionaries for a given station site.
@@ -192,24 +190,23 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
     
     return station_info_list
 
-def join_l3():
-    args = parse_arguments_joinl3()
-    
+def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, metadata):
+   
     # Get the list of station information dictionaries associated with the given site
-    list_station_info = build_station_list(args.config_folder, args.site)
+    list_station_info = build_station_list(config_folder, site)
     
     # Read the datasets and store them into a list along with their latest timestamp and station info
     list_station_data = []
     for station_info in list_station_info:       
         stid = station_info["stid"]
         
-        filepath = os.path.join(args.folder_l3, stid, stid+'_hour.nc')
+        filepath = os.path.join(folder_l3, stid, stid+'_hour.nc')
         isNead = False
         if station_info["project"].lower() in ["historical gc-net", "glaciobasis"]:
-            filepath = os.path.join(args.folder_gcnet, stid+'.csv')
+            filepath = os.path.join(folder_gcnet, stid+'.csv')
             isNead = True
         if not os.path.isfile(filepath):            
-            logger.info(stid+' is from an project '+args.folder_l3+' or '+args.folder_gcnet)
+            logger.info(stid+' is from an project '+folder_l3+' or '+folder_gcnet)
             continue
 
         l3, _ = loadArr(filepath, isNead)            
@@ -283,17 +280,25 @@ def join_l3():
             
 
     # Assign site id
-    l3_merged.attrs['site_id'] = args.site
-    l3_merged.attrs['stations'] = ' '.join(station_list)
+    l3_merged.attrs['site_id'] = site
+    l3_merged.attrs['stations'] = ' '.join(sorted_stids)
     l3_merged.attrs['level'] = 'L3'
     
-    v = getVars(args.variables)
-    m = getMeta(args.metadata)
-    if args.outpath is not None:
-        prepare_and_write(l3_merged, args.outpath, v, m, '60min')
-        prepare_and_write(l3_merged, args.outpath, v, m, '1D')
-        prepare_and_write(l3_merged, args.outpath, v, m, 'M')
+    v = getVars(variables)
+    m = getMeta(metadata)
+    if outpath is not None:
+        prepare_and_write(l3_merged, outpath, v, m, '60min')
+        prepare_and_write(l3_merged, outpath, v, m, '1D')
+        prepare_and_write(l3_merged, outpath, v, m, 'M')
         
+        
+def main():
+    args = parse_arguments_joinl3()
+    join_l3(args.config_folder, args.site, args.folder_l3, 
+            args.folder_gcnet, args.outpath, args.variables, 
+            args.metadata)
+
+           
 if __name__ == "__main__":  
     join_l3()
         
