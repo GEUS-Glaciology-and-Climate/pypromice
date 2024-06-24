@@ -45,6 +45,7 @@ def round_converter(decimals: int):
 
     return round
 
+
 # Enforce precision
 # Note the sensor accuracies listed here:
 # https://essd.copernicus.org/articles/13/3819/2021/#section8
@@ -64,6 +65,7 @@ class BUFRVariables:
     * heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD: Corresponds to "#7#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform" which is height if anemometer relative to ground or deck of marine platform.
 
     """
+
     wmo_id: str
     station_type: str
     timestamp: datetime.datetime
@@ -485,5 +487,6 @@ def read_bufr_file(path: PathLike) -> pd.DataFrame:
             message_vars = read_bufr_message(fp)
             if message_vars is None:
                 break
-            lines.append(message_vars)
-    return pd.DataFrame(lines).rename_axis("message_index")
+            lines.append(message_vars.as_series())
+    data_frame = pd.DataFrame(lines).set_index("wmo_id")
+    return data_frame

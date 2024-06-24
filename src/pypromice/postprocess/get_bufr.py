@@ -23,6 +23,14 @@ import toml
 from pypromice.postprocess.bufr_utilities import write_bufr_message, BUFRVariables
 from pypromice.postprocess.real_time_utilities import get_latest_data
 
+__all__ = [
+    "get_bufr",
+    "main",
+    "DEFAULT_STATION_CONFIGURATION_PATH",
+    "DEFAULT_POSITION_SEED_PATH",
+    "DEFAULT_LIN_REG_TIME_LIMIT",
+]
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_STATION_CONFIGURATION_PATH = Path(__file__).parent.joinpath(
@@ -30,6 +38,7 @@ DEFAULT_STATION_CONFIGURATION_PATH = Path(__file__).parent.joinpath(
 )
 DEFAULT_POSITION_SEED_PATH = Path(__file__).parent.joinpath("positions_seed.csv")
 DEFAULT_LIN_REG_TIME_LIMIT = "91d"
+
 
 def parse_arguments_bufr() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -101,10 +110,10 @@ def parse_arguments_bufr() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        '--latest_timestamp',
+        "--latest_timestamp",
         default=datetime.utcnow(),
         type=pd.Timestamp,
-        help="Timestamp used to determine latest data. Default utcnow."
+        help="Timestamp used to determine latest data. Default utcnow.",
     )
 
     parser.add_argument("--verbose", "-v", default=False, action="store_true")
@@ -135,6 +144,7 @@ class StationConfiguration:
     temperature_from_sonic_ranger: Optional[float] = None
     height_of_gps_from_station_ground: Optional[float] = None
     sonic_ranger_from_gps: Optional[float] = None
+    static_height_of_gps_from_mean_sea_level: Optional[float] = None
 
     # The station data will be exported to BUFR if True. Otherwise, it will only export latest position
     export_bufr: bool = False
@@ -148,6 +158,44 @@ class StationConfiguration:
     skipped_variables: List[str] = attrs.field(factory=list)
 
     positions_update_timestamp_only: bool = False
+
+    @property
+    def anemometer_from_station_ground(self) -> Optional[float]:
+        if self.anemometer_from_sonic_ranger is None:
+            return None
+        if self.sonic_ranger_from_gps is None:
+            return None
+        if self.height_of_gps_from_station_ground is None:
+            return None
+
+        return (
+            self.anemometer_from_sonic_ranger
+            + self.sonic_ranger_from_gps
+            + self.height_of_gps_from_station_ground
+        )
+
+    @property
+    def barometer_from_station_ground(self) -> Optional[float]:
+        if self.barometer_from_gps is None:
+            return None
+        if self.height_of_gps_from_station_ground is None:
+            return None
+
+        return self.barometer_from_gps + self.height_of_gps_from_station_ground
+
+    @property
+    def temperature_from_station_ground(self) -> Optional[float]:
+        if self.temperature_from_sonic_ranger is None:
+            return None
+        if self.sonic_ranger_from_gps is None:
+            return None
+        if self.height_of_gps_from_station_ground is None:
+            return None
+        return (
+            self.temperature_from_sonic_ranger
+            + self.sonic_ranger_from_gps
+            + self.height_of_gps_from_station_ground
+        )
 
     def as_dict(self) -> Dict:
         return attrs.asdict(self)
@@ -291,6 +339,7 @@ def get_bufr(
     earliest_timestamp: datetime = None,
     store_positions: bool = False,
     time_limit: str = "91d",
+    break_on_error: bool = False,
 ):
     """
     Main function for generating BUFR files and determine latest positions from a sequence of csv files
@@ -321,6 +370,8 @@ def get_bufr(
         Flag determine if latest positions are exported.
     time_limit
         Previous time to limit dataframe before applying linear regression.
+    break_on_error
+        If True, the function will raise an exception if an error occurs during processing.
 
     """
     if now_timestamp is None:
@@ -369,6 +420,7 @@ def get_bufr(
 
     # Iterate through csv files
     for file_path in input_files:
+        # TODO: This split is explicitly requiring the filename to have sampleate at suffix. This shuld be more robust
         stid = file_path.stem.rsplit("_", 1)[0]
         logger.info("####### Processing {} #######".format(stid))
 
@@ -396,6 +448,8 @@ def get_bufr(
             )
         except Exception:
             logger.exception(f"Failed processing {stid}")
+            if break_on_error:
+                raise
             continue
 
         if station_position is None:
@@ -477,7 +531,13 @@ def get_bufr_variables(
     station_configuration: StationConfiguration,
 ) -> BUFRVariables:
     """
-    Helper function for converting our  variables to the variables needed for bufr export.
+    Helper function for converting our variables to the variables needed for bufr export.
+
+    Raises AttributeError if station_configuration dont have the minimum dimension fields since they are required to determine barometer heights.
+    * height_of_gps_from_station_ground
+    * barometer_from_gps
+
+
 
     Parameters
     ----------
@@ -491,30 +551,41 @@ def get_bufr_variables(
     BUFRVariables used by bufr_utilities
 
     """
-    heightOfStationGroundAboveMeanSeaLevel = np.nan
-    if isinstance(station_configuration.height_of_gps_from_station_ground, float):
-        heightOfStationGroundAboveMeanSeaLevel = (
-                data["gps_alt_fit"] - station_configuration.height_of_gps_from_station_ground
+
+    if station_configuration.height_of_gps_from_station_ground is None:
+        raise AttributeError(
+            "height_of_gps_from_station_ground is required for BUFR export"
+        )
+    if station_configuration.barometer_from_gps is None:
+        raise AttributeError("barometer_from_gps is required for BUFR export")
+
+    if station_configuration.static_height_of_gps_from_mean_sea_level is None:
+        height_of_gps_above_mean_sea_level = data["gps_alt_fit"]
+    else:
+        height_of_gps_above_mean_sea_level = (
+            station_configuration.static_height_of_gps_from_mean_sea_level
         )
 
-    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = np.nan
-    if isinstance(station_configuration.temperature_from_sonic_ranger, float):
-        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = (
-                data["z_boom_u_smooth"]+ station_configuration.temperature_from_sonic_ranger
-        )
+    heightOfStationGroundAboveMeanSeaLevel = (
+        height_of_gps_above_mean_sea_level - station_configuration.height_of_gps_from_station_ground
+    )
 
-    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = np.nan
-    if isinstance(station_configuration.anemometer_from_sonic_ranger, float):
-        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
-                data["z_boom_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
-        )
+    heightOfBarometerAboveMeanSeaLevel = (
+        height_of_gps_above_mean_sea_level + station_configuration.barometer_from_gps
+    )
 
-    heightOfBarometerAboveMeanSeaLevel = np.nan
-    if isinstance(station_configuration.barometer_from_gps, float):
-        heightOfBarometerAboveMeanSeaLevel = (
-                data["gps_alt_fit"] + station_configuration.barometer_from_gps
-        )
 
+    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = (
+        station_configuration.temperature_from_station_ground
+    )
+    if heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH is None:
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = np.nan
+
+    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
+        station_configuration.anemometer_from_station_ground
+    )
+    if heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD is None:
+        heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = np.nan
 
     output_row = BUFRVariables(
         wmo_id=station_configuration.wmo_id,
@@ -592,6 +663,7 @@ def min_data_check(s):
 
     return min_data_wx_result, min_data_pos_result
 
+
 def main():
     args = parse_arguments_bufr().parse_args()
 
@@ -624,6 +696,7 @@ def main():
         station_configuration_path=args.station_configuration_mapping,
         positions_seed_path=args.position_seed,
     )
+
 
 if __name__ == "__main__":
     main()

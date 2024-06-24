@@ -66,6 +66,10 @@ def get_latest_data(
         lin_reg_time_limit,
     )
 
+    if last_valid_index not in df_limited.index:
+        logger.info("No valid data limited period")
+        return None
+
     # Apply smoothing to z_boom_u
     # require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
     df_limited = rolling_window(df_limited, "z_boom_u", "72H", 2, 1)
@@ -166,9 +170,7 @@ def find_positions(df, time_limit):
                 df_limited[f"{k}_fit"] = df.loc[df_limited.index, f"{k}_fit"]
             else:
                 logger.info(f"----> No data exists for {k}. Stubbing out with NaN.")
-                df_limited[f"{k}_fit"] = pd.Series(
-                    np.nan, index=df_limited.index
-                )
+                df_limited[f"{k}_fit"] = pd.Series(np.nan, index=df_limited.index)
 
     return df_limited
 
