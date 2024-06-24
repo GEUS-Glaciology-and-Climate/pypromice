@@ -290,15 +290,15 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
         prepare_and_write(l3_merged, outpath, v, m, '60min')
         prepare_and_write(l3_merged, outpath, v, m, '1D')
         prepare_and_write(l3_merged, outpath, v, m, 'M')
-        
+    return l3_merged, sorted_list_station_data
         
 def main():
     args = parse_arguments_joinl3()
-    join_l3(args.config_folder, args.site, args.folder_l3, 
+    _, _ = join_l3(args.config_folder, args.site, args.folder_l3, 
             args.folder_gcnet, args.outpath, args.variables, 
             args.metadata)
 
            
 if __name__ == "__main__":  
-    join_l3()
+    main()
         

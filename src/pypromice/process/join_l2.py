@@ -103,10 +103,11 @@ def join_l2(file1,file2,outpath,variables,metadata):
     prepare_and_write(all_ds, outpath, variables, metadata, resample = False)
     
     logger.info(f'Files saved to {os.path.join(outpath, name)}...')
+    return all_ds
 
 def main():
     args = parse_arguments_join()
-    join_l2(args.file1, args.file2, args.outpath, args.variables, args.metadata)
+    _ = join_l2(args.file1, args.file2, args.outpath, args.variables, args.metadata)
     
 if __name__ == "__main__":  
     main()
