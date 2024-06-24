@@ -49,24 +49,23 @@ def loadArr(infile):
     
 
 def join_l2(file1,file2,outpath,variables,metadata):
-    args = parse_arguments_join()
     logging.basicConfig(
         format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
         level=logging.INFO,
         stream=sys.stdout,
     )
     # Check files
-    if os.path.isfile(args.file1) and os.path.isfile(args.file2): 
+    if os.path.isfile(file1) and os.path.isfile(file2): 
 
         # Load data arrays
-        ds1, n1 = loadArr(args.file1)
-        ds2, n2 = loadArr(args.file2)    	
+        ds1, n1 = loadArr(file1)
+        ds2, n2 = loadArr(file2)    	
         
         # Check stations match
         if n1.lower() == n2.lower():
             
         	# Merge arrays
-            logger.info(f'Combining {args.file1} with {args.file2}...')
+            logger.info(f'Combining {file1} with {file2}...')
             name = n1
             all_ds = ds1.combine_first(ds2)
             
@@ -83,18 +82,18 @@ def join_l2(file1,file2,outpath,variables,metadata):
             logger.info(f'Mismatched station names {n1}, {n2}')
             exit()            
     
-    elif os.path.isfile(args.file1):  
-        ds1, name = loadArr(args.file1)
-        logger.info(f'Only one file found {args.file1}...')
+    elif os.path.isfile(file1):  
+        ds1, name = loadArr(file1)
+        logger.info(f'Only one file found {file1}...')
         all_ds = ds1  
 
-    elif os.path.isfile(args.file2):
-        ds2, name = loadArr(args.file2)
-        logger.info(f'Only one file found {args.file2}...')
+    elif os.path.isfile(file2):
+        ds2, name = loadArr(file2)
+        logger.info(f'Only one file found {file2}...')
         all_ds = ds2  
     
     else:
-        logger.info(f'Invalid files {args.file1}, {args.file2}')
+        logger.info(f'Invalid files {file1}, {file2}')
         exit()
 
     all_ds.attrs['format'] = 'merged RAW and TX'
