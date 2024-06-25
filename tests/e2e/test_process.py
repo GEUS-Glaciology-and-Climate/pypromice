@@ -3,6 +3,8 @@
 """
 Processing test module
 """
+from pathlib import Path
+
 from pypromice.process.aws import AWS
 from pypromice.process.load import getVars, getMeta
 from pypromice.process.write import addVars, addMeta
@@ -10,6 +12,11 @@ import xarray as xr
 import pandas as pd
 import unittest, datetime, os
 from datetime import timedelta
+
+TEST_ROOT = Path(__file__).parent.parent
+TEST_DATA_ROOT_PATH = TEST_ROOT / "data"
+TEST_CONFIG_PATH = TEST_DATA_ROOT_PATH / "test_config1.toml"
+
 
 class TestProcess(unittest.TestCase):
 
@@ -48,12 +55,7 @@ class TestProcess(unittest.TestCase):
 
     def testL0toL3(self):
         '''Test L0 to L3 processing'''
-        try:
-            import pypromice
-            pAWS = AWS(os.path.join(os.path.dirname(pypromice.__file__),'test/test_config1.toml'),
-                       os.path.join(os.path.dirname(pypromice.__file__),'test'))
-        except:
-            pAWS = AWS('../test/test_config1.toml', '../test/')
+        pAWS = AWS(TEST_CONFIG_PATH.as_posix(), TEST_DATA_ROOT_PATH.as_posix())
         pAWS.process()
         self.assertIsInstance(pAWS.L2, xr.Dataset)
         self.assertTrue(pAWS.L2.attrs['station_id']=='TEST1')
