@@ -30,4 +30,4 @@ jobs:
       - name: Run unit tests
         shell: bash
         run: |
-          python3 -m unittest discover pypromice
+          python3 -m unittest discover tests
