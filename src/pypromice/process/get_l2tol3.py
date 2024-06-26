@@ -3,9 +3,10 @@ import os, logging, sys
 import xarray as xr
 from argparse import ArgumentParser
 import pypromice
-from pypromice.process.load import getVars, getMeta
 from pypromice.process.L2toL3 import toL3
+from pypromice.process.load import getVars, getMeta
 from pypromice.process.write import prepare_and_write
+logger = logging.getLogger(__name__)
 
 def parse_arguments_l2tol3(debug_args=None):
     parser = ArgumentParser(description="AWS L3 script for the processing L3 "+
@@ -34,14 +35,16 @@ def get_l2tol3():
         level=logging.INFO,
         stream=sys.stdout,
     )
-
-    # Define variables and metadata (either from file or pypromice package defaults)
-    v = getVars(args.variables)
-    m = getMeta(args.metadata)
   
     # Define Level 2 dataset from file
     with xr.open_dataset(args.inpath) as l2:
-        l2.load()    
+        l2.load()
+    
+    # Remove encoding attributes from NetCDF
+    for varname in l2.variables:
+        if 'encoding' in l2[varname].attrs:
+            del l2[varname].attrs['encoding']     
+            
     if 'bedrock' in l2.attrs.keys():
         l2.attrs['bedrock'] = l2.attrs['bedrock'] == 'True'
     if 'number_of_booms' in l2.attrs.keys():
@@ -49,8 +52,10 @@ def get_l2tol3():
     
     # Perform Level 3 processing
     l3 = toL3(l2)
-    
+
     # Write Level 3 dataset to file if output directory given
+    v = getVars(args.variables)
+    m = getMeta(args.metadata)
     if args.outpath is not None:
         prepare_and_write(l3, args.outpath, v, m, '60min')
         prepare_and_write(l3, args.outpath, v, m, '1D')

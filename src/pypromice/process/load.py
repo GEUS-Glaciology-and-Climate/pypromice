@@ -98,7 +98,7 @@ def getL0(infile, nodata, cols, skiprows, file_version,
         try:
             df.index = pd.to_datetime(df.index)
         except  ValueError as e:
-            logger.info("\n", infile)
+            logger.info("\n"+ infile)
             logger.info("\nValueError:")
             logger.info(e)
             logger.info('\t\t> Trying pd.to_datetime with format=mixed')
@@ -120,6 +120,7 @@ def getL0(infile, nodata, cols, skiprows, file_version,
 
     # Carry relevant metadata with ds
     ds = xr.Dataset.from_dataframe(df)
+    ds.attrs['level'] = 'L0'
     return ds
 
 def getVars(v_file=None):
@@ -136,11 +137,11 @@ def getVars(v_file=None):
        Variables dataframe
    '''
    if v_file is None:
-        with pkg_resources.resource_stream('pypromice', 'process/variables.csv') as stream:
+        with pkg_resources.resource_stream('pypromice', 'resources/variables.csv') as stream:
             return pd.read_csv(stream, index_col=0, comment="#", encoding='utf-8')
    else:
         return pd.read_csv(v_file, index_col=0, comment="#")
-
+        
 
 def getMeta(m_file=None, delimiter=','):                                            #TODO change to DataFrame output to match variables.csv
     '''Load metadata table
@@ -159,7 +160,7 @@ def getMeta(m_file=None, delimiter=','):                                        
     '''
     meta={}
     if m_file is None:
-        with pkg_resources.resource_stream('pypromice', 'process/metadata.csv') as stream:
+        with pkg_resources.resource_stream('pypromice', 'resources/file_attributes.csv') as stream:
             lines = stream.read().decode("utf-8")
             lines = lines.split("\n")
     else:

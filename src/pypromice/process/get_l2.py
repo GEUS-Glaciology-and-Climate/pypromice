@@ -3,8 +3,8 @@ import logging, os, sys, unittest
 from argparse import ArgumentParser
 import pypromice
 from pypromice.process.aws import AWS
-from pypromice.process.write import prepare_and_write
 from pypromice.process.load import getVars, getMeta
+from pypromice.process.write import prepare_and_write
 
 def parse_arguments_l2():
     parser = ArgumentParser(description="AWS L2 processor")
@@ -30,38 +30,27 @@ def get_l2():
         level=logging.INFO,
         stream=sys.stdout,
     )
-
-    # Define variables (either from file or pypromice package defaults)
-    if args.variables is None:
-        v = os.path.join(os.path.dirname(pypromice.__file__),'process/variables.csv')
-    else:
-        v = args.variables
-        
-    # Define metadata (either from file or pypromice package defaults)
-    if args.variables is None:
-        m = os.path.join(os.path.dirname(pypromice.__file__),'process/metadata.csv')
-    else:
-        m = args.metadata
     
     # Define input path
     station_name = args.config_file.split('/')[-1].split('.')[0] 
     station_path = os.path.join(args.inpath, station_name)
     if os.path.exists(station_path):
-        aws = AWS(args.config_file, station_path, v, m)
+        aws = AWS(args.config_file, station_path, args.variables, args.metadata)
     else:
-        aws = AWS(args.config_file, args.inpath, v, m)
+        aws = AWS(args.config_file, args.inpath, args.variables, args.metadata)
 
     # Perform level 1 and 2 processing
     aws.getL1()
     aws.getL2() 
-    
+    v = getVars(args.variables)
+    m = getMeta(args.metadata)
     # Write out level 2
     if args.outpath is not None:
         if not os.path.isdir(args.outpath):
             os.mkdir(args.outpath)
         if aws.L2.attrs['format'] == 'raw':
-            prepare_and_write(aws.L2, args.outpath, getVars(), getMeta(), '10min')
-        prepare_and_write(aws.L2, args.outpath, getVars(), getMeta(), '60min')
+            prepare_and_write(aws.L2, args.outpath, v, m, '10min')
+        prepare_and_write(aws.L2, args.outpath, v, m, '60min')
 
 
 if __name__ == "__main__":  

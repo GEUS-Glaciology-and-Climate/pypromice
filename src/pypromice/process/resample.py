@@ -34,13 +34,13 @@ def resample_dataset(ds_h, t):
     df_d = ds_h.to_dataframe().resample(t).mean()
     
     # recalculating wind direction from averaged directional wind speeds
-    for var in ['wdir_u','wdir_l','wdir_i']:
+    for var in ['wdir_u','wdir_l']:
         if var in df_d.columns:
-            if ('wspd_x_'+var.split('_')[1] in df_d.columns) & ('wspd_x_'+var.split('_')[1] in df_d.columns):
+            if ('wspd_x_'+var.split('_')[1] in df_d.columns) & ('wspd_y_'+var.split('_')[1] in df_d.columns):
                 df_d[var] = _calcWindDir(df_d['wspd_x_'+var.split('_')[1]],
                                    df_d['wspd_y_'+var.split('_')[1]])
             else:
-                logger.info(var,'in dataframe but not','wspd_x_'+var.split('_')[1],'wspd_x_'+var.split('_')[1])
+                logger.info(var+' in dataframe but not wspd_x_'+var.split('_')[1]+' nor wspd_y_'+var.split('_')[1])
     
     # recalculating relative humidity from average vapour pressure and average
     # saturation vapor pressure
@@ -53,8 +53,9 @@ def resample_dataset(ds_h, t):
                 
                 df_d[var] = (p_vap.to_series().resample(t).mean() \
                            / es_wtr.to_series().resample(t).mean())*100
-                df_d[var+'_cor'] = (p_vap.to_series().resample(t).mean() \
-                           / es_cor.to_series().resample(t).mean())*100
+                if var+'_cor' in df_d.keys():
+                    df_d[var+'_cor'] = (p_vap.to_series().resample(t).mean() \
+                               / es_cor.to_series().resample(t).mean())*100
             
     vals = [xr.DataArray(data=df_d[c], dims=['time'],
            coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
