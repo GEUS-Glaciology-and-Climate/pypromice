@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="pypromice",
-    version="1.3.6",
+    version="1.4.0",
     author="GEUS Glaciology and Climate",
     description="PROMICE/GC-Net data processing toolbox",
     long_description=long_description,
@@ -36,14 +36,16 @@ setuptools.setup(
         "pypromice.qc.percentiles": ["thresholds.csv"],
         "pypromice.postprocess": ["station_configurations.toml", "positions_seed.csv"],
     },
-    install_requires=['numpy>=1.23.0', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'Bottleneck', 'netcdf4', 'pyDataverse', 'eccodes','scikit-learn>=1.1.0'],
+    install_requires=['numpy>=1.23.0', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'Bottleneck', 'netcdf4', 'pyDataverse==0.3.1', 'eccodes', 'scikit-learn>=1.1.0'],
 #    extras_require={'postprocess': ['eccodes','scikit-learn>=1.1.0']},
     entry_points={
     'console_scripts': [
         'get_promice_data = pypromice.get.get_promice_data:get_promice_data',
         'get_l0tx = pypromice.tx.get_l0tx:get_l0tx',
+        'join_l2 = pypromice.process.join_l2:join_l2',
+        'get_l2 = pypromice.process.get_l2:get_l2',
         'get_l3 = pypromice.process.get_l3:get_l3',
-        'join_l3 = pypromice.process.join_l3:join_l3',
+        'get_l2tol3 = pypromice.process.get_l2tol3:get_l2tol3',
         'get_watsontx = pypromice.tx.get_watsontx:get_watsontx',
         'get_bufr = pypromice.postprocess.get_bufr:main',
         'get_msg = pypromice.tx.get_msg:get_msg'

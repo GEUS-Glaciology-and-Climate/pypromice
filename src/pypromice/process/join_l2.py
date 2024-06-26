@@ -3,47 +3,55 @@ import os, unittest
 import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
-from pypromice.process import getVars, getMeta, addMeta, getColNames, \
-    roundValues, resampleL3, writeAll
+from pypromice.process.load import getVars, getMeta
+from pypromice.process.utilities import addMeta, roundValues
+from pypromice.process.write import prepare_and_write
 from pypromice.process.L1toL2 import correctPrecip
 
 def parse_arguments_join():
-    parser = ArgumentParser(description="AWS L3 joiner for merging together two L3 products, for example an L3 RAW and L3 TX data product. An hourly, daily and monthly L3 data product is outputted to the defined output path")
+    parser = ArgumentParser(description="AWS L2 joiner for merging together two L2 products, for example an L2 RAW and L2 TX data product. An hourly, daily and monthly L2 data product is outputted to the defined output path")
     parser.add_argument('-s', '--file1', type=str, required=True,
-                        help='Path to source L3 file, which will be preferenced in merge process')
+                        help='Path to source L2 file, which will be preferenced in merge process')
     parser.add_argument('-t', '--file2', type=str, required=True, 
-                        help='Path to target L3 file, which will be used to fill gaps in merge process')
+                        help='Path to target L2 file, which will be used to fill gaps in merge process')
     parser.add_argument('-o', '--outpath', default=os.getcwd(), type=str, required=True, 
                         help='Path where to write output')
     parser.add_argument('-v', '--variables', default=None, type=str, required=False, 
     			 help='Path to variables look-up table .csv file for variable name retained'''),
     parser.add_argument('-m', '--metadata', default=None, type=str, required=False, 
     			 help='Path to metadata table .csv file for metadata information'''),
-    parser.add_argument('-d', '--datatype', default='raw', type=str, required=False, 
-    			 help='Data type to output, raw or tx')
     args = parser.parse_args()
     return args
 
 def loadArr(infile):
-    if infile.split('.')[-1].lower() in 'csv':
+    if infile.split('.')[-1].lower() == 'csv':
         df = pd.read_csv(infile, index_col=0, parse_dates=True)
         ds = xr.Dataset.from_dataframe(df)  
-    
-    elif infile.split('.')[-1].lower() in 'nc':
-        ds = xr.open_dataset(infile)
-    
+    elif infile.split('.')[-1].lower() == 'nc':
+        with xr.open_dataset(infile) as ds:
+            ds.load()
+
     try:
-        name = ds.attrs['station_name'] 
+        name = ds.attrs['station_id'] 
     except:
         name = infile.split('/')[-1].split('.')[0].split('_hour')[0].split('_10min')[0]
-        
+        ds.attrs['station_id'] = name
+    if 'bedrock' in ds.attrs.keys():
+        ds.attrs['bedrock'] = ds.attrs['bedrock'] == 'True'
+    if 'number_of_booms' in ds.attrs.keys():
+        ds.attrs['number_of_booms'] = int(ds.attrs['number_of_booms'])
+
     print(f'{name} array loaded from {infile}')
     return ds, name
     
 
-def join_l3():
+def join_l2():
     args = parse_arguments_join()
-    
+
+    # Define variables and metadata (either from file or pypromice package defaults)
+    v = getVars(args.variables)
+    m = getMeta(args.metadata)
+            
     # Check files
     if os.path.isfile(args.file1) and os.path.isfile(args.file2): 
 
@@ -85,46 +93,12 @@ def join_l3():
     else:
         print(f'Invalid files {args.file1}, {args.file2}')
         exit()
-    
-    # Get hourly, daily and monthly datasets
-    print('Resampling L3 data to hourly, daily and monthly resolutions...')
-    l3_h = resampleL3(all_ds, '60min')
-    l3_d = resampleL3(all_ds, '1D')
-    l3_m = resampleL3(all_ds, 'M')
-    
-    print(f'Adding variable information from {args.variables}...')
-        
-    # Load variables look-up table
-    var = getVars(args.variables)
-        	
-    # Round all values to specified decimals places
-    l3_h = roundValues(l3_h, var)
-    l3_d = roundValues(l3_d, var)
-    l3_m = roundValues(l3_m, var)
-        
-    # Get columns to keep
-    if hasattr(all_ds, 'p_l'):
-        col_names = getColNames(var, 2, args.datatype.lower())  
-    else:
-        col_names = getColNames(var, 1, args.datatype.lower())    
 
-    # Assign station id
-    for l in [l3_h, l3_d, l3_m]:
-        l.attrs['station_id'] = name
+
+    # Resample to hourly, daily and monthly datasets and write to file
+    prepare_and_write(all_ds, args.outpath, v, m, resample = False)
     
-    # Assign metadata
-    print(f'Adding metadata from {args.metadata}...')
-    m = getMeta(args.metadata)
-    l3_h = addMeta(l3_h, m)
-    l3_d = addMeta(l3_d, m)
-    l3_m = addMeta(l3_m, m)
-      
-    # Set up output path
-    out = os.path.join(args.outpath, name)
-    
-    # Write to files
-    writeAll(out, name, l3_h, l3_d, l3_m, col_names)
-    print(f'Files saved to {os.path.join(out, name)}...')
+    print(f'Files saved to {os.path.join(args.outpath, name)}...')
 
 if __name__ == "__main__":  
-    join_l3()
+    join_levels()
