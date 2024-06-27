@@ -741,7 +741,7 @@ def interpolate_temperature(dates, depth_cor, temp, depth=10, min_diff_to_depth=
     tmp = pd.DataFrame(temp)
     tmp["time"] = dates
     tmp = tmp.set_index("time")
-    tmp = tmp.resample("H").mean()
+    # tmp = tmp.resample("H").mean()
     # tmp = tmp.interpolate(limit=24*7)
     temp = tmp.loc[dates].values
     for i in (range(len(dates))):
