@@ -37,8 +37,8 @@ def get_l2tol3(inpath, outpath, variables, metadata):
     
     # Remove encoding attributes from NetCDF
     for varname in l2.variables:
-        if 'encoding' in l2[varname].attrs:
-            del l2[varname].attrs['encoding']     
+       if l2[varname].encoding!={}:
+           l2[varname].encoding = {}  
             
     if 'bedrock' in l2.attrs.keys():
         l2.attrs['bedrock'] = l2.attrs['bedrock'] == 'True'
