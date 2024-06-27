@@ -9,7 +9,7 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 from sklearn.linear_model import LinearRegression
 from pypromice.qc.github_data_issues import adjustData
 from scipy.interpolate import interp1d
-import logging
+import logging, os
 logger = logging.getLogger(__name__)
 
 def toL3(L2, T_0=273.15):
@@ -205,8 +205,7 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
         df["z_surf_2_adj"]  = df["z_surf_2_adj"]  + (df["z_surf_1_adj"]- df["z_surf_2_adj"]).mean()
         # z_surf_combined is the average of the two z_surf
         if df.z_surf_1_adj.notnull().any() & df.z_surf_2_adj.notnull().any():
-            df['z_surf_combined'] = np.nanmean(
-                df[['z_surf_1_adj', 'z_surf_2_adj']].values, axis = 1)
+            df['z_surf_combined'] = df[['z_surf_1_adj', 'z_surf_2_adj']].mean(axis = 1).values
         elif df.z_surf_1_adj.notnull().any():
             df['z_surf_combined'] = df.z_surf_1_adj.values
         elif df.z_surf_2_adj.notnull().any():
@@ -307,17 +306,17 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
 
                 ind_abl_yr = np.logical_and(ind_yr, df.index.month.isin([6,7,8]))
                 ind_ablation[ind_yr] = ind_abl_yr[ind_yr]
-                logger.info(y, 'no z_ice_surf, just using JJA')
+                logger.info(str(y)+' no z_ice_surf, just using JJA')
 
             if np.any(ind_abl_yr):
-                logger.info(y, 'derived from z_ice_surf')
+                logger.info(str(y)+ ' derived from z_ice_surf')
                 # if there are some ablation flagged for that year
                 # then find begining and end
                 ind_start[i] = np.argwhere(ind_abl_yr)[0][0]
                 ind_end[i] = np.argwhere(ind_abl_yr)[-1][0]
 
             else:
-                logger.info(y, 'could not estimate ablation season')
+                logger.info(str(y) + ' could not estimate ablation season')
                 # otherwise left as nan
                 ind_start[i] = -999
                 ind_end[i] = -999
@@ -329,7 +328,7 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
         # to hs1 and hs2 the year after.
 
         for i, y in enumerate(years):
-            logger.info(y)
+            logger.info(str(y))
             # defining subsets of hs1, hs2, z
             hs1_jja =  hs1[str(y)+'-06-01':str(y)+'-09-01']
             hs2_jja =  hs2[str(y)+'-06-01':str(y)+'-09-01']
@@ -517,9 +516,7 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
         df["z_surf_combined"] = np.nan
 
         # in winter, both SR1 and SR2 are used
-        df["z_surf_combined"] = np.nanmean( df[["z_surf_1_adj",
-                                                         "z_surf_2_adj"]].values, 
-                                                    axis = 1)
+        df["z_surf_combined"] = df[["z_surf_1_adj", "z_surf_2_adj"]].mean(axis=1).values
 
         # in ablation season we use SR2 instead of the SR1&2 average
         # here two options:
@@ -557,7 +554,7 @@ def hampel(vals_orig, k=7*24, t0=3):
     return(vals)
 
 def thermistorDepth(df_in, site,
-    installation_info_file = '../PROMICE-AWS-data-issues/fieldwork_summary_PROMICE_GC-Net.csv'):
+    installation_info_file = '../aws-l0/metadata/fieldwork_summary_PROMICE_GC-Net.csv'):
     '''Calculates the depth of the thermistors through time based on their 
     installation depth (collected in a google sheet) and on the change of surface
     height: instruments getting buried under new snow or surfacing due to ablation.
@@ -577,8 +574,18 @@ def thermistorDepth(df_in, site,
     '''
 
     logger.info('Calculating thermistor depth')
-
-    maintenance_string = pd.read_csv(installation_info_file)
+    
+    if os.path.isfile(installation_info_file):
+        maintenance_string = pd.read_csv(installation_info_file)
+        logger.info('loading '+installation_info_file)
+    else:
+        maintenance_string = pd.DataFrame(columns=['date_visit', 'station',
+               'length_of_thermistor_string_on_surface_from_surface_marking',
+               'depth_new_thermistor_m', 'note', 'depth_ablation_hose_arrival_m',
+               'depth_ablation_hose_departure_m', 'height_sr50_aws_arrival_cm',
+               'height_sr50_aws_departure_cm', 'height_sr50_stakes_arrival_cm',
+               'height_sr50_stakes_departure_cm', 'note.1'])
+        logger.info('cannot find '+installation_info_file)
 
     maintenance_string = maintenance_string.replace("OUT", np.nan)
     maintenance_string[
