@@ -89,60 +89,83 @@ def toL3(L2, T_0=273.15):
 
     return ds
 
+
 def surfaceHeightProcessing(ds):
-    # creating surface height variables
-    ds['z_surf_1'] = ('time', ds['z_boom_u'].data*np.nan)
-    ds['z_surf_2'] = ('time', ds['z_boom_u'].data*np.nan)
+    """
+    Process surface height data for different site types and create 
+    surface height variables.
 
-    if ds.attrs['site_type']  == 'ablation':
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        The dataset containing various measurements and attributes including
+        'site_type' which determines the type of site (e.g., 'ablation', 
+        'accumulation', 'bedrock') and other relevant data variables such as 
+        'z_boom_u', 'z_stake', 'z_pt_cor', etc.
+
+    Returns
+    -------
+    xarray.Dataset
+        The dataset with additional processed surface height variables:
+        'z_surf_1', 'z_surf_2', 'z_ice_surf', 'z_surf_combined', 'snow_height',
+        and possibly depth variables derived from temperature measurements.
+    """
+    # Initialize surface height variables with NaNs
+    ds['z_surf_1'] = ('time', ds['z_boom_u'].data * np.nan)
+    ds['z_surf_2'] = ('time', ds['z_boom_u'].data * np.nan)
+
+    if ds.attrs['site_type'] == 'ablation':
+        # Calculate surface heights for ablation sites
         ds['z_surf_1'] = 2.6 - ds['z_boom_u']
-        first_valid_index = ds.time.where(ds.z_stake.notnull(),drop=True).data[0]
+        first_valid_index = ds.time.where(ds.z_stake.notnull(), drop=True).data[0]
         if first_valid_index:
-            ds['z_surf_2'] =  ds.z_surf_1.sel(time=first_valid_index) + ds.z_stake.sel(time=first_valid_index) - ds['z_stake']
-
+            ds['z_surf_2'] = ds.z_surf_1.sel(time=first_valid_index) + ds.z_stake.sel(time=first_valid_index) - ds['z_stake']
+        
+        # Use corrected point data if available
         if 'z_pt_cor' in ds.data_vars:
             ds['z_ice_surf'] = ('time', ds['z_pt_cor'].data)
-
+    
     else:
-        first_valid_index = ds.time.where(ds.z_boom_u.notnull(),drop=True).data[0]
+        # Calculate surface heights for other site types
+        first_valid_index = ds.time.where(ds.z_boom_u.notnull(), drop=True).data[0]
         ds['z_surf_1'] = ds.z_boom_u.sel(time=first_valid_index) - ds['z_boom_u']
         if 'z_boom_l' in ds.data_vars:
-            first_valid_index = ds.time.where(ds.z_boom_l.notnull(),drop=True).data[0]
+            first_valid_index = ds.time.where(ds.z_boom_l.notnull(), drop=True).data[0]
             ds['z_surf_2'] = ds.z_boom_l.sel(time=first_valid_index) - ds['z_boom_l']
-        if 'z_stake' in ds.data_vars:
-            if ds.z_stake.notnull().any():
-                first_valid_index = ds.time.where(ds.z_stake.notnull(),drop=True).data[0]
-                ds['z_surf_2'] = ds.z_stake.sel(time=first_valid_index) - ds['z_stake']
+        if 'z_stake' in ds.data_vars and ds.z_stake.notnull().any():
+            first_valid_index = ds.time.where(ds.z_stake.notnull(), drop=True).data[0]
+            ds['z_surf_2'] = ds.z_stake.sel(time=first_valid_index) - ds['z_stake']
 
+    # Adjust data for the created surface height variables
+    ds = adjustData(ds, var_list=['z_surf_1', 'z_surf_2', 'z_ice_surf'])
 
-    ds = adjustData(ds, var_list=['z_surf_1', 'z_surf_2','z_ice_surf'])
+    # Convert to dataframe and combine surface height variables
+    df_in = ds[[v for v in ['z_surf_1', 'z_surf_2', 'z_ice_surf'] if v in ds.data_vars]].to_dataframe()
+    ds['z_surf_combined'], ds['z_ice_surf'] = combineSurfaceHeight(df_in, ds.attrs['site_type'])
 
-    df_in = ds[[v for v in ['z_surf_1', 'z_surf_2','z_ice_surf'] if v in ds.data_vars]].to_dataframe()
-
-    ds['z_surf_combined'],  ds['z_ice_surf']  = combineSurfaceHeight(df_in, ds.attrs['site_type'])
-
-    if ds.attrs['site_type']  == 'ablation':
-        ds['z_ice_surf'] = ds.z_surf_combined.to_series().rolling('365D').min() 
-        ds['snow_height'] = ds['z_surf_combined'] -ds['z_ice_surf']
-    elif ds.attrs['site_type']  == 'accumulation':
-        ds['z_ice_surf'] = ('time', ds['z_surf_1'].data*np.nan)
-        ds['snow_height'] = ds['z_surf_combined']
-    elif ds.attrs['site_type']  == 'bedrock':
-        ds['z_ice_surf'] = ('time', ds['z_surf_1'].data*np.nan)
+    if ds.attrs['site_type'] == 'ablation':
+        # Calculate rolling minimum for ice surface height and snow height
+        ds['z_ice_surf'] = ds.z_surf_combined.to_series().rolling('365D').min()
+        ds['snow_height'] = ds['z_surf_combined'] - ds['z_ice_surf']
+    elif ds.attrs['site_type'] in ['accumulation', 'bedrock']:
+        # Handle accumulation and bedrock site types
+        ds['z_ice_surf'] = ('time', ds['z_surf_1'].data * np.nan)
         ds['snow_height'] = ds['z_surf_combined']
     else:
+        # Log info for other site types
         logger.info('other site type')
 
     if ds.attrs['site_type'] != 'bedrock':
+        # Process ice temperature data and create depth variables
         ice_temp_vars = [v for v in ds.data_vars if 't_i_' in v]
-        vars_out = [v.replace('t','d_t') for v in ice_temp_vars]
+        vars_out = [v.replace('t', 'd_t') for v in ice_temp_vars]
         vars_out.append('t_i_10m')
-        df_out = thermistorDepth(
-            ds[ice_temp_vars+['z_surf_combined']].to_dataframe(),
-                                        ds.attrs['station_id'])
+        df_out = thermistorDepth(ds[ice_temp_vars + ['z_surf_combined']].to_dataframe(), ds.attrs['station_id'])
         for var in df_out.columns:
             ds[var] = ('time', df_out[var].values)
+    
     return ds
+
 
 def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
     '''Combines the data from three sensor: the two sonic rangers and the
