@@ -31,8 +31,8 @@ def loadArr(infile):
             ds.load()
          # Remove encoding attributes from NetCDF
         for varname in ds.variables:
-            if 'encoding' in ds[varname].attrs:
-                del ds[varname].attrs['encoding']
+            if ds[varname].encoding!={}:
+                ds[varname].encoding = {}
 
     try:
         name = ds.attrs['station_id'] 

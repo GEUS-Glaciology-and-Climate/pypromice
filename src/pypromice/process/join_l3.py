@@ -119,8 +119,8 @@ def loadArr(infile, isNead):
         ds = xr.open_dataset(infile)
         # Remove encoding attributes from NetCDF
         for varname in ds.variables:
-            if 'encoding' in ds[varname].attrs:
-                del ds[varname].attrs['encoding']
+            if ds[varname].encoding!={}:
+                ds[varname].encoding = {}
     
     try:
         name = ds.attrs['station_name'] 
