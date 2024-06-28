@@ -20,20 +20,20 @@ TEST_CONFIG_PATH = TEST_DATA_ROOT_PATH / "test_config1.toml"
 
 class TestProcess(unittest.TestCase):
 
-    def testgetVars(self):
+    def get_vars(self):
         '''Test variable table lookup retrieval'''
         v = getVars()
         self.assertIsInstance(v, pd.DataFrame)
         self.assertTrue(v.columns[0] in 'standard_name')
         self.assertTrue(v.columns[2] in 'units')
 
-    def testgetMeta(self):
+    def get_meta(self):
         '''Test AWS names retrieval'''
         m = getMeta()
         self.assertIsInstance(m, dict)
         self.assertTrue('references' in m)
 
-    def testAddAll(self):
+    def add_all(self):
         '''Test variable and metadata attributes added to Dataset'''
         d = xr.Dataset()
         v = getVars()
@@ -53,33 +53,32 @@ class TestProcess(unittest.TestCase):
         self.assertTrue(d.attrs['station_id']=='TEST')
         self.assertIsInstance(d.attrs['references'], str)
 
-    def testL0toL3(self):
+    def l0_to_l3(self):
         '''Test L0 to L3 processing'''
         pAWS = AWS(TEST_CONFIG_PATH.as_posix(), TEST_DATA_ROOT_PATH.as_posix())
         pAWS.process()
         self.assertIsInstance(pAWS.L2, xr.Dataset)
         self.assertTrue(pAWS.L2.attrs['station_id']=='TEST1')
 
-    def testCLIgetl2(self):
+    def get_l2_cli(self):
         '''Test get_l2 CLI'''
         exit_status = os.system('get_l2 -h')
         self.assertEqual(exit_status, 0)
         
-    def testCLIjoinl2(self):
+    def join_l2_cli(self):
         '''Test join_l2 CLI'''
         exit_status = os.system('join_l2 -h')
         self.assertEqual(exit_status, 0)
         
-    def testCLIgetl2tol3(self):
+    def l2_to_l3_cli(self):
         '''Test get_l2tol3 CLI'''
         exit_status = os.system('get_l2tol3 -h')
         self.assertEqual(exit_status, 0)
         
-    def testCLIjoinl3(self):
+    def join_l3_cli(self):
         '''Test join_l3 CLI'''
         exit_status = os.system('join_l3 -h')
         self.assertEqual(exit_status, 0)
 
 if __name__ == "__main__":
-
     unittest.main()
