@@ -61,7 +61,7 @@ def get_l2tol3(config_folder, inpath, outpath, variables, metadata):
 
 def main():
     args = parse_arguments_l2tol3()
-    _ = get_l2tol3(args.inpath, args.outpath, args.variables, args.metadata)
+    _ = get_l2tol3(args.config_folder, args.inpath, args.outpath, args.variables, args.metadata)
     
 if __name__ == "__main__":  
     main()
