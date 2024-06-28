@@ -12,6 +12,8 @@ def parse_arguments_l2tol3(debug_args=None):
     parser = ArgumentParser(description="AWS L3 script for the processing L3 "+
                             "data from L2. An hourly, daily and monthly L3 "+
                             "data product is outputted to the defined output path")
+    parser.add_argument('-c', '--config_folder', type=str, required=True,
+                        help='Path to folder with sites configuration (TOML) files')
     parser.add_argument('-i', '--inpath', type=str, required=True, 
                         help='Path to Level 2 .nc data file')
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, 
@@ -24,7 +26,7 @@ def parse_arguments_l2tol3(debug_args=None):
     args = parser.parse_args(args=debug_args)
     return args
 
-def get_l2tol3(inpath, outpath, variables, metadata):
+def get_l2tol3(config_folder, inpath, outpath, variables, metadata):
     logging.basicConfig(
         format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
         level=logging.INFO,
@@ -46,7 +48,7 @@ def get_l2tol3(inpath, outpath, variables, metadata):
         l2.attrs['number_of_booms'] = int(l2.attrs['number_of_booms'])
     
     # Perform Level 3 processing
-    l3 = toL3(l2)
+    l3 = toL3(l2, config_folder)
 
     # Write Level 3 dataset to file if output directory given
     v = getVars(variables)
