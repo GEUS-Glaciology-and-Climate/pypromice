@@ -22,9 +22,8 @@ def parse_arguments_l2():
     args = parser.parse_args()
     return args
 
-def get_l2():
-    args = parse_arguments_l2()
 
+def get_l2(config_file, inpath, outpath, variables, metadata):
     logging.basicConfig(
         format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
         level=logging.INFO,
@@ -32,27 +31,32 @@ def get_l2():
     )
     
     # Define input path
-    station_name = args.config_file.split('/')[-1].split('.')[0] 
-    station_path = os.path.join(args.inpath, station_name)
+    station_name = config_file.split('/')[-1].split('.')[0] 
+    station_path = os.path.join(inpath, station_name)
     if os.path.exists(station_path):
-        aws = AWS(args.config_file, station_path, args.variables, args.metadata)
+        aws = AWS(config_file, station_path, variables, metadata)
     else:
-        aws = AWS(args.config_file, args.inpath, args.variables, args.metadata)
+        aws = AWS(config_file, inpath, variables, metadata)
 
     # Perform level 1 and 2 processing
     aws.getL1()
     aws.getL2() 
-    v = getVars(args.variables)
-    m = getMeta(args.metadata)
+    v = getVars(variables)
+    m = getMeta(metadata)
     # Write out level 2
-    if args.outpath is not None:
-        if not os.path.isdir(args.outpath):
-            os.mkdir(args.outpath)
+    if outpath is not None:
+        if not os.path.isdir(outpath):
+            os.mkdir(outpath)
         if aws.L2.attrs['format'] == 'raw':
-            prepare_and_write(aws.L2, args.outpath, v, m, '10min')
-        prepare_and_write(aws.L2, args.outpath, v, m, '60min')
+            prepare_and_write(aws.L2, outpath, v, m, '10min')
+        prepare_and_write(aws.L2, outpath, v, m, '60min')
+    return aws
+
+def main():
+    args = parse_arguments_l2()
+    _ = get_l2(args.config_file, args.inpath, args.outpath, args.variables, args.metadata)
 
 
 if __name__ == "__main__":  
-    get_l2()
+    main()
         
