@@ -11,7 +11,7 @@ from sklearn.linear_model import LinearRegression
 import logging
 logger = logging.getLogger(__name__)
 
-def toL3(L2, T_0=273.15, config_folder='../aws-l0/metadata/station_configurations/'):
+def toL3(L2, config_folder='../aws-l0/metadata/station_configurations/', T_0=273.15):
     '''Process one Level 2 (L2) product to Level 3 (L3) meaning calculating all
     derived variables:
         - Turbulent fluxes
