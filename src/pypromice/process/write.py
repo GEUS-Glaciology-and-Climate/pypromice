@@ -100,7 +100,6 @@ def prepare_and_write(dataset, outpath, vars_df=None, meta_dict=None, time='60mi
     writeCSV(out_csv, d2, col_names)
 
     # Write to netcdf file
-    col_names = col_names + ['lat', 'lon', 'alt']
     writeNC(out_nc, d2, col_names)
     logger.info(f'Written to {out_csv}')
     logger.info(f'Written to {out_nc}')
@@ -245,16 +244,24 @@ def addMeta(ds, meta):
     ds : xarray.Dataset
         Dataset with metadata
    '''
-    if 'gps_lon' in ds.keys():
-        ds['lon'] = ds['gps_lon'].mean()
-        ds['lon'].attrs = ds['gps_lon'].attrs
-
-        ds['lat'] = ds['gps_lat'].mean()
-        ds['lat'].attrs = ds['gps_lat'].attrs
-
-        ds['alt'] = ds['gps_alt'].mean()
-        ds['alt'].attrs = ds['gps_alt'].attrs
-
+    if 'lon' in ds.keys():
+        # caluclating average coordinates based on the extra/interpolated coords
+        for v in ['lat','lon','alt']:
+            ds.attrs[v+'_avg'] = ds[v].mean().item()
+        # dropping the less accurate standard coordinates given in the 
+        # raw or tx config files
+        for v in ['latitude','longitude']:
+            if v in ds.attrs.keys():
+                del ds.attrs[v]
+    elif 'gps_lon' in ds.keys():
+        # caluclating average coordinates based on the measured coords (can be gappy)
+        for v in ['gps_lat','gps_lon','gps_alt']:
+            ds.attrs[v+'_avg'] = ds[v].mean().item()
+        # dropping the less accurate standard coordinates given in the 
+        # raw or tx config files
+        for v in ['latitude','longitude']:
+            if v in ds.attrs.keys():
+                del ds.attrs[v]
     # Attribute convention for data discovery
     # https://wiki.esipfed.org/Attribute_Convention_for_Data_Discovery_1-3
     
