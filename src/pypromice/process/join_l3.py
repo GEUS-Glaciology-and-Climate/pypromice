@@ -285,7 +285,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             
 
     # Assign site id
-    if l3_merged == None:
+    if not l3_merged:
         logger.error('No level 2 data file found for '+site)
     l3_merged.attrs['site_id'] = site
     l3_merged.attrs['stations'] = ' '.join(sorted_stids)
