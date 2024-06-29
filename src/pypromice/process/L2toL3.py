@@ -106,17 +106,14 @@ def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/stati
         # saving the static value of 'lat','lon' or 'alt' stored in attribute
         # as it might be the only coordinate available for certain stations (e.g. bedrock)
         var_out = var.replace('gps_','')
-        
-        if var_out == 'alt':
-            if 'altitude' in list(ds.attrs.keys()):
-                static_value = float(ds.attrs['altitude'])
-            else:
-                # print('no standard altitude for', ds.attrs['station_id'])
-                static_value = np.nan
-        elif  var_out == 'lat':
-            static_value = float(ds.attrs['latitude'])
-        elif  var_out == 'lon':
-            static_value = float(ds.attrs['longitude'])
+        coord_names = {'alt':'altitude', 'lat':'latitude','lon':'longitude'}
+
+        if var_out+'_avg' in list(ds.attrs.keys()):
+            static_value = float(ds.attrs[var_out+'_avg'])
+        elif coord_names[var_out] in list(ds.attrs.keys()):
+            static_value = float(ds.attrs[coord_names[var_out]])
+        else:
+            static_value = np.nan
         
         # if there is no gps observations, then we use the static value repeated
         # for each time stamp
