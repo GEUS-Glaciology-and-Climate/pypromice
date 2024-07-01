@@ -6,6 +6,11 @@ from pypromice.process.write import prepare_and_write
 import numpy as np
 import pandas as pd
 import xarray as xr
+logging.basicConfig(
+    format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
+    level=logging.INFO,
+    stream=sys.stdout,
+)
 logger = logging.getLogger(__name__)
 
 def parse_arguments_joinl3(debug_args=None):
@@ -202,16 +207,16 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
         
         filepath = os.path.join(folder_l3, stid, stid+'_hour.nc')
         isNead = False
-        if station_info["project"].lower() in ["historical gc-net", "glaciobasis"]:
+        if station_info["project"].lower() in ["historical gc-net"]:
             filepath = os.path.join(folder_gcnet, stid+'.csv')
             isNead = True
-        if not os.path.isfile(filepath):            
+        if not os.path.isfile(filepath):
             logger.info(stid+' is from an project '+folder_l3+' or '+folder_gcnet)
             continue
 
         l3, _ = loadArr(filepath, isNead)            
         list_station_data.append((l3, station_info))
-    
+
     # Sort the list in reverse chronological order so that we start with the latest data
     sorted_list_station_data = sorted(list_station_data, key=lambda x: x[0].time.max(), reverse=True)
     sorted_stids = [info["stid"] for _, info in sorted_list_station_data]
@@ -280,6 +285,8 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             
 
     # Assign site id
+    if not l3_merged:
+        logger.error('No level 2 data file found for '+site)
     l3_merged.attrs['site_id'] = site
     l3_merged.attrs['stations'] = ' '.join(sorted_stids)
     l3_merged.attrs['level'] = 'L3'
