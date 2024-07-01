@@ -83,7 +83,7 @@ def persistence_qc(
                     mask = mask & (df[v]<99)
                 n_masked = mask.sum()
                 n_samples = len(mask)
-                logger.debug(
+                logger.info(
                     f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
                 )
                 # setting outliers to NaN
@@ -96,7 +96,7 @@ def persistence_qc(
 
                 n_masked = mask.sum()
                 n_samples = len(mask)
-                logger.debug(
+                logger.info(
                     f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
                 )
                 # setting outliers to NaN

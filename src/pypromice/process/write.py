@@ -48,7 +48,7 @@ def prepare_and_write(dataset, outpath, vars_df=None, meta_dict=None, time='60mi
     if 'gps_lon' in d2.keys():
         d2 = reformat_lon(d2)
     else:
-        logger.info('%s does not have gps_lon'%name)
+        logger.info('%s does not have gpd_lon'%name)
         
     # Add variable attributes and metadata
     if vars_df is None:
@@ -100,6 +100,7 @@ def prepare_and_write(dataset, outpath, vars_df=None, meta_dict=None, time='60mi
     writeCSV(out_csv, d2, col_names)
 
     # Write to netcdf file
+    col_names = col_names + ['lat', 'lon', 'alt']
     writeNC(out_nc, d2, col_names)
     logger.info(f'Written to {out_csv}')
     logger.info(f'Written to {out_nc}')
@@ -244,24 +245,16 @@ def addMeta(ds, meta):
     ds : xarray.Dataset
         Dataset with metadata
    '''
-    if 'lon' in ds.keys():
-        # caluclating average coordinates based on the extra/interpolated coords
-        for v in ['lat','lon','alt']:
-            ds.attrs[v+'_avg'] = ds[v].mean().item()
-        # dropping the less accurate standard coordinates given in the 
-        # raw or tx config files
-        for v in ['latitude','longitude']:
-            if v in ds.attrs.keys():
-                del ds.attrs[v]
-    elif 'gps_lon' in ds.keys():
-        # caluclating average coordinates based on the measured coords (can be gappy)
-        for v in ['gps_lat','gps_lon','gps_alt']:
-            ds.attrs[v+'_avg'] = ds[v].mean().item()
-        # dropping the less accurate standard coordinates given in the 
-        # raw or tx config files
-        for v in ['latitude','longitude']:
-            if v in ds.attrs.keys():
-                del ds.attrs[v]
+    if 'gps_lon' in ds.keys():
+        ds['lon'] = ds['gps_lon'].mean()
+        ds['lon'].attrs = ds['gps_lon'].attrs
+
+        ds['lat'] = ds['gps_lat'].mean()
+        ds['lat'].attrs = ds['gps_lat'].attrs
+
+        ds['alt'] = ds['gps_alt'].mean()
+        ds['alt'].attrs = ds['gps_alt'].attrs
+
     # Attribute convention for data discovery
     # https://wiki.esipfed.org/Attribute_Convention_for_Data_Discovery_1-3
     
@@ -290,61 +283,19 @@ def addMeta(ds, meta):
     ds.attrs['date_metadata_modified'] = ds.attrs['date_created']
     ds.attrs['processing_level'] = ds.attrs['level'].replace('L','level ')
 
-
-    if 'lat' in ds.keys():
-        lat_min = ds['lat'].min().values
-        lat_max = ds['lat'].max().values
-    elif 'gps_lat' in ds.keys():
-        lat_min = ds['gps_lat'].min().values
-        lat_max = ds['gps_lat'].max().values
-    elif 'latitude' in ds.attrs.keys():
-        lat_min = ds.attrs['latitude']
-        lat_max = ds.attrs['latitude']
-    else:
-        lat_min =np.nan
-        lat_max = np.nan
-        
-        
-    if 'lon' in ds.keys():
-        lon_min = ds['lon'].min().values
-        lon_max = ds['lon'].max().values
-    elif 'gps_lon' in ds.keys():
-        lon_min = ds['gps_lon'].min().values
-        lon_max = ds['gps_lon'].max().values
-    elif 'longitude' in ds.attrs.keys():
-        lon_min = ds.attrs['longitude']
-        lon_max = ds.attrs['longitude']
-    else:
-        lon_min =np.nan
-        lon_max = np.nan
-        
-    if 'alt' in ds.keys():
-        alt_min = ds['alt'].min().values
-        alt_max = ds['alt'].max().values
-    elif 'gps_alt' in ds.keys():
-        alt_min = ds['gps_alt'].min().values
-        alt_max = ds['gps_alt'].max().values
-    elif 'altitude' in ds.attrs.keys():
-        alt_min = ds.attrs['altitude']
-        alt_max = ds.attrs['altitude']
-    else:
-        alt_min =np.nan
-        alt_max = np.nan
-        
     ds.attrs['geospatial_bounds'] = "POLYGON((" + \
-        f"{lat_min} {lon_min}, " + \
-        f"{lat_min} {lon_max}, " + \
-        f"{lat_max} {lon_max}, " + \
-        f"{lat_max} {lon_min}, " + \
-        f"{lat_min} {lon_min}))"
+        f"{ds['lat'].min().values} {ds['lon'].min().values}, " + \
+        f"{ds['lat'].min().values} {ds['lon'].max().values}, " + \
+        f"{ds['lat'].max().values} {ds['lon'].max().values}, " + \
+        f"{ds['lat'].max().values} {ds['lon'].min().values}, " + \
+        f"{ds['lat'].min().values} {ds['lon'].min().values}))"
 
-    ds.attrs['geospatial_lat_min'] = str(lat_min)
-    ds.attrs['geospatial_lat_max'] = str(lat_max)
-    ds.attrs['geospatial_lon_min'] = str(lon_min)
-    ds.attrs['geospatial_lon_max'] = str(lon_max)
-    ds.attrs['geospatial_vertical_min'] = str(alt_min)
-    ds.attrs['geospatial_vertical_max'] = str(alt_max)
-    
+    ds.attrs['geospatial_lat_min'] = str(ds['lat'].min().values)
+    ds.attrs['geospatial_lat_max'] = str(ds['lat'].max().values)
+    ds.attrs['geospatial_lon_min'] = str(ds['lon'].min().values)
+    ds.attrs['geospatial_lon_max'] = str(ds['lon'].max().values)
+    ds.attrs['geospatial_vertical_min'] = str(ds['alt'].min().values)
+    ds.attrs['geospatial_vertical_max'] = str(ds['alt'].max().values)
     ds.attrs['geospatial_vertical_positive'] = 'up'
     ds.attrs['time_coverage_start'] = str(ds['time'][0].values)
     ds.attrs['time_coverage_end'] = str(ds['time'][-1].values)

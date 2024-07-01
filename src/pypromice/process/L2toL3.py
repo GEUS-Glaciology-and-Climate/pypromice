@@ -5,14 +5,14 @@ AWS Level 2 (L2) to Level 3 (L3) data processing
 import pandas as pd
 import numpy as np
 import xarray as xr
-import toml
+from statsmodels.nonparametric.smoothers_lowess import lowess
 from sklearn.linear_model import LinearRegression
 from pypromice.qc.github_data_issues import adjustData
 from scipy.interpolate import interp1d
 import logging, os
 logger = logging.getLogger(__name__)
 
-def toL3(L2, config_folder='../aws-l0/metadata/station_configurations/', T_0=273.15):
+def toL3(L2, T_0=273.15):
     '''Process one Level 2 (L2) product to Level 3 (L3) meaning calculating all
     derived variables:
         - Turbulent fluxes
@@ -34,68 +34,48 @@ def toL3(L2, config_folder='../aws-l0/metadata/station_configurations/', T_0=273
     T_100 = _getTempK(T_0)                                                     # Get steam point temperature as K 
     
     # Turbulent heat flux calculation
-    if ('t_u' in ds.keys()) and \
-        ('p_u' in ds.keys()) and \
-            ('rh_u_cor' in ds.keys()):
-        # Upper boom bulk calculation
-        T_h_u = ds['t_u'].copy()                                                   # Copy for processing
-        p_h_u = ds['p_u'].copy()
-        RH_cor_h_u = ds['rh_u_cor'].copy()
-            
-        q_h_u = calcSpHumid(T_0, T_100, T_h_u, p_h_u, RH_cor_h_u)                  # Calculate specific humidity
-        if ('wspd_u' in ds.keys()) and \
-            ('t_surf' in ds.keys()) and \
-                ('z_boom_u' in ds.keys()):
-            WS_h_u = ds['wspd_u'].copy()
-            Tsurf_h = ds['t_surf'].copy()                                              # T surf from derived upper boom product. TODO is this okay to use with lower boom parameters?
-            z_WS_u = ds['z_boom_u'].copy() + 0.4                                       # Get height of Anemometer                
-            z_T_u = ds['z_boom_u'].copy() - 0.1                                        # Get height of thermometer  
-            
-            if not ds.attrs['bedrock']:       
-                SHF_h_u, LHF_h_u= calcHeatFlux(T_0, T_h_u, Tsurf_h, WS_h_u,            # Calculate latent and sensible heat fluxes
-                                                z_WS_u, z_T_u, q_h_u, p_h_u)     
+    # Upper boom bulk calculation
+    T_h_u = ds['t_u'].copy()                                                   # Copy for processing
+    p_h_u = ds['p_u'].copy()
+    WS_h_u = ds['wspd_u'].copy()
+    RH_cor_h_u = ds['rh_u_cor'].copy()
+    Tsurf_h = ds['t_surf'].copy()                                              # T surf from derived upper boom product. TODO is this okay to use with lower boom parameters?
+    z_WS_u = ds['z_boom_u'].copy() + 0.4                                       # Get height of Anemometer                
+    z_T_u = ds['z_boom_u'].copy() - 0.1                                        # Get height of thermometer  
         
-                ds['dshf_u'] = (('time'), SHF_h_u.data)
-                ds['dlhf_u'] = (('time'), LHF_h_u.data)
-        else:
-            logger.info('wspd_u, t_surf or z_boom_u missing, cannot calulate tubrulent heat fluxes')
+    q_h_u = calcSpHumid(T_0, T_100, T_h_u, p_h_u, RH_cor_h_u)                  # Calculate specific humidity
+    
+    if not ds.attrs['bedrock']:       
+        SHF_h_u, LHF_h_u= calcHeatFlux(T_0, T_h_u, Tsurf_h, WS_h_u,            # Calculate latent and sensible heat fluxes
+                                        z_WS_u, z_T_u, q_h_u, p_h_u)     
 
-        q_h_u = 1000 * q_h_u                                                       # Convert sp.humid from kg/kg to g/kg
-        ds['qh_u'] = (('time'), q_h_u.data)
-    else:
-        logger.info('t_u, p_u or rh_u_cor missing, cannot calulate tubrulent heat fluxes')
+        ds['dshf_u'] = (('time'), SHF_h_u.data)
+        ds['dlhf_u'] = (('time'), LHF_h_u.data)
+
+    q_h_u = 1000 * q_h_u                                                       # Convert sp.humid from kg/kg to g/kg
+    ds['qh_u'] = (('time'), q_h_u.data)    
 
     # Lower boom bulk calculation
     if ds.attrs['number_of_booms']==2:
-        if ('t_l' in ds.keys()) and \
-            ('p_l' in ds.keys()) and \
-                ('rh_l_cor' in ds.keys()):
-            T_h_l = ds['t_l'].copy()                                               # Copy for processing
-            p_h_l = ds['p_l'].copy()                                    
-            RH_cor_h_l = ds['rh_l_cor'].copy()
-
-            q_h_l = calcSpHumid(T_0, T_100, T_h_l, p_h_l, RH_cor_h_l)              # Calculate sp.humidity
-
-            if ('wspd_l' in ds.keys()) and \
-                ('t_surf' in ds.keys()) and \
-                    ('z_boom_l' in ds.keys()):
-                z_WS_l = ds['z_boom_l'].copy() + 0.4                                   # Get height of W                  
-                z_T_l = ds['z_boom_l'].copy() - 0.1                                    # Get height of thermometer 
-                WS_h_l = ds['wspd_l'].copy()                                 
-                if not ds.attrs['bedrock']:       
-                    SHF_h_l, LHF_h_l= calcHeatFlux(T_0, T_h_l, Tsurf_h, WS_h_l, # Calculate latent and sensible heat fluxes 
-                                                    z_WS_l, z_T_l, q_h_l, p_h_l)        
+        T_h_l = ds['t_l'].copy()                                               # Copy for processing
+        p_h_l = ds['p_l'].copy()
+        WS_h_l = ds['wspd_l'].copy()                                      
+        RH_cor_h_l = ds['rh_l_cor'].copy()
+        z_WS_l = ds['z_boom_l'].copy() + 0.4                                   # Get height of W                  
+        z_T_l = ds['z_boom_l'].copy() - 0.1                                    # Get height of thermometer 
         
-                    ds['dshf_l'] = (('time'), SHF_h_l.data)
-                    ds['dlhf_l'] = (('time'), LHF_h_l.data)
-            else:
-                logger.info('wspd_l, t_surf or z_boom_l missing, cannot calulate tubrulent heat fluxes')
-    
-            q_h_l = 1000 * q_h_l                                                       # Convert sp.humid from kg/kg to g/kg
-            ds['qh_l'] = (('time'), q_h_l.data)
-        else:
-            logger.info('t_l, p_l or rh_l_cor missing, cannot calulate tubrulent heat fluxes')
+        q_h_l = calcSpHumid(T_0, T_100, T_h_l, p_h_l, RH_cor_h_l)              # Calculate sp.humidity
+                           
+        if not ds.attrs['bedrock']:       
+            SHF_h_l, LHF_h_l= calcHeatFlux(T_0, T_h_l, Tsurf_h, WS_h_l, # Calculate latent and sensible heat fluxes 
+                                            z_WS_l, z_T_l, q_h_l, p_h_l)        
 
+            ds['dshf_l'] = (('time'), SHF_h_l.data)
+            ds['dlhf_l'] = (('time'), LHF_h_l.data)
+        q_h_l = 1000 * q_h_l                                                   # Convert sp.humid from kg/kg to g/kg
+
+        ds['qh_l'] = (('time'), q_h_l.data)    
+    
     # Smoothing and inter/extrapolation of GPS coordinates
     for var in ['gps_lat', 'gps_lon', 'gps_alt']:
         ds[var.replace('gps_','')] = gpsCoordinatePostprocessing(ds, var)
@@ -782,18 +762,21 @@ def interpolate_temperature(dates, depth_cor, temp, depth=10, min_diff_to_depth=
 
     return df_interp
 
-def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/station_configurations/'):
+def gpsCoordinatePostprocessing(ds, var):
         # saving the static value of 'lat','lon' or 'alt' stored in attribute
         # as it might be the only coordinate available for certain stations (e.g. bedrock)
         var_out = var.replace('gps_','')
-        coord_names = {'alt':'altitude', 'lat':'latitude','lon':'longitude'}
-
-        if var_out+'_avg' in list(ds.attrs.keys()):
-            static_value = float(ds.attrs[var_out+'_avg'])
-        elif coord_names[var_out] in list(ds.attrs.keys()):
-            static_value = float(ds.attrs[coord_names[var_out]])
-        else:
-            static_value = np.nan
+        
+        if var_out == 'alt':
+            if 'altitude' in list(ds.attrs.keys()):
+                static_value = float(ds.attrs['altitude'])
+            else:
+                print('no standard altitude for', ds.attrs['station_id'])
+                static_value = np.nan
+        elif  var_out == 'lat':
+            static_value = float(ds.attrs['latitude'])
+        elif  var_out == 'lon':
+            static_value = float(ds.attrs['longitude'])
         
         # if there is no gps observations, then we use the static value repeated
         # for each time stamp
@@ -805,22 +788,16 @@ def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/stati
             print('no',var,'at',ds.attrs['station_id'])
             return ('time', np.ones_like(ds['t_u'].data)*static_value)
         
-        # fetching the station relocation dates at which the coordinates will/should
-        # have a break
-        config_file = config_folder +"/" + ds.attrs['station_id'] + ".toml"
-        with open(config_file, "r") as f:
-            config_data = toml.load(f)
-        
-        # Extract station relocations from the TOML data
-        station_relocations = config_data.get("station_relocation", [])
-        
-        # Convert the ISO8601 strings to pandas datetime objects
-        breaks = [pd.to_datetime(date_str) for date_str in station_relocations]
-        if len(breaks)==0:
-            logger.info('processing '+var+' without relocation')
+        # here we detect potential relocation of the station in the form of a 
+        # break in the general trend of the latitude, longitude and altitude
+        # in the future, this could/should be listed in an external file to 
+        # avoid missed relocations or sensor issues interpreted as a relocation
+        if var == 'gps_alt':
+            _, breaks = find_breaks(ds[var].to_series(), alpha=8)
         else:
-            logger.info('processing '+var+' with relocation on ' + ', '.join([br.strftime('%Y-%m-%dT%H:%M:%S') for br in breaks]))
-
+            _, breaks = find_breaks(ds[var].to_series(), alpha=6)
+        
+        # smoothing and inter/extrapolation of the coordinate
         return ('time',  piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks))
             
 
@@ -1070,76 +1047,74 @@ def calcSpHumid(T_0, T_100, T_h, p_h, RH_cor_h, es_0=6.1071, es_100=1013.246, ep
     # Convert to kg/kg
     return RH_cor_h * q_sat / 100 
 
+
+def find_breaks(df,alpha):
+    '''Detects potential relocation of the station from the GPS measurements.
+    The code first makes a forward linear interpolation of the coordinates and
+    then looks for important jumps in latitude, longitude and altitude. The jumps
+    that are higher than a given threshold (expressed as a multiple of the 
+    standard deviation) are mostly caused by the station being moved during
+    maintenance. To avoid misclassification, only the jumps detected in May-Sept. 
+    are kept.
+    
+    Parameters
+    ----------
+    df : pandas.Series
+        series of observed latitude, longitude or elevation
+    alpha: float
+        coefficient to be applied to the the standard deviation of the daily
+        coordinate fluctuation
+    '''
+    diff = df.resample('D').median().interpolate(
+        method='linear', limit_area='inside', limit_direction='forward').diff()        
+    thresh = diff.std() * alpha
+    list_diff = diff.loc[diff.abs()>thresh].reset_index()
+    list_diff = list_diff.loc[list_diff.time.dt.month.isin([5,6,7,8,9])]
+    list_diff['year']=list_diff.time.dt.year
+    list_diff=list_diff.groupby('year').max()
+    return diff, [None]+list_diff.time.to_list()+[None]
+
+
 def piecewise_smoothing_and_interpolation(df_in, breaks):
-    '''Smoothes, inter- or extrapolate the GPS observations. The processing is 
-    done piecewise so that each period between station relocations are done 
-    separately (no smoothing of the jump due to relocation). Piecewise linear 
-    regression is then used to smooth the available observations. Then this 
-    smoothed curve is interpolated linearly over internal gaps. Eventually, this 
-    interpolated curve is extrapolated linearly for timestamps before the first 
-    valid measurement and after the last valid measurement.
+    '''Smoothes, inter- or extrapolate the gps observations. The processing is 
+    done piecewise so that each period between station relocation are done 
+    separately (no smoothing of the jump due to relocation). Locally Weighted
+    Scatterplot Smoothing (lowess) is then used to smooth the available
+    observations. Then this smoothed curve is interpolated linearly over internal
+    gaps. Eventually, this interpolated curve is extrapolated linearly for 
+    timestamps before the first valid measurement and after the last valid
+    measurement.
     
     Parameters
     ----------
     df_in : pandas.Series
-        Series of observed latitude, longitude or elevation with datetime index.
+        series of observed latitude, longitude or elevation
     breaks: list
         List of timestamps of station relocation. First and last item should be
         None so that they can be used in slice(breaks[i], breaks[i+1])
-        
-    Returns
-    -------
-    np.ndarray
-        Smoothed and interpolated values corresponding to the input series.
     '''
-    df_all = pd.Series(dtype=float)  # Initialize an empty Series to gather all smoothed pieces
-    breaks = [None] + breaks + [None]
-    for i in range(len(breaks) - 1):
+    df_all = pd.Series() # dataframe gathering all the smoothed pieces
+    for i in range(len(breaks)-1):
         df = df_in.loc[slice(breaks[i], breaks[i+1])].copy()
-               
-        # Drop NaN values and calculate the number of segments based on valid data
-        df_valid = df.dropna()
-        if df_valid.shape[0] > 2:        
-            # Fit linear regression model to the valid data range
-            x = pd.to_numeric(df_valid.index).values.reshape(-1, 1)
-            y = df_valid.values.reshape(-1, 1)
-            
-            model = LinearRegression()
-            model.fit(x, y)
-            
-            # Predict using the model for the entire segment range
-            x_pred = pd.to_numeric(df.index).values.reshape(-1, 1)
-            
-            y_pred = model.predict(x_pred)
-            df =  pd.Series(y_pred.flatten(), index=df.index)
-
         
-        # Update df_all with predicted values for the current segment
-        df_all = pd.concat([df_all, df])
-    
-    # Fill internal gaps with linear interpolation
-    df_all = df_all.interpolate(method='linear', limit_area='inside')
-    
-    # Extrapolate for timestamps before the first valid measurement
-    first_valid_6_months = slice(None, df_in.first_valid_index() + pd.to_timedelta('180D'))
-    df_all.loc[first_valid_6_months] = (
-        df_all.loc[first_valid_6_months].interpolate(
-            method='linear', limit_direction='backward', fill_value="extrapolate"
-        )
-    ).values
-    
-    # Extrapolate for timestamps after the last valid measurement
-    last_valid_6_months = slice(df_in.last_valid_index() - pd.to_timedelta('180D'), None)
-    df_all.loc[last_valid_6_months] = (
-        df_all.loc[last_valid_6_months].interpolate(
-            method='linear', limit_direction='forward', fill_value="extrapolate"
-        )
-    ).values
-    
-    # Remove duplicate indices and return values as numpy array
+        y_sm = lowess(df,
+                      pd.to_numeric(df.index),
+                      is_sorted=True, frac=1/3, it=0,
+                      )
+        df.loc[df.notnull()] = y_sm[:,1]
+        df = df.interpolate(method='linear', limit_area='inside')
+        
+        last_valid_6_months = slice(df.last_valid_index()-pd.to_timedelta('180D'),None)
+        df.loc[last_valid_6_months] = (df.loc[last_valid_6_months].interpolate( axis=0,
+            method='spline',order=1, limit_direction='forward', fill_value="extrapolate")).values
+        
+        first_valid_6_months = slice(None, df.first_valid_index()+pd.to_timedelta('180D'))
+        df.loc[first_valid_6_months] = (df.loc[first_valid_6_months].interpolate( axis=0,
+            method='spline',order=1, limit_direction='backward', fill_value="extrapolate")).values
+        df_all=pd.concat((df_all, df))
+        
     df_all = df_all[~df_all.index.duplicated(keep='first')]
     return df_all.values
-
 
 def _calcAtmosDens(p_h, R_d, T_h, T_0):                                        # TODO: check this shouldn't be in this step somewhere
     '''Calculate atmospheric density'''
