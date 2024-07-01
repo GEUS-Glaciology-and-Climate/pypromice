@@ -5,7 +5,7 @@ AWS Level 2 (L2) to Level 3 (L3) data processing
 import pandas as pd
 import numpy as np
 import xarray as xr
-import toml
+import toml, os
 from sklearn.linear_model import LinearRegression
 
 import logging
@@ -128,11 +128,15 @@ def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/stati
         # fetching the station relocation dates at which the coordinates will/should
         # have a break
         config_file = config_folder +"/" + ds.attrs['station_id'] + ".toml"
-        with open(config_file, "r") as f:
-            config_data = toml.load(f)
-        
-        # Extract station relocations from the TOML data
-        station_relocations = config_data.get("station_relocation", [])
+        if os.path.isfile(config_file):
+            with open(config_file, "r") as f:
+                config_data = toml.load(f)
+            
+            # Extract station relocations from the TOML data
+            station_relocations = config_data.get("station_relocation", [])
+        else:
+            station_relocations = []
+            logger.warning('Did not find config file for '+ds.attrs['station_id']+'. Assuming no station relocation.')
         
         # Convert the ISO8601 strings to pandas datetime objects
         breaks = [pd.to_datetime(date_str) for date_str in station_relocations]

@@ -63,7 +63,11 @@ def prepare_and_write(dataset, outpath, vars_df=None, meta_dict=None, time='60mi
     d2 = roundValues(d2, vars_df)
 
     # Get variable names to write out
-    col_names = getColNames(vars_df, d2, remove_nan_fields=True)
+    if 'site_id' in d2.attrs.keys():
+        remove_nan_fields = True
+    else:
+        remove_nan_fields = False
+    col_names = getColNames(vars_df, d2, remove_nan_fields=remove_nan_fields)
 
     # Define filename based on resample rate
     t = int(pd.Timedelta((d2['time'][1] - d2['time'][0]).values).total_seconds())
@@ -256,12 +260,16 @@ def addMeta(ds, meta):
     elif 'gps_lon' in ds.keys():
         # caluclating average coordinates based on the measured coords (can be gappy)
         for v in ['gps_lat','gps_lon','gps_alt']:
-            ds.attrs[v+'_avg'] = ds[v].mean().item()
+            if v in ds.keys():
+                ds.attrs[v+'_avg'] = ds[v].mean().item()
+            else:
+                ds.attrs[v+'_avg'] = np.nan
         # dropping the less accurate standard coordinates given in the 
         # raw or tx config files
         for v in ['latitude','longitude']:
             if v in ds.attrs.keys():
                 del ds.attrs[v]
+        
     # Attribute convention for data discovery
     # https://wiki.esipfed.org/Attribute_Convention_for_Data_Discovery_1-3
     
