@@ -40,6 +40,7 @@ class TestProcess(unittest.TestCase):
                      datetime.datetime.now()-timedelta(days=365)]
         d.attrs['station_id']='TEST'
         d.attrs['level']='L2_test'
+        d.attrs['site_type']='ablation'
         meta = getMeta()
         d = addVars(d, v)
         d = addMeta(d, meta)
