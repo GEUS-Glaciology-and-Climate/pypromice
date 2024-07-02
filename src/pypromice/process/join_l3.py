@@ -271,6 +271,9 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             for v in l3_merged.data_vars:
                 if  v not in l3.data_vars:
                     l3[v] = l3.t_u*np.nan
+            for v in l3.data_vars:
+                if  v not in l3_merged.data_vars:
+                    l3_merged[v] = l3_merged.t_u*np.nan
             
             # saving attributes of station under an attribute called $stid
             st_attrs = l3_merged.attrs.get('stations_attributes', {})
