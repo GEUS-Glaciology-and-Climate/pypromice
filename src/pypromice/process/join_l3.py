@@ -6,6 +6,11 @@ from pypromice.process.write import prepare_and_write
 import numpy as np
 import pandas as pd
 import xarray as xr
+logging.basicConfig(
+    format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
+    level=logging.INFO,
+    stream=sys.stdout,
+)
 logger = logging.getLogger(__name__)
 
 def parse_arguments_joinl3(debug_args=None):
@@ -100,8 +105,20 @@ def readNead(infile):
         # combining thermocouple and CS100 temperatures
         ds['TA1'] =  ds['TA1'].combine_first(ds['TA3'])
         ds['TA2'] =  ds['TA2'].combine_first(ds['TA4'])
-        
+               
         ds=ds.rename(var_name)
+        
+        standard_vars_to_drop = ["NR", "TA3", "TA4", "TA5",  "NR_cor", 
+                             "z_surf_1",   "z_surf_2", "z_surf_combined", 
+            "TA2m", "RH2m", "VW10m", "SZA", "SAA", 
+            "depth_t_i_1", "depth_t_i_2", "depth_t_i_3", "depth_t_i_4", "depth_t_i_5", 
+            "depth_t_i_6", "depth_t_i_7", "depth_t_i_8", "depth_t_i_9", "depth_t_i_10", "t_i_10m"
+            ]
+        standard_vars_to_drop = standard_vars_to_drop + [v for v in list(ds.keys()) if v.endswith("_adj_flag")]
+
+        # Drop the variables if they are present in the dataset
+        ds = ds.drop_vars([var for var in standard_vars_to_drop if var in ds])
+        
         ds=ds.rename({'timestamp':'time'})
     return ds
 
@@ -116,7 +133,8 @@ def loadArr(infile, isNead):
             ds = xr.Dataset.from_dataframe(df)
             
     elif infile.split('.')[-1].lower() in 'nc':
-        ds = xr.open_dataset(infile)
+        with xr.open_dataset(infile) as ds:
+            ds.load()
         # Remove encoding attributes from NetCDF
         for varname in ds.variables:
             if ds[varname].encoding!={}:
@@ -202,16 +220,23 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
         
         filepath = os.path.join(folder_l3, stid, stid+'_hour.nc')
         isNead = False
-        if station_info["project"].lower() in ["historical gc-net", "glaciobasis"]:
+        if station_info["project"].lower() in ["historical gc-net"]:
             filepath = os.path.join(folder_gcnet, stid+'.csv')
             isNead = True
-        if not os.path.isfile(filepath):            
-            logger.info(stid+' is from an project '+folder_l3+' or '+folder_gcnet)
+        if not os.path.isfile(filepath):
+            logger.info(stid+' was listed as station but could not be found in '+folder_l3+' nor '+folder_gcnet)
             continue
 
-        l3, _ = loadArr(filepath, isNead)            
+        l3, _ = loadArr(filepath, isNead)    
+        
+        # removing specific variable from a given file
+        specific_vars_to_drop = station_info.get("skipped_variables",[])
+        if len(specific_vars_to_drop)>0:
+            logger.info("Skipping %s from %s"%(specific_vars_to_drop, stid))
+            l3 = l3.drop_vars([var for var in specific_vars_to_drop if var in l3])
+
         list_station_data.append((l3, station_info))
-    
+
     # Sort the list in reverse chronological order so that we start with the latest data
     sorted_list_station_data = sorted(list_station_data, key=lambda x: x[0].time.max(), reverse=True)
     sorted_stids = [info["stid"] for _, info in sorted_list_station_data]
@@ -246,19 +271,10 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             for v in l3_merged.data_vars:
                 if  v not in l3.data_vars:
                     l3[v] = l3.t_u*np.nan
-                    
-            # if l3 (older data) has variables that does not have l3_merged (newer data)
-            # then they are removed from l3
-            list_dropped = []
             for v in l3.data_vars:
-                if v not in l3_merged.data_vars:
-                    if v != 'z_stake':
-                       list_dropped.append(v)
-                       l3 = l3.drop(v)
-                    else:
-                       l3_merged[v] = ('time', l3_merged.t_u.data*np.nan)
-            logger.info('Unused variables in older dataset: '+' '.join(list_dropped))
-                        
+                if  v not in l3_merged.data_vars:
+                    l3_merged[v] = l3_merged.t_u*np.nan
+            
             # saving attributes of station under an attribute called $stid
             st_attrs = l3_merged.attrs.get('stations_attributes', {})
             st_attrs[stid] = l3.attrs.copy()
@@ -280,6 +296,8 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             
 
     # Assign site id
+    if not l3_merged:
+        logger.error('No level 2 data file found for '+site)
     l3_merged.attrs['site_id'] = site
     l3_merged.attrs['stations'] = ' '.join(sorted_stids)
     l3_merged.attrs['level'] = 'L3'
