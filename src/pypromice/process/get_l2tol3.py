@@ -36,7 +36,11 @@ def get_l2tol3(config_folder, inpath, outpath, variables, metadata):
     # Define Level 2 dataset from file
     with xr.open_dataset(inpath) as l2:
         l2.load()
-    
+
+    station_id = l2.attrs["station_id"]
+    station_config_path = Path(config_folder) / f"{station_id}.toml"
+    station_config = load_station_config(station_config_path)
+
     # Remove encoding attributes from NetCDF
     for varname in l2.variables:
         if l2[varname].encoding!={}:
