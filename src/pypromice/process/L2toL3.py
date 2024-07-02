@@ -2,16 +2,19 @@
 """
 AWS Level 2 (L2) to Level 3 (L3) data processing
 """
+from typing import Optional
+
 import pandas as pd
 import numpy as np
 import xarray as xr
 import toml, os
+from pypromice.station_configuration import StationConfig
 from sklearn.linear_model import LinearRegression
 
 import logging
 logger = logging.getLogger(__name__)
 
-def toL3(L2, config_folder='../aws-l0/metadata/station_configurations/', T_0=273.15):
+def toL3(L2, station_config: Optional[StationConfig], T_0=273.15):
     '''Process one Level 2 (L2) product to Level 3 (L3) meaning calculating all
     derived variables:
         - Turbulent fluxes
@@ -95,14 +98,14 @@ def toL3(L2, config_folder='../aws-l0/metadata/station_configurations/', T_0=273
 
     # Smoothing and inter/extrapolation of GPS coordinates
     for var in ['gps_lat', 'gps_lon', 'gps_alt']:
-        ds[var.replace('gps_','')] = gpsCoordinatePostprocessing(ds, var)
+        ds[var.replace('gps_','')] = gpsCoordinatePostprocessing(ds, var, station_config)
 
     # adding average coordinate as attribute        
     for v in ['lat','lon','alt']:
         ds.attrs[v+'_avg'] = ds[v].mean(dim='time').item()
     return ds
 
-def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/station_configurations/'):
+def gpsCoordinatePostprocessing(ds, var, station_config: Optional[StationConfig]):
         # saving the static value of 'lat','lon' or 'alt' stored in attribute
         # as it might be the only coordinate available for certain stations (e.g. bedrock)
         var_out = var.replace('gps_','')
@@ -125,19 +128,13 @@ def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/stati
             print('no',var,'at',ds.attrs['station_id'])
             return ('time', np.ones_like(ds['t_u'].data)*static_value)
         
-        # fetching the station relocation dates at which the coordinates will/should
-        # have a break
-        config_file = config_folder +"/" + ds.attrs['station_id'] + ".toml"
-        if os.path.isfile(config_file):
-            with open(config_file, "r") as f:
-                config_data = toml.load(f)
-            
-            # Extract station relocations from the TOML data
-            station_relocations = config_data.get("station_relocation", [])
-        else:
+        # fetching the station relocation dates at which the coordinates will/should have a break
+        if station_config is None:
             station_relocations = []
             logger.warning('Did not find config file for '+ds.attrs['station_id']+'. Assuming no station relocation.')
-        
+        else:
+            station_relocations = station_config['station_relocation']
+
         # Convert the ISO8601 strings to pandas datetime objects
         breaks = [pd.to_datetime(date_str) for date_str in station_relocations]
         if len(breaks)==0:
@@ -146,12 +143,12 @@ def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/stati
             logger.info('processing '+var+' with relocation on ' + ', '.join([br.strftime('%Y-%m-%dT%H:%M:%S') for br in breaks]))
 
         return ('time',  piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks))
-            
+
 
 def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h, 
                 kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622, 
                 gamma=16., L_sub=2.83e6, L_dif_max=0.01, c_pd=1005., aa=0.7, 
-                bb=0.75, cc=5., dd=0.35, R_d=287.05):    
+                bb=0.75, cc=5., dd=0.35, R_d=287.05):
     '''Calculate latent and sensible heat flux using the bulk calculation 
     method 
     
