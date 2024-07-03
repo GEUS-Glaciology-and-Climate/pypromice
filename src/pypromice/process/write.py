@@ -63,7 +63,11 @@ def prepare_and_write(dataset, outpath, vars_df=None, meta_dict=None, time='60mi
     d2 = roundValues(d2, vars_df)
 
     # Get variable names to write out
-    col_names = getColNames(vars_df, d2, remove_nan_fields=True)
+    if 'site_id' in d2.attrs.keys():
+        remove_nan_fields = True
+    else:
+        remove_nan_fields = False
+    col_names = getColNames(vars_df, d2, remove_nan_fields=remove_nan_fields)
 
     # Define filename based on resample rate
     t = int(pd.Timedelta((d2['time'][1] - d2['time'][0]).values).total_seconds())

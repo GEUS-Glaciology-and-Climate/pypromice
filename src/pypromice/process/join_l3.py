@@ -202,7 +202,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
         
         filepath = os.path.join(folder_l3, stid, stid+'_hour.nc')
         isNead = False
-        if station_info["project"].lower() in ["historical gc-net", "glaciobasis"]:
+        if station_info["project"].lower() in ["historical gc-net"]:
             filepath = os.path.join(folder_gcnet, stid+'.csv')
             isNead = True
         if not os.path.isfile(filepath):            
@@ -221,6 +221,22 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
     for l3, station_info in sorted_list_station_data:
         stid = station_info["stid"]
         
+        # This is necessary in xarray < 2024.6.0:
+        for v in ['lat','lon','alt']:
+            if v in l3.keys():
+                tmp = l3[v]
+                l3 = l3.drop_vars(v)
+                l3[v] = (tmp[v].data)
+        # lat lon and alt are set as coordinates to all variables in the l3 data
+        # this makes it impossible to concatenate with other datasets where
+        # lat lon alt are not coordinates
+        # I have tried .reset_coords(drop=True) and .drop_vars([...]) without success
+        # this was the only way they could be reset as 0-dimensional variables
+        # which are not coordinates.
+        # This will be removed in further updates because lat/lon/alt will become
+        # real time-dependent variables, and will not be specified anymore as coordinates
+        # in the variable.csv
+                
         if l3_merged is None:
             # saving attributes of stid
             st_attrs = {}
