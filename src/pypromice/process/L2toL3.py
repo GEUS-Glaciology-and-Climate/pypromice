@@ -22,6 +22,10 @@ def toL3(L2, config_folder='../aws-l0/metadata/station_configurations/', T_0=273
     ----------
     L2 : xarray:Dataset
         L2 AWS data
+    config_folder : Dict
+        Dictionary containing the information necessary for the processing of 
+        L3 variables (relocation dates for coordinates processing, or thermistor
+        string maintenance date for the thermistors depth)
     T_0 : int 
         Steam point temperature. Default is 273.15.
     '''
@@ -95,7 +99,7 @@ def toL3(L2, config_folder='../aws-l0/metadata/station_configurations/', T_0=273
 
     # Smoothing and inter/extrapolation of GPS coordinates
     for var in ['gps_lat', 'gps_lon', 'gps_alt']:
-        ds[var.replace('gps_','')] = gpsCoordinatePostprocessing(ds, var)
+        ds[var.replace('gps_','')] = ('time', gpsCoordinatePostprocessing(ds, var))
 
     # adding average coordinate as attribute        
     for v in ['lat','lon','alt']:
@@ -119,11 +123,11 @@ def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/stati
         # for each time stamp
         if var not in ds.data_vars: 
             print('no',var,'at', ds.attrs['station_id'])
-            return ('time', np.ones_like(ds['t_u'].data)*static_value)
+            return np.ones_like(ds['t_u'].data)*static_value
         
         if ds[var].isnull().all():
             print('no',var,'at',ds.attrs['station_id'])
-            return ('time', np.ones_like(ds['t_u'].data)*static_value)
+            return np.ones_like(ds['t_u'].data)*static_value
         
         # fetching the station relocation dates at which the coordinates will/should
         # have a break
@@ -145,7 +149,7 @@ def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/stati
         else:
             logger.info('processing '+var+' with relocation on ' + ', '.join([br.strftime('%Y-%m-%dT%H:%M:%S') for br in breaks]))
 
-        return ('time',  piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks))
+        return piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks)
             
 
 def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h, 
@@ -394,7 +398,7 @@ def calcSpHumid(T_0, T_100, T_h, p_h, RH_cor_h, es_0=6.1071, es_100=1013.246, ep
     # Convert to kg/kg
     return RH_cor_h * q_sat / 100 
 
-def piecewise_smoothing_and_interpolation(df_in, breaks):
+def piecewise_smoothing_and_interpolation(data_series, breaks):
     '''Smoothes, inter- or extrapolate the GPS observations. The processing is 
     done piecewise so that each period between station relocations are done 
     separately (no smoothing of the jump due to relocation). Piecewise linear 
@@ -405,7 +409,7 @@ def piecewise_smoothing_and_interpolation(df_in, breaks):
     
     Parameters
     ----------
-    df_in : pandas.Series
+    data_series : pandas.Series
         Series of observed latitude, longitude or elevation with datetime index.
     breaks: list
         List of timestamps of station relocation. First and last item should be
@@ -418,8 +422,9 @@ def piecewise_smoothing_and_interpolation(df_in, breaks):
     '''
     df_all = pd.Series(dtype=float)  # Initialize an empty Series to gather all smoothed pieces
     breaks = [None] + breaks + [None]
+    _inferred_series = []
     for i in range(len(breaks) - 1):
-        df = df_in.loc[slice(breaks[i], breaks[i+1])].copy()
+        df = data_series.loc[slice(breaks[i], breaks[i+1])]
                
         # Drop NaN values and calculate the number of segments based on valid data
         df_valid = df.dropna()
@@ -436,32 +441,16 @@ def piecewise_smoothing_and_interpolation(df_in, breaks):
             
             y_pred = model.predict(x_pred)
             df =  pd.Series(y_pred.flatten(), index=df.index)
-
+        # adds to list the predicted values for the current segment
+        _inferred_series.append(df)
         
-        # Update df_all with predicted values for the current segment
-        df_all = pd.concat([df_all, df])
+    df_all = pd.concat(_inferred_series)
     
     # Fill internal gaps with linear interpolation
     df_all = df_all.interpolate(method='linear', limit_area='inside')
-    
-    # Extrapolate for timestamps before the first valid measurement
-    first_valid_6_months = slice(None, df_in.first_valid_index() + pd.to_timedelta('180D'))
-    df_all.loc[first_valid_6_months] = (
-        df_all.loc[first_valid_6_months].interpolate(
-            method='linear', limit_direction='backward', fill_value="extrapolate"
-        )
-    ).values
-    
-    # Extrapolate for timestamps after the last valid measurement
-    last_valid_6_months = slice(df_in.last_valid_index() - pd.to_timedelta('180D'), None)
-    df_all.loc[last_valid_6_months] = (
-        df_all.loc[last_valid_6_months].interpolate(
-            method='linear', limit_direction='forward', fill_value="extrapolate"
-        )
-    ).values
-    
+        
     # Remove duplicate indices and return values as numpy array
-    df_all = df_all[~df_all.index.duplicated(keep='first')]
+    df_all = df_all[~df_all.index.duplicated(keep='last')]
     return df_all.values
 
 
