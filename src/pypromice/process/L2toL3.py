@@ -11,7 +11,7 @@ from sklearn.linear_model import LinearRegression
 import logging
 logger = logging.getLogger(__name__)
 
-def toL3(L2, config_folder='../aws-l0/metadata/station_configurations/', T_0=273.15):
+def toL3(L2, station_config={}, T_0=273.15):
     '''Process one Level 2 (L2) product to Level 3 (L3) meaning calculating all
     derived variables:
         - Turbulent fluxes
@@ -22,12 +22,12 @@ def toL3(L2, config_folder='../aws-l0/metadata/station_configurations/', T_0=273
     ----------
     L2 : xarray:Dataset
         L2 AWS data
-    config_folder : Dict
+    station_config : Dict
         Dictionary containing the information necessary for the processing of 
         L3 variables (relocation dates for coordinates processing, or thermistor
         string maintenance date for the thermistors depth)
     T_0 : int 
-        Steam point temperature. Default is 273.15.
+        Freezing point temperature. Default is 273.15.
     '''
     ds = L2
     ds.attrs['level'] = 'L3'
@@ -99,14 +99,14 @@ def toL3(L2, config_folder='../aws-l0/metadata/station_configurations/', T_0=273
 
     # Smoothing and inter/extrapolation of GPS coordinates
     for var in ['gps_lat', 'gps_lon', 'gps_alt']:
-        ds[var.replace('gps_','')] = ('time', gpsCoordinatePostprocessing(ds, var))
+        ds[var.replace('gps_','')] = ('time', gpsCoordinatePostprocessing(ds, var, station_config))
 
     # adding average coordinate as attribute        
     for v in ['lat','lon','alt']:
         ds.attrs[v+'_avg'] = ds[v].mean(dim='time').item()
     return ds
 
-def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/station_configurations/'):
+def gpsCoordinatePostprocessing(ds, var, station_config={}):
         # saving the static value of 'lat','lon' or 'alt' stored in attribute
         # as it might be the only coordinate available for certain stations (e.g. bedrock)
         var_out = var.replace('gps_','')
@@ -129,18 +129,8 @@ def gpsCoordinatePostprocessing(ds, var, config_folder='../aws-l0/metadata/stati
             print('no',var,'at',ds.attrs['station_id'])
             return np.ones_like(ds['t_u'].data)*static_value
         
-        # fetching the station relocation dates at which the coordinates will/should
-        # have a break
-        config_file = config_folder +"/" + ds.attrs['station_id'] + ".toml"
-        if os.path.isfile(config_file):
-            with open(config_file, "r") as f:
-                config_data = toml.load(f)
-            
-            # Extract station relocations from the TOML data
-            station_relocations = config_data.get("station_relocation", [])
-        else:
-            station_relocations = []
-            logger.warning('Did not find config file for '+ds.attrs['station_id']+'. Assuming no station relocation.')
+        # Extract station relocations from the TOML data
+        station_relocations = station_config.get("station_relocation", [])
         
         # Convert the ISO8601 strings to pandas datetime objects
         breaks = [pd.to_datetime(date_str) for date_str in station_relocations]
@@ -162,7 +152,7 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h,
     Parameters
     ----------
     T_0 : int 
-        Steam point temperature
+        Freezing point temperature
     T_h : xarray.DataArray
         Air temperature
     Tsurf_h : xarray.DataArray
@@ -175,8 +165,6 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h,
         Height of anemometer
     z_T : float
         Height of thermometer
-    nu  : float
-        Kinematic viscosity of air
     q_h : xarray.DataArray
         Specific humidity
     p_h : xarray.DataArray
@@ -191,14 +179,9 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h,
     g : int 
         Gravitational acceleration (m/s2). Default is 9.82.        
     es_0 : int 
-        Saturation vapour pressure at the melting point (hPa). Default is 6.1071.
-    es_100 : int
-        Saturation vapour pressure at steam point temperature (hPa). Default is 
-        1013.246.        
+        Saturation vapour pressure at the melting point (hPa). Default is 6.1071.      
     eps : int 
         Ratio of molar masses of vapor and dry air (0.622).
-    R_d : int 
-        Gas constant of dry air. Default is 287.05.
     gamma : int
         Flux profile correction (Paulson & Dyer). Default is 16..
     L_sub : int  
@@ -219,9 +202,8 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h,
     dd : int
         Flux profile correction constants (Holtslag & De Bruin '88). Default is 
         0.35.
-    z_0 : int
-        Aerodynamic surface roughness length for momention, assumed constant 
-        for all ice/snow surfaces. Default is 0.001.
+    R_d : int 
+        Gas constant of dry air. Default is 287.05.
     
     Returns
     -------
@@ -358,16 +340,16 @@ def calcSpHumid(T_0, T_100, T_h, p_h, RH_cor_h, es_0=6.1071, es_100=1013.246, ep
         Steam point temperature in Kelvin
     T_h : xarray.DataArray
         Air temperature
-    eps : int 
-        ratio of molar masses of vapor and dry air (0.622)
-    es_0 : float
-        Saturation vapour pressure at the melting point (hPa)
-    es_100 : float
-        Saturation vapour pressure at steam point temperature (hPa)
     p_h : xarray.DataArray
         Air pressure
     RH_cor_h : xarray.DataArray
         Relative humidity corrected
+    es_0 : float
+        Saturation vapour pressure at the melting point (hPa)
+    es_100 : float
+        Saturation vapour pressure at steam point temperature (hPa)
+    eps : int 
+        ratio of molar masses of vapor and dry air (0.622)
     
     Returns
     -------

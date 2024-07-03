@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, logging, sys
+import os, logging, sys, toml
 import xarray as xr
 from argparse import ArgumentParser
 import pypromice
@@ -13,6 +13,7 @@ def parse_arguments_l2tol3(debug_args=None):
                             "data from L2. An hourly, daily and monthly L3 "+
                             "data product is outputted to the defined output path")
     parser.add_argument('-c', '--config_folder', type=str, required=True,
+                        default='../aws-l0/metadata/station_configurations/',
                         help='Path to folder with sites configuration (TOML) files')
     parser.add_argument('-i', '--inpath', type=str, required=True, 
                         help='Path to Level 2 .nc data file')
@@ -47,8 +48,12 @@ def get_l2tol3(config_folder, inpath, outpath, variables, metadata):
     if 'number_of_booms' in l2.attrs.keys():
         l2.attrs['number_of_booms'] = int(l2.attrs['number_of_booms'])
     
+    # importing station_config (dict) from config_folder (str path)
+    config_file = config_folder+l2.attrs['station_id']+'.toml'
+    with open(config_file) as fp:
+        station_config = toml.load(fp)
     # Perform Level 3 processing
-    l3 = toL3(l2, config_folder)
+    l3 = toL3(l2, station_config)
 
     # Write Level 3 dataset to file if output directory given
     v = getVars(variables)

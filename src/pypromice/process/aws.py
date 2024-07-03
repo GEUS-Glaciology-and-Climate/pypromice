@@ -91,8 +91,7 @@ class AWS(object):
         logger.info('Level 1 processing...')
         self.L0 = [utilities.addBasicMeta(item, self.vars) for item in self.L0]
         self.L1 = [toL1(item, self.vars) for item in self.L0]
-        self.L1.reverse()
-        self.L1A = reduce(xr.Dataset.combine_first, self.L1)
+        self.L1A = reduce(xr.Dataset.combine_first, reversed(self.L1))
 
     def getL2(self):
         '''Perform L1 to L2 data processing'''
