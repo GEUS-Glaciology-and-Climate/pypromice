@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, logging, sys
+import os, logging, sys, toml
 import xarray as xr
 from argparse import ArgumentParser
 import pypromice
@@ -12,6 +12,9 @@ def parse_arguments_l2tol3(debug_args=None):
     parser = ArgumentParser(description="AWS L3 script for the processing L3 "+
                             "data from L2. An hourly, daily and monthly L3 "+
                             "data product is outputted to the defined output path")
+    parser.add_argument('-c', '--config_folder', type=str, required=True,
+                        default='../aws-l0/metadata/station_configurations/',
+                        help='Path to folder with sites configuration (TOML) files')
     parser.add_argument('-i', '--inpath', type=str, required=True, 
                         help='Path to Level 2 .nc data file')
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, 
@@ -24,7 +27,7 @@ def parse_arguments_l2tol3(debug_args=None):
     args = parser.parse_args(args=debug_args)
     return args
 
-def get_l2tol3(inpath, outpath, variables, metadata):
+def get_l2tol3(config_folder, inpath, outpath, variables, metadata):
     logging.basicConfig(
         format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
         level=logging.INFO,
@@ -38,15 +41,19 @@ def get_l2tol3(inpath, outpath, variables, metadata):
     # Remove encoding attributes from NetCDF
     for varname in l2.variables:
         if l2[varname].encoding!={}:
-            l2[varname].encoding = {}  
-            
+            l2[varname].encoding = {}
+
     if 'bedrock' in l2.attrs.keys():
         l2.attrs['bedrock'] = l2.attrs['bedrock'] == 'True'
     if 'number_of_booms' in l2.attrs.keys():
         l2.attrs['number_of_booms'] = int(l2.attrs['number_of_booms'])
     
+    # importing station_config (dict) from config_folder (str path)
+    config_file = config_folder+l2.attrs['station_id']+'.toml'
+    with open(config_file) as fp:
+        station_config = toml.load(fp)
     # Perform Level 3 processing
-    l3 = toL3(l2)
+    l3 = toL3(l2, station_config)
 
     # Write Level 3 dataset to file if output directory given
     v = getVars(variables)
@@ -59,7 +66,7 @@ def get_l2tol3(inpath, outpath, variables, metadata):
 
 def main():
     args = parse_arguments_l2tol3()
-    _ = get_l2tol3(args.inpath, args.outpath, args.variables, args.metadata)
+    _ = get_l2tol3(args.config_folder, args.inpath, args.outpath, args.variables, args.metadata)
     
 if __name__ == "__main__":  
     main()
