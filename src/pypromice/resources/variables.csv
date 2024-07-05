@@ -89,3 +89,20 @@ wspd_i,wind_speed,Wind speed (instantaneous),m s-1,physicalMeasurement,time,TRUE
 wdir_i,wind_from_direction,Wind from direction (instantaneous),degrees,physicalMeasurement,time,TRUE,,1,360,wspd_x_i wspd_y_i,all,1,1,1,4
 wspd_x_i,wind_speed_from_x_direction,Wind speed from x direction (instantaneous),m s-1,modelResult,time,TRUE,L2 or later,-100,100,wdir_i wspd_i,all,0,1,1,4
 wspd_y_i,wind_speed_from_y_direction,Wind speed from y direction (instantaneous),m s-1,modelResult,time,TRUE,L2 or later,-100,100,wdir_i wspd_i,all,0,1,1,4
+z_surf_1,height_of_surface_1,"Surface height 1, relative to surface height at installation and calculated from boom (upper one if two)",m,modelResult,time,FALSE,L3,,,,all,0,0,1,4
+z_surf_2,height_of_surface_2,"Surface height 2, relative to surface height at installation and calculated from stake booms and pt",m,modelResult,time,FALSE,L3,,,,all,0,0,1,4
+z_surf_combined,height_of_surface_combined,"Surface height combined from multiple sensors, relative to ice surface height at installation",m,modelResult,time,FALSE,L3,,,,all,0,0,1,4
+z_ice_surf,height_of_ice_surface,"Ice surface height, relative to ice surface height at installation and calculated from pt_cor and z_stake",m,modelResult,time,FALSE,L3,,,,one-boom,0,0,1,4
+snow_height,height_of_snow,"Snow surface height, relative to ice surface",m,modelResult,time,FALSE,L3,0,,,one-boom,0,0,1,4
+d_t_i_1,depth_of_thermistor_1,Depth of thermistor 1,m,modelResult,time,FALSE,L3,-10,100,,all,0,0,1,4
+d_t_i_2,depth_of_thermistor_2,Depth of thermistor 2,m,modelResult,time,FALSE,L3,-10,100,,all,0,0,1,4
+d_t_i_3,depth_of_thermistor_3,Depth of thermistor 3,m,modelResult,time,FALSE,L3,-10,100,,all,0,0,1,4
+d_t_i_4,depth_of_thermistor_4,Depth of thermistor 4,m,modelResult,time,FALSE,L3,-10,100,,all,0,0,1,4
+d_t_i_5,depth_of_thermistor_5,Depth of thermistor 5,m,modelResult,time,FALSE,L3,-10,100,,all,0,0,1,4
+d_t_i_6,depth_of_thermistor_6,Depth of thermistor 6,m,modelResult,time,FALSE,L3,-10,100,,all,0,0,1,4
+d_t_i_7,depth_of_thermistor_7,Depth of thermistor 7,m,modelResult,time,FALSE,L3,-10,100,,all,0,0,1,4
+d_t_i_8,depth_of_thermistor_8,Depth of thermistor 8,m,modelResult,time,FALSE,L3,-10,100,,all,0,0,1,4
+d_t_i_9,depth_of_thermistor_9,Depth of thermistor 9,m,modelResult,time,FALSE,L3,-10,100,,two-boom,0,0,1,4
+d_t_i_10,depth_of_thermistor_10,Depth of thermistor 10,m,modelResult,time,FALSE,L3,-10,100,,two-boom,0,0,1,4
+d_t_i_11,depth_of_thermistor_11,Depth of thermistor 11,m,modelResult,time,FALSE,L3,-10,100,,two-boom,0,0,1,4
+t_i_10m,10m_subsurface_temperature,10 m subsurface temperature,degrees_C,modelResult,time,FALSE,L3,-70,0,,all,0,0,1,4
