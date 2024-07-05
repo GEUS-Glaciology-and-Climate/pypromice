@@ -1,14 +1,19 @@
+#!/usr/bin/env python
 import os
 import argparse
 import pandas as pd
 import xarray as xr
+import logging
+logger = logging.getLogger(__name__)
 
 def process_files(base_dir, data_type):
     # Determine the CSV file path based on the data type
     if data_type == 'station':
+        logger.info("Updating AWS_stations_metadata.csv")
         csv_file_path = os.path.join(base_dir, '../AWS_stations_metadata.csv')
         label_s_id = 'station_id'
     elif data_type == 'site':
+        logger.info("Updating AWS_sites_metadata.csv")
         csv_file_path = os.path.join(base_dir, '../AWS_sites_metadata.csv')
         label_s_id = 'site_id'
 
@@ -95,9 +100,9 @@ def process_files(base_dir, data_type):
 
                             # Print message if dates are updated
                             if old_date_installation != date_installation_str or old_last_valid_date != last_valid_date_str:
-                                print(f"Updated {label_s_id}: {s_id}")
-                                print(f"  Old date_installation: {old_date_installation} --> New date_installation: {date_installation_str}")
-                                print(f"  Old last_valid_date: {old_last_valid_date} --> New last_valid_date: {last_valid_date_str}")
+                                logger.info(f"Updated {label_s_id}: {s_id}")
+                                logger.info(f"  Old date_installation: {old_date_installation} --> New date_installation: {date_installation_str}")
+                                logger.info(f"  Old last_valid_date: {old_last_valid_date} --> New last_valid_date: {last_valid_date_str}")
 
                             updated_s.append(s_id)
                         else:
@@ -106,7 +111,7 @@ def process_files(base_dir, data_type):
                             rows.append(row)
 
                 except Exception as e:
-                    print(f"Warning: Error processing {file_path}: {str(e)}")
+                    logger.info(f"Warning: Error processing {file_path}: {str(e)}")
                     continue  # Continue to next file if there's an error
 
     # Convert the list of rows to a DataFrame
@@ -131,7 +136,7 @@ def process_files(base_dir, data_type):
         pd.set_option('display.max_colwidth', None) # Show full width of columns
         pd.set_option('display.width', None)        # Disable line wrapping
         
-        print("\nExcluded lines from combined metadata.csv:")
+        logger.info("\nExcluded lines from combined metadata.csv:")
         print(excluded_metadata_df)
 
     # Drop excluded lines from combined_metadata_df
@@ -149,14 +154,14 @@ def process_files(base_dir, data_type):
         reused_lines = existing_metadata_df.loc[reused_s]
         added_lines = combined_metadata_df.loc[combined_metadata_df.index.difference(existing_metadata_df.index)]
         
-        print("\nLines from the old metadata.csv that are reused (not updated):")
+        logger.info("\nLines from the old metadata.csv that are reused (not updated):")
         print(reused_lines)
         
         if not added_lines.empty:
-            print("\nLines that were not present in the old metadata.csv and are added:")
+            logger.info("\nLines that were not present in the old metadata.csv and are added:")
             print(added_lines)
     else:
-        print("\nAll lines are added (no old metadata.csv found)")
+        logger.info("\nAll lines are added (no old metadata.csv found)")
 
 def main():
     parser = argparse.ArgumentParser(description='Process station or site data.')
