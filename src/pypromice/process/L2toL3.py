@@ -2,104 +2,157 @@
 """
 AWS Level 2 (L2) to Level 3 (L3) data processing
 """
+import pandas as pd
 import numpy as np
 import xarray as xr
+import toml, os
+from sklearn.linear_model import LinearRegression
 
-def toL3(L2, T_0=273.15, z_0=0.001, R_d=287.05, eps=0.622, es_0=6.1071, 
-         es_100=1013.246):
+import logging
+logger = logging.getLogger(__name__)
+
+def toL3(L2, station_config={}, T_0=273.15):
     '''Process one Level 2 (L2) product to Level 3 (L3) meaning calculating all
     derived variables:
-        - Sensible fluxes
+        - Turbulent fluxes
+        - smoothed and inter/extrapolated GPS coordinates
     
     
     Parameters
     ----------
     L2 : xarray:Dataset
         L2 AWS data
+    station_config : Dict
+        Dictionary containing the information necessary for the processing of 
+        L3 variables (relocation dates for coordinates processing, or thermistor
+        string maintenance date for the thermistors depth)
     T_0 : int 
-        Steam point temperature. Default is 273.15.
-    z_0 : int
-        Aerodynamic surface roughness length for momention, assumed constant 
-        for all ice/snow surfaces. Default is 0.001.
-    R_d : int 
-        Gas constant of dry air. Default is 287.05.
-    eps : int 
-        Default is 0.622.
-    es_0 : int 
-        Saturation vapour pressure at the melting point (hPa). Default is 6.1071.
-    es_100 : int
-        Saturation vapour pressure at steam point temperature (hPa). Default is 
-        1013.246.
+        Freezing point temperature. Default is 273.15.
     '''
     ds = L2
     ds.attrs['level'] = 'L3'
 
     T_100 = _getTempK(T_0)                                                     # Get steam point temperature as K 
     
-    # Upper boom bulk calculation
-    T_h_u = ds['t_u'].copy()                                                   # Copy for processing
-    p_h_u = ds['p_u'].copy()
-    WS_h_u = ds['wspd_u'].copy()
-    RH_cor_h_u = ds['rh_u_cor'].copy()
-    Tsurf_h = ds['t_surf'].copy()                                              # T surf from derived upper boom product. TODO is this okay to use with lower boom parameters?
-    z_WS_u = ds['z_boom_u'].copy() + 0.4                                       # Get height of Anemometer                
-    z_T_u = ds['z_boom_u'].copy() - 0.1                                        # Get height of thermometer  
+    # Turbulent heat flux calculation
+    if ('t_u' in ds.keys()) and \
+        ('p_u' in ds.keys()) and \
+            ('rh_u_cor' in ds.keys()):
+        # Upper boom bulk calculation
+        T_h_u = ds['t_u'].copy()                                                   # Copy for processing
+        p_h_u = ds['p_u'].copy()
+        RH_cor_h_u = ds['rh_u_cor'].copy()
+            
+        q_h_u = calcSpHumid(T_0, T_100, T_h_u, p_h_u, RH_cor_h_u)                  # Calculate specific humidity
+        if ('wspd_u' in ds.keys()) and \
+            ('t_surf' in ds.keys()) and \
+                ('z_boom_u' in ds.keys()):
+            WS_h_u = ds['wspd_u'].copy()
+            Tsurf_h = ds['t_surf'].copy()                                              # T surf from derived upper boom product. TODO is this okay to use with lower boom parameters?
+            z_WS_u = ds['z_boom_u'].copy() + 0.4                                       # Get height of Anemometer                
+            z_T_u = ds['z_boom_u'].copy() - 0.1                                        # Get height of thermometer  
+            
+            if not ds.attrs['bedrock']:       
+                SHF_h_u, LHF_h_u= calcHeatFlux(T_0, T_h_u, Tsurf_h, WS_h_u,            # Calculate latent and sensible heat fluxes
+                                                z_WS_u, z_T_u, q_h_u, p_h_u)     
         
-    rho_atm_u = 100 * p_h_u / R_d / (T_h_u + T_0)                              # Calculate atmospheric density                                  
-    nu_u = calcVisc(T_h_u, T_0, rho_atm_u)                                     # Calculate kinematic viscosity  
-    q_h_u = calcHumid(T_0, T_100, T_h_u, es_0, es_100, eps,                    # Calculate specific humidity
-                       p_h_u, RH_cor_h_u)   
-    if not ds.attrs['bedrock']:       
-        SHF_h_u, LHF_h_u= calcHeatFlux(T_0, T_h_u, Tsurf_h, rho_atm_u, WS_h_u,     # Calculate latent and sensible heat fluxes
-                                        z_WS_u, z_T_u, nu_u, q_h_u, p_h_u)     
-        SHF_h_u, LHF_h_u = cleanHeatFlux(SHF_h_u, LHF_h_u, T_h_u, Tsurf_h, p_h_u,  # Clean heat flux values
-                                          WS_h_u, RH_cor_h_u, ds['z_boom_u'])
-        ds['dshf_u'] = (('time'), SHF_h_u.data)
-        ds['dlhf_u'] = (('time'), LHF_h_u.data)
-    q_h_u = 1000 * q_h_u                                                       # Convert sp.humid from kg/kg to g/kg
-    q_h_u = cleanSpHumid(q_h_u, T_h_u, Tsurf_h, p_h_u, RH_cor_h_u)             # Clean sp.humid values    
-    ds['qh_u'] = (('time'), q_h_u.data)    
+                ds['dshf_u'] = (('time'), SHF_h_u.data)
+                ds['dlhf_u'] = (('time'), LHF_h_u.data)
+        else:
+            logger.info('wspd_u, t_surf or z_boom_u missing, cannot calulate tubrulent heat fluxes')
+
+        q_h_u = 1000 * q_h_u                                                       # Convert sp.humid from kg/kg to g/kg
+        ds['qh_u'] = (('time'), q_h_u.data)
+    else:
+        logger.info('t_u, p_u or rh_u_cor missing, cannot calulate tubrulent heat fluxes')
 
     # Lower boom bulk calculation
-    if ds.attrs['number_of_booms']==2:                                         
-        # ds['wdir_l'] = _calcWindDir(ds['wspd_x_l'], ds['wspd_y_l'])          # Calculatate wind direction
+    if ds.attrs['number_of_booms']==2:
+        if ('t_l' in ds.keys()) and \
+            ('p_l' in ds.keys()) and \
+                ('rh_l_cor' in ds.keys()):
+            T_h_l = ds['t_l'].copy()                                               # Copy for processing
+            p_h_l = ds['p_l'].copy()                                    
+            RH_cor_h_l = ds['rh_l_cor'].copy()
 
-        T_h_l = ds['t_l'].copy()                                               # Copy for processing
-        p_h_l = ds['p_l'].copy()
-        WS_h_l = ds['wspd_l'].copy()                                      
-        RH_cor_h_l = ds['rh_l_cor'].copy()
-        z_WS_l = ds['z_boom_l'].copy() + 0.4                                   # Get height of W                  
-        z_T_l = ds['z_boom_l'].copy() - 0.1                                    # Get height of thermometer 
-           
-        rho_atm_l = 100 * p_h_l / R_d / (T_h_l + T_0)                          # Calculate atmospheric density                                  
-        nu_l = calcVisc(T_h_l, T_0, rho_atm_l)                                 # Calculate kinematic viscosity  
-        q_h_l = calcHumid(T_0, T_100, T_h_l, es_0, es_100, eps,                # Calculate sp.humidity
-                           p_h_l, RH_cor_h_l)
-        if not ds.attrs['bedrock']:       
-            SHF_h_l, LHF_h_l= calcHeatFlux(T_0, T_h_l, Tsurf_h, rho_atm_l, WS_h_l, # Calculate latent and sensible heat fluxes 
-                                            z_WS_l, z_T_l, nu_l, q_h_l, p_h_l)        
-            SHF_h_l, LHF_h_l = cleanHeatFlux(SHF_h_l, LHF_h_l, T_h_l, Tsurf_h, p_h_l, # Clean heat flux values
-                                              WS_h_l, RH_cor_h_l, ds['z_boom_l'])
-            ds['dshf_l'] = (('time'), SHF_h_l.data)
-            ds['dlhf_l'] = (('time'), LHF_h_l.data)
-        q_h_l = 1000 * q_h_l                                                   # Convert sp.humid from kg/kg to g/kg
-        q_h_l = cleanSpHumid(q_h_l, T_h_l, Tsurf_h, p_h_l, RH_cor_h_l)         # Clean sp.humid values
-        ds['qh_l'] = (('time'), q_h_l.data)    
+            q_h_l = calcSpHumid(T_0, T_100, T_h_l, p_h_l, RH_cor_h_l)              # Calculate sp.humidity
 
+            if ('wspd_l' in ds.keys()) and \
+                ('t_surf' in ds.keys()) and \
+                    ('z_boom_l' in ds.keys()):
+                z_WS_l = ds['z_boom_l'].copy() + 0.4                                   # Get height of W                  
+                z_T_l = ds['z_boom_l'].copy() - 0.1                                    # Get height of thermometer 
+                WS_h_l = ds['wspd_l'].copy()                                 
+                if not ds.attrs['bedrock']:       
+                    SHF_h_l, LHF_h_l= calcHeatFlux(T_0, T_h_l, Tsurf_h, WS_h_l, # Calculate latent and sensible heat fluxes 
+                                                    z_WS_l, z_T_l, q_h_l, p_h_l)        
+        
+                    ds['dshf_l'] = (('time'), SHF_h_l.data)
+                    ds['dlhf_l'] = (('time'), LHF_h_l.data)
+            else:
+                logger.info('wspd_l, t_surf or z_boom_l missing, cannot calulate tubrulent heat fluxes')
+    
+            q_h_l = 1000 * q_h_l                                                       # Convert sp.humid from kg/kg to g/kg
+            ds['qh_l'] = (('time'), q_h_l.data)
+        else:
+            logger.info('t_l, p_l or rh_l_cor missing, cannot calulate tubrulent heat fluxes')
+
+    # Smoothing and inter/extrapolation of GPS coordinates
+    for var in ['gps_lat', 'gps_lon', 'gps_alt']:
+        ds[var.replace('gps_','')] = ('time', gpsCoordinatePostprocessing(ds, var, station_config))
+
+    # adding average coordinate as attribute        
+    for v in ['lat','lon','alt']:
+        ds.attrs[v+'_avg'] = ds[v].mean(dim='time').item()
     return ds
 
+def gpsCoordinatePostprocessing(ds, var, station_config={}):
+        # saving the static value of 'lat','lon' or 'alt' stored in attribute
+        # as it might be the only coordinate available for certain stations (e.g. bedrock)
+        var_out = var.replace('gps_','')
+        coord_names = {'alt':'altitude', 'lat':'latitude','lon':'longitude'}
 
-def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h, 
+        if var_out+'_avg' in list(ds.attrs.keys()):
+            static_value = float(ds.attrs[var_out+'_avg'])
+        elif coord_names[var_out] in list(ds.attrs.keys()):
+            static_value = float(ds.attrs[coord_names[var_out]])
+        else:
+            static_value = np.nan
+        
+        # if there is no gps observations, then we use the static value repeated
+        # for each time stamp
+        if var not in ds.data_vars: 
+            print('no',var,'at', ds.attrs['station_id'])
+            return np.ones_like(ds['t_u'].data)*static_value
+        
+        if ds[var].isnull().all():
+            print('no',var,'at',ds.attrs['station_id'])
+            return np.ones_like(ds['t_u'].data)*static_value
+        
+        # Extract station relocations from the TOML data
+        station_relocations = station_config.get("station_relocation", [])
+        
+        # Convert the ISO8601 strings to pandas datetime objects
+        breaks = [pd.to_datetime(date_str) for date_str in station_relocations]
+        if len(breaks)==0:
+            logger.info('processing '+var+' without relocation')
+        else:
+            logger.info('processing '+var+' with relocation on ' + ', '.join([br.strftime('%Y-%m-%dT%H:%M:%S') for br in breaks]))
+
+        return piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks)
+            
+
+def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h, 
                 kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622, 
                 gamma=16., L_sub=2.83e6, L_dif_max=0.01, c_pd=1005., aa=0.7, 
-                bb=0.75, cc=5., dd=0.35):    
+                bb=0.75, cc=5., dd=0.35, R_d=287.05):    
     '''Calculate latent and sensible heat flux using the bulk calculation 
     method 
     
     Parameters
     ----------
     T_0 : int 
-        Steam point temperature
+        Freezing point temperature
     T_h : xarray.DataArray
         Air temperature
     Tsurf_h : xarray.DataArray
@@ -112,8 +165,6 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
         Height of anemometer
     z_T : float
         Height of thermometer
-    nu  : float
-        Kinematic viscosity of air
     q_h : xarray.DataArray
         Specific humidity
     p_h : xarray.DataArray
@@ -128,7 +179,7 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
     g : int 
         Gravitational acceleration (m/s2). Default is 9.82.        
     es_0 : int 
-        Saturation vapour pressure at the melting point (hPa). Default is 6.1071.        
+        Saturation vapour pressure at the melting point (hPa). Default is 6.1071.      
     eps : int 
         Ratio of molar masses of vapor and dry air (0.622).
     gamma : int
@@ -151,6 +202,8 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
     dd : int
         Flux profile correction constants (Holtslag & De Bruin '88). Default is 
         0.35.
+    R_d : int 
+        Gas constant of dry air. Default is 287.05.
     
     Returns
     -------
@@ -159,6 +212,9 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
     LHF_h : xarray.DataArray
         Latent heat flux
     '''   
+    rho_atm = 100 * p_h / R_d / (T_h + T_0)                              # Calculate atmospheric density                                  
+    nu = calcVisc(T_h, T_0, rho_atm)                                     # Calculate kinematic viscosity  
+    
     SHF_h = xr.zeros_like(T_h)                                                 # Create empty xarrays
     LHF_h = xr.zeros_like(T_h)
     L = xr.full_like(T_h, 1E5)
@@ -244,7 +300,11 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, rho_atm, WS_h, z_WS, z_T, nu, q_h, p_h,
             # If n_elements(where(L_dif > L_dif_max)) eq 1 then break
             if np.all(L_dif <= L_dif_max):
                 break
-                   
+
+    HF_nan = np.isnan(p_h) | np.isnan(T_h) | np.isnan(Tsurf_h) \
+        | np.isnan(q_h) | np.isnan(WS_h) | np.isnan(z_T)
+    SHF_h[HF_nan] = np.nan
+    LHF_h[HF_nan] = np.nan 
     return SHF_h, LHF_h
 
 def calcVisc(T_h, T_0, rho_atm):    
@@ -270,9 +330,8 @@ def calcVisc(T_h, T_0, rho_atm):
     # Kinematic viscosity of air in m^2/s
     return mu / rho_atm 
 
-def calcHumid(T_0, T_100, T_h, es_0, es_100, eps, p_h, RH_cor_h):
+def calcSpHumid(T_0, T_100, T_h, p_h, RH_cor_h, es_0=6.1071, es_100=1013.246, eps=0.622):
     '''Calculate specific humidity
-    
     Parameters
     ----------
     T_0 : float 
@@ -281,16 +340,16 @@ def calcHumid(T_0, T_100, T_h, es_0, es_100, eps, p_h, RH_cor_h):
         Steam point temperature in Kelvin
     T_h : xarray.DataArray
         Air temperature
-    eps : int 
-        ratio of molar masses of vapor and dry air (0.622)
-    es_0 : float
-        Saturation vapour pressure at the melting point (hPa)
-    es_100 : float
-        Saturation vapour pressure at steam point temperature (hPa)
     p_h : xarray.DataArray
         Air pressure
     RH_cor_h : xarray.DataArray
         Relative humidity corrected
+    es_0 : float
+        Saturation vapour pressure at the melting point (hPa)
+    es_100 : float
+        Saturation vapour pressure at steam point temperature (hPa)
+    eps : int 
+        ratio of molar masses of vapor and dry air (0.622)
     
     Returns
     -------
@@ -315,72 +374,67 @@ def calcHumid(T_0, T_100, T_h, es_0, es_100, eps, p_h, RH_cor_h):
     freezing = T_h < 0  
     q_sat[freezing] = eps * es_ice[freezing] / (p_h[freezing] - (1 - eps) * es_ice[freezing])
     
+    q_nan = np.isnan(T_h) | np.isnan(p_h)
+    q_sat[q_nan] = np.nan
+
     # Convert to kg/kg
     return RH_cor_h * q_sat / 100 
 
-def cleanHeatFlux(SHF, LHF, T, Tsurf, p, WS, RH_cor, z_boom):
-    '''Find invalid heat flux data values and replace with NaNs, based on 
-    air temperature, surface temperature, air pressure, wind speed, 
-    corrected relative humidity, and boom height
+def piecewise_smoothing_and_interpolation(data_series, breaks):
+    '''Smoothes, inter- or extrapolate the GPS observations. The processing is 
+    done piecewise so that each period between station relocations are done 
+    separately (no smoothing of the jump due to relocation). Piecewise linear 
+    regression is then used to smooth the available observations. Then this 
+    smoothed curve is interpolated linearly over internal gaps. Eventually, this 
+    interpolated curve is extrapolated linearly for timestamps before the first 
+    valid measurement and after the last valid measurement.
     
     Parameters
     ----------
-    SHF : xarray.DataArray
-        Sensible heat flux
-    LHF : xarray.DataArray
-        Latent heat flux
-    T : xarray.DataArray
-        Air temperature
-    Tsurf : xarray.DataArray
-        Surface temperature
-    p : xarray.DataArray
-        Air pressure
-    WS : xarray.DataArray
-        Wind speed
-    RH_cor : xarray.DataArray
-        Relative humidity corrected
-    z_boom : xarray.DataArray
-        Boom height
-    
+    data_series : pandas.Series
+        Series of observed latitude, longitude or elevation with datetime index.
+    breaks: list
+        List of timestamps of station relocation. First and last item should be
+        None so that they can be used in slice(breaks[i], breaks[i+1])
+        
     Returns
     -------
-    SHF : xarray.DataArray
-        Sensible heat flux corrected
-    LHF : xarray.DataArray
-        Latent heat flux corrected
+    np.ndarray
+        Smoothed and interpolated values corresponding to the input series.
     '''
-    HF_nan = np.isnan(p) | np.isnan(T) | np.isnan(Tsurf) \
-        | np.isnan(RH_cor) | np.isnan(WS) | np.isnan(z_boom)
-    SHF[HF_nan] = np.nan
-    LHF[HF_nan] = np.nan 
-    return SHF, LHF
-      
-def cleanSpHumid(q_h, T, Tsurf, p, RH_cor):
-    '''Find invalid specific humidity data values and replace with NaNs, 
-    based on air temperature, surface temperature, air pressure, 
-    and corrected relative humidity
+    df_all = pd.Series(dtype=float)  # Initialize an empty Series to gather all smoothed pieces
+    breaks = [None] + breaks + [None]
+    _inferred_series = []
+    for i in range(len(breaks) - 1):
+        df = data_series.loc[slice(breaks[i], breaks[i+1])]
+               
+        # Drop NaN values and calculate the number of segments based on valid data
+        df_valid = df.dropna()
+        if df_valid.shape[0] > 2:        
+            # Fit linear regression model to the valid data range
+            x = pd.to_numeric(df_valid.index).values.reshape(-1, 1)
+            y = df_valid.values.reshape(-1, 1)
+            
+            model = LinearRegression()
+            model.fit(x, y)
+            
+            # Predict using the model for the entire segment range
+            x_pred = pd.to_numeric(df.index).values.reshape(-1, 1)
+            
+            y_pred = model.predict(x_pred)
+            df =  pd.Series(y_pred.flatten(), index=df.index)
+        # adds to list the predicted values for the current segment
+        _inferred_series.append(df)
+        
+    df_all = pd.concat(_inferred_series)
     
-    Parameters
-    ----------
-    q_h : xarray.DataArray
-        Specific humidity
-    T : xarray.DataArray
-        Air temperature
-    Tsurf : xarray.DataArray
-        Surface temperature
-    p : xarray.DataArray
-        Air pressure
-    RH_cor : xarray.DataArray
-        Relative humidity corrected
-    
-    Returns
-    -------
-    q_h : xarray.DataArray
-        Specific humidity corrected'''
-    q_nan = np.isnan(T) | np.isnan(RH_cor) | np.isnan(p) | np.isnan(Tsurf)
-    q_h[q_nan] = np.nan
-    return q_h
- 
+    # Fill internal gaps with linear interpolation
+    df_all = df_all.interpolate(method='linear', limit_area='inside')
+        
+    # Remove duplicate indices and return values as numpy array
+    df_all = df_all[~df_all.index.duplicated(keep='last')]
+    return df_all.values
+
 
 def _calcAtmosDens(p_h, R_d, T_h, T_0):                                        # TODO: check this shouldn't be in this step somewhere
     '''Calculate atmospheric density'''

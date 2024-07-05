@@ -47,9 +47,9 @@ t_i_11,
 tilt_x,
 tilt_y,
 rot,
-gps_lat,latitude
-gps_lon,longitude
-gps_alt,elevation
+lat,latitude
+lon,longitude
+alt,elevation
 gps_time,
 gps_geounit,
 gps_hdop,
