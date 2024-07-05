@@ -70,8 +70,8 @@ gps_geounit,gps_geounit,GeoUnit,-,qualityInformation,time,TRUE,L0 or L2,,,,all,1
 gps_hdop,gps_hdop,GPS horizontal dillution of precision (HDOP),m,qualityInformation,time,TRUE,L0 or L2,,,,all,1,1,0,2
 gps_numsat,gps_numsat,GPS number of satellites,-,qualityInformation,time,TRUE,L0 or L2,,,,,1,1,0,0
 gps_q,gps_q,Quality,-,qualityInformation,time,TRUE,L0 or L2,,,,,1,1,0,
-lat,latitude_postprocessed,smoothed and interpolated latitude of station (best estimate),degrees_N,modelResult,time,TRUE,L3,,,,all,0,0,1,6
-lon,longitude_postprocessed,smoothed and interpolated longitude of station (best estimate),degrees_E,modelResult,time,TRUE,L3,,,,all,0,0,1,6
+lat,latitude_postprocessed,smoothed and interpolated latitude of station (best estimate),degrees_north,modelResult,time,TRUE,L3,,,,all,0,0,1,6
+lon,longitude_postprocessed,smoothed and interpolated longitude of station (best estimate),degrees_east,modelResult,time,TRUE,L3,,,,all,0,0,1,6
 alt,altitude_postprocessed,smoothed and interpolated altitude of station (best estimate),m,modelResult,time,TRUE,L3,,,,all,0,0,1,2
 batt_v,battery_voltage,Battery voltage,V,physicalMeasurement,time,TRUE,,0,30,,all,1,1,1,2
 batt_v_ini,,,-,physicalMeasurement,time,TRUE,L0 or L2,0,30,,,1,1,0,2
