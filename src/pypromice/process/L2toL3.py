@@ -5,11 +5,11 @@ AWS Level 2 (L2) to Level 3 (L3) data processing
 import pandas as pd
 import numpy as np
 import xarray as xr
-import toml, os
 from sklearn.linear_model import LinearRegression
 from pypromice.qc.github_data_issues import adjustData
 from scipy.interpolate import interp1d
-import logging, os
+import logging
+
 logger = logging.getLogger(__name__)
 
 def toL3(L2, station_config={}, T_0=273.15):
@@ -609,9 +609,13 @@ def thermistorDepth(df_in, site, station_config):
     logger.info('Calculating thermistor depth')
 
     # Convert maintenance_info to DataFrame for easier manipulation
-    maintenance_string = pd.DataFrame(station_config.get("string_maintenance",[]))
+    maintenance_string = pd.DataFrame(
+        station_config.get("string_maintenance",[]),
+        columns = ['date', 'installation_depths']
+        )
     maintenance_string["date"] = pd.to_datetime(maintenance_string["date"])
     maintenance_string = maintenance_string.sort_values(by='date', ascending=True)
+        
     temp_cols_name = ['t_i_'+str(i) for i in range(12) if 't_i_'+str(i) in df_in.columns]
     num_therm = len(temp_cols_name)
     depth_cols_name = ['d_t_i_'+str(i) for i in range(1,num_therm+1)]
@@ -647,7 +651,8 @@ def thermistorDepth(df_in, site, station_config):
         new_depth = maintenance_string.loc[
                                         maintenance_string.date == date
                                     ].installation_depths.values[0]
-        for i, col in enumerate(depth_cols_name):
+
+        for i, col in enumerate(depth_cols_name[:len(new_depth)]):
             tmp = df_in[col].copy()
             tmp.loc[date:] = (
                 new_depth[i]
@@ -796,7 +801,7 @@ def gpsCoordinatePostprocessing(ds, var, station_config={}):
             print('no',var,'at',ds.attrs['station_id'])
             return np.ones_like(ds['t_u'].data)*static_value
         
-        # Extract station relocations from the TOML data
+        # Extract station relocations from the config dict
         station_relocations = station_config.get("station_relocation", [])
         
         # Convert the ISO8601 strings to pandas datetime objects
