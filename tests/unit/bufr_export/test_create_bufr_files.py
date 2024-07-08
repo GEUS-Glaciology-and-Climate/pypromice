@@ -3,7 +3,11 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 from unittest import TestCase
 
+import toml
+from pypromice.station_configuration import write_station_configuration_mapping
+
 from pypromice.postprocess.create_bufr_files import create_bufr_files
+from tests.utilities import get_station_configuration
 
 DATA_DIR = Path(__file__).parent.absolute()
 
@@ -44,6 +48,17 @@ class TestCreateBufrFiles(TestCase):
                 src_path=DATA_DIR.joinpath("tx_l3_test1.csv"),
             )
 
+        station_configuration_root = self.temp_dir / "station_configuration"
+        station_configuration_root.mkdir(parents=True, exist_ok=True)
+        station_configuration_mapping = {
+            "THU_L2": get_station_configuration(stid="THU_L2", export_bufr=True),
+            "KAN_Lv3": get_station_configuration(stid="KAN_Lv3", export_bufr=True),
+        }
+        write_station_configuration_mapping(
+            station_configurations=station_configuration_mapping,
+            configuration_root_dir=station_configuration_root,
+        )
+
         create_bufr_files(
             input_files=input_files,
             period_start="2023-12-06T00:00",
@@ -51,6 +66,7 @@ class TestCreateBufrFiles(TestCase):
             output_root=output_dir,
             override=True,
             break_on_error=True,
+            station_configuration_root=station_configuration_root,
         )
 
         compiled_output_dir = output_dir / "compiled"
@@ -88,6 +104,14 @@ class TestCreateBufrFiles(TestCase):
         output_dir = self.temp_dir / "output"
         input_file = input_dir / "THU_L2_hourly.csv"
         create_data_file(input_file, src_path=None)
+        station_configuration_root = self.temp_dir / "station_configuration"
+        station_configuration = get_station_configuration(
+            stid="KAN_Lv3", export_bufr=True
+        )
+        write_station_configuration_mapping(
+            station_configurations={station_configuration.stid: station_configuration},
+            configuration_root_dir=station_configuration_root,
+        )
 
         with self.assertRaises(ValueError):
             create_bufr_files(
@@ -97,9 +121,10 @@ class TestCreateBufrFiles(TestCase):
                 output_root=output_dir,
                 override=True,
                 break_on_error=True,
+                station_configuration_root=station_configuration_root,
             )
 
-    def test_get_gufr_continues_when_break_on_error_is_false(self):
+    def test_get_bufr_continues_when_break_on_error_is_false(self):
         input_dir = self.temp_dir / "input"
         output_dir = self.temp_dir / "output"
         input_file_without_data = input_dir / "THU_L2_hourly.csv"
@@ -110,6 +135,14 @@ class TestCreateBufrFiles(TestCase):
         )
         compiled_output_dir = output_dir / "compiled"
         individual_output_root = output_dir / "individual"
+        station_configuration_root = self.temp_dir / "station_configuration"
+        write_station_configuration_mapping(
+            station_configurations={
+                "THU_L2": get_station_configuration(stid="THU_L2", export_bufr=True),
+                "KAN_Lv3": get_station_configuration(stid="KAN_Lv3", export_bufr=True),
+            },
+            configuration_root_dir=station_configuration_root,
+        )
         expected_compiled_output_file = compiled_output_dir / "geus_20231206T0000.bufr"
         expected_individual_output_dir = individual_output_root / "20231206T0000"
         expected_individual_output_file = (
@@ -126,6 +159,7 @@ class TestCreateBufrFiles(TestCase):
             output_root=output_dir,
             override=True,
             break_on_error=False,
+            station_configuration_root=station_configuration_root,
         )
 
         self.assertTrue(expected_compiled_output_file.exists())
@@ -144,6 +178,14 @@ class TestCreateBufrFiles(TestCase):
         output_dir = self.temp_dir / "output"
         input_file = input_dir / "THU_L2_hourly.csv"
         create_data_file(input_file, src_path=DATA_DIR.joinpath("tx_l3_test1.csv"))
+        station_configuration_root = self.temp_dir / "station_configuration"
+        station_configuration = get_station_configuration(
+            stid="THU_L2", export_bufr=True
+        )
+        write_station_configuration_mapping(
+            station_configurations={station_configuration.stid: station_configuration},
+            configuration_root_dir=station_configuration_root,
+        )
 
         create_bufr_files(
             input_files=[input_file],
@@ -152,6 +194,7 @@ class TestCreateBufrFiles(TestCase):
             output_root=output_dir,
             override=True,
             break_on_error=True,
+            station_configuration_root=station_configuration_root,
         )
 
         compiled_output_dir = output_dir / "compiled"

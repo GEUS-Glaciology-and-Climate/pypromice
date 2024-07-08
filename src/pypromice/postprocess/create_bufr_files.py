@@ -3,11 +3,11 @@ from pathlib import Path
 from typing import Sequence, List
 
 import pandas as pd
+from pypromice.station_configuration import load_station_configuration_mapping
 
 from pypromice.postprocess.get_bufr import (
     get_bufr,
     DEFAULT_LIN_REG_TIME_LIMIT,
-    DEFAULT_STATION_CONFIGURATION_PATH,
     DEFAULT_POSITION_SEED_PATH,
 )
 
@@ -16,6 +16,7 @@ main_logger = logging.getLogger(__name__)
 
 def create_bufr_files(
     input_files: Sequence[Path],
+    station_configuration_root: Path,
     period_start: str,
     period_end: str,
     output_root: Path,
@@ -40,6 +41,8 @@ def create_bufr_files(
     output_individual_root.mkdir(parents=True, exist_ok=True)
     output_compiled_root.mkdir(parents=True, exist_ok=True)
 
+    station_configuration_mapping = load_station_configuration_mapping(station_configuration_root)
+
     for period in periods:
         period: pd.Timestamp
         date_str = period.strftime("%Y%m%dT%H%M")
@@ -59,7 +62,7 @@ def create_bufr_files(
                 time_limit=DEFAULT_LIN_REG_TIME_LIMIT,
                 timestamps_pickle_filepath=None,
                 now_timestamp=period,
-                station_configuration_path=DEFAULT_STATION_CONFIGURATION_PATH,
+                station_configuration_mapping=station_configuration_mapping,
                 positions_seed_path=DEFAULT_POSITION_SEED_PATH,
                 break_on_error=break_on_error,
             )
@@ -122,6 +125,13 @@ def main():
         help="Output dir for both bufr files for individual stations and compiled. Organized in two sub directories.",
     )
     parser.add_argument(
+        "--station_configuration_root",
+        "-c",
+        required=True,
+        type=Path,
+        help="Root directory containing station configuration toml files",
+    )
+    parser.add_argument(
         "--override",
         "-f",
         default=False,
@@ -146,6 +156,7 @@ def main():
         period_end=args.period_end,
         output_root=args.output_root,
         override=args.override,
+        station_configuration_root=args.station_configuration_root,
     )
 
 if __name__ == "__main__":

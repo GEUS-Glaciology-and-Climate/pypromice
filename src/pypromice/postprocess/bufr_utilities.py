@@ -248,6 +248,11 @@ def set_station(ibufr, station_type: str, wmo_id: str):
     elif station_type == "land":
         # StationNumber for land stations are integeres
         wmo_id_int = int(wmo_id)
+        if wmo_id_int >= 1024:
+            raise ValueError(
+                f"Invalid WMO ID {wmo_id}. Land station number must be less than 1024."
+                "See https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/001002"
+            )
         station_config = dict(stationNumber=wmo_id_int)
     else:
         raise Exception(f"Unsupported station station type {station_type}")

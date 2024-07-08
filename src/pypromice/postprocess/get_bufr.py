@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 Command-line script for running BUFR file generation
 
@@ -13,12 +11,10 @@ import pickle
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Mapping, Optional, Collection, Sequence, Union, TextIO
+from typing import List, Dict, Optional, Collection, Sequence, Mapping
 
-import attrs
 import numpy as np
 import pandas as pd
-import toml
 
 from pypromice.postprocess.bufr_utilities import write_bufr_message, BUFRVariables
 from pypromice.postprocess.real_time_utilities import get_latest_data
@@ -26,182 +22,19 @@ from pypromice.postprocess.real_time_utilities import get_latest_data
 __all__ = [
     "get_bufr",
     "main",
-    "DEFAULT_STATION_CONFIGURATION_PATH",
     "DEFAULT_POSITION_SEED_PATH",
     "DEFAULT_LIN_REG_TIME_LIMIT",
 ]
 
+from pypromice.station_configuration import (
+    StationConfiguration,
+    load_station_configuration_mapping,
+)
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_STATION_CONFIGURATION_PATH = Path(__file__).parent.joinpath(
-    "station_configurations.toml"
-)
 DEFAULT_POSITION_SEED_PATH = Path(__file__).parent.joinpath("positions_seed.csv")
 DEFAULT_LIN_REG_TIME_LIMIT = "91d"
-
-
-def parse_arguments_bufr() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--store_positions",
-        "--positions",
-        action="store_true",
-        required=False,
-        default=False,
-        help="If included (True), make a positions dict and output AWS_latest_locations.csv file.",
-    )
-
-    parser.add_argument(
-        "--positions-filepath",
-        "-p",
-        type=Path,
-        required=False,
-        help="Path to write AWS_latest_locations.csv file.",
-    )
-
-    parser.add_argument(
-        "--time-limit",
-        default=DEFAULT_LIN_REG_TIME_LIMIT,
-        type=str,
-        required=False,
-        help="Previous time to limit dataframe before applying linear regression.",
-    )
-
-    parser.add_argument(
-        "--input_files",
-        "--l3-filepath",
-        "-i",
-        type=Path,
-        nargs="+",
-        required=True,
-        help="Path to L3 tx .csv files. Can be direct paths or glob patterns",
-    )
-
-    parser.add_argument(
-        "--bufr-out",
-        "-o",
-        type=Path,
-        required=True,
-        help="Path to the BUFR out directory.",
-    )
-
-    parser.add_argument(
-        "--timestamps-pickle-filepath",
-        type=Path,
-        required=False,
-        help="Path to the latest_timestamps.pickle file.",
-    )
-
-    parser.add_argument(
-        "--station_configuration_mapping",
-        default=DEFAULT_STATION_CONFIGURATION_PATH,
-        type=Path,
-        required=False,
-        help="Path to csv file with station meta data and BUFR export configuration",
-    )
-
-    parser.add_argument(
-        "--position_seed",
-        default=DEFAULT_POSITION_SEED_PATH,
-        type=Path,
-        required=False,
-        help="Path to csv file with seed values for output positions.",
-    )
-
-    parser.add_argument(
-        "--latest_timestamp",
-        default=datetime.utcnow(),
-        type=pd.Timestamp,
-        help="Timestamp used to determine latest data. Default utcnow.",
-    )
-
-    parser.add_argument("--verbose", "-v", default=False, action="store_true")
-
-    return parser
-
-
-@attrs.define
-class StationConfiguration:
-    """
-    Helper class for storing station specific configurations with respect to
-
-    * Installation specific distance measurements such as height differences between instruments
-    * Reference strings such as stid, station_site and wmo_id
-    * BUFR export specific parameters
-
-    # TODO: The station related meta data should be fetched from a station specific configuration files in the future or
-    # from header data in data source.
-    """
-
-    stid: str
-    station_site: str = None
-    project: Optional[str] = None
-    station_type: Optional[str] = None
-    wmo_id: Optional[str] = None
-    barometer_from_gps: Optional[float] = None
-    anemometer_from_sonic_ranger: Optional[float] = None
-    temperature_from_sonic_ranger: Optional[float] = None
-    height_of_gps_from_station_ground: Optional[float] = None
-    sonic_ranger_from_gps: Optional[float] = None
-    static_height_of_gps_from_mean_sea_level: Optional[float] = None
-
-    # The station data will be exported to BUFR if True. Otherwise, it will only export latest position
-    export_bufr: bool = False
-    comment: Optional[str] = None
-
-    # skip specific variables for stations
-    # If a variable has known bad data, use this collection to skip the variable
-    # Note that if a station is not reporting both air temp and pressure it will be skipped,
-    # as currently implemented in csv2bufr.min_data_check().
-    # ['p_i'], # EXAMPLE
-    skipped_variables: List[str] = attrs.field(factory=list)
-
-    positions_update_timestamp_only: bool = False
-
-    def as_dict(self) -> Dict:
-        return attrs.asdict(self)
-
-
-def load_station_configuration_mapping(
-    fp: Union[str, Path, TextIO]
-) -> Mapping[str, StationConfiguration]:
-    """
-    Read station configurations from toml file
-
-    Parameters
-    ----------
-    fp :
-        Path to or open toml file
-
-    Returns
-    -------
-    Mapping from stid to StationConfiguration
-
-    """
-    return {
-        stid: StationConfiguration(**config_dict)
-        for stid, config_dict in toml.load(fp).items()
-    }
-
-
-def write_station_configuration_mapping(
-    config_mapping: Mapping[str, StationConfiguration], fp: TextIO
-):
-    """
-    Write station configuration to toml file
-
-    Parameters
-    ----------
-    config_mapping
-        Mapping from stid to StationConfiguration
-    fp
-        open writable TextIO
-    """
-    config_mapping = {
-        config.stid: config.as_dict() for config in config_mapping.values()
-    }
-    toml.dump(config_mapping, fp)
 
 
 def process_station(
@@ -295,7 +128,7 @@ def get_bufr(
     input_files: Sequence[Path],
     positions_filepath: Optional[Path],
     timestamps_pickle_filepath: Optional[Path],
-    station_configuration_path: Optional[Path],
+    station_configuration_mapping: Mapping[str, StationConfiguration],
     now_timestamp: Optional[datetime] = None,
     positions_seed_path: Optional[Path] = None,
     earliest_timestamp: datetime = None,
@@ -320,8 +153,8 @@ def get_bufr(
         Path to write latest positions. Used to retrieve a static set of positions to register stations with DMI/WMO
     timestamps_pickle_filepath
         Path to pickle file used for storing latest timestamp
-    station_configuration_path
-        Path to toml file with configuration entries for each station
+    station_configuration_mapping
+        Mapping of station id to StationConfiguration object
     now_timestamp
         get_bufr will export the latest data before now_timestamp. Default datetime.utcnow()
     positions_seed_path
@@ -350,14 +183,6 @@ def get_bufr(
         ).to_dict(orient="index")
         logger.info(f"Seed positions for {positions_seed.keys()}")
         positions.update(positions_seed)
-
-    # Prepare station configurations
-    if station_configuration_path is None:
-        station_configuration_mapping = dict()
-    else:
-        station_configuration_mapping = load_station_configuration_mapping(
-            station_configuration_path
-        )
 
     # Prepare bufr output dir
     bufr_out.mkdir(parents=True, exist_ok=True)
@@ -529,7 +354,8 @@ def get_bufr_variables(
         )
 
     heightOfStationGroundAboveMeanSeaLevel = (
-        height_of_gps_above_mean_sea_level - station_configuration.height_of_gps_from_station_ground
+        height_of_gps_above_mean_sea_level
+        - station_configuration.height_of_gps_from_station_ground
     )
 
     heightOfBarometerAboveMeanSeaLevel = (
@@ -630,7 +456,73 @@ def min_data_check(s):
 
 
 def main():
-    args = parse_arguments_bufr().parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--store_positions",
+        "--positions",
+        action="store_true",
+        required=False,
+        default=False,
+        help="If included (True), make a positions dict and output AWS_latest_locations.csv file.",
+    )
+    parser.add_argument(
+        "--positions-filepath",
+        "-p",
+        type=Path,
+        required=False,
+        help="Path to write AWS_latest_locations.csv file.",
+    )
+    parser.add_argument(
+        "--time-limit",
+        default=DEFAULT_LIN_REG_TIME_LIMIT,
+        type=str,
+        required=False,
+        help="Previous time to limit dataframe before applying linear regression.",
+    )
+    parser.add_argument(
+        "--input_files",
+        "--l3-filepath",
+        "-i",
+        type=Path,
+        nargs="+",
+        required=True,
+        help="Path to L3 tx .csv files. Can be direct paths or glob patterns",
+    )
+    parser.add_argument(
+        "--bufr-out",
+        "-o",
+        type=Path,
+        required=True,
+        help="Path to the BUFR out directory.",
+    )
+    parser.add_argument(
+        "--timestamps-pickle-filepath",
+        type=Path,
+        required=False,
+        help="Path to the latest_timestamps.pickle file.",
+    )
+    parser.add_argument(
+        "--station_configuration_root",
+        type=Path,
+        required=True,
+        help="Path to root directory containing station configuration toml files",
+    )
+    parser.add_argument(
+        "--position_seed",
+        default=DEFAULT_POSITION_SEED_PATH,
+        type=Path,
+        required=False,
+        help="Path to csv file with seed values for output positions.",
+    )
+    parser.add_argument(
+        "--latest_timestamp",
+        default=datetime.utcnow(),
+        type=pd.Timestamp,
+        help="Timestamp used to determine latest data. Default utcnow.",
+    )
+    parser.add_argument("--verbose", "-v", default=False, action="store_true")
+
+    args = parser.parse_args()
 
     log_level = logging.INFO
     if args.verbose:
@@ -650,6 +542,8 @@ def main():
             # The input path might be a glob pattern
             input_files += map(Path, glob.glob(path.as_posix()))
 
+    station_configuration_mapping = load_station_configuration_mapping(args.station_configuration_root)
+
     get_bufr(
         bufr_out=args.bufr_out,
         input_files=input_files,
@@ -658,7 +552,7 @@ def main():
         time_limit=args.time_limit,
         timestamps_pickle_filepath=args.timestamps_pickle_filepath,
         now_timestamp=args.latest_timestamp,
-        station_configuration_path=args.station_configuration_mapping,
+        station_configuration_mapping=args.station_configuration_mapping,
         positions_seed_path=args.position_seed,
     )
 
