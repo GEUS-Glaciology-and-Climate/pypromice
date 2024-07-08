@@ -17,11 +17,11 @@ import pandas as pd
 
 from pypromice.postprocess import get_bufr
 from pypromice.postprocess.bufr_utilities import read_bufr_message, BUFRVariables
-from pypromice.postprocess.get_bufr import (
-    DEFAULT_STATION_CONFIGURATION_PATH,
+from pypromice.station_configuration import (
     StationConfiguration,
     write_station_configuration_mapping,
 )
+from tests.utilities import get_station_configuration
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -36,7 +36,7 @@ def run_get_bufr(
     l3_data: pd.DataFrame,
     stid: str,
     latest_timestamps: Optional[Dict[str, datetime.datetime]],
-    station_configuration_mapping=None,
+    station_configuration_mapping: Dict[str, StationConfiguration],
     **get_bufr_kwargs,
 ) -> Optional[BUFRVariables]:
     """
@@ -59,21 +59,8 @@ def run_get_bufr(
         bufr_out = output_path.joinpath("BUFR_out")
         timestamps_pickle_filepath = output_path.joinpath("latest_timestamps.pickle")
         positions_filepath = output_path.joinpath("AWS_latest_locations.csv")
-        station_configuration_path = output_path.joinpath("station_configuration.toml")
         l3_filepath = output_path.joinpath(f"{stid}_hour.csv")
         l3_data.to_csv(l3_filepath)
-
-        if station_configuration_mapping is None:
-            shutil.copy(
-                DEFAULT_STATION_CONFIGURATION_PATH,
-                station_configuration_path,
-            )
-        else:
-            with station_configuration_path.open("w") as fp:
-                write_station_configuration_mapping(
-                    station_configuration_mapping,
-                    fp,
-                )
 
         if latest_timestamps is not None:
             with timestamps_pickle_filepath.open("wb") as fp:
@@ -84,7 +71,7 @@ def run_get_bufr(
             input_files=[l3_filepath],
             timestamps_pickle_filepath=timestamps_pickle_filepath,
             positions_filepath=positions_filepath,
-            station_configuration_path=station_configuration_path,
+            station_configuration_mapping=station_configuration_mapping,
             **get_bufr_kwargs,
         )
 

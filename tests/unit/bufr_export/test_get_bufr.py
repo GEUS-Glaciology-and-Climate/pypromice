@@ -4,7 +4,6 @@ import pickle
 import sys
 import unittest
 import uuid
-from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase, mock
@@ -15,11 +14,11 @@ import pandas as pd
 from pypromice.postprocess.bufr_utilities import BUFRVariables
 from pypromice.postprocess.get_bufr import (
     process_station,
-    StationConfiguration,
     get_bufr,
     get_bufr_variables,
-    write_station_configuration_mapping,
-    load_station_configuration_mapping,
+)
+from pypromice.station_configuration import (
+    StationConfiguration,
 )
 from tests.unit.bufr_export.test_get_bufr_integration import (
     DATA_DIR,
@@ -35,121 +34,25 @@ logging.basicConfig(
 MOCK_BASE_STR = "pypromice.postprocess.get_bufr.{}"
 
 
-class StationConfigurationTestCase(TestCase):
-    def test_read(self):
-        source_lines = [
-            "[UPE_L]\n",
-            'stid = "UPE_L"\n',
-            'station_site = "UPE_L"\n',
-            'project = "Promice"\n',
-            'station_type = "mobile"\n',
-            'wmo_id = "04423"\n',
-            "barometer_from_gps = -0.25\n",
-            "anemometer_from_sonic_ranger = 0.4\n",
-            "temperature_from_sonic_ranger = 0.0\n",
-            "height_of_gps_from_station_ground = 0.9\n",
-            "sonic_ranger_from_gps = 1.3\n",
-            "export_bufr = true\n",
-            "skipped_variables = []\n",
-            "positions_update_timestamp_only = false\n",
-        ]
-        source_io = StringIO()
-        source_io.writelines(source_lines)
-        source_io.seek(0)
-        expected_configuration_mapping = {
-            "UPE_L": StationConfiguration(
-                stid="UPE_L",
-                station_site="UPE_L",
-                project="Promice",
-                station_type="mobile",
-                wmo_id="04423",
-                barometer_from_gps=-0.25,
-                anemometer_from_sonic_ranger=0.4,
-                temperature_from_sonic_ranger=0.0,
-                height_of_gps_from_station_ground=0.9,
-                sonic_ranger_from_gps=1.3,
-                export_bufr=True,
-                comment=None,
-                skipped_variables=[],
-                positions_update_timestamp_only=False,
-            )
-        }
-
-        station_configuration_mapping = load_station_configuration_mapping(source_io)
-
-        self.assertDictEqual(
-            expected_configuration_mapping,
-            station_configuration_mapping,
-        )
-
-    def test_write_read(self):
-        station_config = StationConfiguration(
-            stid="UPE_L",
-            station_site="UPE_L",
-            project="Promice",
-            station_type="mobile",
-            wmo_id="04423",
-            barometer_from_gps=-0.25,
-            anemometer_from_sonic_ranger=0.4,
-            temperature_from_sonic_ranger=0.0,
-            height_of_gps_from_station_ground=0.9,
-            sonic_ranger_from_gps=1.3,
-            export_bufr=True,
-            comment=None,
-            skipped_variables=[],
-            positions_update_timestamp_only=False,
-        )
-        config_mapping = {station_config.stid: station_config}
-        source_io = StringIO()
-
-        write_station_configuration_mapping(config_mapping, source_io)
-        source_io.seek(0)
-        read_mapping = load_station_configuration_mapping(source_io)
-
-        self.assertDictEqual(
-            config_mapping,
-            read_mapping,
-        )
-
-    def test_write_read_minimal_config(self):
-        station_config = StationConfiguration(stid="UPE_L")
-        config_mapping = {station_config.stid: station_config}
-        source_io = StringIO()
-
-        write_station_configuration_mapping(config_mapping, source_io)
-        source_io.seek(0)
-        read_mapping = load_station_configuration_mapping(source_io)
-
-        self.maxDiff = None
-        self.assertEqual(
-            station_config,
-            config_mapping[station_config.stid],
-        )
-        self.assertDictEqual(
-            config_mapping,
-            read_mapping,
-        )
-
-    def test_write_read_empty_mapping(self):
-        config_mapping = {}
-        source_io = StringIO()
-
-        write_station_configuration_mapping(config_mapping, source_io)
-        source_io.seek(0)
-        read_mapping = load_station_configuration_mapping(source_io)
-
-        self.assertDictEqual(
-            config_mapping,
-            read_mapping,
-        )
-
-
 class BufrVariablesTestCase(TestCase):
     def test_bufr_variables_gcnet(self):
-        self._test_bufr_variables(
+        station_configuration = StationConfiguration(
             stid="DY2",
+            station_site="DY2",
+            project="GC-Net",
             wmo_id="04464",
             station_type="mobile",
+            barometer_from_gps=0.55,
+            anemometer_from_sonic_ranger=0.4,
+            temperature_from_sonic_ranger=0.4,
+            height_of_gps_from_station_ground=1.5,
+            sonic_ranger_from_gps=0.15,
+            export_bufr=True,
+        )
+
+        self._test_bufr_variables(
+            stid=station_configuration.stid,
+            station_configuration=station_configuration,
             relativeHumidity=69.0,
             airTemperature=256.0,
             pressure=77300.0,
@@ -164,10 +67,22 @@ class BufrVariablesTestCase(TestCase):
         )
 
     def test_bufr_variables_promice_v2(self):
-        self._test_bufr_variables(
+        station_configuration = StationConfiguration(
             stid="NUK_L",
-            wmo_id="04403",
+            station_site="NUK_L",
+            project="Promice",
             station_type="mobile",
+            wmo_id="04403",
+            barometer_from_gps=-0.25,
+            anemometer_from_sonic_ranger=0.4,
+            temperature_from_sonic_ranger=0.0,
+            height_of_gps_from_station_ground=0.9,
+            sonic_ranger_from_gps=1.3,
+            export_bufr=True,
+        )
+        self._test_bufr_variables(
+            stid=station_configuration.stid,
+            station_configuration=station_configuration,
             relativeHumidity=69.0,
             airTemperature=256.0,
             pressure=77300.0,
@@ -182,10 +97,22 @@ class BufrVariablesTestCase(TestCase):
         )
 
     def test_bufr_variables_promice_v3(self):
-        self._test_bufr_variables(
+        station_configuration = StationConfiguration(
             stid="QAS_Mv3",
-            wmo_id="04441",
+            station_site="QAS_M",
+            project="Promice",
             station_type="mobile",
+            wmo_id="04441",
+            barometer_from_gps=1.3,
+            anemometer_from_sonic_ranger=0.4,
+            temperature_from_sonic_ranger=0.0,
+            height_of_gps_from_station_ground=0.9,
+            sonic_ranger_from_gps=1.3,
+            export_bufr=True,
+        )
+        self._test_bufr_variables(
+            stid=station_configuration.stid,
+            station_configuration=station_configuration,
             relativeHumidity=69.0,
             airTemperature=256.0,
             pressure=77300.0,
@@ -299,7 +226,7 @@ class BufrVariablesTestCase(TestCase):
         self,
         write_bufr_message_mock: mock.MagicMock,
         stid: str,
-        wmo_id: str,
+        station_configuration: StationConfiguration,
         relativeHumidity: float,
         airTemperature: float,
         pressure: float,
@@ -311,7 +238,6 @@ class BufrVariablesTestCase(TestCase):
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH: float,
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD: float,
         heightOfBarometerAboveMeanSeaLevel: float,
-        station_type: str,
     ):
         l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
         l3_src = pd.read_csv(l3_src_filepath)
@@ -325,14 +251,17 @@ class BufrVariablesTestCase(TestCase):
             stid=stid,
             store_positions=True,
             time_limit="91d",
+            station_configuration_mapping={
+                station_configuration.stid: station_configuration
+            },
         )
 
         write_bufr_message_mock.assert_called_once()
         call = write_bufr_message_mock.call_args_list[0]
         expected_time = datetime.datetime(year=2023, month=12, day=7, hour=23)
         expected_bufr_variables = BUFRVariables(
-            wmo_id=wmo_id,
-            station_type=station_type,
+            wmo_id=station_configuration.wmo_id,
+            station_type=station_configuration.station_type,
             timestamp=expected_time,
             relativeHumidity=relativeHumidity,
             airTemperature=airTemperature,
@@ -719,7 +648,7 @@ class GetBufrTestCase(unittest.TestCase):
             bufr_out=self.bufr_root,
             input_files=[input_file_path],
             positions_filepath=self.positions_file_path,
-            station_configuration_path=None,
+            station_configuration_mapping=dict(),
             timestamps_pickle_filepath=timestamps_pickle_filepath,
             now_timestamp=now_timestamp,
         )
@@ -753,23 +682,18 @@ class GetBufrTestCase(unittest.TestCase):
             self.root_path / f"{station_config02.stid}_hourly.csv",
             self.root_path / f"{station_config03.stid}_hourly.csv",
         ]
-        station_configs = {
+        station_config_mapping = {
             station_config01.stid: station_config01,
             station_config02.stid: station_config02,
             station_config03.stid: station_config03,
         }
-        with self.station_configuration_path.open("w") as fp:
-            write_station_configuration_mapping(
-                station_configs,
-                fp,
-            )
 
         get_bufr(
             store_positions=True,
             bufr_out=self.bufr_root,
             input_files=input_files,
             positions_filepath=self.positions_file_path,
-            station_configuration_path=self.station_configuration_path,
+            station_configuration_mapping=station_config_mapping,
             timestamps_pickle_filepath=self.timestamps_pickle_filepath,
             positions_seed_path=None,
             now_timestamp=datetime.datetime.now(),
@@ -794,7 +718,7 @@ class GetBufrTestCase(unittest.TestCase):
             bufr_out=self.bufr_root,
             input_files=(),
             positions_filepath=self.positions_file_path,
-            station_configuration_path=None,
+            station_configuration_mapping=dict(),
             timestamps_pickle_filepath=self.timestamps_pickle_filepath,
             now_timestamp=now_timestamp,
         )
@@ -816,11 +740,9 @@ class GetBufrTestCase(unittest.TestCase):
         stid = "THE_STID_FOR_A_STATION"
         input_file_path = self.root_path / f"{stid}_hourly.csv"
         station_configuration = StationConfiguration(stid=stid, export_bufr=True)
-        with self.station_configuration_path.open("w") as fp:
-            write_station_configuration_mapping(
-                dict(stid=station_configuration),
-                fp,
-            )
+        station_configuration_mapping = {
+            stid: station_configuration,
+        }
         expected_output_path = self.bufr_root / f"{stid}.bufr"
         expected_latest_timestamp = now_timestamp - datetime.timedelta(days=2)
         expected_station_configuration = StationConfiguration(
@@ -832,7 +754,7 @@ class GetBufrTestCase(unittest.TestCase):
             bufr_out=self.bufr_root,
             input_files=[input_file_path],
             positions_filepath=self.positions_file_path,
-            station_configuration_path=self.station_configuration_path,
+            station_configuration_mapping=station_configuration_mapping,
             timestamps_pickle_filepath=self.timestamps_pickle_filepath,
             positions_seed_path=None,
             now_timestamp=now_timestamp,
@@ -861,7 +783,7 @@ class GetBufrTestCase(unittest.TestCase):
             bufr_out=self.bufr_root,
             input_files=[input_file_path],
             positions_filepath=self.positions_file_path,
-            station_configuration_path=None,
+            station_configuration_mapping=dict(),
             timestamps_pickle_filepath=self.timestamps_pickle_filepath,
             positions_seed_path=None,
             now_timestamp=now_timestamp,
@@ -892,7 +814,7 @@ class GetBufrTestCase(unittest.TestCase):
             bufr_out=self.bufr_root,
             input_files=[input_file_path],
             positions_filepath=self.positions_file_path,
-            station_configuration_path=None,
+            station_configuration_mapping=dict(),
             timestamps_pickle_filepath=self.timestamps_pickle_filepath,
             positions_seed_path=None,
             now_timestamp=now_timestamp,
@@ -915,11 +837,7 @@ class GetBufrTestCase(unittest.TestCase):
         station_config = StationConfiguration(
             stid=stid, positions_update_timestamp_only=True
         )
-        with self.station_configuration_path.open("w") as fp:
-            write_station_configuration_mapping(
-                config_mapping={station_config.stid: station_config},
-                fp=fp,
-            )
+        config_mapping = {station_config.stid: station_config}
         input_file_path = self.root_path / f"{stid}_hourly.csv"
         seed_timestamp = datetime.datetime(2021, 10, 2, 10, 0)
         now_timestamp = datetime.datetime(2023, 3, 3, 5, 0)
@@ -946,7 +864,7 @@ class GetBufrTestCase(unittest.TestCase):
             bufr_out=self.bufr_root,
             input_files=[input_file_path],
             positions_filepath=self.positions_file_path,
-            station_configuration_path=self.station_configuration_path,
+            station_configuration_mapping=config_mapping,
             timestamps_pickle_filepath=self.timestamps_pickle_filepath,
             positions_seed_path=self.positions_seed_path,
             now_timestamp=now_timestamp,
@@ -977,7 +895,7 @@ class GetBufrTestCase(unittest.TestCase):
             bufr_out=self.bufr_root,
             input_files=(),
             positions_filepath=self.positions_file_path,
-            station_configuration_path=None,
+            station_configuration_mapping=dict(),
             timestamps_pickle_filepath=self.timestamps_pickle_filepath,
             positions_seed_path=self.positions_seed_path,
             now_timestamp=datetime.datetime.now(),
