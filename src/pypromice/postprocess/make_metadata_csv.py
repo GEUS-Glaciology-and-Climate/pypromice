@@ -5,16 +5,13 @@ import pandas as pd
 import xarray as xr
 import logging
 logger = logging.getLogger(__name__)
-
-def process_files(base_dir, data_type):
+        
+def process_files(base_dir, csv_file_path, data_type):
+    
     # Determine the CSV file path based on the data type
     if data_type == 'station':
-        logger.info("Updating AWS_stations_metadata.csv")
-        csv_file_path = os.path.join(base_dir, '../AWS_stations_metadata.csv')
         label_s_id = 'station_id'
     elif data_type == 'site':
-        logger.info("Updating AWS_sites_metadata.csv")
-        csv_file_path = os.path.join(base_dir, '../AWS_sites_metadata.csv')
         label_s_id = 'site_id'
 
     # Initialize a list to hold the rows (Series) of DataFrame
@@ -22,8 +19,10 @@ def process_files(base_dir, data_type):
 
     # Read existing metadata if the CSV file exists
     if os.path.exists(csv_file_path):
+        logger.info("Updating "+str(csv_file_path))
         existing_metadata_df = pd.read_csv(csv_file_path, index_col=label_s_id)
     else:
+        logger.info("Creating "+str(csv_file_path))
         existing_metadata_df = pd.DataFrame()
 
     # Drop the 'timestamp_last_known_coordinates' column if it exists
@@ -135,7 +134,6 @@ def process_files(base_dir, data_type):
         pd.set_option('display.max_columns', None)  # Show all columns
         pd.set_option('display.max_colwidth', None) # Show full width of columns
         pd.set_option('display.width', None)        # Disable line wrapping
-        
         logger.info("\nExcluded lines from combined metadata.csv:")
         print(excluded_metadata_df)
 
@@ -165,16 +163,17 @@ def process_files(base_dir, data_type):
 
 def main():
     parser = argparse.ArgumentParser(description='Process station or site data.')
-    parser.add_argument('-t', '--type', choices=['station', 'site'], required=True, help='Type of data to process: "station" or "site"')
-    parser.add_argument('--root_dir', required=True, help='Root directory containing the aws-l3 folder')
+    parser.add_argument('-t', '--type', choices=['station', 'site'], 
+                        required=True, 
+                        help='Type of data to process: "station" or "site"')
+    parser.add_argument('-r', '--root_dir', required=True, help='Root directory ' +
+                        'containing the aws-l3 station or site folder')
+    parser.add_argument('-m','--metadata_file', required=True,
+                        help='File path to metadata csv file (existing or '+
+                        'intended output path')
+    
     args = parser.parse_args()
-
-    if args.type == 'station':
-        base_dir = os.path.join(args.root_dir, 'aws-l3/stations/')
-    elif args.type == 'site':
-        base_dir = os.path.join(args.root_dir, 'aws-l3/sites/')
-
-    process_files(base_dir, args.type)
+    process_files(args.root_dir, args.metadata_file, args.type)
 
 if __name__ == '__main__':
     main()
