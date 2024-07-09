@@ -61,9 +61,9 @@ class BufrVariablesTestCase(TestCase):
             latitude=66.482488,
             longitude=-46.294266,
             heightOfStationGroundAboveMeanSeaLevel=2123.2,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.6,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
-            heightOfBarometerAboveMeanSeaLevel=2125.25,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.59,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.59,
+            heightOfBarometerAboveMeanSeaLevel=2125.3,
         )
 
     def test_bufr_variables_promice_v2(self):
@@ -91,9 +91,9 @@ class BufrVariablesTestCase(TestCase):
             latitude=66.482488,
             longitude=-46.294266,
             heightOfStationGroundAboveMeanSeaLevel=2123.8,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.2,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
-            heightOfBarometerAboveMeanSeaLevel=2124.45,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.19,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.59,
+            heightOfBarometerAboveMeanSeaLevel=2124.5,
         )
 
     def test_bufr_variables_promice_v3(self):
@@ -121,8 +121,8 @@ class BufrVariablesTestCase(TestCase):
             latitude=66.482488,
             longitude=-46.294266,
             heightOfStationGroundAboveMeanSeaLevel=2123.8,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.2,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.19,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.59,
             heightOfBarometerAboveMeanSeaLevel=2126,
         )
 
