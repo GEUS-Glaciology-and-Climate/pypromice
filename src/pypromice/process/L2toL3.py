@@ -158,7 +158,7 @@ def surfaceHeightProcessing(ds, station_config={}):
             ds['z_surf_2'] = ds.z_boom_l.sel(time=first_valid_index) - ds['z_boom_l']
         if 'z_stake' in ds.data_vars and ds.z_stake.notnull().any():
             first_valid_index = ds.time.where(ds.z_stake.notnull(), drop=True).data[0]
-            ds['z_surf_2'] = ds.z_stake.sel(time=first_valid_index) - ds['z_stake']
+            ds['z_surf_2'] = ds.z_stake.sel(time=first_valid_index) - ds['z_stake']        
 
     # Adjust data for the created surface height variables
     ds = adjustData(ds, var_list=['z_surf_1', 'z_surf_2', 'z_ice_surf'])
@@ -223,7 +223,7 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
         df["z_surf_combined"] = hampel(df["z_surf_1"].interpolate(limit=72)).values
         return df["z_surf_combined"], df["z_surf_combined"]*np.nan
 
-    elif site_type == 'accumulation':
+    elif site_type in ['accumulation', 'bedrock']:
         logger.info('-> no z_pt or accumulation site: averaging z_surf_1 and z_surf_2')
         df["z_surf_1_adj"] = hampel(df["z_surf_1"].interpolate(limit=72)).values
         df["z_surf_2_adj"] = hampel(df["z_surf_2"].interpolate(limit=72)).values
