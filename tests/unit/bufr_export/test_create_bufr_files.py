@@ -32,7 +32,7 @@ class TestCreateBufrFiles(TestCase):
 
     def test_create_bufr_files(self):
         """
-        Teste the creation of bufr files and their output folder structure.
+        Test the creation of bufr files and their output folder structure.
         It does not test the content of the bufr files.
         """
         input_dir = self.temp_dir / "input"
