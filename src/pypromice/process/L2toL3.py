@@ -141,8 +141,8 @@ def surfaceHeightProcessing(ds, station_config={}):
     if ds.attrs['site_type'] == 'ablation':
         # Calculate surface heights for ablation sites
         ds['z_surf_1'] = 2.6 - ds['z_boom_u']
-        first_valid_index = ds.time.where(ds.z_stake.notnull(), drop=True).data[0]
-        if first_valid_index:
+        if ds.z_stake.notnull().any():
+            first_valid_index = ds.time.where(ds.z_stake.notnull(), drop=True).data[0]
             ds['z_surf_2'] = ds.z_surf_1.sel(time=first_valid_index) + ds.z_stake.sel(time=first_valid_index) - ds['z_stake']
         
         # Use corrected point data if available
@@ -218,12 +218,16 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
         is higher, then there is ablation.
     '''
     logger.info('Combining surface height')
+    
     if 'z_surf_2' not in df.columns:
         logger.info('-> did not find z_surf_2')
-        df["z_surf_combined"] = hampel(df["z_surf_1"].interpolate(limit=72)).values
-        return df["z_surf_combined"], df["z_surf_combined"]*np.nan
-
-    elif site_type in ['accumulation', 'bedrock']:
+        df["z_surf_2"] = df["z_surf_1"].values*np.nan
+    
+    if 'z_ice_surf' not in df.columns:
+        logger.info('-> did not find z_ice_surf')
+        df["z_ice_surf"] = df["z_surf_1"].values*np.nan
+    
+    if site_type in ['accumulation', 'bedrock']:
         logger.info('-> no z_pt or accumulation site: averaging z_surf_1 and z_surf_2')
         df["z_surf_1_adj"] = hampel(df["z_surf_1"].interpolate(limit=72)).values
         df["z_surf_2_adj"] = hampel(df["z_surf_2"].interpolate(limit=72)).values
@@ -320,7 +324,7 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
         years = df.index.year.unique().values
         ind_start = years.copy()
         ind_end =  years.copy()
-        logger.info('-> estimating ablation period for each year')
+        logger.debug('-> estimating ablation period for each year')
         for i, y in enumerate(years):
             # for each year
             ind_yr = df.index.year.values==y
@@ -332,17 +336,17 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
 
                 ind_abl_yr = np.logical_and(ind_yr, df.index.month.isin([6,7,8]))
                 ind_ablation[ind_yr] = ind_abl_yr[ind_yr]
-                logger.info(str(y)+' no z_ice_surf, just using JJA')
+                logger.debug(str(y)+' no z_ice_surf, just using JJA')
 
             if np.any(ind_abl_yr):
-                logger.info(str(y)+ ' derived from z_ice_surf')
+                logger.debug(str(y)+ ' derived from z_ice_surf')
                 # if there are some ablation flagged for that year
                 # then find begining and end
                 ind_start[i] = np.argwhere(ind_abl_yr)[0][0]
                 ind_end[i] = np.argwhere(ind_abl_yr)[-1][0]
 
             else:
-                logger.info(str(y) + ' could not estimate ablation season')
+                logger.debug(str(y) + ' could not estimate ablation season')
                 # otherwise left as nan
                 ind_start[i] = -999
                 ind_end[i] = -999
@@ -354,7 +358,7 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
         # to hs1 and hs2 the year after.
 
         for i, y in enumerate(years):
-            logger.info(str(y))
+            logger.debug(str(y))
             # defining subsets of hs1, hs2, z
             hs1_jja =  hs1[str(y)+'-06-01':str(y)+'-09-01']
             hs2_jja =  hs2[str(y)+'-06-01':str(y)+'-09-01']
@@ -396,7 +400,7 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
                     # the first year there is both ablation and PT data available
                     # then PT is adjusted to hs2
                     if any(~np.isnan(z_ablation)) and any(~np.isnan(hs2_ablation)):
-                        logger.info('adjusting z to hs2')
+                        logger.debug('adjusting z to hs2')
                         tmp1 = z_ablation.copy()
                         tmp2 = hs2_ablation.copy()
                         tmp1[np.isnan(tmp2)] = np.nan
@@ -433,7 +437,7 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
                                 hs2[first_day_of_year:first_index-pd.to_timedelta('1D')].isnull().all():
                                 if (~np.isnan(np.nanmean(z[first_index:first_index+pd.to_timedelta('1D')])) \
                                     and ~np.isnan(np.nanmean(hs2[first_index:first_index+pd.to_timedelta('1D')]))):    
-                                    logger.info(' ======= adjusting hs1 and hs2 to z_pt')      
+                                    logger.debug(' ======= adjusting hs1 and hs2 to z_pt')      
                                     if ~np.isnan(np.nanmean(hs1[first_index:first_index+pd.to_timedelta('1D')]) ):
                                         hs1[first_index:] = hs1[first_index:] \
                                             -  np.nanmean(hs1[first_index:first_index+pd.to_timedelta('1D')])  \
@@ -447,32 +451,32 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
             if (ind_end[i] != -999): 
                 # and if there are PT data available at the end of the melt season
                 if np.any(~np.isnan(z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*7)])):
-                    logger.info('adjusting hs2 to z')
+                    logger.debug('adjusting hs2 to z')
                     # then we adjust hs2 to the end-of-ablation z    
                     # first trying at the end of melt season
                     if ~np.isnan(np.nanmean(hs2.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])): 
-                        logger.info('using end of melt season')
+                        logger.debug('using end of melt season')
                         hs2.iloc[ind_end[i]:] = hs2.iloc[ind_end[i]:] - \
                             np.nanmean(hs2.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])  + \
                                 np.nanmean(z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])
                     # if not possible, then trying the end of the following accumulation season
                     elif (i+1 < len(ind_start)):
                         if ind_start[i+1]!=-999 and any(~np.isnan(hs2.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)]+ z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])): 
-                            logger.info('using end of accumulation season')
+                            logger.debug('using end of accumulation season')
                             hs2.iloc[ind_end[i]:] = hs2.iloc[ind_end[i]:] - \
                                 np.nanmean(hs2.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])  + \
                                     np.nanmean(z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])
             else:
-                logger.info('no ablation')
+                logger.debug('no ablation')
 
                 if all(np.isnan(hs2_following_winter)):
-                    logger.info('no hs2')
+                    logger.debug('no hs2')
                     missing_hs2 = 1
                 elif missing_hs2 == 1:
-                    logger.info('adjusting hs2')
+                    logger.debug('adjusting hs2')
                     # and if there are some hs2 during the accumulation period
                     if any(~np.isnan(hs1_following_winter)):
-                        logger.info('to hs1')
+                        logger.debug('to hs1')
                         # then we adjust hs1 to hs2 during the accumulation area
                         # adjustment is done so that the mean hs1 and mean hs2 match 
                         # for the period when both are available
@@ -485,10 +489,10 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
 
                 # adjusting hs1 to hs2 (no ablation case)
                 if any(~np.isnan(hs1_following_winter)):
-                    logger.info('adjusting hs1')
+                    logger.debug('adjusting hs1')
                     # and if there are some hs2 during the accumulation period
                     if any(~np.isnan(hs2_following_winter)):
-                        logger.info('to hs2')
+                        logger.debug('to hs2')
                         # then we adjust hs1 to hs2 during the accumulation area
                         # adjustment is done so that the mean hs1 and mean hs2 match 
                         # for the period when both are available
@@ -502,10 +506,10 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
                 # if there is some hs1
 
                 if any(~np.isnan(hs1_following_winter)):
-                    logger.info('adjusting hs1')
+                    logger.debug('adjusting hs1')
                     # and if there are some hs2 during the accumulation period
                     if any(~np.isnan(hs2_following_winter)):
-                        logger.info('to hs2')
+                        logger.debug('to hs2')
                         # then we adjust hs1 to hs2 during the accumulation area
                         # adjustment is done so that the mean hs1 and mean hs2 match 
                         # for the period when both are available
@@ -519,17 +523,17 @@ def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
 
                     # if no hs2, then use PT data available at the end of the melt season
                     elif np.any(~np.isnan(z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*7)])):
-                        logger.info('to z')
+                        logger.debug('to z')
                         # then we adjust hs2 to the end-of-ablation z    
                         # first trying at the end of melt season
                         if ~np.isnan(np.nanmean(hs1.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])): 
-                            logger.info('using end of melt season')
+                            logger.debug('using end of melt season')
                             hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] - \
                                 np.nanmean(hs1.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])  + \
                                     np.nanmean(z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])
                         # if not possible, then trying the end of the following accumulation season
                         elif ind_start[i+1]!=-999 and any(~np.isnan(hs1.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)]+ z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])): 
-                            logger.info('using end of accumulation season')
+                            logger.debug('using end of accumulation season')
                             hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] - \
                                 np.nanmean(hs1.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])  + \
                                     np.nanmean(z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])
@@ -605,120 +609,127 @@ def thermistorDepth(df_in, site, station_config):
             # Add more entries as needed
         ]
     '''
-
-    logger.info('Calculating thermistor depth')
-
-    # Convert maintenance_info to DataFrame for easier manipulation
-    maintenance_string = pd.DataFrame(
-        station_config.get("string_maintenance",[]),
-        columns = ['date', 'installation_depths']
-        )
-    maintenance_string["date"] = pd.to_datetime(maintenance_string["date"])
-    maintenance_string = maintenance_string.sort_values(by='date', ascending=True)
-        
+    
     temp_cols_name = ['t_i_'+str(i) for i in range(12) if 't_i_'+str(i) in df_in.columns]
     num_therm = len(temp_cols_name)
-    depth_cols_name = ['d_t_i_'+str(i) for i in range(1,num_therm+1)]
-    if num_therm == 8:
-        ini_depth = [1, 2, 3, 4, 5, 6, 7, 10]
-    else:
-        ini_depth = [0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5]
-    df_in[depth_cols_name] = np.nan
-
-    # filtering the surface height
-    surface_height = df_in["z_surf_combined"].copy()
-    ind_filter = surface_height.rolling(window=14, center=True).var() > 0.1
-    if any(ind_filter):
-        surface_height[ind_filter] = np.nan
-    df_in["z_surf_combined"] = surface_height.values
-    z_surf_interp = df_in["z_surf_combined"].interpolate()
-
-    # first initialization of the depths
-    for i, col in enumerate(depth_cols_name):
-        df_in[col] = (
-            ini_depth[i]
-            + z_surf_interp.values
-            - z_surf_interp[z_surf_interp.first_valid_index()]
-        )
-
-    # reseting depth at maintenance
-    if len(maintenance_string.date) == 0:
-        logger.info("No maintenance at "+site)
-
-    for date in maintenance_string.date:
-        if date > z_surf_interp.last_valid_index():
-            continue
-        new_depth = maintenance_string.loc[
-                                        maintenance_string.date == date
-                                    ].installation_depths.values[0]
-
-        for i, col in enumerate(depth_cols_name[:len(new_depth)]):
-            tmp = df_in[col].copy()
-            tmp.loc[date:] = (
-                new_depth[i]
-                + z_surf_interp[date:].values
-                - z_surf_interp[date:][
-                    z_surf_interp[date:].first_valid_index()
-                ]
-            )
-            df_in[col] = tmp.values
-
-    # % Filtering thermistor data
-    # for i in range(len(temp_cols_name)):
-    #     tmp = df_in[temp_cols_name[i]].copy()
-
-    #     # variance filter
-    #     ind_filter = (
-    #         df_in[temp_cols_name[i]]
-    #         .interpolate(limit=14)
-    #         .rolling(window=7)
-    #         .var()
-    #         > 0.5
-    #     )
-    #     month = (
-    #         df_in[temp_cols_name[i]].interpolate(limit=14).index.month.values
-    #     )
-    #     ind_filter.loc[np.isin(month, [5, 6, 7])] = False
-    #     if any(ind_filter):
-    #         tmp.loc[ind_filter] = np.nan
-
-    #     # before and after maintenance adaptation filter
-    #     if len(maintenance.date) > 0:
-    #         for date in maintenance.date:
-    #             if isinstance(
-    #                 maintenance.loc[
-    #                     maintenance.date == date
-    #                 ].depth_new_thermistor_m.values[0],
-    #                 str,
-    #             ):
-    #                 ind_adapt = np.abs(
-    #                     tmp.interpolate(limit=14).index.values
-    #                     - pd.to_datetime(date).to_datetime64()
-    #                 ) < np.timedelta64(7, "D")
-    #                 if any(ind_adapt):
-    #                     tmp.loc[ind_adapt] = np.nan
-
-    #     # surfaced thermistor
-    #     ind_pos = df_in[depth_cols_name[i]] < 0.1
-    #     if any(ind_pos):
-    #         tmp.loc[ind_pos] = np.nan
-    #     # copying the filtered values to the original table
-    #     df_in[temp_cols_name[i]] = tmp.values
+    depth_cols_name = ['d_t_i_'+str(i) for i in range(1,num_therm+1)]   
     
-    logger.info("interpolating 10 m firn/ice temperature")
-    df_in['t_i_10m'] = interpolate_temperature(
-        df_in.index.values,
-        df_in[depth_cols_name].values.astype(float),
-        df_in[temp_cols_name].values.astype(float),
-        kind="linear",
-        min_diff_to_depth=1.5,
-    ).set_index('date').values
+    if df_in['z_surf_combined'].isnull().all():
+        logger.info('No valid surface height at '+site+', cannot calculate thermistor depth')
+        df_in[depth_cols_name + ['t_i_10m']] = np.nan
+    else:
+        logger.info('Calculating thermistor depth')
+    
+        # Convert maintenance_info to DataFrame for easier manipulation
+        maintenance_string = pd.DataFrame(
+            station_config.get("string_maintenance",[]),
+            columns = ['date', 'installation_depths']
+            )
+        maintenance_string["date"] = pd.to_datetime(maintenance_string["date"])
+        maintenance_string = maintenance_string.sort_values(by='date', ascending=True)
+            
 
-    # filtering
-    ind_pos = df_in["t_i_10m"] > 0.1
-    ind_low = df_in["t_i_10m"] < -70
-    df_in.loc[ind_pos, "t_i_10m"] = np.nan
-    df_in.loc[ind_low, "t_i_10m"] = np.nan
+        if num_therm == 8:
+            ini_depth = [1, 2, 3, 4, 5, 6, 7, 10]
+        else:
+            ini_depth = [0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5]
+        df_in[depth_cols_name] = np.nan
+    
+        # filtering the surface height
+        surface_height = df_in["z_surf_combined"].copy()
+        ind_filter = surface_height.rolling(window=14, center=True).var() > 0.1
+        if any(ind_filter):
+            surface_height[ind_filter] = np.nan
+        df_in["z_surf_combined"] = surface_height.values
+        z_surf_interp = df_in["z_surf_combined"].interpolate()
+    
+        # first initialization of the depths
+        for i, col in enumerate(depth_cols_name):
+            df_in[col] = (
+                ini_depth[i]
+                + z_surf_interp.values
+                - z_surf_interp[z_surf_interp.first_valid_index()]
+            )
+    
+        # reseting depth at maintenance
+        if len(maintenance_string.date) == 0:
+            logger.info("No maintenance at "+site)
+    
+        for date in maintenance_string.date:
+            if date > z_surf_interp.last_valid_index():
+                continue
+            new_depth = maintenance_string.loc[
+                                            maintenance_string.date == date
+                                        ].installation_depths.values[0]
+    
+            for i, col in enumerate(depth_cols_name[:len(new_depth)]):
+                tmp = df_in[col].copy()
+                tmp.loc[date:] = (
+                    new_depth[i]
+                    + z_surf_interp[date:].values
+                    - z_surf_interp[date:][
+                        z_surf_interp[date:].first_valid_index()
+                    ]
+                )
+                df_in[col] = tmp.values
+    
+        # % Filtering thermistor data
+        for i in range(len(temp_cols_name)):
+            tmp = df_in[temp_cols_name[i]].copy()
+    
+            # variance filter
+            # ind_filter = (
+            #     df_in[temp_cols_name[i]]
+            #     .interpolate(limit=14)
+            #     .rolling(window=7)
+            #     .var()
+            #     > 0.5
+            # )
+            # month = (
+            #     df_in[temp_cols_name[i]].interpolate(limit=14).index.month.values
+            # )
+            # ind_filter.loc[np.isin(month, [5, 6, 7])] = False
+            # if any(ind_filter):
+            #     tmp.loc[ind_filter] = np.nan
+    
+            # before and after maintenance adaptation filter
+            if len(maintenance_string.date) > 0:
+                for date in maintenance_string.date:
+                    if isinstance(
+                        maintenance_string.loc[
+                            maintenance_string.date == date
+                        ].installation_depths.values[0],
+                        str,
+                    ):
+                        ind_adapt = np.abs(
+                            tmp.interpolate(limit=14).index.values
+                            - pd.to_datetime(date).to_datetime64()
+                        ) < np.timedelta64(7, "D")
+                        if any(ind_adapt):
+                            tmp.loc[ind_adapt] = np.nan
+    
+            # surfaced thermistor
+            ind_pos = df_in[depth_cols_name[i]] < 0.1
+            if any(ind_pos):
+                tmp.loc[ind_pos] = np.nan
+
+            # copying the filtered values to the original table
+            df_in[temp_cols_name[i]] = tmp.values
+        
+        logger.info("interpolating 10 m firn/ice temperature")
+        df_in['t_i_10m'] = interpolate_temperature(
+            df_in.index.values,
+            df_in[depth_cols_name].values.astype(float),
+            df_in[temp_cols_name].values.astype(float),
+            kind="linear",
+            min_diff_to_depth=1.5,
+        ).set_index('date').values
+    
+        # filtering
+        ind_pos = df_in["t_i_10m"] > 0.1
+        ind_low = df_in["t_i_10m"] < -70
+        df_in.loc[ind_pos, "t_i_10m"] = np.nan
+        df_in.loc[ind_low, "t_i_10m"] = np.nan
 
     return df_in[depth_cols_name + ['t_i_10m']]
 
@@ -812,8 +823,62 @@ def gpsCoordinatePostprocessing(ds, var, station_config={}):
             logger.info('processing '+var+' with relocation on ' + ', '.join([br.strftime('%Y-%m-%dT%H:%M:%S') for br in breaks]))
 
         return piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks)
+  
+def piecewise_smoothing_and_interpolation(data_series, breaks):
+    '''Smoothes, inter- or extrapolate the GPS observations. The processing is 
+    done piecewise so that each period between station relocations are done 
+    separately (no smoothing of the jump due to relocation). Piecewise linear 
+    regression is then used to smooth the available observations. Then this 
+    smoothed curve is interpolated linearly over internal gaps. Eventually, this 
+    interpolated curve is extrapolated linearly for timestamps before the first 
+    valid measurement and after the last valid measurement.
+    
+    Parameters
+    ----------
+    data_series : pandas.Series
+        Series of observed latitude, longitude or elevation with datetime index.
+    breaks: list
+        List of timestamps of station relocation. First and last item should be
+        None so that they can be used in slice(breaks[i], breaks[i+1])
+        
+    Returns
+    -------
+    np.ndarray
+        Smoothed and interpolated values corresponding to the input series.
+    '''
+    df_all = pd.Series(dtype=float)  # Initialize an empty Series to gather all smoothed pieces
+    breaks = [None] + breaks + [None]
+    _inferred_series = []
+    for i in range(len(breaks) - 1):
+        df = data_series.loc[slice(breaks[i], breaks[i+1])]
+               
+        # Drop NaN values and calculate the number of segments based on valid data
+        df_valid = df.dropna()
+        if df_valid.shape[0] > 2:        
+            # Fit linear regression model to the valid data range
+            x = pd.to_numeric(df_valid.index).values.reshape(-1, 1)
+            y = df_valid.values.reshape(-1, 1)
             
-
+            model = LinearRegression()
+            model.fit(x, y)
+            
+            # Predict using the model for the entire segment range
+            x_pred = pd.to_numeric(df.index).values.reshape(-1, 1)
+            
+            y_pred = model.predict(x_pred)
+            df =  pd.Series(y_pred.flatten(), index=df.index)
+        # adds to list the predicted values for the current segment
+        _inferred_series.append(df)
+        
+    df_all = pd.concat(_inferred_series)
+    
+    # Fill internal gaps with linear interpolation
+    df_all = df_all.interpolate(method='linear', limit_area='inside')
+        
+    # Remove duplicate indices and return values as numpy array
+    df_all = df_all[~df_all.index.duplicated(keep='last')]
+    return df_all.values
+  
 def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h, 
                 kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622, 
                 gamma=16., L_sub=2.83e6, L_dif_max=0.01, c_pd=1005., aa=0.7, 
@@ -1051,61 +1116,6 @@ def calcSpHumid(T_0, T_100, T_h, p_h, RH_cor_h, es_0=6.1071, es_100=1013.246, ep
 
     # Convert to kg/kg
     return RH_cor_h * q_sat / 100 
-
-def piecewise_smoothing_and_interpolation(data_series, breaks):
-    '''Smoothes, inter- or extrapolate the GPS observations. The processing is 
-    done piecewise so that each period between station relocations are done 
-    separately (no smoothing of the jump due to relocation). Piecewise linear 
-    regression is then used to smooth the available observations. Then this 
-    smoothed curve is interpolated linearly over internal gaps. Eventually, this 
-    interpolated curve is extrapolated linearly for timestamps before the first 
-    valid measurement and after the last valid measurement.
-    
-    Parameters
-    ----------
-    data_series : pandas.Series
-        Series of observed latitude, longitude or elevation with datetime index.
-    breaks: list
-        List of timestamps of station relocation. First and last item should be
-        None so that they can be used in slice(breaks[i], breaks[i+1])
-        
-    Returns
-    -------
-    np.ndarray
-        Smoothed and interpolated values corresponding to the input series.
-    '''
-    df_all = pd.Series(dtype=float)  # Initialize an empty Series to gather all smoothed pieces
-    breaks = [None] + breaks + [None]
-    _inferred_series = []
-    for i in range(len(breaks) - 1):
-        df = data_series.loc[slice(breaks[i], breaks[i+1])]
-               
-        # Drop NaN values and calculate the number of segments based on valid data
-        df_valid = df.dropna()
-        if df_valid.shape[0] > 2:        
-            # Fit linear regression model to the valid data range
-            x = pd.to_numeric(df_valid.index).values.reshape(-1, 1)
-            y = df_valid.values.reshape(-1, 1)
-            
-            model = LinearRegression()
-            model.fit(x, y)
-            
-            # Predict using the model for the entire segment range
-            x_pred = pd.to_numeric(df.index).values.reshape(-1, 1)
-            
-            y_pred = model.predict(x_pred)
-            df =  pd.Series(y_pred.flatten(), index=df.index)
-        # adds to list the predicted values for the current segment
-        _inferred_series.append(df)
-        
-    df_all = pd.concat(_inferred_series)
-    
-    # Fill internal gaps with linear interpolation
-    df_all = df_all.interpolate(method='linear', limit_area='inside')
-        
-    # Remove duplicate indices and return values as numpy array
-    df_all = df_all[~df_all.index.duplicated(keep='last')]
-    return df_all.values
 
 
 def _calcAtmosDens(p_h, R_d, T_h, T_0):                                        # TODO: check this shouldn't be in this step somewhere

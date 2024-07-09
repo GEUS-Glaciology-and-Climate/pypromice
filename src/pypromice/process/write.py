@@ -444,4 +444,7 @@ def reformat_lon(dataset, exempt=['UWN', 'Roof_GEUS', 'Roof_PROMICE']):
         if 'gps_lon' not in dataset.keys():
             return dataset
         dataset['gps_lon'] = np.abs(dataset['gps_lon']) * -1
+        if 'lon' not in dataset.keys():
+            return dataset
+        dataset['lon'] = np.abs(dataset['lon']) * -1
     return dataset

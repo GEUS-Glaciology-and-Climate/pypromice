@@ -212,7 +212,7 @@ def align_surface_heights(data_series_new, data_series_old):
                         - fit_fn(data_series_new.index.astype('int64')[0]) \
                         + data_series_old[last_old_idx]
     
-    return data_series_new.values
+    return data_series_new
 
 def build_station_list(config_folder: str, target_station_site: str) -> list:
     """
