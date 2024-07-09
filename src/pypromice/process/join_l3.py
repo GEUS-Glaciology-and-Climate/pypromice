@@ -105,21 +105,25 @@ def readNead(infile):
         # combining thermocouple and CS100 temperatures
         ds['TA1'] =  ds['TA1'].combine_first(ds['TA3'])
         ds['TA2'] =  ds['TA2'].combine_first(ds['TA4'])
-               
+        
+        # renaming variables to the GEUS names
         ds=ds.rename(var_name)
         
-        standard_vars_to_drop = ["NR", "TA3", "TA4", "TA5",  "NR_cor", 
-                             "z_surf_1",   "z_surf_2", "z_surf_combined", 
-            "TA2m", "RH2m", "VW10m", "SZA", "SAA", 
-            "depth_t_i_1", "depth_t_i_2", "depth_t_i_3", "depth_t_i_4", "depth_t_i_5", 
-            "depth_t_i_6", "depth_t_i_7", "depth_t_i_8", "depth_t_i_9", "depth_t_i_10", "t_i_10m"
-            ]
+        # variables always dropped from the historical GC-Net files
+        # could be move to the config files at some point
+        standard_vars_to_drop = ["NR", "TA3", "TA4", "TA5",  "NR_cor", "TA2m",
+                                 "RH2m", "VW10m", "SZA", "SAA"]
         standard_vars_to_drop = standard_vars_to_drop + [v for v in list(ds.keys()) if v.endswith("_adj_flag")]
 
         # Drop the variables if they are present in the dataset
         ds = ds.drop_vars([var for var in standard_vars_to_drop if var in ds])
         
         ds=ds.rename({'timestamp':'time'})
+        
+        # in the historical GC-Net processing, periods with missing z_surf_combined
+        # are filled with a constant value, these values should be removed to 
+        # allow a better alignement with the z_surf_combined estimated for the GEUS stations
+        ds['z_surf_combined'] = ds['z_surf_combined'].where(ds['z_surf_combined'].diff(dim='time')!=0)
     return ds
 
 def loadArr(infile, isNead):
@@ -148,32 +152,68 @@ def loadArr(infile, isNead):
     print(f'{name} array loaded from {infile}')
     return ds, name
 
-# %%  will be used in the future
-# def aligning_surface_heights(l3_merged, l3):
-    # df_aux['z_surf_combined'] = \
-    #     df_aux['z_surf_combined'] \
-    #         - df_aux.loc[df_aux.z_surf_combined.last_valid_index(), 'z_surf_combined'] \
-    #          + df_v6.loc[df_v6.z_surf_combined.first_valid_index(), 'z_surf_combined'] 
-    
-    # if s == 'Swiss Camp 10m':        
-    #     df.loc[:df.HS_combined.first_valid_index(), 'HS_combined'] = \
-    #         df2.loc[:df.HS_combined.first_valid_index(), 'HS_combined'] \
-    #             - df2.loc[df2.HS_combined.last_valid_index(), 'HS_combined'] \
-    #              + df.loc[df.HS_combined.first_valid_index(), 'HS_combined'] 
+def align_surface_heights(data_series_new, data_series_old):
+    """
+    Align two surface height time series based on the gap between their end and start.
 
-                    
-    # df.loc[df.HS_combined.diff()==0,'HS_combined'] = np.nan
+    If the gap between the end of `data_series_old` and the start of `data_series_new` is less than a week,
+    the function aligns them based on the median value of the last week of `data_series_old` and the first
+    week of `data_series_new`. If the gap is larger than a week, it aligns them using a linear fit.
+    If there is overlap, the function uses the overlapping period to adjust the newer time series.
+
+    Parameters
+    ----------
+    data_series_old : pandas.Series
+        The older time series data.
+    data_series_new : pandas.Series
+        The newer time series data.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array containing the aligned newer time series data.
+    """
+    # Get the first and last valid indices of both series
+    last_old_idx = data_series_old.last_valid_index()
+    first_new_idx = data_series_new.first_valid_index()
+
+    # Check for overlap
+    if first_new_idx <= last_old_idx:
+        # Find the overlapping period
+        overlap_start = first_new_idx
+        overlap_end = min(last_old_idx, data_series_new.last_valid_index())
+        
+        # Compute the median values for the overlapping period
+        overlap_old = data_series_old[overlap_start:overlap_end].median()
+        overlap_new = data_series_new[overlap_start:overlap_end].median()
+        
+        # Align based on the overlapping median values
+        data_series_new = data_series_new - overlap_new + overlap_old
+
+    elif (first_new_idx - last_old_idx).days <= 7:
+        # Compute the median of the last week of data in the old series
+        last_week_old = data_series_old[last_old_idx - pd.Timedelta(weeks=1):last_old_idx].median()
+        
+        # Compute the median of the first week of data in the new series
+        first_week_new = data_series_new[first_new_idx:first_new_idx + pd.Timedelta(weeks=1)].median()
+        
+        # Align based on the median values
+        data_series_new = data_series_new - first_week_new + last_week_old
+    else:
+        # Perform a linear fit
+        combined_series = pd.concat([data_series_old, data_series_new])
+        fit = np.polyfit(
+            combined_series.dropna().index.astype('int64'),  
+            combined_series.dropna().values, 1
+        )
+        fit_fn = np.poly1d(fit)
+        
+        data_series_new = data_series_new.values \
+                        - fit_fn(data_series_new.index.astype('int64')[0]) \
+                        + data_series_old[last_old_idx]
     
-    # fit = np.polyfit(df.loc[df.HS_combined.notnull(),:].index.astype('int64'),  
-    #                    df.loc[df.HS_combined.notnull(),'HS_combined'], 1)
-    # fit_fn = np.poly1d(fit)
-    
-    # df['HS_combined'] = df['HS_combined'].values \
-    #     - fit_fn(
-    #         df_in.loc[[df_in.z_surf_combined.first_valid_index()],:].index.astype('int64')[0]
-    #     )  +  df_in.loc[df_in.z_surf_combined.first_valid_index(), 'z_surf_combined']
-    # return l3_merged
- # %%    
+    return data_series_new.values
+
 def build_station_list(config_folder: str, target_station_site: str) -> list:
     """
     Get a list of unique station information dictionaries for a given station site.
@@ -285,8 +325,17 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             for k in attrs_list:
                 del l3.attrs[k]
             
-            l3_merged.attrs['stations_attributes'][stid]['first_timestamp'] = l3.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
-            l3_merged.attrs['stations_attributes'][stid]['last_timestamp'] = l3_merged.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+            l3_merged.attrs['stations_attributes'][stid]['first_timestamp'] = \
+                l3.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+            l3_merged.attrs['stations_attributes'][stid]['last_timestamp'] = \
+                l3_merged.time.isel(time=0).dt.strftime( date_format='%Y-%m-%d %H:%M:%S').item()
+            
+            # adjusting surface height in the most recent data (l3_merged)
+            # so that it shows continuity with the older data (l3)
+            l3_merged['z_surf_combined'] = ('time', 
+                                            align_surface_heights(l3_merged.z_surf_combined.to_series(), 
+                                                                    l3.z_surf_combined.to_series())
+                                            )
 
             # merging by time block
             l3_merged = xr.concat((l3.sel(
