@@ -149,8 +149,8 @@ class PreRefactoringBufrTestCase(TestCase):
             longitude=-46.29427,
             heightOfStationGroundAboveMeanSeaLevel=2123.7,
             heightOfBarometerAboveMeanSeaLevel=2124.7,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.09,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.59,
         )
         pd.testing.assert_series_equal(
             bufr_data.as_series(),
@@ -188,8 +188,8 @@ class PreRefactoringBufrTestCase(TestCase):
             longitude=-46.29427,
             heightOfStationGroundAboveMeanSeaLevel=2123.7,
             heightOfBarometerAboveMeanSeaLevel=2124.7,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.09,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.59,
         )
         pd.testing.assert_series_equal(
             bufr_data.as_series(),
@@ -268,8 +268,8 @@ class PreRefactoringBufrTestCase(TestCase):
             longitude=-46.29427,
             heightOfStationGroundAboveMeanSeaLevel=2123.7,
             heightOfBarometerAboveMeanSeaLevel=2124.7,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.09,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.59,
         )
         pd.testing.assert_series_equal(
             bufr_data.as_series(),
@@ -329,8 +329,8 @@ class PreRefactoringBufrTestCase(TestCase):
             longitude=-46.29427,
             heightOfStationGroundAboveMeanSeaLevel=2123.7,
             heightOfBarometerAboveMeanSeaLevel=2124.7,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.09,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.59,
         )
         pd.testing.assert_series_equal(
             bufr_data.as_series(),
@@ -467,8 +467,8 @@ class PreRefactoringBufrTestCase(TestCase):
             longitude=-46.29426,
             heightOfStationGroundAboveMeanSeaLevel=2123.3,
             heightOfBarometerAboveMeanSeaLevel=2124.3,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.09,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.59,
         )
         pd.testing.assert_series_equal(
             bufr_data.as_series(),
@@ -508,8 +508,8 @@ class PreRefactoringBufrTestCase(TestCase):
             longitude=-46.29427,
             heightOfStationGroundAboveMeanSeaLevel=2123.7,
             heightOfBarometerAboveMeanSeaLevel=2124.7,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.1,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=4.09,
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.59,
         )
         pd.testing.assert_series_equal(
             bufr_data.as_series(),
