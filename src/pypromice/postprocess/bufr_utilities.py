@@ -66,28 +66,81 @@ class BUFRVariables:
 
     """
 
-    wmo_id: str
+    # Station type: "mobile" or "land"
+    # ===============================
+    # Fixed land station schema: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/307080
+    # Mobile station schema: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/307090
+
     station_type: str
+
+    # WMO station identifier
+    # Land stations: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/301090
+    # Mobile stations: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/301092
+    # ======================================================================================================
+    wmo_id: str
     timestamp: datetime.datetime
-    relativeHumidity: float = attrs.field(converter=round_converter(0))
-    airTemperature: float = attrs.field(converter=round_converter(1))
-    pressure: float = attrs.field(converter=round_converter(1))
-    windDirection: float = attrs.field(converter=round_converter(0))
-    windSpeed: float = attrs.field(converter=round_converter(1))
-    latitude: float = attrs.field(converter=round_converter(6))
-    longitude: float = attrs.field(converter=round_converter(6))
+
+    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/005001
+    # Scale: 5, unit: degrees
+    # TODO: Test if eccodes does the rounding as well. The rounding is was 6 which is larger that the scale.
+    latitude: float = attrs.field(converter=round_converter(5))
+    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/006001
+    # Scale: 5, unit: degrees
+    longitude: float = attrs.field(converter=round_converter(5))
+
+    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/007030
+    # Scale: 1, unit: m
     heightOfStationGroundAboveMeanSeaLevel: float = attrs.field(
-        converter=round_converter(2)
+        converter=round_converter(1)
     )
-    #
+    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/007031
+    # Scale: 1, unit: m
     heightOfBarometerAboveMeanSeaLevel: float = attrs.field(
+        converter=round_converter(1),
+    )
+
+    # Pressure information
+    # ====================
+    # Definition table: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/302031
+    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/007004
+    # Scale: -1, unit: Pa
+    pressure: float = attrs.field(converter=round_converter(-1))
+    # There are two other pressure variables in the template: 302001 and 010062.
+
+    # Basic synoptic "instantaneous" data
+    # ===================================
+    # Definition table: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/302035
+    # This section only include the temperature and humidity data (302032).
+    # Precipitation and cloud data are currently ignored.
+    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/007032
+    # Scale: 2, unit: m
+    # This is the first appearance of this variable id.
+    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH: float = attrs.field(
         converter=round_converter(2),
     )
-    heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH: float = attrs.field(
-        converter=round_converter(4),
-    )
+    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/012101
+    # Scale: 2, unit: K
+    airTemperature: float = attrs.field(converter=round_converter(2))
+    # There is also a Dewpoint temperature in this template: 012103 which is currently unused.
+    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/012103
+    # Scale: 0, unit: %
+    relativeHumidity: float = attrs.field(converter=round_converter(0))
+
+    # Basic synoptic "period" data
+    # ============================
+    # Definition table: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/302043
+    # Wind data: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/302042
+    # Wind direction: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/011001
+    # Scale: 0, unit: degrees
+    windDirection: float = attrs.field(converter=round_converter(0))
+    # Wind speed: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/011002
+    # Scale: 1, unit: m/s
+    windSpeed: float = attrs.field(converter=round_converter(1))
+    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/007032
+    # Scale: 2, unit: m
+    # This is the 7th appearance of this variable id.
     heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD: float = attrs.field(
-        converter=round_converter(4)
+        converter=round_converter(2)
     )
 
     def as_series(self) -> pd.Series:
@@ -131,6 +184,7 @@ STATION_CONFIGURATIONS = {
 
 BUFR_TEMPLATES = {
     "mobile": {
+        # Template definition: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/307090
         "unexpandedDescriptors": (307090),  # message template, "synopMobil"
         "edition": 4,  # latest edition
         "masterTableNumber": 0,
@@ -146,6 +200,7 @@ BUFR_TEMPLATES = {
         "compressedData": 0,
     },
     "land": {
+        # Template definition: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/307080
         "unexpandedDescriptors": (307080),  # message template, "synopLand"
         "edition": 4,  # latest edition
         "masterTableNumber": 0,

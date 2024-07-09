@@ -141,7 +141,7 @@ class PreRefactoringBufrTestCase(TestCase):
             # Newest measurement in tx_l3_test1.csv: 2023-12-07 23:00:00
             timestamp=datetime.datetime(2023, 12, 7, 23, 00),
             relativeHumidity=69,
-            airTemperature=256.0,
+            airTemperature=255.95,
             pressure=77300.0,
             windDirection=149,
             windSpeed=14.9,
@@ -180,7 +180,7 @@ class PreRefactoringBufrTestCase(TestCase):
             # Newest measurement in tx_l3_test1.csv: 2023-12-07 23:00:00
             timestamp=datetime.datetime(2023, 12, 7, 23, 00),
             relativeHumidity=69,
-            airTemperature=256.0,
+            airTemperature=255.95,
             pressure=77300.0,
             windDirection=149,
             windSpeed=14.9,
@@ -260,7 +260,7 @@ class PreRefactoringBufrTestCase(TestCase):
             # Newest measurement in tx_l3_test1.csv: 2023-12-07 23:00:00
             timestamp=datetime.datetime(2023, 12, 7, 23, 00),
             relativeHumidity=69,
-            airTemperature=256.0,
+            airTemperature=255.95,
             pressure=77300.0,
             windDirection=149,
             windSpeed=14.9,
@@ -321,7 +321,7 @@ class PreRefactoringBufrTestCase(TestCase):
             # Newest measurement in tx_l3_test1.csv: 2023-12-07 23:00:00
             timestamp=datetime.datetime(2023, 12, 7, 23, 00),
             relativeHumidity=69,
-            airTemperature=256.0,
+            airTemperature=255.95,
             pressure=np.nan,
             windDirection=149,
             windSpeed=14.9,
@@ -459,7 +459,7 @@ class PreRefactoringBufrTestCase(TestCase):
             # Newest measurement in tx_l3_test1.csv: 2023-12-07 23:00:00 but now_timestamp is 2023-12-06
             timestamp=datetime.datetime(2023, 12, 6, 0, 0),
             relativeHumidity=82,
-            airTemperature=250.8,
+            airTemperature=250.85,
             pressure=77370.0,
             windDirection=153,
             windSpeed=10.4,
@@ -500,7 +500,7 @@ class PreRefactoringBufrTestCase(TestCase):
             # Newest measurement in tx_l3_test1.csv: 2023-12-07 23:00:00
             timestamp=datetime.datetime(2023, 12, 7, 23, 00),
             relativeHumidity=69,
-            airTemperature=256.0,
+            airTemperature=255.95,
             pressure=77300.0,
             windDirection=149,
             windSpeed=14.9,
