@@ -248,27 +248,28 @@ def addMeta(ds, meta):
     ds : xarray.Dataset
         Dataset with metadata
    '''
-    if 'lon' in ds.keys():
-        # caluclating average coordinates based on the extra/interpolated coords
-        for v in ['lat','lon','alt']:
-            ds.attrs[v+'_avg'] = ds[v].mean().item()
-        # dropping the less accurate standard coordinates given in the 
-        # raw or tx config files
-        for v in ['latitude','longitude']:
-            if v in ds.attrs.keys():
-                del ds.attrs[v]
-    elif 'gps_lon' in ds.keys():
-        # caluclating average coordinates based on the measured coords (can be gappy)
-        for v in ['gps_lat','gps_lon','gps_alt']:
-            if v in ds.keys():
-                ds.attrs[v+'_avg'] = ds[v].mean().item()
-            else:
-                ds.attrs[v+'_avg'] = np.nan
-        # dropping the less accurate standard coordinates given in the 
-        # raw or tx config files
-        for v in ['latitude','longitude']:
-            if v in ds.attrs.keys():
-                del ds.attrs[v]
+    
+    # a static latitude, longitude and altitude is saved as attribute along its origin
+    var_alias = {'lat':'latitude','lon':'longitude','alt':'altitude'}
+    for v in ['lat','lon','alt']:
+        # saving the reference latitude/longitude/altitude
+        original_value = np.nan
+        if var_alias[v] in ds.attrs.keys():
+            original_value = ds.attrs[var_alias[v]]
+        if v in ds.keys():
+            # if possible, replacing it with average coordinates based on the extra/interpolated coords
+            ds.attrs[var_alias[v]] = ds[v].mean().item()
+            ds.attrs[var_alias[v]+'_origin'] = 'average of gap-filled postprocessed '+v
+        elif 'gps_'+v in ds.keys():
+            # if possible, replacing it with average coordinates based on the measured coords (can be gappy)
+            ds.attrs[var_alias[v]] = ds['gps_'+v].mean().item()
+            ds.attrs[var_alias[v]+'_origin'] = 'average of GPS-measured '+v+', potentially including gaps'
+        
+        if np.isnan(ds.attrs[var_alias[v]]):
+            # if no better data was available to update the coordinate, then we 
+            # re-use the original value
+            ds.attrs[var_alias[v]] = original_value
+            ds.attrs[var_alias[v]+'_origin'] = 'reference value, origin unknown'
         
     # Attribute convention for data discovery
     # https://wiki.esipfed.org/Attribute_Convention_for_Data_Discovery_1-3
