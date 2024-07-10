@@ -35,7 +35,7 @@ def toL3(L2, station_config={}, T_0=273.15):
     ds = L2
     ds.attrs['level'] = 'L3'
 
-    T_100 = _getTempK(T_0)                                                     # Get steam point temperature as K 
+    T_100 = T_0+100                                                            # Get steam point temperature as K 
     
     # Turbulent heat flux calculation
     if ('t_u' in ds.keys()) and \
@@ -46,7 +46,7 @@ def toL3(L2, station_config={}, T_0=273.15):
         p_h_u = ds['p_u'].copy()
         RH_cor_h_u = ds['rh_u_cor'].copy()
             
-        q_h_u = calcSpHumid(T_0, T_100, T_h_u, p_h_u, RH_cor_h_u)                  # Calculate specific humidity
+        q_h_u = calculate_specific_humidity(T_0, T_100, T_h_u, p_h_u, RH_cor_h_u)                  # Calculate specific humidity
         if ('wspd_u' in ds.keys()) and \
             ('t_surf' in ds.keys()) and \
                 ('z_boom_u' in ds.keys()):
@@ -56,7 +56,7 @@ def toL3(L2, station_config={}, T_0=273.15):
             z_T_u = ds['z_boom_u'].copy() - 0.1                                        # Get height of thermometer  
             
             if not ds.attrs['bedrock']:       
-                SHF_h_u, LHF_h_u= calcHeatFlux(T_0, T_h_u, Tsurf_h, WS_h_u,            # Calculate latent and sensible heat fluxes
+                SHF_h_u, LHF_h_u= calculate_tubulent_heat_fluxes(T_0, T_h_u, Tsurf_h, WS_h_u,            # Calculate latent and sensible heat fluxes
                                                 z_WS_u, z_T_u, q_h_u, p_h_u)     
         
                 ds['dshf_u'] = (('time'), SHF_h_u.data)
@@ -78,7 +78,7 @@ def toL3(L2, station_config={}, T_0=273.15):
             p_h_l = ds['p_l'].copy()                                    
             RH_cor_h_l = ds['rh_l_cor'].copy()
 
-            q_h_l = calcSpHumid(T_0, T_100, T_h_l, p_h_l, RH_cor_h_l)              # Calculate sp.humidity
+            q_h_l = calculate_specific_humidity(T_0, T_100, T_h_l, p_h_l, RH_cor_h_l)              # Calculate sp.humidity
 
             if ('wspd_l' in ds.keys()) and \
                 ('t_surf' in ds.keys()) and \
@@ -87,7 +87,7 @@ def toL3(L2, station_config={}, T_0=273.15):
                 z_T_l = ds['z_boom_l'].copy() - 0.1                                    # Get height of thermometer 
                 WS_h_l = ds['wspd_l'].copy()                                 
                 if not ds.attrs['bedrock']:       
-                    SHF_h_l, LHF_h_l= calcHeatFlux(T_0, T_h_l, Tsurf_h, WS_h_l, # Calculate latent and sensible heat fluxes 
+                    SHF_h_l, LHF_h_l= calculate_tubulent_heat_fluxes(T_0, T_h_l, Tsurf_h, WS_h_l, # Calculate latent and sensible heat fluxes 
                                                     z_WS_l, z_T_l, q_h_l, p_h_l)        
         
                     ds['dshf_l'] = (('time'), SHF_h_l.data)
@@ -102,19 +102,15 @@ def toL3(L2, station_config={}, T_0=273.15):
 
     # Smoothing and inter/extrapolation of GPS coordinates
     for var in ['gps_lat', 'gps_lon', 'gps_alt']:
-        ds[var.replace('gps_','')] = ('time', gpsCoordinatePostprocessing(ds, var, station_config))
-
-    # adding average coordinate as attribute        
-    for v in ['lat','lon','alt']:
-        ds.attrs[v+'_avg'] = ds[v].mean(dim='time').item()
+        ds[var.replace('gps_','')] = ('time', gps_coordinate_postprocessing(ds, var, station_config))
         
     # processing continuous surface height, ice surface height, snow height
-    ds = surfaceHeightProcessing(ds, station_config)
+    ds = process_surface_height(ds, station_config)
     
     return ds
 
 
-def surfaceHeightProcessing(ds, station_config={}):
+def process_surface_height(ds, station_config={}):
     """
     Process surface height data for different site types and create 
     surface height variables.
@@ -165,7 +161,7 @@ def surfaceHeightProcessing(ds, station_config={}):
 
     # Convert to dataframe and combine surface height variables
     df_in = ds[[v for v in ['z_surf_1', 'z_surf_2', 'z_ice_surf'] if v in ds.data_vars]].to_dataframe()
-    ds['z_surf_combined'], ds['z_ice_surf'] = combineSurfaceHeight(df_in, ds.attrs['site_type'])
+    ds['z_surf_combined'], ds['z_ice_surf'] = combine_surface_height(df_in, ds.attrs['site_type'])
 
     if ds.attrs['site_type'] == 'ablation':
         # Calculate rolling minimum for ice surface height and snow height
@@ -184,7 +180,7 @@ def surfaceHeightProcessing(ds, station_config={}):
         ice_temp_vars = [v for v in ds.data_vars if 't_i_' in v]
         vars_out = [v.replace('t', 'd_t') for v in ice_temp_vars]
         vars_out.append('t_i_10m')
-        df_out = thermistorDepth(
+        df_out = get_thermistor_depth(
             ds[ice_temp_vars + ['z_surf_combined']].to_dataframe(),
             ds.attrs['station_id'],
             station_config)
@@ -193,7 +189,7 @@ def surfaceHeightProcessing(ds, station_config={}):
     
     return ds
 
-def combineSurfaceHeight(df, site_type, threshold_ablation = -0.0002):
+def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
     '''Combines the data from three sensor: the two sonic rangers and the
     pressure transducer, to recreate the surface height, the ice surface height
     and the snow depth through the years. For the accumulation sites, it is
@@ -584,7 +580,7 @@ def hampel(vals_orig, k=7*24, t0=3):
     return(vals)
 
 
-def thermistorDepth(df_in, site, station_config):
+def get_thermistor_depth(df_in, site, station_config):
     '''Calculates the depth of the thermistors through time based on their 
     installation depth (collected in a google sheet) and on the change of surface
     height: instruments getting buried under new snow or surfacing due to ablation.
@@ -789,15 +785,12 @@ def interpolate_temperature(dates, depth_cor, temp, depth=10, min_diff_to_depth=
 
     return df_interp
 
-def gpsCoordinatePostprocessing(ds, var, station_config={}):
+def gps_coordinate_postprocessing(ds, var, station_config={}):
         # saving the static value of 'lat','lon' or 'alt' stored in attribute
         # as it might be the only coordinate available for certain stations (e.g. bedrock)
         var_out = var.replace('gps_','')
-        coord_names = {'alt':'altitude', 'lat':'latitude','lon':'longitude'}
-
-        if var_out+'_avg' in list(ds.attrs.keys()):
-            static_value = float(ds.attrs[var_out+'_avg'])
-        elif coord_names[var_out] in list(ds.attrs.keys()):
+        coord_names = {'lat':'latitude','lon':'longitude', 'alt':'altitude'}
+        if coord_names[var_out] in list(ds.attrs.keys()):
             static_value = float(ds.attrs[coord_names[var_out]])
         else:
             static_value = np.nan
@@ -879,7 +872,7 @@ def piecewise_smoothing_and_interpolation(data_series, breaks):
     df_all = df_all[~df_all.index.duplicated(keep='last')]
     return df_all.values
   
-def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h, 
+def calculate_tubulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h, 
                 kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622, 
                 gamma=16., L_sub=2.83e6, L_dif_max=0.01, c_pd=1005., aa=0.7, 
                 bb=0.75, cc=5., dd=0.35, R_d=287.05):    
@@ -950,7 +943,7 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h,
         Latent heat flux
     '''   
     rho_atm = 100 * p_h / R_d / (T_h + T_0)                              # Calculate atmospheric density                                  
-    nu = calcVisc(T_h, T_0, rho_atm)                                     # Calculate kinematic viscosity  
+    nu = calculate_viscosity(T_h, T_0, rho_atm)                                     # Calculate kinematic viscosity  
     
     SHF_h = xr.zeros_like(T_h)                                                 # Create empty xarrays
     LHF_h = xr.zeros_like(T_h)
@@ -1044,7 +1037,7 @@ def calcHeatFlux(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h,
     LHF_h[HF_nan] = np.nan 
     return SHF_h, LHF_h
 
-def calcVisc(T_h, T_0, rho_atm):    
+def calculate_viscosity(T_h, T_0, rho_atm):    
     '''Calculate kinematic viscosity of air
     
     Parameters
@@ -1067,7 +1060,7 @@ def calcVisc(T_h, T_0, rho_atm):
     # Kinematic viscosity of air in m^2/s
     return mu / rho_atm 
 
-def calcSpHumid(T_0, T_100, T_h, p_h, RH_cor_h, es_0=6.1071, es_100=1013.246, eps=0.622):
+def calculate_specific_humidity(T_0, T_100, T_h, p_h, RH_cor_h, es_0=6.1071, es_100=1013.246, eps=0.622):
     '''Calculate specific humidity
     Parameters
     ----------
@@ -1116,21 +1109,6 @@ def calcSpHumid(T_0, T_100, T_h, p_h, RH_cor_h, es_0=6.1071, es_100=1013.246, ep
 
     # Convert to kg/kg
     return RH_cor_h * q_sat / 100 
-
-
-def _calcAtmosDens(p_h, R_d, T_h, T_0):                                        # TODO: check this shouldn't be in this step somewhere
-    '''Calculate atmospheric density'''
-    return 100 * p_h / R_d / (T_h + T_0)
-
-def _getTempK(T_0):
-    '''Return steam point temperature in K'''
-    return T_0+100
-  
-def _getRotation():
-    '''Return degrees-to-radians and radians-to-degrees''' 
-    deg2rad = np.pi / 180
-    rad2deg = 1 / deg2rad
-    return deg2rad, rad2deg
   
 if __name__ == "__main__": 
     # unittest.main() 
