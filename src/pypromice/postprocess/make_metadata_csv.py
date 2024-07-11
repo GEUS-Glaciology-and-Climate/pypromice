@@ -1,9 +1,13 @@
 #!/usr/bin/env python
-import os
-import argparse
+import os, sys, argparse
 import pandas as pd
 import xarray as xr
 import logging
+logging.basicConfig(
+    format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
+    level=logging.INFO,
+    stream=sys.stdout,
+)
 logger = logging.getLogger(__name__)
         
 def process_files(base_dir, csv_file_path, data_type):
@@ -57,6 +61,9 @@ def process_files(base_dir, csv_file_path, data_type):
                         else:
                             location_type = nc_file.attrs.get('location_type', 'N/A')
 
+                        project = nc_file.attrs.get('project', 'N/A')
+                        if data_type == 'site':
+                            stations = nc_file.attrs.get('stations', s_id)
                         # Extract the time variable as datetime64
                         time_var = nc_file['time'].values.astype('datetime64[s]')
 
@@ -74,18 +81,36 @@ def process_files(base_dir, csv_file_path, data_type):
                         alt_last_known = nc_file['alt'].isel(time=-1).values.item()
 
                         # Create a pandas Series for the metadata
-                        row = pd.Series({
-                            'station_type': station_type,
-                            'location_type': location_type,
-                            'date_installation': date_installation_str,
-                            'last_valid_date': last_valid_date_str,
-                            'lat_installation': lat_installation,
-                            'lon_installation': lon_installation,
-                            'alt_installation': alt_installation,
-                            'lat_last_known': lat_last_known,
-                            'lon_last_known': lon_last_known,
-                            'alt_last_known': alt_last_known
-                        }, name=s_id)
+                        if data_type == 'site':
+                            row = pd.Series({
+                                'project': project.replace('\r',''),
+                                'station_type': station_type,
+                                'location_type': location_type,
+                                'stations': stations,
+                                'date_installation': date_installation_str,
+                                'lat_installation': lat_installation,
+                                'lon_installation': lon_installation,
+                                'alt_installation': alt_installation,
+                                'last_valid_date': last_valid_date_str,
+                                'lat_last_known': lat_last_known,
+                                'lon_last_known': lon_last_known,
+                                'alt_last_known': alt_last_known
+                            }, name=s_id)
+                        else:
+                            row = pd.Series({
+                                'project': project.replace('\r',''),
+                                'station_type': station_type,
+                                'location_type': location_type,
+                                'date_installation': date_installation_str,
+                                'lat_installation': lat_installation,
+                                'lon_installation': lon_installation,
+                                'alt_installation': alt_installation,
+                                'last_valid_date': last_valid_date_str,
+                                'lat_last_known': lat_last_known,
+                                'lon_last_known': lon_last_known,
+                                'alt_last_known': alt_last_known
+                            }, name=s_id)
+                            
 
                         # Check if this s_id is already in the existing metadata
                         if s_id in existing_metadata_df.index:

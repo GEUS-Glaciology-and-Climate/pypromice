@@ -304,6 +304,9 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             
             # creating the station_attributes attribute in l3_merged
             l3_merged.attrs["stations_attributes"] = st_attrs
+            
+            if "project" in st_attrs[stid].keys():
+                l3_merged.attrs["project"] = st_attrs[stid]["project"]
 
         else:
             # if l3 (older data) is missing variables compared to l3_merged (newer data)
