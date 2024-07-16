@@ -3,35 +3,111 @@ import os, sys, argparse
 import pandas as pd
 import xarray as xr
 import logging
+
 logging.basicConfig(
     format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
     level=logging.INFO,
     stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
-        
-def process_files(base_dir, csv_file_path, data_type):
-    
-    # Determine the CSV file path based on the data type
-    if data_type == 'station':
-        label_s_id = 'station_id'
-    elif data_type == 'site':
-        label_s_id = 'site_id'
+
+def extract_metadata_from_nc(file_path: str, data_type: str, label_s_id: str) -> pd.Series:
+    """
+    Extract metadata from a NetCDF file and return it as a pandas Series.
+
+    Parameters:
+    - file_path (str): The path to the NetCDF file.
+    - data_type (str): The type of data ('station' or 'site').
+    - label_s_id (str): The label for the station or site ID.
+
+    Returns:
+    - pd.Series: A pandas Series containing the extracted metadata.
+    """
+    try:
+        with xr.open_dataset(file_path) as nc_file:
+            # Extract attributes
+            s_id = nc_file.attrs.get(label_s_id, 'N/A')
+            location_type = nc_file.attrs.get('location_type', 'N/A')
+            project = nc_file.attrs.get('project', 'N/A')
+            if data_type == 'site':
+                stations = nc_file.attrs.get('stations', s_id)
+            if data_type == 'station':
+                number_of_booms = nc_file.attrs.get('number_of_booms', 'N/A')
+                
+            # Extract the time variable as datetime64
+            time_var = nc_file['time'].values.astype('datetime64[s]')
+
+            # Extract the first and last timestamps
+            date_installation_str = pd.Timestamp(time_var[0]).strftime('%Y-%m-%d')
+            last_valid_date_str = pd.Timestamp(time_var[-1]).strftime('%Y-%m-%d')
+
+            # Extract the first and last values of lat, lon, and alt
+            lat_installation = nc_file['lat'].isel(time=0).values.item()
+            lon_installation = nc_file['lon'].isel(time=0).values.item()
+            alt_installation = nc_file['alt'].isel(time=0).values.item()
+
+            lat_last_known = nc_file['lat'].isel(time=-1).values.item()
+            lon_last_known = nc_file['lon'].isel(time=-1).values.item()
+            alt_last_known = nc_file['alt'].isel(time=-1).values.item()
+
+            # Create a pandas Series for the metadata
+            if data_type == 'site':
+                row = pd.Series({
+                    'project': project.replace('\r',''),
+                    'location_type': location_type,
+                    'stations': stations,
+                    'date_installation': date_installation_str,
+                    'latitude_installation': lat_installation,
+                    'longitude_installation': lon_installation,
+                    'altitude_installation': alt_installation,
+                    'date_last_valid': last_valid_date_str,
+                    'latitude_last_valid': lat_last_known,
+                    'longitude_last_valid': lon_last_known,
+                    'altitude_last_valid': alt_last_known
+                }, name=s_id)
+            else:
+                row = pd.Series({
+                    'project': project.replace('\r',''),
+                    'number_of_booms': number_of_booms,
+                    'location_type': location_type,
+                    'date_installation': date_installation_str,
+                    'latitude_installation': lat_installation,
+                    'longitude_installation': lon_installation,
+                    'altitude_installation': alt_installation,
+                    'date_last_valid': last_valid_date_str,
+                    'latitude_last_valid': lat_last_known,
+                    'longitude_last_valid': lon_last_known,
+                    'altitude_last_valid': alt_last_known
+                }, name=s_id)
+            return row
+    except Exception as e:
+        logger.info(f"Warning: Error processing {file_path}: {str(e)}")
+        return pd.Series()  # Return an empty Series in case of an error
+
+def process_files(base_dir: str, csv_file_path: str, data_type: str) -> pd.DataFrame:
+    """
+    Process all files in the base directory to generate new metadata.
+
+    Parameters:
+    - base_dir (str): The base directory containing the NetCDF files.
+    - csv_file_path (str): The path to the existing metadata CSV file.
+    - data_type (str): The type of data ('station' or 'site').
+
+    Returns:
+    - pd.DataFrame: The combined metadata DataFrame.
+    """
+    label_s_id = 'station_id' if data_type == 'station' else 'site_id'
 
     # Initialize a list to hold the rows (Series) of DataFrame
     rows = []
 
     # Read existing metadata if the CSV file exists
     if os.path.exists(csv_file_path):
-        logger.info("Updating "+str(csv_file_path))
+        logger.info("Updating " + str(csv_file_path))
         existing_metadata_df = pd.read_csv(csv_file_path, index_col=label_s_id)
     else:
-        logger.info("Creating "+str(csv_file_path))
+        logger.info("Creating " + str(csv_file_path))
         existing_metadata_df = pd.DataFrame()
-
-    # Drop the 'timestamp_last_known_coordinates' column if it exists
-    if 'timestamp_last_known_coordinates' in existing_metadata_df.columns:
-        existing_metadata_df.drop(columns=['timestamp_last_known_coordinates'], inplace=True)
 
     # Track updated sites or stations to avoid duplicate updates
     updated_s = []
@@ -42,111 +118,35 @@ def process_files(base_dir, csv_file_path, data_type):
         for file in files:
             if file.endswith('_hour.nc'):
                 file_path = os.path.join(subdir, file)
-                try:
-                    with xr.open_dataset(file_path) as nc_file:
-                        # Extract attributes
-                        s_id = nc_file.attrs.get(label_s_id, 'N/A')
+                row = extract_metadata_from_nc(file_path, data_type, label_s_id)
+                if not row.empty:
+                    s_id = row.name
+                    if s_id in existing_metadata_df.index:
+                        # Compare with existing metadata
+                        existing_row = existing_metadata_df.loc[s_id]
+                        old_date_installation = existing_row['date_installation']
+                        old_last_valid_date = existing_row['date_last_valid']
 
-                        number_of_booms = nc_file.attrs.get('number_of_booms', 'N/A')
-                        if number_of_booms == '1':
-                            station_type = 'one boom'
-                        elif number_of_booms == '2':
-                            station_type = 'two booms'
-                        else:
-                            station_type = 'N/A'
+                        # Update the existing metadata
+                        existing_metadata_df.loc[s_id] = row
 
-                        # Keep the existing location_type if it exists
-                        if s_id in existing_metadata_df.index:
-                            location_type = existing_metadata_df.loc[s_id, 'location_type']
-                        else:
-                            location_type = nc_file.attrs.get('location_type', 'N/A')
+                        # Print message if dates are updated
+                        if old_last_valid_date != row['date_last_valid']:
+                            logger.info(f"Updated {label_s_id}: {s_id} date_last_valid: {old_last_valid_date} --> {row['date_last_valid']}")
 
-                        project = nc_file.attrs.get('project', 'N/A')
-                        if data_type == 'site':
-                            stations = nc_file.attrs.get('stations', s_id)
-                        # Extract the time variable as datetime64
-                        time_var = nc_file['time'].values.astype('datetime64[s]')
-
-                        # Extract the first and last timestamps
-                        date_installation_str = pd.Timestamp(time_var[0]).strftime('%Y-%m-%d')
-                        last_valid_date_str = pd.Timestamp(time_var[-1]).strftime('%Y-%m-%d')
-
-                        # Extract the first and last values of lat, lon, and alt
-                        lat_installation = nc_file['lat'].isel(time=0).values.item()
-                        lon_installation = nc_file['lon'].isel(time=0).values.item()
-                        alt_installation = nc_file['alt'].isel(time=0).values.item()
-
-                        lat_last_known = nc_file['lat'].isel(time=-1).values.item()
-                        lon_last_known = nc_file['lon'].isel(time=-1).values.item()
-                        alt_last_known = nc_file['alt'].isel(time=-1).values.item()
-
-                        # Create a pandas Series for the metadata
-                        if data_type == 'site':
-                            row = pd.Series({
-                                'project': project.replace('\r',''),
-                                'station_type': station_type,
-                                'location_type': location_type,
-                                'stations': stations,
-                                'date_installation': date_installation_str,
-                                'lat_installation': lat_installation,
-                                'lon_installation': lon_installation,
-                                'alt_installation': alt_installation,
-                                'last_valid_date': last_valid_date_str,
-                                'lat_last_known': lat_last_known,
-                                'lon_last_known': lon_last_known,
-                                'alt_last_known': alt_last_known
-                            }, name=s_id)
-                        else:
-                            row = pd.Series({
-                                'project': project.replace('\r',''),
-                                'station_type': station_type,
-                                'location_type': location_type,
-                                'date_installation': date_installation_str,
-                                'lat_installation': lat_installation,
-                                'lon_installation': lon_installation,
-                                'alt_installation': alt_installation,
-                                'last_valid_date': last_valid_date_str,
-                                'lat_last_known': lat_last_known,
-                                'lon_last_known': lon_last_known,
-                                'alt_last_known': alt_last_known
-                            }, name=s_id)
-                            
-
-                        # Check if this s_id is already in the existing metadata
-                        if s_id in existing_metadata_df.index:
-                            # Compare with existing metadata
-                            existing_row = existing_metadata_df.loc[s_id]
-                            old_date_installation = existing_row['date_installation']
-                            old_last_valid_date = existing_row['last_valid_date']
-
-                            # Update the existing metadata
-                            existing_metadata_df.loc[s_id] = row
-
-                            # Print message if dates are updated
-                            if old_date_installation != date_installation_str or old_last_valid_date != last_valid_date_str:
-                                logger.info(f"Updated {label_s_id}: {s_id}")
-                                logger.info(f"  Old date_installation: {old_date_installation} --> New date_installation: {date_installation_str}")
-                                logger.info(f"  Old last_valid_date: {old_last_valid_date} --> New last_valid_date: {last_valid_date_str}")
-
-                            updated_s.append(s_id)
-                        else:
-                            new_s.append(s_id)
-                            # Append new metadata row to the list
-                            rows.append(row)
-
-                except Exception as e:
-                    logger.info(f"Warning: Error processing {file_path}: {str(e)}")
-                    continue  # Continue to next file if there's an error
+                        updated_s.append(s_id)
+                    else:
+                        new_s.append(s_id)
+                        # Append new metadata row to the list
+                        rows.append(row)
 
     # Convert the list of rows to a DataFrame
     new_metadata_df = pd.DataFrame(rows)
 
-    # Convert the list of excluded rows to a DataFrame
-
-    # Concatenate the existing metadata with the new metadata and excluded metadata
+    # Concatenate the existing metadata with the new metadata
     combined_metadata_df = pd.concat([existing_metadata_df, new_metadata_df], ignore_index=False)
 
-    # excluding some sites
+    # Exclude some sites
     sites_to_exclude = [s for s in ['XXX', 'Roof_GEUS', 'Roof_PROMICE'] if s in combined_metadata_df.index]
     excluded_metadata_df = combined_metadata_df.loc[sites_to_exclude].copy()
     combined_metadata_df.drop(sites_to_exclude, inplace=True)
@@ -165,12 +165,21 @@ def process_files(base_dir, csv_file_path, data_type):
     # Drop excluded lines from combined_metadata_df
     combined_metadata_df.drop(sites_to_exclude, errors='ignore', inplace=True)
 
-    if label_s_id == 'site_id':
-        combined_metadata_df.drop(columns=['station_type'], inplace=True)
-        
-    # saving to csv
+    # Save to csv
     combined_metadata_df.to_csv(csv_file_path, index_label=label_s_id)
-    
+
+    return combined_metadata_df, existing_metadata_df, new_s, updated_s
+
+def compare_and_log_updates(combined_metadata_df: pd.DataFrame, existing_metadata_df: pd.DataFrame, new_s: list, updated_s: list):
+    """
+    Compare the combined metadata with the existing metadata and log the updates.
+
+    Parameters:
+    - combined_metadata_df (pd.DataFrame): The combined metadata DataFrame.
+    - existing_metadata_df (pd.DataFrame): The existing metadata DataFrame.
+    - new_s (list): List of new station/site IDs.
+    - updated_s (list): List of updated station/site IDs.
+    """
     # Determine which lines were not updated (reused) and which were added
     if not existing_metadata_df.empty:
         reused_s = [s_id for s_id in existing_metadata_df.index if ((s_id not in new_s) & (s_id not in updated_s))]
@@ -198,7 +207,8 @@ def main():
                         'intended output path')
     
     args = parser.parse_args()
-    process_files(args.root_dir, args.metadata_file, args.type)
+    combined_metadata_df, existing_metadata_df, new_s, updated_s = process_files(args.root_dir, args.metadata_file, args.type)
+    compare_and_log_updates(combined_metadata_df, existing_metadata_df, new_s, updated_s)
 
 if __name__ == '__main__':
     main()

@@ -107,8 +107,9 @@ def toL3(L2, station_config={}, T_0=273.15):
     # processing continuous surface height, ice surface height, snow height
     ds = process_surface_height(ds, station_config)
     
-    # making sure dataset has project as attribute
+    # making sure dataset has the attributes contained in the config files
     ds.attrs['project'] = station_config['project']
+    ds.attrs['location_type'] = station_config['location_type']
     
     return ds
 

@@ -351,6 +351,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
     l3_merged.attrs['stations'] = ' '.join(sorted_stids)
     l3_merged.attrs['level'] = 'L3'
     l3_merged.attrs['project'] = sorted_list_station_data[0][1]['project']
+    l3_merged.attrs['location_type'] = sorted_list_station_data[0][1]['location_type']
     
     v = getVars(variables)
     m = getMeta(metadata)
