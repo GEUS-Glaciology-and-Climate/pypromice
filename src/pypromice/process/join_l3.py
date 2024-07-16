@@ -304,7 +304,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             
             # creating the station_attributes attribute in l3_merged
             l3_merged.attrs["stations_attributes"] = st_attrs
-
+            
         else:
             # if l3 (older data) is missing variables compared to l3_merged (newer data)
             # , then we fill them with nan
@@ -350,6 +350,8 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
     l3_merged.attrs['site_id'] = site
     l3_merged.attrs['stations'] = ' '.join(sorted_stids)
     l3_merged.attrs['level'] = 'L3'
+    l3_merged.attrs['project'] = sorted_list_station_data[0][1]['project']
+    l3_merged.attrs['location_type'] = sorted_list_station_data[0][1]['location_type']
     
     v = getVars(variables)
     m = getMeta(metadata)
