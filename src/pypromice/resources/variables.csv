@@ -41,8 +41,6 @@ z_stake,distance_to_surface_from_stake_assembly,Stake height,m,physicalMeasureme
 z_stake_q,distance_to_surface_from_stake_assembly_quality,Stake height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,one-boom,1,1,0,4
 z_pt,depth_of_pressure_transducer_in_ice,Depth of pressure transducer in ice,m,physicalMeasurement,time,FALSE,,0,30,z_pt_cor,one-boom,1,1,1,4
 z_pt_cor,depth_of_pressure_transducer_in_ice_corrected,Depth of pressure transducer in ice - corrected,m,modelResult,time,FALSE,L2 or later,0,30,,one-boom,0,1,1,4
-z_surf_1,height_of_surface_1,"Surface height 1, relative to surface height at installation and calculated from boom (upper one if two)",m,modelResult,time,FALSE,L3,,,,all,0,0,1,4
-z_surf_2,height_of_surface_2,"Surface height 2, relative to surface height at installation and calculated from stake booms and pt",m,modelResult,time,FALSE,L3,,,,all,0,0,1,4
 z_surf_combined,height_of_surface_combined,"Surface height combined from multiple sensors, relative to ice surface height at installation",m,modelResult,time,FALSE,L3,,,,all,0,0,1,4
 z_ice_surf,height_of_ice_surface,"Ice surface height, relative to ice surface height at installation and calculated from pt_cor and z_stake",m,modelResult,time,FALSE,L3,,,,one-boom,0,0,1,4
 snow_height,height_of_snow,"Snow surface height, relative to ice surface",m,modelResult,time,FALSE,L3,0,,,one-boom,0,0,1,4
