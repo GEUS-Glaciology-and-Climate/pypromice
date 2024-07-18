@@ -194,7 +194,7 @@ class BUFRExportTestCase(unittest.TestCase):
             timestamp=datetime.datetime(2023, 12, 19, 10, 0),
             relativeHumidity=np.random.random(),
             airTemperature=np.random.random(),
-            pressure=1000*np.random.random(),
+            pressure=1000 * np.random.random(),
             windDirection=np.random.random(),
             windSpeed=np.random.random(),
             latitude=np.random.random(),

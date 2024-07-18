@@ -57,14 +57,14 @@ class StationConfiguration:
 
 
 def load_station_configuration_mapping(
-    configuration_root_dir: Path,
+    configurations_root_dir: Path,
 ) -> Mapping[str, StationConfiguration]:
     """
-    Load station configurations from toml files in configuration_root_dir
+    Load station configurations from toml files in configurations_root_dir
 
     Parameters
     ----------
-    configuration_root_dir
+    configurations_root_dir
         Root directory containing toml files
 
     Returns
@@ -74,26 +74,26 @@ def load_station_configuration_mapping(
     """
     return {
         config_file.stem: StationConfiguration(**toml.load(config_file))
-        for config_file in configuration_root_dir.glob("*.toml")
+        for config_file in configurations_root_dir.glob("*.toml")
     }
 
 
 def write_station_configuration_mapping(
     station_configurations: Mapping[str, StationConfiguration],
-    configuration_root_dir: Path,
+    configurations_root_dir: Path,
 ) -> None:
     """
-    Write station configurations to toml files in configuration_root_dir
+    Write station configurations to toml files in configurations_root_dir
 
     Parameters
     ----------
     station_configurations
         Mapping from stid to StationConfiguration
-    configuration_root_dir
+    configurations_root_dir
         Output directory
 
     """
-    configuration_root_dir.mkdir(parents=True, exist_ok=True)
+    configurations_root_dir.mkdir(parents=True, exist_ok=True)
     for stid, station_configuration in station_configurations.items():
-        with (configuration_root_dir / f"{stid}.toml").open("w") as fp:
+        with (configurations_root_dir / f"{stid}.toml").open("w") as fp:
             toml.dump(station_configuration.as_dict(), fp)

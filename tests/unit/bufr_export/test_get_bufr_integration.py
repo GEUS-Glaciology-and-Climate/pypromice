@@ -5,7 +5,6 @@ Automatic test to verify get_bufr generates exactly the same output files given 
 import datetime
 import logging
 import pickle
-import shutil
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -19,9 +18,7 @@ from pypromice.postprocess import get_bufr
 from pypromice.postprocess.bufr_utilities import read_bufr_message, BUFRVariables
 from pypromice.station_configuration import (
     StationConfiguration,
-    write_station_configuration_mapping,
 )
-from tests.utilities import get_station_configuration
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -124,15 +121,15 @@ class PreRefactoringBufrTestCase(TestCase):
         stid = "DY2"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 8)
+        target_timestamp = datetime.datetime(2023, 12, 8)
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
         expected_bufr_variables = BUFRVariables(
@@ -163,15 +160,15 @@ class PreRefactoringBufrTestCase(TestCase):
         stid = "DY2"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 8)
+        target_timestamp = datetime.datetime(2023, 12, 8)
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=False,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
         expected_bufr_variables = BUFRVariables(
@@ -202,17 +199,17 @@ class PreRefactoringBufrTestCase(TestCase):
         stid = "DY2"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 6)
+        target_timestamp = datetime.datetime(2023, 12, 6)
         mapping = self.get_station_configuration_mapping(
             stid, wmo_id="04464", export_bufr=False
         )
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertIsNone(bufr_data)
@@ -223,16 +220,16 @@ class PreRefactoringBufrTestCase(TestCase):
         stid = "DY2"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {stid: datetime.datetime(2023, 12, 7, 23, 00)}
-        now_timestamp = datetime.datetime(2023, 12, 8)
+        target_timestamp = datetime.datetime(2023, 12, 8)
 
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertIsNone(bufr_data)
@@ -242,15 +239,15 @@ class PreRefactoringBufrTestCase(TestCase):
         l3_src = pd.read_csv(l3_src_filepath)
         stid = "DY2"
         latest_timestamps = {}
-        now_timestamp = datetime.datetime(2023, 12, 8)
+        target_timestamp = datetime.datetime(2023, 12, 8)
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
 
@@ -282,16 +279,16 @@ class PreRefactoringBufrTestCase(TestCase):
         l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
         l3_src = pd.read_csv(l3_src_filepath)
         latest_timestamps = {stid: datetime.datetime(2023, 12, 6)}
-        now_timestamp = datetime.datetime(2023, 12, 20)
+        target_timestamp = datetime.datetime(2023, 12, 20)
 
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertIsNone(bufr_data)
@@ -304,15 +301,15 @@ class PreRefactoringBufrTestCase(TestCase):
         # Set some of instantanous values to nan
         l3_src.loc[140:, "p_i"] = np.nan
         latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 8)
+        target_timestamp = datetime.datetime(2023, 12, 8)
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
         expected_bufr_variables = BUFRVariables(
@@ -337,6 +334,27 @@ class PreRefactoringBufrTestCase(TestCase):
             expected_bufr_variables.as_series(),
         )
 
+    def test_invalid_position_data(self):
+        stid = "DY2"
+        # Newest measurement in DY2_hour: 2023-12-07 23:00:00
+        l3_src_filepath = DATA_DIR.joinpath("tx_l3_test1.csv")
+        l3_src = pd.read_csv(l3_src_filepath)
+        # Set some of instantanous values to nan
+        l3_src.loc[:, "gps_lat"] = np.nan
+        latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
+        target_timestamp = datetime.datetime(2023, 12, 8)
+        mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
+        bufr_data = run_get_bufr(
+            l3_data=l3_src,
+            target_timestamp=target_timestamp,
+            latest_timestamps=latest_timestamps,
+            stid=stid,
+            store_positions=True,
+            linear_regression_time_limit="91d",
+            station_configuration_mapping=mapping,
+        )
+        self.assertIsNone(bufr_data)
+
     def test_multiple_last_valid_indices_all_instantaneous_timestamps_are_none(self):
         stid = "DY2"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
@@ -354,15 +372,15 @@ class PreRefactoringBufrTestCase(TestCase):
             ],
         ] = np.nan
         latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 6)
+        target_timestamp = datetime.datetime(2023, 12, 6)
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
 
@@ -376,16 +394,16 @@ class PreRefactoringBufrTestCase(TestCase):
         # Set some of instantanous values to nan
         l3_src.loc[140:, "p_i"] = np.nan
         latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 10)
+        target_timestamp = datetime.datetime(2023, 12, 10)
 
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertIsNone(bufr_data)
@@ -397,15 +415,15 @@ class PreRefactoringBufrTestCase(TestCase):
         stid = "DY2"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 6)
+        target_timestamp = datetime.datetime(2023, 12, 6)
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
 
@@ -418,15 +436,15 @@ class PreRefactoringBufrTestCase(TestCase):
         stid = "DY2"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {"DY2": datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 6)
+        target_timestamp = datetime.datetime(2023, 12, 6)
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
         self.assertIsNone(bufr_data)
@@ -438,7 +456,7 @@ class PreRefactoringBufrTestCase(TestCase):
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {stid: datetime.datetime(2023, 12, 1)}
         # New is before the latest data
-        now_timestamp = datetime.datetime(
+        target_timestamp = datetime.datetime(
             2023,
             12,
             6,
@@ -446,17 +464,17 @@ class PreRefactoringBufrTestCase(TestCase):
         mapping = self.get_station_configuration_mapping(stid, wmo_id="04464")
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
         expected_bufr_variables = BUFRVariables(
             wmo_id="04464",
             station_type="mobile",
-            # Newest measurement in tx_l3_test1.csv: 2023-12-07 23:00:00 but now_timestamp is 2023-12-06
+            # Newest measurement in tx_l3_test1.csv: 2023-12-07 23:00:00 but target_timestamp is 2023-12-06
             timestamp=datetime.datetime(2023, 12, 6, 0, 0),
             relativeHumidity=82,
             airTemperature=250.85,
@@ -481,17 +499,17 @@ class PreRefactoringBufrTestCase(TestCase):
         stid = "WEG_B"
         # Newest measurement in DY2_hour: 2023-12-07 23:00:00
         latest_timestamps = {"WEG_B": datetime.datetime(2023, 12, 1)}
-        now_timestamp = datetime.datetime(2023, 12, 8)
+        target_timestamp = datetime.datetime(2023, 12, 8)
         mapping = self.get_station_configuration_mapping(
             stid, wmo_id="460", station_type="land"
         )
         bufr_data = run_get_bufr(
             l3_data=l3_src,
-            now_timestamp=now_timestamp,
+            target_timestamp=target_timestamp,
             latest_timestamps=latest_timestamps,
             stid=stid,
             store_positions=True,
-            time_limit="91d",
+            linear_regression_time_limit="91d",
             station_configuration_mapping=mapping,
         )
         expected_bufr_variables = BUFRVariables(
