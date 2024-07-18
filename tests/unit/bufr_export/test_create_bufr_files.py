@@ -56,7 +56,7 @@ class TestCreateBufrFiles(TestCase):
         }
         write_station_configuration_mapping(
             station_configurations=station_configuration_mapping,
-            configuration_root_dir=station_configuration_root,
+            configurations_root_dir=station_configuration_root,
         )
 
         create_bufr_files(
@@ -110,7 +110,7 @@ class TestCreateBufrFiles(TestCase):
         )
         write_station_configuration_mapping(
             station_configurations={station_configuration.stid: station_configuration},
-            configuration_root_dir=station_configuration_root,
+            configurations_root_dir=station_configuration_root,
         )
 
         with self.assertRaises(ValueError):
@@ -141,7 +141,7 @@ class TestCreateBufrFiles(TestCase):
                 "THU_L2": get_station_configuration(stid="THU_L2", export_bufr=True),
                 "KAN_Lv3": get_station_configuration(stid="KAN_Lv3", export_bufr=True),
             },
-            configuration_root_dir=station_configuration_root,
+            configurations_root_dir=station_configuration_root,
         )
         expected_compiled_output_file = compiled_output_dir / "geus_20231206T0000.bufr"
         expected_individual_output_dir = individual_output_root / "20231206T0000"
@@ -184,7 +184,7 @@ class TestCreateBufrFiles(TestCase):
         )
         write_station_configuration_mapping(
             station_configurations={station_configuration.stid: station_configuration},
-            configuration_root_dir=station_configuration_root,
+            configurations_root_dir=station_configuration_root,
         )
 
         create_bufr_files(

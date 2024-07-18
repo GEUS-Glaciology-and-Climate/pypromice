@@ -7,7 +7,7 @@ This includes:
 
 """
 import logging
-from typing import Optional
+from typing import Optional, Collection
 
 import numpy as np
 import pandas as pd
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 def get_latest_data(
     df: pd.DataFrame,
     lin_reg_time_limit: str,
+    vars_to_skip: Optional[Collection[str]] = None,
 ) -> Optional[pd.Series]:
     """
     Determine instantaneous values for the latest valid timestamp in the input dataframe
@@ -77,7 +78,34 @@ def get_latest_data(
     # limit to single most recent valid row (convert to series)
     s_current = df_limited.loc[last_valid_index]
 
+    if vars_to_skip is not None:
+        s_current = filter_skipped_variables(s_current, vars_to_skip)
+
     return s_current
+
+
+def filter_skipped_variables(
+    row: pd.Series, vars_to_skip: Collection[str]
+) -> pd.Series:
+    """
+    Mutate input series by setting var_to_skip to np.nan
+
+    Parameters
+    ----------
+    row
+    vars_to_skip
+        List of variable names to be skipped
+
+    Returns
+    -------
+    Input series
+
+    """
+    vars_to_skip = set(row.keys()) & set(vars_to_skip)
+    for var_key in vars_to_skip:
+        row[var_key] = np.nan
+        logger.info("----> Skipping var: {}".format(var_key))
+    return row
 
 
 def rolling_window(df, column, window, min_periods, decimals) -> pd.DataFrame:
