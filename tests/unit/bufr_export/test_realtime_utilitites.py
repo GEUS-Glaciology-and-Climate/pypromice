@@ -173,3 +173,35 @@ class GetLatestDataTestCase(unittest.TestCase):
         )
 
         self.assertEqual(expected_output, latest_data["auxiliary_data"])
+
+    def test_skipped_variables(self):
+        """
+        Test that the variables in vars_to_skip are set to nan if they are present in the input data.
+        """
+        data = self.get_data()
+        expected_output = pd.Series(
+            data={
+                "p_i": float("nan"),
+                "t_i": -16.7,
+                "rh_i": 84.6,
+                "wspd_i": 14.83,
+                "wdir_i": 142.2,
+                "gps_lat": 66.482469,
+                "gps_lon": -46.294232,
+                "gps_alt": 2116.0,
+                "z_boom_u": 4.1901,
+                "gps_lat_fit": 66.4824788,
+                "gps_lon_fit": -46.2942685,
+                "gps_alt_fit": 2121.4118,
+                "z_boom_u_smooth": 4.188,
+            },
+            name=datetime.datetime(2023, 12, 7, 6),
+        )
+
+        latest_data = get_latest_data(
+            df=data,
+            lin_reg_time_limit="1w",
+            vars_to_skip=["p_i", "a_non_existing_variable"],
+        )
+
+        pd.testing.assert_series_equal(latest_data, expected_output, rtol=1e-8)

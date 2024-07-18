@@ -13,7 +13,7 @@ def get_station_configuration(**kwargs) -> StationConfiguration:
 
     Parameters
     ----------
-    kwargs : dict
+    kwargs
         Keyword arguments to providie explicit values for the StationConfiguration object.
     Returns
     -------
