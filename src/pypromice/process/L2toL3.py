@@ -142,7 +142,7 @@ def process_surface_height(ds, station_config={}):
         # Calculate surface heights for ablation sites
         ds['z_surf_1'] = 2.6 - ds['z_boom_u']
         if ds.z_stake.notnull().any():
-            first_valid_index = ds.time.where(ds.z_stake.notnull(), drop=True).data[0]
+            first_valid_index = ds.time.where((ds.z_stake + ds.z_boom_u).notnull(), drop=True).data[0]
             ds['z_surf_2'] = ds.z_surf_1.sel(time=first_valid_index) + ds.z_stake.sel(time=first_valid_index) - ds['z_stake']
         
         # Use corrected point data if available
@@ -153,24 +153,45 @@ def process_surface_height(ds, station_config={}):
         # Calculate surface heights for other site types
         first_valid_index = ds.time.where(ds.z_boom_u.notnull(), drop=True).data[0]
         ds['z_surf_1'] = ds.z_boom_u.sel(time=first_valid_index) - ds['z_boom_u']
-        if 'z_boom_l' in ds.data_vars:
-            first_valid_index = ds.time.where(ds.z_boom_l.notnull(), drop=True).data[0]
-            ds['z_surf_2'] = ds.z_boom_l.sel(time=first_valid_index) - ds['z_boom_l']
         if 'z_stake' in ds.data_vars and ds.z_stake.notnull().any():
             first_valid_index = ds.time.where(ds.z_stake.notnull(), drop=True).data[0]
-            ds['z_surf_2'] = ds.z_stake.sel(time=first_valid_index) - ds['z_stake']        
+            ds['z_surf_2'] = ds.z_stake.sel(time=first_valid_index) - ds['z_stake'] 
+        if 'z_boom_l' in ds.data_vars:
+            # need a combine first because KAN_U switches from having a z_stake
+            # to having a z_boom_l
+            first_valid_index = ds.time.where(ds.z_boom_l.notnull(), drop=True).data[0]
+            ds['z_surf_2'] = ds['z_surf_2'].combine_first(
+                ds.z_boom_l.sel(time=first_valid_index) - ds['z_boom_l'])
 
     # Adjust data for the created surface height variables
     ds = adjustData(ds, var_list=['z_surf_1', 'z_surf_2', 'z_ice_surf'])
 
     # Convert to dataframe and combine surface height variables
     df_in = ds[[v for v in ['z_surf_1', 'z_surf_2', 'z_ice_surf'] if v in ds.data_vars]].to_dataframe()
-    ds['z_surf_combined'], ds['z_ice_surf'] = combine_surface_height(df_in, ds.attrs['site_type'])
+    (ds['z_surf_combined'], ds['z_ice_surf'],
+         ds['z_surf_1_adj'], ds['z_surf_2_adj'])= combine_surface_height(df_in, ds.attrs['site_type'])
 
     if ds.attrs['site_type'] == 'ablation':
         # Calculate rolling minimum for ice surface height and snow height
-        ds['z_ice_surf'] = ds.z_surf_combined.to_series().rolling('365D').min()
-        ds['snow_height'] = ds['z_surf_combined'] - ds['z_ice_surf']
+        ts_interpolated = ds.z_surf_combined.to_series().resample('H').interpolate(limit=72)
+        
+        # Apply the rolling window with median calculation
+        z_ice_surf = (ts_interpolated
+                      .rolling('14D', center=True, min_periods=1)
+                      .median())
+        
+        # Overprint the first and last 7 days with interpolated values
+        # because of edge effect of rolling windows
+        z_ice_surf.iloc[:24*7] = (ts_interpolated.iloc[:24*7]
+                                  .rolling('1D', center=True, min_periods=1)
+                                  .median().values)
+        z_ice_surf.iloc[-24*7:] = (ts_interpolated.iloc[-24*7:]
+                                   .rolling('1D', center=True, min_periods=1)
+                                   .median().values)
+        
+        ds['z_ice_surf'] = z_ice_surf.cummin()
+        
+        ds['snow_height'] = np.maximum(0, ds['z_surf_combined'] - ds['z_ice_surf'])
     elif ds.attrs['site_type'] in ['accumulation', 'bedrock']:
         # Handle accumulation and bedrock site types
         ds['z_ice_surf'] = ('time', ds['z_surf_1'].data * np.nan)
@@ -241,8 +262,9 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         elif df.z_surf_2_adj.notnull().any():
             df['z_surf_combined'] = df.z_surf_2_adj.values
 
-        df["z_surf_combined"] = hampel(df["z_surf_combined"].interpolate(limit=72)).values
-        return df["z_surf_combined"], df["z_surf_combined"]*np.nan
+        # df["z_surf_combined"] = hampel(df["z_surf_combined"].interpolate(limit=72)).values
+        return (df['z_surf_combined'], df["z_surf_combined"]*np.nan, 
+                    df["z_surf_1_adj"], df["z_surf_2_adj"])
 
     else:
         logger.info('-> ablation site')
@@ -250,6 +272,9 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         df["z_ice_surf_adj"] = hampel(df["z_ice_surf"].interpolate(limit=72)).values
         df["z_surf_1_adj"] = hampel(df["z_surf_1"].interpolate(limit=72)).values
         df["z_surf_2_adj"] = hampel(df["z_surf_2"].interpolate(limit=72)).values
+
+        df["z_surf_1_adj"] = hampel(df["z_surf_1"].interpolate(limit=72), k=24, t0=5).values
+        df["z_surf_2_adj"] = hampel(df["z_surf_2"].interpolate(limit=72), k=24, t0=5).values
 
         # defining ice ablation period from the decrease of a smoothed version of z_pt
         # meaning when smoothed_z_pt.diff() < threshold_ablation 
@@ -263,7 +288,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         smoothed_PT = smoothed_PT.rolling('14D', center=True, min_periods=1).mean()
 
         smoothed_PT = smoothed_PT.reindex(df.index,method='ffill')
-        smoothed_PT.loc[df.z_ice_surf.isnull()] = np.nan
+        # smoothed_PT.loc[df.z_ice_surf.isnull()] = np.nan
 
         # logical index where ablation is detected
         ind_ablation = np.logical_and(smoothed_PT.diff().values < threshold_ablation, 
@@ -272,6 +297,16 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         # finding the beginning and end of each period with True
         idx = np.argwhere(np.diff(np.r_[False,ind_ablation, False])).reshape(-1, 2)
         idx[:, 1] -= 1
+        
+        # because the smooth_PT sees 7 days ahead, it starts showing a decline 
+        # 7 days in advance, we therefore need to exclude the first 7 days of 
+        # each ablation period
+        for start, end in idx:
+            period_start = df.index[start]
+            period_end = period_start + pd.Timedelta(days=7)
+            exclusion_period = (df.index >= period_start) & (df.index < period_end)
+            ind_ablation[exclusion_period] = False
+            
         # fill small gaps in the ice ablation periods.
         for i in range(len(idx)-1):
             ind = idx[i]
@@ -287,6 +322,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         z=df["z_ice_surf_adj"].interpolate(limit=24*2).copy()
 
         # the surface heights are adjusted so that they start at 0
+
         if any(~np.isnan(hs1.iloc[:24*7])):
             hs1 = hs1 - hs1.iloc[:24*7].mean()
         if any(~np.isnan(hs2.iloc[:24*7])):
@@ -337,9 +373,11 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                 ind_abl_yr = np.logical_and(ind_yr, df.index.month.isin([6,7,8]))
                 ind_ablation[ind_yr] = ind_abl_yr[ind_yr]
                 logger.debug(str(y)+' no z_ice_surf, just using JJA')
+                
+            else:
+                logger.debug(str(y)+ ' derived from z_ice_surf')
 
             if np.any(ind_abl_yr):
-                logger.debug(str(y)+ ' derived from z_ice_surf')
                 # if there are some ablation flagged for that year
                 # then find begining and end
                 ind_start[i] = np.argwhere(ind_abl_yr)[0][0]
@@ -358,6 +396,8 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         # to hs1 and hs2 the year after.
 
         for i, y in enumerate(years):
+            # if y == 2021:
+            #     import pdb; pdb.set_trace()
             logger.debug(str(y))
             # defining subsets of hs1, hs2, z
             hs1_jja =  hs1[str(y)+'-06-01':str(y)+'-09-01']
@@ -394,28 +434,52 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                 # we need to adjust z to match hs2 when ablation starts
                 hs2_ref = 1
 
-
+            # adjustment at the start of the ablation season
             if hs2_ref:
+                # if hs2 has been taken as reference in the previous years
+                # then we check if pressure transducer is reinstalled and needs
+                # to be adjusted
                 if ind_start[i] != -999:
                     # the first year there is both ablation and PT data available
                     # then PT is adjusted to hs2
                     if any(~np.isnan(z_ablation)) and any(~np.isnan(hs2_ablation)):
-                        logger.debug('adjusting z to hs2')
                         tmp1 = z_ablation.copy()
                         tmp2 = hs2_ablation.copy()
-                        tmp1[np.isnan(tmp2)] = np.nan
-                        tmp2[np.isnan(tmp1)] = np.nan
+                        # tmp1[np.isnan(tmp2)] = np.nan
+                        # tmp2[np.isnan(tmp1)] = np.nan
 
                         # in some instances, the PT data is available but no ablation
                         # is recorded, then hs2 remains the reference during that time.
                         # When eventually there is ablation, then we need to find the 
                         # first index in these preceding ablation-free years
                         # the shift will be applied back from this point
-                        first_index = z[:z[str(y)].first_valid_index()].isnull().iloc[::-1].idxmax()
-                        z[first_index:] = z[first_index:] -  np.nanmean(tmp1)  +  np.nanmean(tmp2)
+                        # first_index = z[:z[str(y)].first_valid_index()].isnull().iloc[::-1].idxmax()
+                        # z[first_index:] = z[first_index:] -  np.nanmean(tmp1)  +  np.nanmean(tmp2)
+                        # hs2_ref = 0 # from now on PT is the reference
+
+                        # in some other instance, z just need to be adjusted to hs2
+                        # first_index = z[str(y)].first_valid_index()
+                        first_index = z.iloc[ind_start[i]:].first_valid_index() # of ablation
+                        if np.isnan(hs2[first_index]):
+                            first_index_2 = hs2.iloc[ind_start[i]:].first_valid_index()
+                            if (first_index_2 - first_index)>pd.Timedelta('30d'):
+                                logger.debug('adjusting z to hs1')
+                                if np.isnan(hs1[first_index]):
+                                    first_index = hs1.iloc[ind_start[i]:].first_valid_index()
+                                z[first_index:] = z[first_index:] -  z[first_index]   +  hs1[first_index]
+                            else:
+                                logger.debug('adjusting z to hs1')
+                                first_index = hs2.iloc[ind_start[i]:].first_valid_index()
+                                z[first_index:] = z[first_index:] -  z[first_index]   +  hs2[first_index] 
+                        else:
+                            logger.debug('adjusting z to hs1')                            
+                            z[first_index:] = z[first_index:] -  z[first_index]   +  hs2[first_index] 
                         hs2_ref = 0 # from now on PT is the reference
-            else:         
-                # if there is some ablation
+                        
+                        
+            else:
+                # if z_pt is the reference and there is some ablation
+                # then hs1 and hs2 are adjusted to z_pt
                 if (ind_start[i] != -999) & z_year.notnull().any():
                     # calculating first index with PT, hs1 and hs2
                     first_index = z_year.first_valid_index()
@@ -447,10 +511,13 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                                             -  np.nanmean(hs2[first_index:first_index+pd.to_timedelta('1D')])  \
                                                 +  np.nanmean(z[first_index:first_index+pd.to_timedelta('1D')])
 
-            # adapting hs2
+            # adjustment taking place at the end of the ablation period
             if (ind_end[i] != -999): 
-                # and if there are PT data available at the end of the melt season
-                if np.any(~np.isnan(z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*7)])):
+                # if y == 2023:
+                #     import pdb; pdb.set_trace()
+                # if there's ablation and
+                # if there are PT data available at the end of the melt season
+                if z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*7)].notnull().any():
                     logger.debug('adjusting hs2 to z')
                     # then we adjust hs2 to the end-of-ablation z    
                     # first trying at the end of melt season
@@ -509,7 +576,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                     logger.debug('adjusting hs1')
                     # and if there are some hs2 during the accumulation period
                     if any(~np.isnan(hs2_following_winter)):
-                        logger.debug('to hs2')
+                        logger.debug('to hs2, minimizing winter difference')
                         # then we adjust hs1 to hs2 during the accumulation area
                         # adjustment is done so that the mean hs1 and mean hs2 match 
                         # for the period when both are available
@@ -518,25 +585,40 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
                         tmp1[np.isnan(tmp2)] = np.nan
                         tmp2[np.isnan(tmp1)] = np.nan
+                        if tmp1.isnull().all():
+                            tmp1 = hs1_following_winter.copy()
+                            tmp2 = hs2_following_winter.copy()
 
+                            tmp1[np.isnan(tmp2)] = np.nan
+                            tmp2[np.isnan(tmp1)] = np.nan
                         hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] -  np.nanmean(tmp1)  +  np.nanmean(tmp2)
 
                     # if no hs2, then use PT data available at the end of the melt season
-                    elif np.any(~np.isnan(z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*7)])):
+                    elif np.any(~np.isnan(z.iloc[(ind_end[i]-24*14):(ind_end[i]+24*7)])):
                         logger.debug('to z')
                         # then we adjust hs2 to the end-of-ablation z    
                         # first trying at the end of melt season
-                        if ~np.isnan(np.nanmean(hs1.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])): 
+                        if ~np.isnan(np.nanmean(hs1.iloc[(ind_end[i]-24*14):(ind_end[i]+24*30)])): 
                             logger.debug('using end of melt season')
                             hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] - \
-                                np.nanmean(hs1.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])  + \
-                                    np.nanmean(z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])
+                                np.nanmean(hs1.iloc[(ind_end[i]-24*14):(ind_end[i]+24*30)])  + \
+                                    np.nanmean(z.iloc[(ind_end[i]-24*14):(ind_end[i]+24*30)])
                         # if not possible, then trying the end of the following accumulation season
-                        elif ind_start[i+1]!=-999 and any(~np.isnan(hs1.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)]+ z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])): 
+                        elif ind_start[i+1]!=-999 and any(~np.isnan(hs1.iloc[(ind_start[i+1]-24*14):(ind_start[i+1]+24*7)]+ z.iloc[(ind_start[i+1]-24*14):(ind_start[i+1]+24*7)])): 
                             logger.debug('using end of accumulation season')
                             hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] - \
-                                np.nanmean(hs1.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])  + \
-                                    np.nanmean(z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])
+                                np.nanmean(hs1.iloc[(ind_start[i+1]-24*14):(ind_start[i+1]+24*7)])  + \
+                                    np.nanmean(z.iloc[(ind_start[i+1]-24*14):(ind_start[i+1]+24*7)])
+                    elif any(~np.isnan(hs2_year)):
+                        logger.debug('to the last value of hs2')
+                        # then we adjust hs1 to hs2 during the accumulation area
+                        # adjustment is done so that the mean hs1 and mean hs2 match 
+                        # for the period when both are available
+                        half_span = pd.to_timedelta('7D')
+                        tmp1 = hs1_year.loc[(hs2_year.last_valid_index()-half_span):(hs2_year.last_valid_index()+half_span)].copy()
+                        tmp2 = hs2_year.loc[(hs2_year.last_valid_index()-half_span):(hs2_year.last_valid_index()+half_span)].copy()
+
+                        hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] -  np.nanmean(tmp1)  +  np.nanmean(tmp2)
 
         df["z_surf_1_adj"] = hs1.interpolate(limit=2*24).values
         df["z_surf_2_adj"] = hs2.interpolate(limit=2*24).values
@@ -554,6 +636,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         # 2) we use SR1 when SR2 is not available (commented) 
         # the later one can cause jumps when SR2 starts to be available few days after SR1
         data_update = df["z_surf_2_adj"].interpolate(limit=72).values 
+                
         ind_update = ind_ablation 
         #ind_update = np.logical_and(ind_ablation,  ~np.isnan(data_update))
         df.loc[ind_update,"z_surf_combined"] = data_update[ind_update]  
@@ -563,9 +646,9 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         ind_update = np.logical_and(ind_ablation, ~np.isnan(data_update))
         df.loc[ind_update,"z_surf_combined"] = data_update[ind_update] 
     logger.info('surface height combination finished')
-    return df['z_surf_combined'], df["z_ice_surf_adj"] 
+    return df['z_surf_combined'], df["z_ice_surf_adj"], df["z_surf_1_adj"], df["z_surf_2_adj"]
 
-def hampel(vals_orig, k=7*24, t0=3):
+def hampel(vals_orig, k=7*24, t0=15):
     '''
     vals: pandas series of values from which to remove outliers
     k: size of window (including the sample; 7 is equal to 3 on either side of value)
