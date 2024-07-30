@@ -189,8 +189,14 @@ def process_surface_height(ds, station_config={}):
                                    .rolling('1D', center=True, min_periods=1)
                                    .median().values)
         
+        # here we make sure that the periods where both z_stake and z_pt are
+        # missing are also missing in z_ice_surf
+        msk = ds['z_ice_surf'].notnull() | ds['z_surf_2_adj'].notnull()
+        z_ice_surf = z_ice_surf.where(msk)    
+        
         ds['z_ice_surf'] = z_ice_surf.cummin()
         
+        ds['z_surf_combined'] = np.maximum(ds['z_surf_combined'], ds['z_ice_surf'])
         ds['snow_height'] = np.maximum(0, ds['z_surf_combined'] - ds['z_ice_surf'])
     elif ds.attrs['site_type'] in ['accumulation', 'bedrock']:
         # Handle accumulation and bedrock site types
@@ -628,16 +634,17 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         df["z_surf_combined"] = np.nan
 
         # in winter, both SR1 and SR2 are used
-        df["z_surf_combined"] = df[["z_surf_1_adj", "z_surf_2_adj"]].mean(axis=1).values
+        df["z_surf_combined"] = df["z_surf_2_adj"].interpolate(limit=72).values 
+        
 
         # in ablation season we use SR2 instead of the SR1&2 average
         # here two options:
         # 1) we ignore the SR1 and only use SR2
         # 2) we use SR1 when SR2 is not available (commented) 
         # the later one can cause jumps when SR2 starts to be available few days after SR1
-        data_update = df["z_surf_2_adj"].interpolate(limit=72).values 
+        data_update = df[["z_surf_1_adj", "z_surf_2_adj"]].mean(axis=1).values
                 
-        ind_update = ind_ablation 
+        ind_update = ~ind_ablation 
         #ind_update = np.logical_and(ind_ablation,  ~np.isnan(data_update))
         df.loc[ind_update,"z_surf_combined"] = data_update[ind_update]  
 
@@ -645,6 +652,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         data_update = df[ "z_ice_surf_adj"].interpolate(limit=72).values 
         ind_update = np.logical_and(ind_ablation, ~np.isnan(data_update))
         df.loc[ind_update,"z_surf_combined"] = data_update[ind_update] 
+        
     logger.info('surface height combination finished')
     return df['z_surf_combined'], df["z_ice_surf_adj"], df["z_surf_1_adj"], df["z_surf_2_adj"]
 
@@ -798,7 +806,9 @@ def get_thermistor_depth(df_in, site, station_config):
 
             # copying the filtered values to the original table
             df_in[temp_cols_name[i]] = tmp.values
-        
+            
+            # removing negative depth
+            df_in[depth_cols_name[i]] = np.minimum(0, df_in[depth_cols_name[i]])
         logger.info("interpolating 10 m firn/ice temperature")
         df_in['t_i_10m'] = interpolate_temperature(
             df_in.index.values,
