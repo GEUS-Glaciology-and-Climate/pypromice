@@ -300,6 +300,21 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         ind_ablation = np.logical_and(smoothed_PT.diff().values < threshold_ablation, 
                                       np.isin(smoothed_PT.diff().index.month, [6, 7, 8, 9]))
 
+
+        # finding the beginning and end of each period with True
+        idx = np.argwhere(np.diff(np.r_[False,ind_ablation, False])).reshape(-1, 2)
+        idx[:, 1] -= 1
+            
+        # fill small gaps in the ice ablation periods.
+        for i in range(len(idx)-1):
+            ind = idx[i]
+            ind_next = idx[i+1]
+            # if the end of an ablation period is less than 60 days away from
+            # the next ablation, then it is still considered like the same ablation
+            # season
+            if df.index[ind_next[0]]-df.index[ind[1]]<pd.to_timedelta('60 days'):
+                ind_ablation[ind[1]:ind_next[0]]=True
+        
         # finding the beginning and end of each period with True
         idx = np.argwhere(np.diff(np.r_[False,ind_ablation, False])).reshape(-1, 2)
         idx[:, 1] -= 1
@@ -313,16 +328,6 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
             exclusion_period = (df.index >= period_start) & (df.index < period_end)
             ind_ablation[exclusion_period] = False
             
-        # fill small gaps in the ice ablation periods.
-        for i in range(len(idx)-1):
-            ind = idx[i]
-            ind_next = idx[i+1]
-            # if the end of an ablation period is less than 15 days away from
-            # the next ablation, then it is still considered like the same ablation
-            # season
-            if df.index[ind_next[0]]-df.index[ind[1]]<pd.to_timedelta('15 days'):
-                ind_ablation[ind[1]:ind_next[0]]=True
-
         hs1=df["z_surf_1_adj"].interpolate(limit=24*2).copy()
         hs2=df["z_surf_2_adj"].interpolate(limit=24*2).copy()
         z=df["z_ice_surf_adj"].interpolate(limit=24*2).copy()
@@ -402,7 +407,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         # to hs1 and hs2 the year after.
 
         for i, y in enumerate(years):
-            # if y == 2021:
+            # if y == 2014:
             #     import pdb; pdb.set_trace()
             logger.debug(str(y))
             # defining subsets of hs1, hs2, z
@@ -808,7 +813,7 @@ def get_thermistor_depth(df_in, site, station_config):
             df_in[temp_cols_name[i]] = tmp.values
             
             # removing negative depth
-            df_in[depth_cols_name[i]] = np.minimum(0, df_in[depth_cols_name[i]])
+            df_in.loc[df_in[depth_cols_name[i]]<0, depth_cols_name[i]] = np.nan
         logger.info("interpolating 10 m firn/ice temperature")
         df_in['t_i_10m'] = interpolate_temperature(
             df_in.index.values,
