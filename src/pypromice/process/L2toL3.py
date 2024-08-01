@@ -173,7 +173,8 @@ def process_surface_height(ds, station_config={}):
 
     if ds.attrs['site_type'] == 'ablation':
         # Calculate rolling minimum for ice surface height and snow height
-        ts_interpolated = ds.z_surf_combined.to_series().resample('H').interpolate(limit=72)
+        ts_interpolated = np.minimum(xr.where(ds.z_ice_surf.notnull(),ds.z_ice_surf,ds.z_surf_combined),
+                                     ds.z_surf_combined).to_series().resample('H').interpolate(limit=72)
         
         # Apply the rolling window with median calculation
         z_ice_surf = (ts_interpolated
@@ -189,12 +190,39 @@ def process_surface_height(ds, station_config={}):
                                    .rolling('1D', center=True, min_periods=1)
                                    .median().values)
         
+        z_ice_surf = z_ice_surf.loc[ds.time]
         # here we make sure that the periods where both z_stake and z_pt are
         # missing are also missing in z_ice_surf
         msk = ds['z_ice_surf'].notnull() | ds['z_surf_2_adj'].notnull()
         z_ice_surf = z_ice_surf.where(msk)    
+               
+        # taking running minimum to get ice
+        z_ice_surf = z_ice_surf.cummin()
+
+        # filling gaps only if they are less than a year long and if values on both
+        # sides are less than 0.01 m appart
         
-        ds['z_ice_surf'] = z_ice_surf.cummin()
+        # Forward and backward fill to identify bounds of gaps
+        df_filled = z_ice_surf.fillna(method='ffill').fillna(method='bfill')
+        
+        # Identify gaps and their start and end dates
+        gaps = pd.DataFrame(index=z_ice_surf[z_ice_surf.isna()].index)
+        gaps['prev_value'] = df_filled.shift(1)
+        gaps['next_value'] = df_filled.shift(-1)
+        gaps['gap_start'] = gaps.index.to_series().shift(1)
+        gaps['gap_end'] = gaps.index.to_series().shift(-1)
+        gaps['gap_duration'] = (gaps['gap_end'] - gaps['gap_start']).dt.days
+        gaps['value_diff'] = (gaps['next_value'] - gaps['prev_value']).abs()
+        
+        # Determine which gaps to fill
+        mask = (gaps['gap_duration'] < 365) & (gaps['value_diff'] < 0.01)
+        gaps_to_fill = gaps[mask].index
+        
+        # Fill gaps in the original Series
+        z_ice_surf.loc[gaps_to_fill] = df_filled.loc[gaps_to_fill]
+        
+        # bringing the variable into the dataset
+        ds['z_ice_surf'] = z_ice_surf
         
         ds['z_surf_combined'] = np.maximum(ds['z_surf_combined'], ds['z_ice_surf'])
         ds['snow_height'] = np.maximum(0, ds['z_surf_combined'] - ds['z_ice_surf'])
@@ -334,10 +362,13 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
         # the surface heights are adjusted so that they start at 0
 
-        if any(~np.isnan(hs1.iloc[:24*7])):
-            hs1 = hs1 - hs1.iloc[:24*7].mean()
+
         if any(~np.isnan(hs2.iloc[:24*7])):
             hs2 = hs2 - hs2.iloc[:24*7].mean()
+
+        if any(~np.isnan(hs2.iloc[:24*7])) & any(~np.isnan(hs1.iloc[:24*7])):
+            hs2 = hs2 + hs1.iloc[:24*7].mean() - hs2.iloc[:24*7].mean()
+            
         if any(~np.isnan(z.iloc[:24*7])):
             # expressing ice surface height relative to its mean value in the 
             # first week of the record
@@ -423,9 +454,6 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
             hs2_winter = hs2[str(y)+'-01-01':str(y)+'-03-01'].copy()
             z_winter = z[str(y)+'-01-01':str(y)+'-03-01'].copy()
-
-            hs1_following_winter = hs1[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
-            hs2_following_winter = hs2[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
 
             z_year = z[str(y)]
             if hs1_jja.isnull().all() and hs2_jja.isnull().all() and z_jja.isnull().all():
@@ -546,7 +574,8 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                                     np.nanmean(z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])
             else:
                 logger.debug('no ablation')
-
+                hs1_following_winter = hs1[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
+                hs2_following_winter = hs2[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
                 if all(np.isnan(hs2_following_winter)):
                     logger.debug('no hs2')
                     missing_hs2 = 1
@@ -565,9 +594,12 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                             -  np.nanmean(hs2_following_winter)  +  np.nanmean(hs1_following_winter)
                         missing_hs2 = 0
 
+
+                hs1_following_winter = hs1[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
+                hs2_following_winter = hs2[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
                 # adjusting hs1 to hs2 (no ablation case)
                 if any(~np.isnan(hs1_following_winter)):
-                    logger.debug('adjusting hs1')
+                    logger.debug('adjusting hs1')    
                     # and if there are some hs2 during the accumulation period
                     if any(~np.isnan(hs2_following_winter)):
                         logger.debug('to hs2')
@@ -579,10 +611,12 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
                         hs1[str(y)+'-09-01':] = hs1[str(y)+'-09-01':] \
                             -  np.nanmean(hs1_following_winter)  +  np.nanmean(hs2_following_winter)
+                        hs1_following_winter = hs1[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
 
             if ind_end[i] != -999:
                 # if there is some hs1
-
+                hs1_following_winter = hs1[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
+                hs2_following_winter = hs2[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
                 if any(~np.isnan(hs1_following_winter)):
                     logger.debug('adjusting hs1')
                     # and if there are some hs2 during the accumulation period
