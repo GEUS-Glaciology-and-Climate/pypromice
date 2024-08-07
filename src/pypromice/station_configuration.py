@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Optional, Dict, Mapping, Sequence
 
@@ -30,6 +31,7 @@ class StationConfiguration:
     sonic_ranger_from_gps: Optional[float] = None
     static_height_of_gps_from_mean_sea_level: Optional[float] = None
     station_relocation: Sequence[str] = attrs.field(factory=list)
+    location_type: Optional[str] = None
 
     # The station data will be exported to BUFR if True. Otherwise, it will only export latest position
     export_bufr: bool = False
@@ -45,8 +47,22 @@ class StationConfiguration:
     positions_update_timestamp_only: bool = False
 
     @classmethod
-    def load_toml(cls, path):
-        return cls(**toml.load(path))
+    def load_toml(cls, path, skip_unexpected_fields=False):
+        config_fields = {field.name for field in attrs.fields(cls)}
+        input_dict = toml.load(path)
+        unexpected_fields = set(input_dict.keys()) - config_fields
+        if unexpected_fields:
+            if skip_unexpected_fields:
+                logging.info(
+                    f"Skipping unexpected fields in toml file {path}: "
+                    + ", ".join(unexpected_fields)
+                )
+                for field in unexpected_fields:
+                    input_dict.pop(field)
+            else:
+                raise ValueError(f"Unexpected fields: {unexpected_fields}")
+
+        return cls(**input_dict)
 
     def dump_toml(self, path: Path):
         with path.open("w") as fp:
@@ -58,6 +74,7 @@ class StationConfiguration:
 
 def load_station_configuration_mapping(
     configurations_root_dir: Path,
+    **kwargs,
 ) -> Mapping[str, StationConfiguration]:
     """
     Load station configurations from toml files in configurations_root_dir
@@ -66,6 +83,8 @@ def load_station_configuration_mapping(
     ----------
     configurations_root_dir
         Root directory containing toml files
+    kwargs
+        Additional arguments to pass to StationConfiguration.load_toml
 
     Returns
     -------
@@ -73,7 +92,7 @@ def load_station_configuration_mapping(
 
     """
     return {
-        config_file.stem: StationConfiguration(**toml.load(config_file))
+        config_file.stem: StationConfiguration.load_toml(config_file, **kwargs)
         for config_file in configurations_root_dir.glob("*.toml")
     }
 

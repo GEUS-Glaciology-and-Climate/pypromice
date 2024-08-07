@@ -462,7 +462,8 @@ def main():
             input_files += map(Path, glob.glob(path.as_posix()))
 
     station_configuration_mapping = load_station_configuration_mapping(
-        args.station_configurations_root
+        args.station_configurations_root,
+        skip_unexpected_fields=True,
     )
 
     get_bufr(
