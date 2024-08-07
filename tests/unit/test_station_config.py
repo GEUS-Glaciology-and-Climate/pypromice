@@ -55,6 +55,57 @@ class StationConfigurationTestCase(TestCase):
                 station_configuration,
             )
 
+    def test_read_toml_with_unexpected_field(self):
+        with TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "UPE_L.toml"
+            source_str = """
+                stid = "UPE_L"
+                station_site = "UPE_L"
+                project = "Promice"
+                station_type = "mobile"
+                wmo_id = "04423"
+                barometer_from_gps = -0.25
+                anemometer_from_sonic_ranger = 0.4
+                temperature_from_sonic_ranger = 0.0
+                height_of_gps_from_station_ground = 0.9
+                sonic_ranger_from_gps = 1.3
+                export_bufr = true
+                skipped_variables = []
+                positions_update_timestamp_only = false
+                an_unexpected_field = 42
+            """
+            with source_path.open("w") as source_io:
+                source_io.writelines(source_str)
+
+            expected_configuration = StationConfiguration(
+                stid="UPE_L",
+                station_site="UPE_L",
+                project="Promice",
+                station_type="mobile",
+                wmo_id="04423",
+                barometer_from_gps=-0.25,
+                anemometer_from_sonic_ranger=0.4,
+                temperature_from_sonic_ranger=0.0,
+                height_of_gps_from_station_ground=0.9,
+                sonic_ranger_from_gps=1.3,
+                export_bufr=True,
+                comment=None,
+                skipped_variables=[],
+                positions_update_timestamp_only=False,
+            )
+
+            with self.assertRaises(ValueError):
+                StationConfiguration.load_toml(source_path)
+
+            station_configuration = StationConfiguration.load_toml(source_path, skip_unexpected_fields=True)
+
+            self.assertEqual(
+                expected_configuration,
+                station_configuration,
+            )
+
+
+
     def test_write_read(self):
         with TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / "UPE_L.toml"

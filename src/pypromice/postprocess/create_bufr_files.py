@@ -28,11 +28,13 @@ def create_bufr_files(
     Generate hourly bufr files from the for all input files
 
     :param input_files: Paths to csv l3 hourly data files
+    :param station_configuration_root: Root directory containing station configuration toml files
     :param period_start: Datetime string for period start. Eg '2024-01-01T00:00' or '20240101
     :param period_end: Datetime string for period end
     :param output_root: Output dir for both bufr files for individual stations and compiled. Organized in two sub directories.
     :param override: If False: Skip a period if the compiled output file exists.
     :param break_on_error: If True: Stop processing if an error occurs
+    :param output_filename_suffix: Suffix for the compiled output file
     :return:
     """
     periods = pd.date_range(period_start, period_end, freq="H")
@@ -41,7 +43,10 @@ def create_bufr_files(
     output_individual_root.mkdir(parents=True, exist_ok=True)
     output_compiled_root.mkdir(parents=True, exist_ok=True)
 
-    station_configuration_mapping = load_station_configuration_mapping(station_configuration_root)
+    station_configuration_mapping = load_station_configuration_mapping(
+        station_configuration_root,
+        skip_unexpected_fields=True,
+    )
 
     for period in periods:
         period: pd.Timestamp
