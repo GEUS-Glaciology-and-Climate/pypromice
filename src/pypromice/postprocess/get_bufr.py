@@ -18,7 +18,7 @@ import pickle
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Optional, Collection, Sequence, Mapping, BinaryIO
+from typing import List, Dict, Optional, Sequence, Mapping
 
 import numpy as np
 import pandas as pd
@@ -121,9 +121,6 @@ def get_bufr(
     if target_timestamp is None:
         target_timestamp = datetime.utcnow()
 
-    # if earliest_timestamp is None:
-    #     earliest_timestamp = now_timestamp - timedelta(days=2)
-
     # Prepare (latest) positions
     positions = dict()
     if positions_seed_path:
@@ -150,9 +147,6 @@ def get_bufr(
     # Setup diagnostic lists (logger.info at end)
     skipped = []
     no_recent_data = []
-    no_entry_latest_timestamps = []
-    failed_min_data_wx = []
-    failed_min_data_pos = []
 
     # Iterate through csv files
     for file_path in input_files:
@@ -186,6 +180,7 @@ def get_bufr(
             )
             if latest_data is None:
                 logger.info("No valid instantaneous timestamps!")
+                skipped.append(stid)
                 continue
 
             # Create station positions
@@ -209,6 +204,7 @@ def get_bufr(
                         write_bufr_message(bufr_variables, output_file)
             else:
                 logger.info(f"No new data {latest_data.name} <= {time_window_start}")
+                no_recent_data.append(stid)
 
         except Exception:
             logger.exception(f"Failed processing {stid}")
@@ -216,6 +212,7 @@ def get_bufr(
                 output_path.unlink()
             if break_on_error:
                 raise
+            skipped.append(stid)
             continue
 
     # Write the most recent timestamps back to the pickle on disk
@@ -235,12 +232,9 @@ def get_bufr(
         positions_df.to_csv(positions_filepath, index_label="stid")
 
     logger.info("--------------------------------")
-    not_processed_wx_pos = set(failed_min_data_wx + failed_min_data_pos)
     not_processed_count = (
         len(skipped)
         + len(no_recent_data)
-        + len(no_entry_latest_timestamps)
-        + len(not_processed_wx_pos)
     )
     logger.info(
         "BUFR exported for {} of {} fpaths.".format(
@@ -250,9 +244,6 @@ def get_bufr(
     logger.info("")
     logger.info("skipped: {}".format(skipped))
     logger.info("no_recent_data: {}".format(no_recent_data))
-    logger.info("no_entry_latest_timestamps: {}".format(no_entry_latest_timestamps))
-    logger.info("failed_min_data_wx: {}".format(failed_min_data_wx))
-    logger.info("failed_min_data_pos: {}".format(failed_min_data_pos))
     logger.info("--------------------------------")
 
 
