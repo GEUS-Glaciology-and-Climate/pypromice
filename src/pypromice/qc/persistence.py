@@ -9,20 +9,40 @@ __all__ = [
     "persistence_qc",
     "find_persistent_regions",
     "count_consecutive_persistent_values",
-    "count_consecutive_true",
+    "duration_consecutive_true",
 ]
 
 logger = logging.getLogger(__name__)
 
 # period is given in hours, 2 persistent 10 min values will be flagged if period < 0.333
 DEFAULT_VARIABLE_THRESHOLDS = {
-    "t": {"max_diff": 0.0001, "period": 2},
-    "p": {"max_diff": 0.0001, "period": 2},
-    'gps_lat_lon':{"max_diff": 0.000001, "period": 6}, # gets special handling to remove simultaneously constant gps_lat and gps_lon
-    'gps_alt':{"max_diff": 0.0001, "period": 6},
-    't_rad':{"max_diff": 0.0001, "period": 2},
-    "rh": {"max_diff": 0.0001, "period": 2}, # gets special handling to allow constant 100%
-    "wspd": {"max_diff": 0.0001, "period": 6},
+    "t_i": {"max_diff": 0.0001, "period": 2},
+    "t_u": {"max_diff": 0.0001, "period": 2},
+    "t_l": {"max_diff": 0.0001, "period": 2},
+    "p_i": {"max_diff": 0.0001, "period": 2},
+    # "p_u": {"max_diff": 0.0001, "period": 2},
+    # "p_l": {"max_diff": 0.0001, "period": 2},
+    "gps_lat_lon": {
+        "max_diff": 0.000001,
+        "period": 6,
+    },  # gets special handling to remove simultaneously constant gps_lat and gps_lon
+    "gps_alt": {"max_diff": 0.0001, "period": 6},
+    "t_rad": {"max_diff": 0.0001, "period": 2},
+    "rh_i": {
+        "max_diff": 0.0001,
+        "period": 2,
+    },  # gets special handling to allow constant 100%
+    "rh_u": {
+        "max_diff": 0.0001,
+        "period": 2,
+    },  # gets special handling to allow constant 100%
+    "rh_l": {
+        "max_diff": 0.0001,
+        "period": 2,
+    },  # gets special handling to allow constant 100%
+    "wspd_i": {"max_diff": 0.0001, "period": 6},
+    "wspd_u": {"max_diff": 0.0001, "period": 6},
+    "wspd_l": {"max_diff": 0.0001, "period": 6},
 }
 
 
@@ -65,7 +85,7 @@ def persistence_qc(
     logger.info(f"Running persistence_qc using {variable_thresholds}")
 
     for k in variable_thresholds.keys():
-        if k in ['t','p','rh','wspd','wdir', 'z_boom']:
+        if k in ["t", "p", "rh", "wspd", "wdir", "z_boom"]:
             var_all = [
                 k + "_u",
                 k + "_l",
@@ -79,8 +99,8 @@ def persistence_qc(
         for v in var_all:
             if v in df:
                 mask = find_persistent_regions(df[v], period, max_diff)
-                if 'rh' in v:
-                    mask = mask & (df[v]<99)
+                if "rh" in v:
+                    mask = mask & (df[v] < 99)
                 n_masked = mask.sum()
                 n_samples = len(mask)
                 logger.debug(
@@ -88,11 +108,10 @@ def persistence_qc(
                 )
                 # setting outliers to NaN
                 df.loc[mask, v] = np.nan
-            elif v == 'gps_lat_lon':
-                mask = (
-                    find_persistent_regions(df['gps_lon'], period, max_diff)
-                    & find_persistent_regions(df['gps_lat'], period, max_diff) 
-                )
+            elif v == "gps_lat_lon":
+                mask = find_persistent_regions(
+                    df["gps_lon"], period, max_diff
+                ) & find_persistent_regions(df["gps_lat"], period, max_diff)
 
                 n_masked = mask.sum()
                 n_samples = len(mask)
@@ -100,8 +119,8 @@ def persistence_qc(
                     f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
                 )
                 # setting outliers to NaN
-                df.loc[mask, 'gps_lon'] = np.nan
-                df.loc[mask, 'gps_lat'] = np.nan
+                df.loc[mask, "gps_lon"] = np.nan
+                df.loc[mask, "gps_lat"] = np.nan
 
     # Back to xarray, and re-assign the original attrs
     ds_out = df.to_xarray()
@@ -140,7 +159,7 @@ def duration_consecutive_true(
     series: pd.Series,
 ) -> pd.Series:
     """
-    From a boolean series, calculates the duration, in hours, of the periods with connective true values.
+    From a boolean series, calculates the duration, in hours, of the periods with concecutive true values.
 
     Examples
     --------
