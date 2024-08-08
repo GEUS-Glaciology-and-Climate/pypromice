@@ -41,23 +41,15 @@ jobs:
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do
             python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2.py -c $GITHUB_WORKSPACE/aws-l0/tx/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/tx -o $GITHUB_WORKSPACE/out/L0toL2/
           done
-#      - name: Run L0 to L2 processing
-#        env:
-#          TEST_STATION: KAN_U HUM
-#        shell: bash
-#        run: |
-#          mkdir $GITHUB_WORKSPACE/out/L2toL3/            
-#          for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do           
-#            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2tol3.py -i $GITHUB_WORKSPACE/out/L0toL2/$i/$i_hour.nc -o $GITHUB_WORKSPACE/out/L2toL3 -t 60min
-#          done
-      - name: Run L0 to L3 processing
+      - name: Run L2 to L3 processing
         env:
           TEST_STATION: KAN_U HUM
         shell: bash
         run: |
-          mkdir $GITHUB_WORKSPACE/out/L0toL3/
+          mkdir $GITHUB_WORKSPACE/out/L2toL3/
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do
-            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2.py -c $GITHUB_WORKSPACE/aws-l0/tx/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/tx -o $GITHUB_WORKSPACE/out/L2/
+            echo ${i}_hour.nc
+            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2tol3.py -c $GITHUB_WORKSPACE/aws-l0/metadata/station_configurations/ -i $GITHUB_WORKSPACE/out/L0toL2/${i}/${i}_hour.nc -o $GITHUB_WORKSPACE/out/L2toL3/
           done
       - name: Upload test output
         uses: actions/upload-artifact@v3
