@@ -1,9 +1,9 @@
 import unittest
 
 import numpy as np
-import numpy.testing
 import pandas as pd
 
+from pypromice.qc import persistence
 from pypromice.qc.persistence import find_persistent_regions
 
 
@@ -32,7 +32,9 @@ class PersistenceQATestCase(unittest.TestCase):
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
+        pd.testing.assert_series_equal(
+            expected_output, persistent_mask, check_names=False
+        )
 
     def test_no_persistent_period(self):
         time_range = pd.date_range(
@@ -46,7 +48,9 @@ class PersistenceQATestCase(unittest.TestCase):
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
+        pd.testing.assert_series_equal(
+            expected_output, persistent_mask, check_names=False
+        )
 
     def test_persistent_period_longer_than_period_threshold(self):
         time_range = pd.date_range(
@@ -66,7 +70,9 @@ class PersistenceQATestCase(unittest.TestCase):
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
+        pd.testing.assert_series_equal(
+            expected_output, persistent_mask, check_names=False
+        )
 
     def test_period_threshold_longer_than_persistent_period(self):
         time_range = pd.date_range(
@@ -83,7 +89,9 @@ class PersistenceQATestCase(unittest.TestCase):
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
+        pd.testing.assert_series_equal(
+            expected_output, persistent_mask, check_names=False
+        )
 
     def test_persistent_period_at_the_end(self):
         time_range = pd.date_range(
@@ -101,7 +109,9 @@ class PersistenceQATestCase(unittest.TestCase):
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
+        pd.testing.assert_series_equal(
+            expected_output, persistent_mask, check_names=False
+        )
 
     def test_dont_filter_nan_values(self):
         time_range = pd.date_range(
@@ -123,7 +133,9 @@ class PersistenceQATestCase(unittest.TestCase):
             input_series, min_repeats=min_repeats, max_diff=0.001
         )
 
-        pd.testing.assert_series_equal(expected_output, persistent_mask, check_names=False)
+        pd.testing.assert_series_equal(
+            expected_output, persistent_mask, check_names=False
+        )
 
     def test_series_with_nan_values_between_persistent_values(self):
         time_range = pd.date_range(
@@ -144,6 +156,40 @@ class PersistenceQATestCase(unittest.TestCase):
         output_mask = find_persistent_regions(series, min_repeats=period, max_diff=0.01)
 
         np.testing.assert_equal(expected_mask, output_mask)
+
+    def test_get_duration_consecutive_true(self):
+        delta_time_hours = np.random.random(24) * 2
+        time_range = pd.to_datetime("2023-01-25") + pd.to_timedelta(
+            delta_time_hours.cumsum(), unit="h"
+        )
+        values = time_range == False
+        values[0:2] = True
+        values[6] = True
+        values[10:14] = True
+        values[-3:] = True
+        series = pd.Series(index=time_range, data=values)
+
+        duration_consecutive_true = persistence.get_duration_consecutive_true(series)
+
+        self.assertTrue(
+            np.isnan(duration_consecutive_true[0]), "The first index should be ignored"
+        )
+        np.testing.assert_almost_equal(
+            duration_consecutive_true[1],
+            delta_time_hours[1],
+        )
+        np.testing.assert_almost_equal(
+            duration_consecutive_true[6],
+            delta_time_hours[6],
+        )
+        np.testing.assert_almost_equal(
+            duration_consecutive_true[10:14],
+            delta_time_hours[10:14].cumsum(),
+        )
+        np.testing.assert_almost_equal(
+            duration_consecutive_true[-3:],
+            delta_time_hours[-3:].cumsum(),
+        )
 
 
 if __name__ == "__main__":

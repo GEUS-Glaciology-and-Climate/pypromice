@@ -9,7 +9,7 @@ __all__ = [
     "persistence_qc",
     "find_persistent_regions",
     "count_consecutive_persistent_values",
-    "duration_consecutive_true",
+    "get_duration_consecutive_true",
 ]
 
 logger = logging.getLogger(__name__)
@@ -152,19 +152,21 @@ def count_consecutive_persistent_values(
 ) -> pd.Series:
     diff = data.ffill().diff().abs()  # forward filling all NaNs!
     mask: pd.Series = diff < max_diff
-    return duration_consecutive_true(mask)
+    return get_duration_consecutive_true(mask)
 
 
-def duration_consecutive_true(
+def get_duration_consecutive_true(
     series: pd.Series,
 ) -> pd.Series:
     """
     From a boolean series, calculates the duration, in hours, of the periods with concecutive true values.
 
+    The first value will be set to NaN, as it is not possible to calculate the duration of a single value.
+
     Examples
     --------
-    >>> duration_consecutive_true(pd.Series([False, True, False, False, True, True, True, False, True]))
-    pd.Series([0, 1, 0, 0, 1, 2, 3, 0, 1])
+    >>> get_duration_consecutive_true(pd.Series([False, True, False, False, True, True, True, False, True]))
+    pd.Series([np.nan, 1, 0, 0, 1, 2, 3, 0, 1])
 
     Parameters
     ----------
@@ -177,9 +179,11 @@ def duration_consecutive_true(
         Integer pandas Series or DataFrame with values representing the number of connective true values.
 
     """
-    # assert series.dtype == bool
-    cumsum = ((series.index - series.index[0]).total_seconds()/3600).to_series(index=series.index)
     is_first = series.astype("int").diff() == 1
-    offset = (is_first * cumsum).replace(0, np.nan).ffill().fillna(0)
+    delta_time = (series.index.diff().total_seconds() / 3600).to_series(
+        index=series.index
+    )
+    cumsum = delta_time.cumsum()
+    offset = (is_first * (cumsum - delta_time)).replace(0, np.nan).ffill().fillna(0)
 
     return (cumsum - offset) * series
