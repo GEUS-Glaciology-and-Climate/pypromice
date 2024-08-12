@@ -232,10 +232,7 @@ def get_bufr(
         positions_df.to_csv(positions_filepath, index_label="stid")
 
     logger.info("--------------------------------")
-    not_processed_count = (
-        len(skipped)
-        + len(no_recent_data)
-    )
+    not_processed_count = len(skipped) + len(no_recent_data)
     logger.info(
         "BUFR exported for {} of {} fpaths.".format(
             (len(input_files) - not_processed_count), len(input_files)
