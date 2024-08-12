@@ -27,15 +27,25 @@ def create_bufr_files(
     """
     Generate hourly bufr files from the for all input files
 
-    :param input_files: Paths to csv l3 hourly data files
-    :param station_configuration_root: Root directory containing station configuration toml files
-    :param period_start: Datetime string for period start. Eg '2024-01-01T00:00' or '20240101
-    :param period_end: Datetime string for period end
-    :param output_root: Output dir for both bufr files for individual stations and compiled. Organized in two sub directories.
-    :param override: If False: Skip a period if the compiled output file exists.
-    :param break_on_error: If True: Stop processing if an error occurs
-    :param output_filename_suffix: Suffix for the compiled output file
-    :return:
+    Parameters
+    ----------
+    input_files
+        Paths to csv l3 hourly data files
+    station_configuration_root
+        Root directory containing station configuration toml files
+    period_start
+        Datetime string for period start. Eg '2024-01-01T00:00' or '20240101
+    period_end
+        Datetime string for period end
+    output_root
+        Output dir for both bufr files for individual stations and compiled. Organized in two sub directories.
+    override
+        If False: Skip a period if the compiled output file exists.
+    break_on_error
+        If True: Stop processing if an error occurs
+    output_filename_suffix
+        Suffix for the compiled output file
+
     """
     periods = pd.date_range(period_start, period_end, freq="H")
     output_individual_root = output_root / "individual"
@@ -82,6 +92,7 @@ def create_bufr_files(
 
 # %%
 
+
 def main():
     import argparse
     import glob
@@ -101,9 +112,7 @@ def main():
     main_logger.addHandler(main_handler)
     main_logger.setLevel(logging.INFO)
 
-    parser = argparse.ArgumentParser(
-        "Create BUFR files from L3 tx .csv files."
-    )
+    parser = argparse.ArgumentParser("Create BUFR files from L3 tx .csv files.")
     parser.add_argument(
         "--input_files",
         "--l3-filepath",
@@ -163,6 +172,7 @@ def main():
         override=args.override,
         station_configuration_root=args.station_configuration_root,
     )
+
 
 if __name__ == "__main__":
     main()
