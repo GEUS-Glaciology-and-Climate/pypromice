@@ -356,7 +356,7 @@ def get_bufr_variables(
         airTemperature=data.t_i + 273.15,
         # Convert pressure, correct the -1000 offset, then hPa to Pa
         # note that instantaneous pressure has 0.1 hPa precision
-        pressure=(data.p_i + 1000.0) * 100.0,
+        nonCoordinatePressure=(data.p_i + 1000.0) * 100.0,
         windDirection=data.wdir_i,
         windSpeed=data.wspd_i,
         latitude=data.gps_lat_fit,

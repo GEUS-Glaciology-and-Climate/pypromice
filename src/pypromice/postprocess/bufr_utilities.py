@@ -102,10 +102,10 @@ class BUFRVariables:
     # Pressure information
     # ====================
     # Definition table: https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_D/302031
-    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/007004
+    # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/010004
     # Scale: -1, unit: Pa
-    pressure: float = attrs.field(converter=round_converter(-1))
-    # There are two other pressure variables in the template: 302001 and 010062.
+    nonCoordinatePressure: float = attrs.field(converter=round_converter(-1))
+    # There are two other pressure variables in the template: 007004 - pressure and 010062 24-hour pressure change
 
     # Basic synoptic "instantaneous" data
     # ===================================
@@ -342,7 +342,7 @@ def set_AWS_variables(
 
     set_bufr_value(ibufr, "relativeHumidity", variables.relativeHumidity)
     set_bufr_value(ibufr, "airTemperature", variables.airTemperature)
-    set_bufr_value(ibufr, "pressure", variables.pressure)
+    set_bufr_value(ibufr, "nonCoordinatePressure", variables.nonCoordinatePressure)
     set_bufr_value(ibufr, "windDirection", variables.windDirection)
     set_bufr_value(ibufr, "windSpeed", variables.windSpeed)
 
@@ -434,7 +434,7 @@ def get_bufr_value(msgid: int, key: str) -> float:
         raise ValueError(f"Unsupported BUFR value type {type(value)} for key {key}")
 
 
-def read_bufr_message(fp: BinaryIO) -> Optional[BUFRVariables]:
+def read_bufr_message(fp: BinaryIO, backwards_compatible: bool = False) -> Optional[BUFRVariables]:
     """
     Read and parse BUFR message from binary IO stream.
 
@@ -445,6 +445,8 @@ def read_bufr_message(fp: BinaryIO) -> Optional[BUFRVariables]:
     ----------
     fp
         Readable binary io stream
+    backwards_compatible
+        Use legacy pressure if nonCoordinatePressure is nan
 
     Returns
     -------
@@ -497,11 +499,19 @@ def read_bufr_message(fp: BinaryIO) -> Optional[BUFRVariables]:
             f"Unknown BUFR template unexpandedDescriptors: {unexpanded_descriptors}"
         )
 
+    nonCoordinatePressure = get_bufr_value(ibufr, "nonCoordinatePressure")
+    if math.isnan(nonCoordinatePressure) and backwards_compatible:
+        nonCoordinatePressure = get_bufr_value(ibufr, "pressure")
+        if not math.isnan(nonCoordinatePressure):
+            logger.warning(
+                f"nonCoordinatePressure is nan, using legacy pressure instead"
+            )
+
     variables = BUFRVariables(
         timestamp=timestamp,
         relativeHumidity=get_bufr_value(ibufr, "relativeHumidity"),
         airTemperature=get_bufr_value(ibufr, "airTemperature"),
-        pressure=get_bufr_value(ibufr, "pressure"),
+        nonCoordinatePressure=nonCoordinatePressure,
         windDirection=get_bufr_value(ibufr, "windDirection"),
         windSpeed=get_bufr_value(ibufr, "windSpeed"),
         latitude=get_bufr_value(ibufr, "latitude"),

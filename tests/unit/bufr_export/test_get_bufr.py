@@ -158,7 +158,7 @@ class TestGetBufrVariablesTestCase(TestCase):
             timestamp=timestamp,
             relativeHumidity=data.rh_i,
             airTemperature=data.t_i + 273.15,
-            pressure=100310,
+            nonCoordinatePressure=100310,
             windDirection=data.wdir_i,
             windSpeed=data.wspd_i,
             latitude=data.gps_lat_fit,
@@ -222,7 +222,7 @@ class TestGetBufrVariablesTestCase(TestCase):
             timestamp=timestamp,
             relativeHumidity=1.0,
             airTemperature=252.15,  # Converted to kelvin
-            pressure=199300.0,
+            nonCoordinatePressure=199300.0,
             windDirection=32.0,
             windSpeed=5.3,
             latitude=66.0,
