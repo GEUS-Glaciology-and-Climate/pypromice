@@ -102,7 +102,7 @@ def process_files(base_dir: str, csv_file_path: str, data_type: str) -> pd.DataF
     rows = []
 
     # Read existing metadata if the CSV file exists
-    if os.path.exists(csv_file_path):
+    if os.path.exists(csv_file_path) and os.path.getsize(csv_file_path) > 0:
         logger.info("Updating " + str(csv_file_path))
         existing_metadata_df = pd.read_csv(csv_file_path, index_col=label_s_id)
     else:
