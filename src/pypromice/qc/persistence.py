@@ -82,7 +82,7 @@ def persistence_qc(
     if variable_thresholds is None:
         variable_thresholds = DEFAULT_VARIABLE_THRESHOLDS
 
-    logger.info(f"Running persistence_qc using {variable_thresholds}")
+    logger.debug(f"Running persistence_qc using {variable_thresholds}")
 
     for k in variable_thresholds.keys():
         if k in ["t", "p", "rh", "wspd", "wdir", "z_boom"]:

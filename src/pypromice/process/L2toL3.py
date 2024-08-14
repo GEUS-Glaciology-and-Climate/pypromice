@@ -105,7 +105,11 @@ def toL3(L2, station_config={}, T_0=273.15):
         ds[var.replace('gps_','')] = ('time', gps_coordinate_postprocessing(ds, var, station_config))
         
     # processing continuous surface height, ice surface height, snow height
-    ds = process_surface_height(ds, station_config)
+    try:
+        ds = process_surface_height(ds, station_config)
+    except Exception as e:
+        logger.error("Error processing surface height at %s"%station_config['stid'])
+        logging.error(e, exc_info=True)
     
     # making sure dataset has the attributes contained in the config files
     ds.attrs['project'] = station_config['project']
@@ -168,28 +172,36 @@ def process_surface_height(ds, station_config={}):
 
     # Convert to dataframe and combine surface height variables
     df_in = ds[[v for v in ['z_surf_1', 'z_surf_2', 'z_ice_surf'] if v in ds.data_vars]].to_dataframe()
+
     (ds['z_surf_combined'], ds['z_ice_surf'],
-         ds['z_surf_1_adj'], ds['z_surf_2_adj'])= combine_surface_height(df_in, ds.attrs['site_type'])
+     ds['z_surf_1_adj'], ds['z_surf_2_adj']) = combine_surface_height(df_in, ds.attrs['site_type'])
+        
 
     if ds.attrs['site_type'] == 'ablation':
         # Calculate rolling minimum for ice surface height and snow height
-        ts_interpolated = np.minimum(xr.where(ds.z_ice_surf.notnull(),ds.z_ice_surf,ds.z_surf_combined),
-                                     ds.z_surf_combined).to_series().resample('H').interpolate(limit=72)
-        
-        # Apply the rolling window with median calculation
-        z_ice_surf = (ts_interpolated
-                      .rolling('14D', center=True, min_periods=1)
-                      .median())
-        
-        # Overprint the first and last 7 days with interpolated values
-        # because of edge effect of rolling windows
-        z_ice_surf.iloc[:24*7] = (ts_interpolated.iloc[:24*7]
-                                  .rolling('1D', center=True, min_periods=1)
-                                  .median().values)
-        z_ice_surf.iloc[-24*7:] = (ts_interpolated.iloc[-24*7:]
-                                   .rolling('1D', center=True, min_periods=1)
-                                   .median().values)
-        
+        ts_interpolated = np.minimum(
+            xr.where(ds.z_ice_surf.notnull(),
+                     ds.z_ice_surf,ds.z_surf_combined),
+            ds.z_surf_combined).to_series().resample('H').interpolate(limit=72)
+
+        if len(ts_interpolated)>24*7:
+            # Apply the rolling window with median calculation
+            z_ice_surf = (ts_interpolated
+                          .rolling('14D', center=True, min_periods=1)
+                          .median())
+            # Overprint the first and last 7 days with interpolated values
+            # because of edge effect of rolling windows
+            z_ice_surf.iloc[:24*7] = (ts_interpolated.iloc[:24*7]
+                                      .rolling('1D', center=True, min_periods=1)
+                                      .median().values)
+            z_ice_surf.iloc[-24*7:] = (ts_interpolated.iloc[-24*7:]
+                                       .rolling('1D', center=True, min_periods=1)
+                                       .median().values)
+        else:
+            z_ice_surf = (ts_interpolated
+                                       .rolling('1D', center=True, min_periods=1)
+                                       .median())
+            
         z_ice_surf = z_ice_surf.loc[ds.time]
         # here we make sure that the periods where both z_stake and z_pt are
         # missing are also missing in z_ice_surf

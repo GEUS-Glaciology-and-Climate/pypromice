@@ -32,6 +32,9 @@ def prepare_and_write(dataset, outpath, vars_df=None, meta_dict=None, time='60mi
     if resample:
         d2 = resample_dataset(dataset, time)
         logger.info('Resampling to '+str(time))
+        if len(d2.time) == 1:
+            logger.warning('Output of resample has length 1. Not enough data to calculate daily/monthly average.')
+            return None
     else:
         d2 = dataset.copy()
         
@@ -275,17 +278,17 @@ def addMeta(ds, meta):
     # https://wiki.esipfed.org/Attribute_Convention_for_Data_Discovery_1-3
     
     # Determine the temporal resolution
-    time_diff = pd.Timedelta((ds['time'][1] - ds['time'][0]).values)
-    if time_diff == pd.Timedelta('10min'):
-        sample_rate  = "10min"
-    elif time_diff == pd.Timedelta('1H'):
-        sample_rate  = "hourly"
-    elif time_diff == pd.Timedelta('1D'):
-        sample_rate  = "daily"
-    elif  28 <= time_diff.days <= 31:
-        sample_rate  = "monthly"
-    else:
-        sample_rate  = "unknown_sample_rate"
+    sample_rate  = "unknown_sample_rate"
+    if len(ds['time'])>1:
+        time_diff = pd.Timedelta((ds['time'][1] - ds['time'][0]).values)
+        if time_diff == pd.Timedelta('10min'):
+            sample_rate  = "10min"
+        elif time_diff == pd.Timedelta('1H'):
+            sample_rate  = "hourly"
+        elif time_diff == pd.Timedelta('1D'):
+            sample_rate  = "daily"
+        elif  28 <= time_diff.days <= 31:
+            sample_rate  = "monthly"
         
     if 'station_id' in ds.attrs.keys():
         ds.attrs['id'] = 'dk.geus.promice.station.' + ds.attrs['station_id']+'.'+sample_rate

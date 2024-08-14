@@ -50,8 +50,21 @@ def get_l2tol3(config_folder, inpath, outpath, variables, metadata):
     
     # importing station_config (dict) from config_folder (str path)
     config_file = config_folder+l2.attrs['station_id']+'.toml'
-    with open(config_file) as fp:
-        station_config = toml.load(fp)
+
+    if os.path.exists(config_file):
+        # File exists, load the configuration
+        with open(config_file) as fp:
+            station_config = toml.load(fp)
+    else:
+        # File does not exist, initialize with standard info 
+        # this was prefered by RSF over exiting with error
+        logger.error("\n***\nNo station_configuration file for %s.\nPlease create one on AWS-L0/metadata/station_configurations.\n***"%l2.attrs['station_id'])
+        station_config = {"stid":l2.attrs['station_id'],
+                        "station_site":l2.attrs['station_id'],
+                        "project": "PROMICE",
+                        "location_type": "ice sheet",
+                        }
+                        
     # Perform Level 3 processing
     l3 = toL3(l2, station_config)
 

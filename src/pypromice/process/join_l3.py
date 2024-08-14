@@ -154,12 +154,15 @@ def loadArr(infile, isNead):
 
 def align_surface_heights(data_series_new, data_series_old):
     """
-    Align two surface height time series based on the gap between their end and start.
+    Align two surface height time series based on the gap between their end and
+    start.
 
-    If the gap between the end of `data_series_old` and the start of `data_series_new` is less than a week,
-    the function aligns them based on the median value of the last week of `data_series_old` and the first
-    week of `data_series_new`. If the gap is larger than a week, it aligns them using a linear fit.
-    If there is overlap, the function uses the overlapping period to adjust the newer time series.
+    If the gap between the end of `data_series_old` and the start of `data_series_new` 
+    is less than a week, the function aligns them based on the median value of 
+    the last week of `data_series_old` and the first week of `data_series_new`. 
+    If the gap is larger than a week, it aligns them using a linear fit. If 
+    there is overlap, the function uses the overlapping period to adjust the 
+    newer time series.
 
     Parameters
     ----------
@@ -181,15 +184,22 @@ def align_surface_heights(data_series_new, data_series_old):
     if first_new_idx <= last_old_idx:
         # Find the overlapping period
         overlap_start = first_new_idx
-        overlap_end = min(last_old_idx, data_series_new.last_valid_index())
+        overlap_end = min(last_old_idx, overlap_start+pd.to_timedelta('7D'))
         
         # Compute the median values for the overlapping period
         overlap_old = data_series_old[overlap_start:overlap_end].median()
         overlap_new = data_series_new[overlap_start:overlap_end].median()
         
+        if np.isnan(overlap_old) or np.isnan(overlap_new):
+            overlap_end = min(last_old_idx, data_series_new.last_valid_index())
+            
+            # Compute the median values for the overlapping period
+            overlap_old = data_series_old[overlap_start:overlap_end].median()
+            overlap_new = data_series_new[overlap_start:overlap_end].median()
+                    
         # Align based on the overlapping median values
         data_series_new = data_series_new - overlap_new + overlap_old
-
+        
     elif (first_new_idx - last_old_idx).days <= 7:
         # Compute the median of the last week of data in the old series
         last_week_old = data_series_old[last_old_idx - pd.Timedelta(weeks=1):last_old_idx].median()
@@ -232,6 +242,7 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
     """
     station_info_list = []  # Initialize an empty list to store station information
     
+    found_as_station = False
     for filename in os.listdir(config_folder):
         if filename.endswith(".toml"):
             file_path = os.path.join(config_folder, filename)
@@ -242,10 +253,25 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
                 stid = data.get("stid")  # Get the station ID
                 
                 # Check if the station site matches the target and stid is unique
+                if stid == target_station_site:
+                    found_as_station = True
                 if station_site == target_station_site and stid:
                     station_info = data.copy()  # Copy all attributes from the TOML file
                     station_info_list.append(station_info)  # Add the station info to the list
     
+                    
+    if len(station_info_list)==0 and not found_as_station:
+        logger.error('\n***\nNo station_configuration file found for %s.\nProcessing it as a single-station PROMICE site.\n***'%target_station_site)
+        station_info = {
+            "stid": target_station_site,
+            "station_site": target_station_site,
+            "project": "PROMICE",
+            "location_type": "ice sheet",
+                        }
+        station_info_list.append(station_info)
+    elif len(station_info_list)==0 :
+        logger.error('\n***\nThe name \"%s\" passed to join_l3 is a station name and not a site name (e.g. SCO_Lv3 instead of SCO_L). Please provide a site name that is named at least once in the "station_site" attribute of the station configuration files.\n***'%target_station_site)
+        
     return station_info_list
 
 def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, metadata):
@@ -264,7 +290,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             filepath = os.path.join(folder_gcnet, stid+'.csv')
             isNead = True
         if not os.path.isfile(filepath):
-            logger.info(stid+' was listed as station but could not be found in '+folder_l3+' nor '+folder_gcnet)
+            logger.error('\n***\n'+stid+' was listed as station but could not be found in '+folder_l3+' nor '+folder_gcnet+'\n***')
             continue
 
         l3, _ = loadArr(filepath, isNead)    
@@ -283,6 +309,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
     logger.info('joining %s' % ' '.join(sorted_stids))
     
     l3_merged = None
+
     for l3, station_info in sorted_list_station_data:
         stid = station_info["stid"]
         
@@ -346,7 +373,8 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
 
     # Assign site id
     if not l3_merged:
-        logger.error('No level 2 data file found for '+site)
+        logger.error('No level 3 station data file found for '+site)
+        return None, sorted_list_station_data
     l3_merged.attrs['site_id'] = site
     l3_merged.attrs['stations'] = ' '.join(sorted_stids)
     l3_merged.attrs['level'] = 'L3'
