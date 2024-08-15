@@ -2,6 +2,7 @@ station_id = 'TEST2'
 logger_type = 'CR1000X'
 nodata     = ['-999', 'NAN'] # if one is a string, all must be strings
 number_of_booms = 2
+site_type = 'accumulation'
 
 ['test_raw_transmitted2.txt']
 format     = 'TX'
