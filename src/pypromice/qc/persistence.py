@@ -81,8 +81,9 @@ def persistence_qc(
 
     if variable_thresholds is None:
         variable_thresholds = DEFAULT_VARIABLE_THRESHOLDS
-
-    logger.debug(f"Running persistence_qc using {variable_thresholds}")
+        logger.debug(f"Running persistence_qc using {variable_thresholds}")
+    else:
+        logger.info(f"Running persistence_qc using custom thresholds:\n {variable_thresholds}")    
 
     for k in variable_thresholds.keys():
         if k in ["t", "p", "rh", "wspd", "wdir", "z_boom"]:
@@ -180,9 +181,7 @@ def get_duration_consecutive_true(
 
     """
     is_first = series.astype("int").diff() == 1
-    delta_time = (series.index.diff().total_seconds() / 3600).to_series(
-        index=series.index
-    )
+    delta_time = (series.index.to_series().diff().dt.total_seconds() / 3600)
     cumsum = delta_time.cumsum()
     offset = (is_first * (cumsum - delta_time)).replace(0, np.nan).ffill().fillna(0)
 
