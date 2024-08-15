@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   
 jobs:
-  build:
+  test:
     name: unit_test
     runs-on: ubuntu-latest
     strategy:
@@ -19,6 +19,9 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install eccodes
+        run : |
+          sudo apt-get install -y libeccodes-dev
       - name: Install dependencies
         shell: bash
         run: |
@@ -30,4 +33,4 @@ jobs:
       - name: Run unit tests
         shell: bash
         run: |
-          python3 -m unittest discover tests.e2e
+          python3 -m unittest discover tests

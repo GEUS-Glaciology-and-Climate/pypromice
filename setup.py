@@ -33,7 +33,7 @@ setuptools.setup(
     package_data={
     	"pypromice.tx": ["payload_formats.csv", "payload_types.csv"],
         "pypromice.qc.percentiles": ["thresholds.csv"],
-        "pypromice.postprocess": ["station_configurations.toml", "positions_seed.csv"],
+        "pypromice.postprocess": ["positions_seed.csv"],
     },
     install_requires=['numpy~=1.23', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'Bottleneck', 'netcdf4', 'pyDataverse==0.3.1', 'eccodes', 'scikit-learn>=1.1.0'],
 #    extras_require={'postprocess': ['eccodes','scikit-learn>=1.1.0']},
@@ -48,6 +48,8 @@ setuptools.setup(
         'make_metadata_csv = pypromice.postprocess.make_metadata_csv:main',
         'get_watsontx = pypromice.tx.get_watsontx:get_watsontx',
         'get_bufr = pypromice.postprocess.get_bufr:main',
+        'create_bufr_files = pypromice.postprocess.create_bufr_files:main',
+        'bufr_to_csv = pypromice.postprocess.bufr_to_csv:main',
         'get_msg = pypromice.tx.get_msg:get_msg'
     ],
 },

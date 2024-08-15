@@ -7,7 +7,7 @@ This includes:
 
 """
 import logging
-from typing import Optional
+from typing import Optional, Collection
 
 import numpy as np
 import pandas as pd
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 def get_latest_data(
     df: pd.DataFrame,
     lin_reg_time_limit: str,
+    vars_to_skip: Optional[Collection[str]] = None,
 ) -> Optional[pd.Series]:
     """
     Determine instantaneous values for the latest valid timestamp in the input dataframe
@@ -66,6 +67,10 @@ def get_latest_data(
         lin_reg_time_limit,
     )
 
+    if last_valid_index not in df_limited.index:
+        logger.info("No valid data limited period")
+        return None
+
     # Apply smoothing to z_boom_u
     # require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
     df_limited = rolling_window(df_limited, "z_boom_u", "72h", 2, 1)
@@ -73,7 +78,34 @@ def get_latest_data(
     # limit to single most recent valid row (convert to series)
     s_current = df_limited.loc[last_valid_index]
 
+    if vars_to_skip is not None:
+        s_current = filter_skipped_variables(s_current, vars_to_skip)
+
     return s_current
+
+
+def filter_skipped_variables(
+    row: pd.Series, vars_to_skip: Collection[str]
+) -> pd.Series:
+    """
+    Mutate input series by setting var_to_skip to np.nan
+
+    Parameters
+    ----------
+    row
+    vars_to_skip
+        List of variable names to be skipped
+
+    Returns
+    -------
+    Input series
+
+    """
+    vars_to_skip = set(row.keys()) & set(vars_to_skip)
+    for var_key in vars_to_skip:
+        row[var_key] = np.nan
+        logger.info("----> Skipping var: {}".format(var_key))
+    return row
 
 
 def rolling_window(df, column, window, min_periods, decimals) -> pd.DataFrame:
@@ -145,9 +177,9 @@ def find_positions(df, time_limit):
     logger.info(f"last transmission: {df_limited.index.max()}")
 
     # Extrapolate recommended for altitude, optional for lat and lon.
-    df_limited, lat_valid = linear_fit(df_limited, "gps_lat", 6)
-    df_limited, lon_valid = linear_fit(df_limited, "gps_lon", 6)
-    df_limited, alt_valid = linear_fit(df_limited, "gps_alt", 1)
+    df_limited, lat_valid = linear_fit(df_limited, "gps_lat", 7)
+    df_limited, lon_valid = linear_fit(df_limited, "gps_lon", 7)
+    df_limited, alt_valid = linear_fit(df_limited, "gps_alt", 4)
 
     # If we have no valid lat, lon or alt data in the df_limited window, then interpolate
     # using full tx dataset.
@@ -158,17 +190,15 @@ def find_positions(df, time_limit):
             logger.info(f"----> Using full history for linear extrapolation: {k}")
             logger.info(f"first transmission: {df.index.min()}")
             if k == "gps_alt":
-                df, valid = linear_fit(df, k, 1)
+                df, valid = linear_fit(df, k, 2)
             else:
-                df, valid = linear_fit(df, k, 6)
+                df, valid = linear_fit(df, k, 7)
             check_valid_again[k] = valid
             if check_valid_again[k] is True:
                 df_limited[f"{k}_fit"] = df.loc[df_limited.index, f"{k}_fit"]
             else:
                 logger.info(f"----> No data exists for {k}. Stubbing out with NaN.")
-                df_limited[f"{k}_fit"] = pd.Series(
-                    np.nan, index=df_limited.index
-                )
+                df_limited[f"{k}_fit"] = pd.Series(np.nan, index=df_limited.index)
 
     return df_limited
 
