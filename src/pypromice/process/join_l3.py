@@ -304,7 +304,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
         list_station_data.append((l3, station_info))
 
     # Sort the list in reverse chronological order so that we start with the latest data
-    sorted_list_station_data = sorted(list_station_data, key=lambda x: x[0].time.max(), reverse=True)
+    sorted_list_station_data = sorted(list_station_data, key=lambda x: x[0].time.min(), reverse=True)
     sorted_stids = [info["stid"] for _, info in sorted_list_station_data]
     logger.info('joining %s' % ' '.join(sorted_stids))
     
@@ -360,8 +360,9 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             # adjusting surface height in the most recent data (l3_merged)
             # so that it shows continuity with the older data (l3)
             l3_merged['z_surf_combined'] = ('time', 
-                                            align_surface_heights(l3_merged.z_surf_combined.to_series(), 
-                                                                    l3.z_surf_combined.to_series())
+                                        align_surface_heights(
+                                            l3_merged.z_surf_combined.to_series(), 
+                                            l3.z_surf_combined.to_series())
                                             )
 
             # merging by time block
