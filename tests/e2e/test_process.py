@@ -20,20 +20,20 @@ TEST_CONFIG_PATH = TEST_DATA_ROOT_PATH / "test_config1.toml"
 
 class TestProcess(unittest.TestCase):
 
-    def get_vars(self):
+    def test_get_vars(self):
         '''Test variable table lookup retrieval'''
         v = getVars()
         self.assertIsInstance(v, pd.DataFrame)
         self.assertTrue(v.columns[0] in 'standard_name')
         self.assertTrue(v.columns[2] in 'units')
 
-    def get_meta(self):
+    def test_get_meta(self):
         '''Test AWS names retrieval'''
         m = getMeta()
         self.assertIsInstance(m, dict)
         self.assertTrue('references' in m)
 
-    def add_all(self):
+    def test_add_all(self):
         '''Test variable and metadata attributes added to Dataset'''
         d = xr.Dataset()
         v = getVars()
@@ -53,7 +53,7 @@ class TestProcess(unittest.TestCase):
         self.assertTrue(d.attrs['station_id']=='TEST')
         self.assertIsInstance(d.attrs['references'], str)
 
-    def l0_to_l3(self):
+    def test_l0_to_l3(self):
         '''Test L0 to L3 processing'''
         pAWS = AWS(TEST_CONFIG_PATH.as_posix(), TEST_DATA_ROOT_PATH.as_posix())
         pAWS.process()
@@ -65,17 +65,17 @@ class TestProcess(unittest.TestCase):
         exit_status = os.system('get_l2 -h')
         self.assertEqual(exit_status, 0)
         
-    def join_l2_cli(self):
+    def test_join_l2_cli(self):
         '''Test join_l2 CLI'''
         exit_status = os.system('join_l2 -h')
         self.assertEqual(exit_status, 0)
         
-    def l2_to_l3_cli(self):
+    def test_l2_to_l3_cli(self):
         '''Test get_l2tol3 CLI'''
         exit_status = os.system('get_l2tol3 -h')
         self.assertEqual(exit_status, 0)
         
-    def join_l3_cli(self):
+    def test_join_l3_cli(self):
         '''Test join_l3 CLI'''
         exit_status = os.system('join_l3 -h')
         self.assertEqual(exit_status, 0)
