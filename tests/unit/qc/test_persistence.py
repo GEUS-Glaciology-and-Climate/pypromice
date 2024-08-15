@@ -23,10 +23,10 @@ class PersistenceQATestCase(unittest.TestCase):
             start="2023-01-26", end="2023-01-27", freq="h", tz="utc", inclusive="left"
         )
         input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
-        input_series[index + 1] = input_series[index]
+        input_series.iloc[index + 1] = input_series.iloc[index]
         min_repeats = 1
         expected_output = input_series.map(lambda _: False)
-        expected_output[index + 1] = True
+        expected_output.iloc[index + 1] = True
 
         persistent_mask = find_persistent_regions(
             input_series, min_repeats=min_repeats, max_diff=0.001
@@ -62,7 +62,7 @@ class PersistenceQATestCase(unittest.TestCase):
         expected_filter_start = 27
         expected_filter_end = 33
         input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
-        input_series[index_start:index_end] = input_series[index_start]
+        input_series.iloc[index_start:index_end] = input_series.iloc[index_start]
         expected_output = input_series.map(lambda _: False)
         expected_output[expected_filter_start:expected_filter_end] = True
 
@@ -82,7 +82,7 @@ class PersistenceQATestCase(unittest.TestCase):
         index_end = 27
         min_repeats = 10
         input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
-        input_series[index_start:index_end] = input_series[index_start]
+        input_series.iloc[index_start:index_end] = input_series.iloc[index_start]
         expected_output = input_series.map(lambda _: False)
 
         persistent_mask = find_persistent_regions(
@@ -101,7 +101,7 @@ class PersistenceQATestCase(unittest.TestCase):
         min_repeats = 4
         expected_filter_start = 27
         input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
-        input_series[index_start:] = input_series[index_start]
+        input_series.iloc[index_start:] = input_series.iloc[index_start]
         expected_output = input_series.map(lambda _: False)
         expected_output[expected_filter_start:] = True
 
@@ -121,10 +121,10 @@ class PersistenceQATestCase(unittest.TestCase):
             index=time_range, data=np.zeros_like(time_range, dtype="float")
         )
         min_repeats = 4
-        input_series[:] = np.nan
-        input_series[9] = -11
-        input_series[10:12] = -10
-        input_series[15] = -9
+        input_series.iloc[:] = np.nan
+        input_series.iloc[9] = -11
+        input_series.iloc[10:12] = -10
+        input_series.iloc[15] = -9
         # There are >=4 repeats if the nan values are forward filled. [10:15] == -10
         # The output mask shouldn't filter nan values.
         expected_output = input_series.map(lambda _: False)

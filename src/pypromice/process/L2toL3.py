@@ -100,7 +100,9 @@ def toL3(L2, station_config={}, T_0=273.15):
         else:
             logger.info('t_l, p_l or rh_l_cor missing, cannot calulate tubrulent heat fluxes')
 
-    # Smoothing and inter/extrapolation of GPS coordinates
+    if len(station_config)==0:
+        logger.warning('\n***\nThe station configuration file is missing or improperly passed to pypromice. Some processing steps might fail.\n***\n')
+    # Smoothing and inter/extrapolation of GPS coordinates       
     for var in ['gps_lat', 'gps_lon', 'gps_alt']:
         ds[var.replace('gps_','')] = ('time', gps_coordinate_postprocessing(ds, var, station_config))
         
@@ -108,12 +110,21 @@ def toL3(L2, station_config={}, T_0=273.15):
     try:
         ds = process_surface_height(ds, station_config)
     except Exception as e:
-        logger.error("Error processing surface height at %s"%station_config['stid'])
+        logger.error("Error processing surface height at %s"%L2.attrs['station_id'])
         logging.error(e, exc_info=True)
     
     # making sure dataset has the attributes contained in the config files
-    ds.attrs['project'] = station_config['project']
-    ds.attrs['location_type'] = station_config['location_type']
+    if 'project' in station_config.keys():
+        ds.attrs['project'] = station_config['project']
+    else:
+        logger.error('No project info in station_config. Using \"PROMICE\".')
+        ds.attrs['project'] = "PROMICE"
+        
+    if 'location_type' in station_config.keys():
+        ds.attrs['location_type'] = station_config['location_type']
+    else:
+        logger.error('No project info in station_config. Using \"ice sheet\".')
+        ds.attrs['location_type'] = "ice sheet"
     
     return ds
 

@@ -68,7 +68,7 @@ def get_latest_data(
 
     # Apply smoothing to z_boom_u
     # require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
-    df_limited = rolling_window(df_limited, "z_boom_u", "72H", 2, 1)
+    df_limited = rolling_window(df_limited, "z_boom_u", "72h", 2, 1)
 
     # limit to single most recent valid row (convert to series)
     s_current = df_limited.loc[last_valid_index]
