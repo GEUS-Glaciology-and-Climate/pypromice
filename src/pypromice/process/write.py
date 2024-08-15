@@ -283,7 +283,7 @@ def addMeta(ds, meta):
         time_diff = pd.Timedelta((ds['time'][1] - ds['time'][0]).values)
         if time_diff == pd.Timedelta('10min'):
             sample_rate  = "10min"
-        elif time_diff == pd.Timedelta('1H'):
+        elif time_diff == pd.Timedelta('1h'):
             sample_rate  = "hourly"
         elif time_diff == pd.Timedelta('1D'):
             sample_rate  = "daily"

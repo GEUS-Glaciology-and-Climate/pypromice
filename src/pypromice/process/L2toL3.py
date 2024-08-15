@@ -102,6 +102,7 @@ def toL3(L2, station_config={}, T_0=273.15):
 
     if len(station_config)==0:
         logger.warning('\n***\nThe station configuration file is missing or improperly passed to pypromice. Some processing steps might fail.\n***\n')
+    
     # Smoothing and inter/extrapolation of GPS coordinates       
     for var in ['gps_lat', 'gps_lon', 'gps_alt']:
         ds[var.replace('gps_','')] = ('time', gps_coordinate_postprocessing(ds, var, station_config))
@@ -193,7 +194,7 @@ def process_surface_height(ds, station_config={}):
         ts_interpolated = np.minimum(
             xr.where(ds.z_ice_surf.notnull(),
                      ds.z_ice_surf,ds.z_surf_combined),
-            ds.z_surf_combined).to_series().resample('H').interpolate(limit=72)
+            ds.z_surf_combined).to_series().resample('h').interpolate(limit=72)
 
         if len(ts_interpolated)>24*7:
             # Apply the rolling window with median calculation
@@ -337,7 +338,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         # meaning when smoothed_z_pt.diff() < threshold_ablation 
         # first smoothing
         smoothed_PT =  (df['z_ice_surf']
-                        .resample('H')
+                        .resample('h')
                         .interpolate(limit=72)
                         .rolling('14D',center=True, min_periods=1)
                         .mean())

@@ -64,7 +64,7 @@ class PersistenceQATestCase(unittest.TestCase):
         input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
         input_series.iloc[index_start:index_end] = input_series.iloc[index_start]
         expected_output = input_series.map(lambda _: False)
-        expected_output[expected_filter_start:expected_filter_end] = True
+        expected_output.iloc[expected_filter_start:expected_filter_end] = True
 
         persistent_mask = find_persistent_regions(
             input_series, min_repeats=min_repeats, max_diff=0.001
@@ -175,19 +175,19 @@ class PersistenceQATestCase(unittest.TestCase):
             np.isnan(duration_consecutive_true[0]), "The first index should be ignored"
         )
         np.testing.assert_almost_equal(
-            duration_consecutive_true[1],
+            duration_consecutive_true.iloc[1],
             delta_time_hours[1],
         )
         np.testing.assert_almost_equal(
-            duration_consecutive_true[6],
+            duration_consecutive_true.iloc[6],
             delta_time_hours[6],
         )
         np.testing.assert_almost_equal(
-            duration_consecutive_true[10:14],
+            duration_consecutive_true.iloc[10:14],
             delta_time_hours[10:14].cumsum(),
         )
         np.testing.assert_almost_equal(
-            duration_consecutive_true[-3:],
+            duration_consecutive_true.iloc[-3:],
             delta_time_hours[-3:].cumsum(),
         )
 

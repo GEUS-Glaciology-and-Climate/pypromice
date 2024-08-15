@@ -47,7 +47,7 @@ def create_bufr_files(
         Suffix for the compiled output file
 
     """
-    periods = pd.date_range(period_start, period_end, freq="H")
+    periods = pd.date_range(period_start, period_end, freq="h")
     output_individual_root = output_root / "individual"
     output_compiled_root = output_root / "compiled"
     output_individual_root.mkdir(parents=True, exist_ok=True)
