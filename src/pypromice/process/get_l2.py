@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 import logging, os, sys, unittest
 from argparse import ArgumentParser
-import pypromice
 from pypromice.process.aws import AWS
-from pypromice.process.load import getVars, getMeta
 from pypromice.process.write import prepare_and_write
 
 def parse_arguments_l2():
@@ -23,7 +21,7 @@ def parse_arguments_l2():
     return args
 
 
-def get_l2(config_file, inpath, outpath, variables, metadata):
+def get_l2(config_file, inpath, outpath, variables, metadata) -> AWS:
     logging.basicConfig(
         format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
         level=logging.INFO,
@@ -40,17 +38,16 @@ def get_l2(config_file, inpath, outpath, variables, metadata):
 
     # Perform level 1 and 2 processing
     aws.getL1()
-    aws.getL2() 
-    v = getVars(variables)
-    m = getMeta(metadata)
+    aws.getL2()
     # Write out level 2
     if outpath is not None:
         if not os.path.isdir(outpath):
             os.mkdir(outpath)
         if aws.L2.attrs['format'] == 'raw':
-            prepare_and_write(aws.L2, outpath, v, m, '10min')
-        prepare_and_write(aws.L2, outpath, v, m, '60min')
+            prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '10min')
+        prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '60min')
     return aws
+
 
 def main():
     args = parse_arguments_l2()
