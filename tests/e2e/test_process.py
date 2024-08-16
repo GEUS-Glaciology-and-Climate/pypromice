@@ -6,7 +6,7 @@ Processing test module
 from pathlib import Path
 
 from pypromice.process.aws import AWS
-from pypromice.process.load import getVars, getMeta
+import pypromice.resources
 from pypromice.process.write import addVars, addMeta
 import xarray as xr
 import pandas as pd
@@ -22,21 +22,21 @@ class TestProcess(unittest.TestCase):
 
     def test_get_vars(self):
         '''Test variable table lookup retrieval'''
-        v = getVars()
+        v = pypromice.resources.load_variables()
         self.assertIsInstance(v, pd.DataFrame)
         self.assertTrue(v.columns[0] in 'standard_name')
         self.assertTrue(v.columns[2] in 'units')
 
     def test_get_meta(self):
         '''Test AWS names retrieval'''
-        m = getMeta()
+        m = pypromice.resources.load_metadata()
         self.assertIsInstance(m, dict)
         self.assertTrue('references' in m)
 
     def test_add_all(self):
         '''Test variable and metadata attributes added to Dataset'''
         d = xr.Dataset()
-        v = getVars()
+        v = pypromice.resources.load_variables()
         att = list(v.index)
         att1 = ['gps_lon', 'gps_lat', 'gps_alt', 'albedo', 'p']
         for a in att:
@@ -47,7 +47,7 @@ class TestProcess(unittest.TestCase):
                      datetime.datetime.now()-timedelta(days=365)]
         d.attrs['station_id']='TEST'
         d.attrs['level']='L2_test'
-        meta = getMeta()
+        meta = pypromice.resources.load_metadata()
         d = addVars(d, v)
         d = addMeta(d, meta)
         self.assertTrue(d.attrs['station_id']=='TEST')

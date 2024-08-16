@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-import os, logging, sys, toml
+import logging, sys, toml
 import xarray as xr
 from argparse import ArgumentParser
 import pypromice
 from pypromice.process.L2toL3 import toL3
-from pypromice.process.load import getVars, getMeta
+import pypromice.resources
 from pypromice.process.write import prepare_and_write
 logger = logging.getLogger(__name__)
 
@@ -69,8 +69,8 @@ def get_l2tol3(config_folder, inpath, outpath, variables, metadata):
     l3 = toL3(l2, station_config)
 
     # Write Level 3 dataset to file if output directory given
-    v = getVars(variables)
-    m = getMeta(metadata)
+    v = pypromice.resources.load_variables(variables)
+    m = pypromice.resources.load_metadata(metadata)
     if outpath is not None:
         prepare_and_write(l3, outpath, v, m, '60min')
         prepare_and_write(l3, outpath, v, m, '1D')
