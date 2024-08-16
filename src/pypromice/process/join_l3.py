@@ -210,17 +210,24 @@ def align_surface_heights(data_series_new, data_series_old):
         # Align based on the median values
         data_series_new = data_series_new - first_week_new + last_week_old
     else:
-        # Perform a linear fit
-        combined_series = pd.concat([data_series_old, data_series_new])
+        # Perform a linear fit on the last 5x365x24 non-nan values
+        hours_in_5_years = 5 * 365 * 24
+        
+        # Drop NaN values and extract the last `hours_in_5_years` non-NaN data points
+        data_series_old_nonan = data_series_old.dropna()
+        data_series_old_last_5_years = data_series_old_nonan.iloc[
+            -min(len(data_series_old), hours_in_5_years):]
+        
+        # Perform a linear fit on the last 5 years of data
         fit = np.polyfit(
-            combined_series.dropna().index.astype('int64'),  
-            combined_series.dropna().values, 1
+            data_series_old_last_5_years.index.astype('int64'),  
+            data_series_old_last_5_years.values, 1
         )
         fit_fn = np.poly1d(fit)
         
         data_series_new = data_series_new.values \
-                        - fit_fn(data_series_new.index.astype('int64')[0]) \
-                        + data_series_old[last_old_idx]
+                        + fit_fn(data_series_new.index.astype('int64')[0]) \
+                        - data_series_new[first_new_idx]
     
     return data_series_new
 
@@ -359,11 +366,20 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             
             # adjusting surface height in the most recent data (l3_merged)
             # so that it shows continuity with the older data (l3)
-            l3_merged['z_surf_combined'] = ('time', 
-                                        align_surface_heights(
-                                            l3_merged.z_surf_combined.to_series(), 
-                                            l3.z_surf_combined.to_series())
-                                            )
+            if 'z_surf_combined' in l3_merged.keys() and 'z_surf_combined' in l3.keys(): 
+                if l3_merged.z_surf_combined.notnull().any() and l3.z_surf_combined.notnull().any(): 
+                    l3_merged['z_surf_combined'] = ('time', 
+                                                align_surface_heights(
+                                                    l3_merged.z_surf_combined.to_series(), 
+                                                    l3.z_surf_combined.to_series())
+                                                    )
+            if 'z_ice_surf' in l3_merged.keys() and 'z_ice_surf' in l3.keys(): 
+                if l3_merged.z_ice_surf.notnull().any() and l3.z_ice_surf.notnull().any(): 
+                    l3_merged['z_ice_surf'] = ('time', 
+                                                align_surface_heights(
+                                                    l3_merged.z_ice_surf.to_series(), 
+                                                    l3.z_ice_surf.to_series())
+                                                    )
 
             # merging by time block
             l3_merged = xr.concat((l3.sel(
