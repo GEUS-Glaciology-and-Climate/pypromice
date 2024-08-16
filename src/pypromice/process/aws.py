@@ -2,29 +2,41 @@
 """
 AWS data processing module
 """
+import json
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import logging, os
+from pathlib import Path
 import pandas as pd
 import xarray as xr
 from functools import reduce
+from importlib import metadata
 
+
+import pypromice.resources
 from pypromice.process.L0toL1 import toL1
 from pypromice.process.L1toL2 import toL2
 from pypromice.process.L2toL3 import toL3
 from pypromice.process import write, load, utilities
 from pypromice.process.resample import resample_dataset
 
-pd.set_option('display.precision', 2)
+pd.set_option("display.precision", 2)
 xr.set_options(keep_attrs=True)
 logger = logging.getLogger(__name__)
 
-class AWS(object):
-    '''AWS object to load and process PROMICE AWS data'''
 
-    def __init__(self, config_file, inpath, var_file=None, meta_file=None):
-        '''Object initialisation
+class AWS(object):
+    """AWS object to load and process PROMICE AWS data"""
+
+    def __init__(
+        self,
+        config_file,
+        inpath,
+        var_file=None,
+        meta_file=None,
+    ):
+        """Object initialisation
 
         Parameters
         ----------
@@ -38,15 +50,15 @@ class AWS(object):
         meta_file: str, optional
             Metadata info file path. If not given then pypromice's
             metadata file is used. The default is None.
-        '''
-        assert(os.path.isfile(config_file)), "cannot find "+config_file
-        assert(os.path.isdir(inpath)), "cannot find "+inpath
-        logger.info('AWS object initialising...')
+        """
+        assert os.path.isfile(config_file), "cannot find " + config_file
+        assert os.path.isdir(inpath), "cannot find " + inpath
+        logger.info("AWS object initialising...")
 
         # Load config, variables CSF standards, and L0 files
         self.config = self.loadConfig(config_file, inpath)
-        self.vars = load.getVars(var_file)
-        self.meta = load.getMeta(meta_file)
+        self.vars = pypromice.resources.load_variables(var_file)
+        self.meta = pypromice.resources.load_metadata(meta_file)
 
         # Load config file
         L0 = self.loadL0()
@@ -61,51 +73,56 @@ class AWS(object):
         self.L3 = None
 
     def process(self):
-        '''Perform L0 to L3 data processing'''
+        """Perform L0 to L3 data processing"""
         try:
             logger.info(f'Commencing {self.L0.attrs["number_of_booms"]}-boom processing...')
+            logger.info(
+                f'Commencing {self.L0.attrs["number_of_booms"]}-boom processing...'
+            )
         except:
-            logger.info(f'Commencing {self.L0[0].attrs["number_of_booms"]}-boom processing...')
+            logger.info(
+                f'Commencing {self.L0[0].attrs["number_of_booms"]}-boom processing...'
+            )
         self.getL1()
         self.getL2()
         self.getL3()
 
     def writeL2(self, outpath):
-        '''Write L2 data to .csv and .nc file'''
+        """Write L2 data to .csv and .nc file"""
         if os.path.isdir(outpath):
             self.writeArr(self.L2, outpath)
         else:
-            logger.info(f'Outpath f{outpath} does not exist. Unable to save to file')
+            logger.info(f"Outpath f{outpath} does not exist. Unable to save to file")
             pass
 
     def writeL3(self, outpath):
-        '''Write L3 data to .csv and .nc file'''
+        """Write L3 data to .csv and .nc file"""
         if os.path.isdir(outpath):
             self.writeArr(self.L3, outpath)
         else:
-            logger.info(f'Outpath f{outpath} does not exist. Unable to save to file')
+            logger.info(f"Outpath f{outpath} does not exist. Unable to save to file")
             pass
-        
+
     def getL1(self):
-        '''Perform L0 to L1 data processing'''
-        logger.info('Level 1 processing...')
+        """Perform L0 to L1 data processing"""
+        logger.info("Level 1 processing...")
         self.L0 = [utilities.addBasicMeta(item, self.vars) for item in self.L0]
         self.L1 = [toL1(item, self.vars) for item in self.L0]
         self.L1A = reduce(xr.Dataset.combine_first, reversed(self.L1))
 
     def getL2(self):
-        '''Perform L1 to L2 data processing'''
-        logger.info('Level 2 processing...')
+        """Perform L1 to L2 data processing"""
+        logger.info("Level 2 processing...")
         self.L2 = toL2(self.L1A, vars_df=self.vars)
 
     def getL3(self):
-        '''Perform L2 to L3 data processing, including resampling and metadata
-        and attribute population'''
-        logger.info('Level 3 processing...')
+        """Perform L2 to L3 data processing, including resampling and metadata
+        and attribute population"""
+        logger.info("Level 3 processing...")
         self.L3 = toL3(self.L2)
 
     def writeArr(self, dataset, outpath, t=None):
-        '''Write L3 data to .nc and .csv hourly and daily files
+        """Write L3 data to .nc and .csv hourly and daily files
 
         Parameters
         ----------
@@ -116,20 +133,18 @@ class AWS(object):
         t : str
             Resampling string. This is automatically defined based
             on the data type if not given. The default is None.
-        '''
+        """
         if t is not None:
             write.prepare_and_write(dataset, outpath, self.vars, self.meta, t)
         else:
-            f = [l.attrs['format'] for l in self.L0]
-            if 'raw' in f or 'STM' in f:
-                write.prepare_and_write(dataset, outpath, self.vars, 
-                                        self.meta, '10min')
+            f = [l.attrs["format"] for l in self.L0]
+            if "raw" in f or "STM" in f:
+                write.prepare_and_write(dataset, outpath, self.vars, self.meta, "10min")
             else:
-                write.prepare_and_write(dataset, outpath, self.vars, 
-                                        self.meta, '60min')
+                write.prepare_and_write(dataset, outpath, self.vars, self.meta, "60min")
 
     def loadConfig(self, config_file, inpath):
-        '''Load configuration from .toml file
+        """Load configuration from .toml file
 
         Parameters
         ----------
@@ -142,7 +157,7 @@ class AWS(object):
         -------
         conf : dict
             Configuration parameters
-        '''
+        """
         conf = load.getConfig(config_file, inpath)
         return conf
 
