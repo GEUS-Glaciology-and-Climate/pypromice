@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-import logging, os, sys, unittest, toml, pkg_resources
+import logging, os, sys, toml
 from argparse import ArgumentParser
-from pypromice.process.load import getVars, getMeta
+import pypromice.resources
 from pypromice.process.write import prepare_and_write
 import numpy as np
 import pandas as pd
@@ -96,7 +96,7 @@ def readNead(infile):
         ds.attrs = meta
         
         # renaming variables
-        file_path = pkg_resources.resource_stream('pypromice', 'resources/variable_aliases_GC-Net.csv')
+        file_path = pypromice.resources.DEFAULT_VARIABLES_ALIASES_GCNET_PATH
         var_name = pd.read_csv(file_path)
         var_name = var_name.set_index('old_name').GEUS_name
         msk = [v for v in var_name.index if v in ds.data_vars]
@@ -398,8 +398,8 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
     l3_merged.attrs['project'] = sorted_list_station_data[0][1]['project']
     l3_merged.attrs['location_type'] = sorted_list_station_data[0][1]['location_type']
     
-    v = getVars(variables)
-    m = getMeta(metadata)
+    v = pypromice.resources.load_variables(variables)
+    m = pypromice.resources.load_metadata(metadata)
     if outpath is not None:
         prepare_and_write(l3_merged, outpath, v, m, '60min')
         prepare_and_write(l3_merged, outpath, v, m, '1D')
