@@ -67,6 +67,16 @@ class AWS(object):
             n = write.getColNames(self.vars, l)
             self.L0.append(utilities.popCols(l, n))
 
+        formats = {dataset.attrs["format"].lower() for dataset in self.L0}
+        if "raw" in formats:
+            self.format = "raw"
+        elif "STM" in formats:
+            self.format = "STM"
+        elif "tx" in formats:
+            self.format = "tx"
+        else:
+            raise ValueError(f"Unknown formats from l0 datasets: {','.join(formats)}")
+
         self.L1 = None
         self.L1A = None
         self.L2 = None
@@ -109,6 +119,7 @@ class AWS(object):
         self.L0 = [utilities.addBasicMeta(item, self.vars) for item in self.L0]
         self.L1 = [toL1(item, self.vars) for item in self.L0]
         self.L1A = reduce(xr.Dataset.combine_first, reversed(self.L1))
+        self.L1A.attrs["format"] = self.format
 
     def getL2(self):
         """Perform L1 to L2 data processing"""
