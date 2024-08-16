@@ -1,0 +1,49 @@
+station_id = 'TEST1'
+logger_type = 'CR1000X'
+nodata     = ['-999', 'NAN'] # if one is a string, all must be strings
+number_of_booms = 1 #1-boom = promice, 2-boom = gc-net
+latitude = 79.91
+longitude = 24.09
+
+['test_raw1.txt']
+format     = 'raw'
+skiprows = 4
+hygroclip_t_offset = 40
+dsr_eng_coef = 14.01
+usr_eng_coef = 12.72
+dlr_eng_coef = 11.08
+ulr_eng_coef = 11.42
+pt_z_coef = 0.39571
+pt_z_p_coef = 1022.5
+pt_z_factor = 2.5
+pt_antifreeze = 50
+boom_azimuth = 0
+columns = ['time','rec','SKIP_3','p_u','t_u','SKIP_6','rh_u','wspd_u','wdir_u','wdir_std_u',
+	'dsr','usr','dlr','ulr','t_rad','z_boom_u','z_boom_q_u','z_stake','z_stake_q','z_pt',
+ 	't_i_1','t_i_2','t_i_3','t_i_4','t_i_5','t_i_6','t_i_7',
+ 	't_i_8','tilt_x','tilt_y','gps_time','gps_lat','gps_lon',
+ 	'gps_alt','gps_geoid','SKIP_36','gps_q','gps_numsat','gps_hdop',
+	't_log','fan_dc_u','batt_v_ini','batt_v']
+
+['test_raw_SlimTableMem1.txt']
+format     = 'STM'
+skiprows = 4
+latitude = 79.83
+longitude = 25.17
+hygroclip_t_offset = 40
+dsr_eng_coef = 12.55
+usr_eng_coef = 12.52
+dlr_eng_coef = 13.73
+ulr_eng_coef = 10.43
+pt_z_coef = 0.4369
+pt_z_p_coef = 1005.9
+pt_z_factor = 2.5
+pt_antifreeze = 50
+boom_azimuth = 0
+columns = ['time','rec','min_y','p_u','t_u','SKIP_6','rh_u','wspd_u','wdir_u',
+ 'wd_std_u','dsr','usr','dlr','ulr','t_rad','z_boom_u',
+ 'z_boom_q_u','z_stake','z_stake_q','z_pt','t_i_1','t_i_2',
+ 't_i_3','t_i_4','t_i_5','t_i_6','t_i_7','t_i_8','tilt_x',
+ 'tilt_y','gps_time','gps_lat','gps_lon','gps_alt',
+ 'gps_geoid','SKIP_36','gps_q','gps_numsats','gps_hdop',
+ 't_log','fan_dc_u','batt_v_ss','batt_v']

@@ -19,7 +19,7 @@ from pypromice.process.L0toL1 import toL1
 from pypromice.process.L1toL2 import toL2
 from pypromice.process.L2toL3 import toL3
 from pypromice.process import write, load, utilities
-from pypromice.process.resample import resample_dataset
+from pypromice.utilities.git import get_commit_hash_and_check_dirty
 
 pd.set_option("display.precision", 2)
 xr.set_options(keep_attrs=True)
@@ -59,6 +59,19 @@ class AWS(object):
         self.config = self.loadConfig(config_file, inpath)
         self.vars = pypromice.resources.load_variables(var_file)
         self.meta = pypromice.resources.load_metadata(meta_file)
+
+        config_hash = get_commit_hash_and_check_dirty(Path(config_file))
+        config_source_string = f"{Path(config_file).name}:{config_hash}"
+        inpath_hash = get_commit_hash_and_check_dirty(Path(inpath))
+        inpath_source_string = f"{Path(inpath).name}:{inpath_hash}"
+
+        source_dict = dict(
+            pypromice = metadata.version("pypromice"),
+            l0_config_file = config_source_string,
+            l0_data_root = inpath_source_string,
+        )
+        self.meta["source"] = json.dumps(source_dict)
+
 
         # Load config file
         L0 = self.loadL0()
