@@ -6,7 +6,6 @@ Module containing all the functions needed to prepare and AWS data
 import datetime
 import logging
 import os
-from importlib import metadata
 
 import numpy as np
 import pandas as pd
@@ -310,20 +309,41 @@ def addMeta(ds, meta):
             sample_rate = "monthly"
 
     if "station_id" in ds.attrs.keys():
-        ds.attrs["id"] = (
-            "dk.geus.promice.station." + ds.attrs["station_id"] + "." + sample_rate
-        )
+        id_components = [
+            "dk",
+            "geus",
+            "promice",
+            "station",
+            ds.attrs["station_id"],
+            ds.attrs["level"],
+            sample_rate,
+        ]
+        ds.attrs["id"] = ".".join(id_components)
     else:
-        ds.attrs["id"] = (
-            "dk.geus.promice.site." + ds.attrs["site_id"] + "." + sample_rate
-        )
+        id_components = [
+            "dk",
+            "geus",
+            "promice",
+            "site",
+            ds.attrs["site_id"],
+            ds.attrs["level"],
+            sample_rate,
+        ]
+        ds.attrs["id"] = ".".join(id_components)
 
     ds.attrs["history"] = "Generated on " + datetime.datetime.utcnow().isoformat()
     ds.attrs["date_created"] = str(datetime.datetime.now().isoformat())
     ds.attrs["date_modified"] = ds.attrs["date_created"]
     ds.attrs["date_issued"] = ds.attrs["date_created"]
     ds.attrs["date_metadata_modified"] = ds.attrs["date_created"]
-    ds.attrs["processing_level"] = ds.attrs["level"].replace("L", "level ")
+    ds.attrs["processing_level"] = ds.attrs["level"].replace("L", "Level ")
+
+    title_string_format = "AWS measurements from {station_id} processed to {processing_level}. {sample_rate} average."
+    ds.attrs["title"] = title_string_format.format(
+        station_id=ds.attrs["station_id"],
+        processing_level=ds.attrs["processing_level"].lower(),
+        sample_rate=sample_rate.capitalize(),
+    )
 
     if "lat" in ds.keys():
         lat_min = ds["lat"].min().values
@@ -383,11 +403,6 @@ def addMeta(ds, meta):
     ds.attrs["geospatial_vertical_positive"] = "up"
     ds.attrs["time_coverage_start"] = str(ds["time"][0].values)
     ds.attrs["time_coverage_end"] = str(ds["time"][-1].values)
-
-    try:
-        ds.attrs["source"] = "pypromice v" + str(metadata.version("pypromice"))
-    except:
-        ds.attrs["source"] = "pypromice"
 
     # https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm
     try:
