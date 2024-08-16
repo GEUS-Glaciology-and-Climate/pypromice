@@ -1,0 +1,25 @@
+station_id = 'TEST1'
+logger_type = 'CR1000X'
+nodata     = ['-999', 'NAN'] # if one is a string, all must be strings
+number_of_booms = 1 #1-boom = promice, 2-boom = gc-net
+latitude = 79.91
+longitude = 24.09
+
+['test_raw_transmitted1.txt']
+format     = 'TX'
+skiprows = 0
+hygroclip_t_offset = 0
+dsr_eng_coef = 12.2
+usr_eng_coef = 11.15
+dlr_eng_coef = 10.28
+ulr_eng_coef = 8.24
+pt_z_coef = 0.3999
+pt_z_p_coef = 982.4
+pt_z_factor = 2.5
+pt_antifreeze = 50
+boom_azimuth = 0
+columns = ['time','rec','p_u','t_u','SKIP_5','rh_u','wspd_u','wdir_u','dsr',
+ 'usr','dlr','ulr','t_rad','z_boom_u','z_stake','z_pt',
+ 't_i_1','t_i_2','t_i_3','t_i_4','t_i_5','t_i_6','t_i_7',
+ 't_i_8','tilt_x','tilt_y','gps_time','gps_lat','gps_lon',
+ 'gps_alt','gps_hdop','fan_dc_u','batt_v']
