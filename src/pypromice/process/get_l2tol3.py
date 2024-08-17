@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import logging, sys, toml
+from pathlib import Path
+
 import xarray as xr
 from argparse import ArgumentParser
 import pypromice
@@ -27,7 +29,10 @@ def parse_arguments_l2tol3(debug_args=None):
     args = parser.parse_args(args=debug_args)
     return args
 
-def get_l2tol3(config_folder, inpath, outpath, variables, metadata):
+def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata):
+    if isinstance(config_folder, str):
+        config_folder = Path(config_folder)
+
     logging.basicConfig(
         format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
         level=logging.INFO,
@@ -49,12 +54,11 @@ def get_l2tol3(config_folder, inpath, outpath, variables, metadata):
         l2.attrs['number_of_booms'] = int(l2.attrs['number_of_booms'])
     
     # importing station_config (dict) from config_folder (str path)
-    config_file = config_folder+l2.attrs['station_id']+'.toml'
+    config_file = config_folder / (l2.attrs['station_id']+'.toml')
 
-    if os.path.exists(config_file):
+    if config_file.exists():
         # File exists, load the configuration
-        with open(config_file) as fp:
-            station_config = toml.load(fp)
+        station_config = toml.load(config_file)
     else:
         # File does not exist, initialize with standard info 
         # this was prefered by RSF over exiting with error

@@ -48,7 +48,7 @@ def loadArr(infile):
     return ds, name
     
 
-def join_l2(file1,file2,outpath,variables,metadata):
+def join_l2(file1,file2,outpath,variables,metadata) -> xr.Dataset:
     logging.basicConfig(
         format="%(asctime)s; %(levelname)s; %(name)s; %(message)s",
         level=logging.INFO,
