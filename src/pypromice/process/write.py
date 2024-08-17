@@ -6,17 +6,18 @@ Module containing all the functions needed to prepare and AWS data
 import datetime
 import logging
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from pypromice.process import load
 from pypromice.process.resample import resample_dataset
+import pypromice.resources
 
 logger = logging.getLogger(__name__)
 
 
 def prepare_and_write(
-    dataset, outpath, vars_df=None, meta_dict=None, time="60min", resample=True
+    dataset, output_path: Path | str, vars_df=None, meta_dict=None, time="60min", resample=True
 ):
     """Prepare data with resampling, formating and metadata population; then
     write data to .nc and .csv hourly and daily files
@@ -25,7 +26,7 @@ def prepare_and_write(
     ----------
     dataset : xarray.Dataset
         Dataset to write to file
-    outpath : str
+    output_path : Path|str
         Output directory
     vars_df : pandas.DataFrame
         Variables look-up table dataframe
@@ -35,6 +36,9 @@ def prepare_and_write(
         Resampling interval for output dataset
     """
     # Resample dataset
+    if isinstance(output_path, str):
+        output_path = Path(output_path)
+
     if resample:
         d2 = resample_dataset(dataset, time)
         logger.info("Resampling to " + str(time))
@@ -63,9 +67,9 @@ def prepare_and_write(
 
     # Add variable attributes and metadata
     if vars_df is None:
-        vars_df = load.getVars()
+        vars_df = pypromice.resources.load_variables()
     if meta_dict is None:
-        meta_dict = load.getMeta()
+        meta_dict = pypromice.resources.load_metadata()
 
     d2 = addVars(d2, vars_df)
     d2 = addMeta(d2, meta_dict)
@@ -84,32 +88,30 @@ def prepare_and_write(
     t = int(pd.Timedelta((d2["time"][1] - d2["time"][0]).values).total_seconds())
 
     # Create out directory
-    outdir = os.path.join(outpath, name)
-    if not os.path.isdir(outdir):
-        os.mkdir(outdir)
+    output_dir = output_path / name
+    output_dir.mkdir(exist_ok=True, parents=True)
 
     if t == 600:
-        out_csv = os.path.join(outdir, name + "_10min.csv")
-        out_nc = os.path.join(outdir, name + "_10min.nc")
+        out_csv = output_dir / f"{name}_10min.csv"
+        out_nc = output_dir / f"{name}_10min.nc"
     elif t == 3600:
-        out_csv = os.path.join(outdir, name + "_hour.csv")
-        out_nc = os.path.join(outdir, name + "_hour.nc")
+        out_csv = output_dir / f"{name}_hour.csv"
+        out_nc = output_dir / f"{name}_hour.nc"
     elif t == 86400:
         # removing instantaneous values from daily and monthly files
         for v in col_names:
             if ("_i" in v) and ("_i_" not in v):
                 col_names.remove(v)
-        out_csv = os.path.join(outdir, name + "_day.csv")
-        out_nc = os.path.join(outdir, name + "_day.nc")
+        out_csv = output_dir / f"{name}_day.csv"
+        out_nc = output_dir / f"{name}_day.nc"
     else:
         # removing instantaneous values from daily and monthly files
         for v in col_names:
             if ("_i" in v) and ("_i_" not in v):
                 col_names.remove(v)
-        out_csv = os.path.join(outdir, name + "_month.csv")
-        out_nc = os.path.join(outdir, name + "_month.nc")
-    if not os.path.isdir(outdir):
-        os.mkdir(outdir)
+        out_csv = output_dir / f"{name}_month.csv"
+        out_nc = output_dir / f"{name}_month.nc"
+
     # Write to csv file
     logger.info("Writing to files...")
     writeCSV(out_csv, d2, col_names)
@@ -338,9 +340,10 @@ def addMeta(ds, meta):
     ds.attrs["date_metadata_modified"] = ds.attrs["date_created"]
     ds.attrs["processing_level"] = ds.attrs["level"].replace("L", "Level ")
 
-    title_string_format = "AWS measurements from {station_id} processed to {processing_level}. {sample_rate} average."
+    id = ds.attrs.get('station_id', ds.attrs.get('site_id'))
+    title_string_format = "AWS measurements from {id} processed to {processing_level}. {sample_rate} average."
     ds.attrs["title"] = title_string_format.format(
-        station_id=ds.attrs["station_id"],
+        id=id,
         processing_level=ds.attrs["processing_level"].lower(),
         sample_rate=sample_rate.capitalize(),
     )
