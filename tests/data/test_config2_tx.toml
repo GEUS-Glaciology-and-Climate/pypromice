@@ -28,28 +28,3 @@ columns = ['time','rec','p_l','p_u','t_l','t_u','rh_l','rh_u',
  'precip_l','precip_u','gps_time','gps_lat','gps_lon',
  'gps_alt','gps_hdop','fan_dc_l','fan_dc_u','batt_v', 'p_i',
  't_i','rh_i','wspd_i','wdir_i','msg_i']
- 
- 
-['test_raw_DataTable2.txt']
-format     = 'raw'
-skiprows = 4
-latitude = 55.688513 
-longitude = 12.582191
-hygroclip_t_offset = 0 
-dsr_eng_coef = 13.34
-usr_eng_coef = 11.90
-dlr_eng_coef = 9.63
-ulr_eng_coef = 9.72
-# pt_z_coef = 
-# pt_z_p_coef = 
-# pt_z_factor = 
-# pt_antifreeze = 
-tilt_y_factor = -1 # New inclinometer, y direction is opposite than the old PROMICE v2 inclinometer.
-boom_azimuth = 0 # Only relevant for PROMICE v2 stations
-columns = ['time','rec','p_l','p_u','t_l','rh_l','wspd_l','wdir_l',
-  't_u','rh_u','wspd_u','wdir_u','dsr', 'usr', 'dlr', 
-  'ulr','t_rad','z_boom_l','z_boom_u','t_i_1','t_i_2','t_i_3','t_i_4',
-  't_i_5','t_i_6','t_i_7','t_i_8','t_i_9','t_i_10','t_i_11','tilt_x',
-  'tilt_y','rot','precip_l','SKIP_35','precip_u','SKIP_37',
-  'gps_time','gps_lat','gps_lon','gps_alt','gps_geoid','gps_geounit',
-  'gps_q','gps_numsat','gps_hdop','fan_dc_l','fan_dc_u','batt_v','t_log']
