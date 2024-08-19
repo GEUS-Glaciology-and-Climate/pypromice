@@ -19,11 +19,14 @@ class GetL2TestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdirname:
             output_path = Path(tmpdirname) / "output"
             config_file = TEST_DATA_ROOT_PATH / "test_config1_tx.toml"
+            data_issues_path = TEST_DATA_ROOT_PATH / "data_issues"
+
 
             aws = get_l2(
                 config_file=config_file.as_posix(),
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path,
+                data_issues_path=data_issues_path,
                 variables=None,
                 metadata=None,
             )
@@ -43,11 +46,13 @@ class GetL2TestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdirname:
             output_path = Path(tmpdirname) / "output"
             config_file = TEST_DATA_ROOT_PATH / "test_config1_raw.toml"
+            data_issues_path = TEST_DATA_ROOT_PATH / "data_issues"
 
             aws = get_l2(
                 config_file=config_file.as_posix(),
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path,
+                data_issues_path=data_issues_path,
                 variables=None,
                 metadata=None,
             )
@@ -108,7 +113,7 @@ class GetL2TestCase(unittest.TestCase):
                 )
                 source_decoded = json.loads(dataset.attrs["source"])
                 self.assertSetEqual(
-                    {"pypromice", "l0_config_file", "l0_data_root"},
+                    {"pypromice", "l0_config_file", "l0_data_root", 'data_issues'},
                     set(source_decoded.keys()),
                 )
                 self.assertEqual(
@@ -122,10 +127,8 @@ class GetL2TestCase(unittest.TestCase):
                     config_file_name,
                     config_file.name,
                 )
-                data_root_name, data_root_hash = source_decoded["l0_data_root"].rsplit(":", 1)
-                self.assertEqual(
-                    data_root_name,
-                    TEST_DATA_ROOT_PATH.name,
-                )
+                data_root_hash = source_decoded["l0_data_root"]
+                data_issues_hash = source_decoded["data_issues"]
                 self.assertNotEquals(config_hash, 'unknown', 'This test will fail while the commit is dirty')
                 self.assertNotEquals(data_root_hash, 'unknown', 'This test will fail while the commit is dirty')
+                self.assertNotEquals(data_issues_hash, 'unknown', 'This test will fail while the commit is dirty')

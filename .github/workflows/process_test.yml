@@ -38,8 +38,9 @@ jobs:
         run: |
           mkdir $GITHUB_WORKSPACE/out/
           mkdir $GITHUB_WORKSPACE/out/L0toL2/
+          mkdir $GITHUB_WORKSPACE/data_issues
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do
-            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2.py -c $GITHUB_WORKSPACE/aws-l0/tx/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/tx -o $GITHUB_WORKSPACE/out/L0toL2/
+            python3 $GITHUB_WORKSPACE/main/src/pypromice/process/get_l2.py -c $GITHUB_WORKSPACE/aws-l0/tx/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/tx --issues $GITHUB_WORKSPACE/data_issues -o $GITHUB_WORKSPACE/out/L0toL2/
           done
       - name: Run L2 to L3 processing
         env:
