@@ -136,19 +136,6 @@ class TestProcess(unittest.TestCase):
             # Part 3 - Level 2 to level 3
             site_id = "SITE_01"
             output_l3 = root / "station_l3"
-            station_configuration_path = (
-                STATION_CONFIGURATIONS_ROOT / f"{station_id}.toml"
-            )
-            with station_configuration_path.open("w") as f:
-                f.write(
-                    f"""
-                    stid = "{station_id}"
-                    station_site = "{site_id}"
-                    project = "PROMICE"
-                    location_type = "ice sheet"
-                    site_type = "ablation"
-                    """
-                )
             aws_station_l3 = get_l2tol3(
                 config_folder=STATION_CONFIGURATIONS_ROOT,
                 inpath=hourly_out_path_join.as_posix(),
