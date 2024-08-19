@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: process_l2_test
+    name: process_test
     steps:
       - name: Install Python
         uses: actions/setup-python@v4
