@@ -1,7 +1,5 @@
 import logging
 import os
-import urllib.request
-from urllib.error import HTTPError, URLError
 
 import numpy as np
 import pandas as pd
@@ -16,8 +14,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def flagNAN(ds_in,
-            flag_dir='../PROMICE-AWS-data-issues/flags'):
+def flagNAN(ds_in, flag_dir):
     '''Read flagged data from .csv file. For each variable, and downstream
     dependents, flag as invalid (or other) if set in the flag .csv
 
@@ -73,9 +70,7 @@ def flagNAN(ds_in,
     return ds
 
 
-def adjustTime(ds,
-               adj_dir='../PROMICE-AWS-data-issues/adjustments/',
-               var_list=[], skip_var=[]):
+def adjustTime(ds, adj_dir, var_list=[], skip_var=[]):
     '''Read adjustment data from .csv file. Only applies the "time_shift" adjustment
 
     Parameters
@@ -134,9 +129,7 @@ def adjustTime(ds,
     return ds_out
 
 
-def adjustData(ds,
-               adj_dir='../PROMICE-AWS-data-issues/adjustments/',
-               var_list=[], skip_var=[]):
+def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
     '''Read adjustment data from .csv file. For each variable, and downstream
     dependents, adjust data accordingly if set in the adjustment .csv
 

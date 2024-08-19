@@ -4,7 +4,8 @@ AWS data processing module
 """
 import json
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 import logging, os
 from pathlib import Path
@@ -33,6 +34,7 @@ class AWS(object):
         self,
         config_file,
         inpath,
+        data_issues_repository: Path | str,
         var_file=None,
         meta_file=None,
     ):
@@ -59,23 +61,23 @@ class AWS(object):
         self.config = self.loadConfig(config_file, inpath)
         self.vars = pypromice.resources.load_variables(var_file)
         self.meta = pypromice.resources.load_metadata(meta_file)
+        self.data_issues_repository = Path(data_issues_repository)
 
         config_hash = get_commit_hash_and_check_dirty(Path(config_file))
         config_source_string = f"{Path(config_file).name}:{config_hash}"
         inpath_hash = get_commit_hash_and_check_dirty(Path(inpath))
-        inpath_source_string = f"{Path(inpath).name}:{inpath_hash}"
-
+        data_issues_hash = get_commit_hash_and_check_dirty(self.data_issues_repository)
         source_dict = dict(
-            pypromice = metadata.version("pypromice"),
-            l0_config_file = config_source_string,
-            l0_data_root = inpath_source_string,
+            pypromice=metadata.version("pypromice"),
+            l0_config_file=config_source_string,
+            l0_data_root=inpath_hash,
+            data_issues=data_issues_hash,
         )
         self.meta["source"] = json.dumps(source_dict)
 
-
         # Load config file
         L0 = self.loadL0()
-        self.L0=[]
+        self.L0 = []
         for l in L0:
             n = write.getColNames(self.vars, l)
             self.L0.append(utilities.popCols(l, n))
@@ -98,7 +100,9 @@ class AWS(object):
     def process(self):
         """Perform L0 to L3 data processing"""
         try:
-            logger.info(f'Commencing {self.L0.attrs["number_of_booms"]}-boom processing...')
+            logger.info(
+                f'Commencing {self.L0.attrs["number_of_booms"]}-boom processing...'
+            )
             logger.info(
                 f'Commencing {self.L0.attrs["number_of_booms"]}-boom processing...'
             )
@@ -137,7 +141,13 @@ class AWS(object):
     def getL2(self):
         """Perform L1 to L2 data processing"""
         logger.info("Level 2 processing...")
-        self.L2 = toL2(self.L1A, vars_df=self.vars)
+
+        self.L2 = toL2(
+            self.L1A,
+            vars_df=self.vars,
+            data_flags_dir=self.data_issues_repository / "flags",
+            data_adjustments_dir=self.data_issues_repository / "adjustments",
+        )
 
     def getL3(self):
         """Perform L2 to L3 data processing, including resampling and metadata
@@ -186,7 +196,7 @@ class AWS(object):
         return conf
 
     def loadL0(self):
-        '''Load level 0 (L0) data from associated TOML-formatted
+        """Load level 0 (L0) data from associated TOML-formatted
         config file and L0 data file
 
         Try readL0file() using the config with msg_lat & msg_lon appended. The
@@ -201,7 +211,7 @@ class AWS(object):
         -------
         ds_list : list
             List of L0 xr.Dataset objects
-        '''
+        """
         ds_list = []
         for k in self.config.keys():
             target = self.config[k]
@@ -211,14 +221,14 @@ class AWS(object):
             except pd.errors.ParserError as e:
                 # ParserError: Too many columns specified: expected 40 and found 38
                 # logger.info(f'-----> No msg_lat or msg_lon for {k}')
-                for item in ['msg_lat', 'msg_lon']:
-                    target['columns'].remove(item)                           # Also removes from self.config
+                for item in ["msg_lat", "msg_lon"]:
+                    target["columns"].remove(item)  # Also removes from self.config
                 ds_list.append(self.readL0file(target))
-            logger.info(f'L0 data successfully loaded from {k}')
+            logger.info(f"L0 data successfully loaded from {k}")
         return ds_list
 
     def readL0file(self, conf):
-        '''Read L0 .txt file to Dataset object using config dictionary and
+        """Read L0 .txt file to Dataset object using config dictionary and
         populate with initial metadata
 
         Parameters
@@ -230,9 +240,15 @@ class AWS(object):
         -------
         ds : xr.Dataset
             L0 data
-        '''
-        file_version = conf.get('file_version', -1)  
-        ds = load.getL0(conf['file'], conf['nodata'], conf['columns'], 
-                   conf["skiprows"], file_version, time_offset=conf.get('time_offset'))
+        """
+        file_version = conf.get("file_version", -1)
+        ds = load.getL0(
+            conf["file"],
+            conf["nodata"],
+            conf["columns"],
+            conf["skiprows"],
+            file_version,
+            time_offset=conf.get("time_offset"),
+        )
         ds = utilities.populateMeta(ds, conf, ["columns", "skiprows", "modem"])
         return ds

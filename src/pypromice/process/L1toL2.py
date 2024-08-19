@@ -3,6 +3,7 @@
 AWS Level 1 (L1) to Level 2 (L2) data processing
 """
 import logging
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -23,6 +24,8 @@ logger = logging.getLogger(__name__)
 def toL2(
     L1: xr.Dataset,
     vars_df: pd.DataFrame,
+    data_flags_dir: Path,
+    data_adjustments_dir: Path,
     T_0=273.15,
     ews=1013.246,
     ei0=6.1071,
@@ -72,9 +75,9 @@ def toL2(
     ds = L1.copy(deep=True)                                                    # Reassign dataset
     ds.attrs['level'] = 'L2'
     try:
-        ds = adjustTime(ds)                                                    # Adjust time after a user-defined csv files
-        ds = flagNAN(ds)                                                       # Flag NaNs after a user-defined csv files
-        ds = adjustData(ds)                                                    # Adjust data after a user-defined csv files
+        ds = adjustTime(ds, adj_dir=data_adjustments_dir.as_posix())       # Adjust time after a user-defined csv files
+        ds = flagNAN(ds, flag_dir=data_flags_dir.as_posix())             # Flag NaNs after a user-defined csv files
+        ds = adjustData(ds, adj_dir=data_adjustments_dir.as_posix())       # Adjust data after a user-defined csv files
     except Exception:
         logger.exception('Flagging and fixing failed:')
 
