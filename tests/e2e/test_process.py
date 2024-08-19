@@ -62,7 +62,13 @@ class TestProcess(unittest.TestCase):
 
     def test_l0_to_l3(self):
         '''Test L0 to L3 processing'''
-        pAWS = AWS(TEST_CONFIG_PATH.as_posix(), TEST_DATA_ROOT_PATH.as_posix())
+        pAWS = AWS(
+            TEST_CONFIG_PATH.as_posix(),
+            TEST_DATA_ROOT_PATH.as_posix(),
+            data_issues_repository=TEST_DATA_ROOT_PATH / 'data_issues',
+            var_file=None,
+            meta_file=None
+        )
         pAWS.process()
         self.assertIsInstance(pAWS.L2, xr.Dataset)
         self.assertTrue(pAWS.L2.attrs['station_id']=='TEST1')
@@ -71,17 +77,17 @@ class TestProcess(unittest.TestCase):
         '''Test get_l2 CLI'''
         exit_status = os.system('get_l2 -h')
         self.assertEqual(exit_status, 0)
-        
+
     def test_join_l2_cli(self):
         '''Test join_l2 CLI'''
         exit_status = os.system('join_l2 -h')
         self.assertEqual(exit_status, 0)
-        
+
     def test_l2_to_l3_cli(self):
         """Test get_l2tol3 CLI"""
         exit_status = os.system('get_l2tol3 -h')
         self.assertEqual(exit_status, 0)
-        
+
     def test_join_l3_cli(self):
         """Test join_l3 CLI"""
         exit_status = os.system('join_l3 -h')
@@ -100,11 +106,13 @@ class TestProcess(unittest.TestCase):
             output_path_raw = root / "station_l2_raw"
             config_file_tx = TEST_DATA_ROOT_PATH / "test_config1_tx.toml"
             config_file_raw = TEST_DATA_ROOT_PATH / "test_config1_raw.toml"
+            data_issues_path = TEST_DATA_ROOT_PATH / "data_issues"
             station_id = "TEST1"
             aws_tx_l2 = get_l2(
                 config_file=config_file_tx.as_posix(),
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path_tx,
+                data_issues_path=data_issues_path,
                 variables=None,
                 metadata=None,
             )
@@ -112,6 +120,7 @@ class TestProcess(unittest.TestCase):
                 config_file=config_file_raw.as_posix(),
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path_raw,
+                data_issues_path=data_issues_path,
                 variables=None,
                 metadata=None,
             )
