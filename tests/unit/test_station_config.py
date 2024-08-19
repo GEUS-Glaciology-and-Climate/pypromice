@@ -135,7 +135,7 @@ class StationConfigurationTestCase(TestCase):
 
     def test_read_station_config_mapping(self):
         with TemporaryDirectory() as temp_dir:
-            station_config_root = Path(temp_dir) / "station_configs"
+            station_config_root = Path(temp_dir) / "station_configurations"
             station_config_root.mkdir()
             source_mapping = {
                 "UPE_L": get_station_configuration(stid="UPE_L"),
@@ -152,7 +152,7 @@ class StationConfigurationTestCase(TestCase):
 
     def test_write_station_config_mapping(self):
         with TemporaryDirectory() as temp_dir:
-            station_config_root = Path(temp_dir) / "station_configs"
+            station_config_root = Path(temp_dir) / "station_configurations"
             station_config_root.mkdir()
             source_mapping = {
                 "UPE_L": get_station_configuration(stid="UPE_L"),
@@ -169,7 +169,7 @@ class StationConfigurationTestCase(TestCase):
 
     def test_read_station_config_mapping_empty(self):
         with TemporaryDirectory() as temp_dir:
-            station_config_root = Path(temp_dir) / "station_configs"
+            station_config_root = Path(temp_dir) / "station_configurations"
             station_config_root.mkdir()
 
             read_mapping = load_station_configuration_mapping(station_config_root)
@@ -181,7 +181,7 @@ class StationConfigurationTestCase(TestCase):
     def test_read_station_config_mapping_ingore_filenames(self):
         def test_read_station_config_mapping(self):
             with TemporaryDirectory() as temp_dir:
-                station_config_root = Path(temp_dir) / "station_configs"
+                station_config_root = Path(temp_dir) / "station_configurations"
                 station_config_root.mkdir()
                 station_config = get_station_configuration(stid="UPE_L")
                 station_config.dump_toml(station_config_root / "a_custom_filename.toml")
