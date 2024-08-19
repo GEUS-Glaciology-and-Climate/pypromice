@@ -25,72 +25,74 @@ TEST_DATA_ROOT_PATH = TEST_ROOT / "data"
 TEST_CONFIG_PATH = TEST_DATA_ROOT_PATH / "test_config1_raw.toml"
 STATION_CONFIGURATIONS_ROOT = TEST_DATA_ROOT_PATH / "station_configurations"
 
-class TestProcess(unittest.TestCase):
 
+class TestProcess(unittest.TestCase):
     def test_get_vars(self):
-        '''Test variable table lookup retrieval'''
+        """Test variable table lookup retrieval"""
         v = pypromice.resources.load_variables()
         self.assertIsInstance(v, pd.DataFrame)
-        self.assertTrue(v.columns[0] in 'standard_name')
-        self.assertTrue(v.columns[2] in 'units')
+        self.assertTrue(v.columns[0] in "standard_name")
+        self.assertTrue(v.columns[2] in "units")
 
     def test_get_meta(self):
-        '''Test AWS names retrieval'''
+        """Test AWS names retrieval"""
         m = pypromice.resources.load_metadata()
         self.assertIsInstance(m, dict)
-        self.assertTrue('references' in m)
+        self.assertTrue("references" in m)
 
     def test_add_all(self):
-        '''Test variable and metadata attributes added to Dataset'''
+        """Test variable and metadata attributes added to Dataset"""
         d = xr.Dataset()
         v = pypromice.resources.load_variables()
         att = list(v.index)
-        att1 = ['gps_lon', 'gps_lat', 'gps_alt', 'albedo', 'p']
+        att1 = ["gps_lon", "gps_lat", "gps_alt", "albedo", "p"]
         for a in att:
-            d[a]=[0,1]
+            d[a] = [0, 1]
         for a in att1:
-            d[a]=[0,1]
-        d['time'] = [datetime.datetime.now(),
-                     datetime.datetime.now()-timedelta(days=365)]
-        d.attrs['station_id']='TEST'
-        d.attrs['level']='L2_test'
+            d[a] = [0, 1]
+        d["time"] = [
+            datetime.datetime.now(),
+            datetime.datetime.now() - timedelta(days=365),
+        ]
+        d.attrs["station_id"] = "TEST"
+        d.attrs["level"] = "L2_test"
         meta = pypromice.resources.load_metadata()
         d = addVars(d, v)
         d = addMeta(d, meta)
-        self.assertTrue(d.attrs['station_id']=='TEST')
-        self.assertIsInstance(d.attrs['references'], str)
+        self.assertTrue(d.attrs["station_id"] == "TEST")
+        self.assertIsInstance(d.attrs["references"], str)
 
     def test_l0_to_l3(self):
-        '''Test L0 to L3 processing'''
+        """Test L0 to L3 processing"""
         pAWS = AWS(
             TEST_CONFIG_PATH.as_posix(),
             TEST_DATA_ROOT_PATH.as_posix(),
-            data_issues_repository=TEST_DATA_ROOT_PATH / 'data_issues',
+            data_issues_repository=TEST_DATA_ROOT_PATH / "data_issues",
             var_file=None,
-            meta_file=None
+            meta_file=None,
         )
         pAWS.process()
         self.assertIsInstance(pAWS.L2, xr.Dataset)
-        self.assertTrue(pAWS.L2.attrs['station_id']=='TEST1')
+        self.assertTrue(pAWS.L2.attrs["station_id"] == "TEST1")
 
     def get_l2_cli(self):
-        '''Test get_l2 CLI'''
-        exit_status = os.system('get_l2 -h')
+        """Test get_l2 CLI"""
+        exit_status = os.system("get_l2 -h")
         self.assertEqual(exit_status, 0)
 
     def test_join_l2_cli(self):
-        '''Test join_l2 CLI'''
-        exit_status = os.system('join_l2 -h')
+        """Test join_l2 CLI"""
+        exit_status = os.system("join_l2 -h")
         self.assertEqual(exit_status, 0)
 
     def test_l2_to_l3_cli(self):
         """Test get_l2tol3 CLI"""
-        exit_status = os.system('get_l2tol3 -h')
+        exit_status = os.system("get_l2tol3 -h")
         self.assertEqual(exit_status, 0)
 
     def test_join_l3_cli(self):
         """Test join_l3 CLI"""
-        exit_status = os.system('join_l3 -h')
+        exit_status = os.system("join_l3 -h")
         self.assertEqual(exit_status, 0)
 
     def test_full_e2e(self):
@@ -176,28 +178,63 @@ class TestProcess(unittest.TestCase):
                     self.assertTrue(expected_output_path.exists())
 
             for output_rel_path in [
-                "site_l3/SITE_01/SITE_01_day.csv",
-                "site_l3/SITE_01/SITE_01_day.nc",
-                "site_l3/SITE_01/SITE_01_hour.csv",
-                "site_l3/SITE_01/SITE_01_hour.nc",
-                "site_l3/SITE_01/SITE_01_month.csv",
-                "site_l3/SITE_01/SITE_01_month.nc",
-                "station_l2_join/TEST1/TEST1_hour.csv",
-                "station_l2_join/TEST1/TEST1_hour.nc",
                 "station_l2_raw/TEST1/TEST1_10min.csv",
                 "station_l2_raw/TEST1/TEST1_10min.nc",
                 "station_l2_raw/TEST1/TEST1_hour.csv",
                 "station_l2_raw/TEST1/TEST1_hour.nc",
                 "station_l2_tx/TEST1/TEST1_hour.csv",
                 "station_l2_tx/TEST1/TEST1_hour.nc",
+                "station_l2_join/TEST1/TEST1_hour.csv",
+                "station_l2_join/TEST1/TEST1_hour.nc",
                 "station_l3/TEST1/TEST1_day.csv",
                 "station_l3/TEST1/TEST1_day.nc",
                 "station_l3/TEST1/TEST1_hour.csv",
                 "station_l3/TEST1/TEST1_hour.nc",
                 "station_l3/TEST1/TEST1_month.csv",
                 "station_l3/TEST1/TEST1_month.nc",
+                "site_l3/SITE_01/SITE_01_day.csv",
+                "site_l3/SITE_01/SITE_01_day.nc",
+                "site_l3/SITE_01/SITE_01_hour.csv",
+                "site_l3/SITE_01/SITE_01_hour.nc",
+                "site_l3/SITE_01/SITE_01_month.csv",
+                "site_l3/SITE_01/SITE_01_month.nc",
             ]:
-                self.assertTrue((root / output_rel_path).exists())
+                output_path = root / output_rel_path
+                self.assertTrue(output_path.exists())
+
+                if output_path.name.endswith("nc"):
+                    output_dataset = xr.load_dataset(output_path)
+                    self.check_global_attributes(output_dataset, output_rel_path)
+
+    def check_global_attributes(self, dataset: xr.Dataset, reference: str):
+        attribute_keys = set(dataset.attrs.keys())
+        highly_recommended_global_attributes = {
+            "title",
+            "summary",
+            "keywords",
+            "conventions",
+        }
+        self.assertSetEqual(
+            set(),
+            highly_recommended_global_attributes - attribute_keys,
+            reference,
+        )
+        required_global_attributes = {
+            "id",
+            "naming_authority",
+            "date_created",
+            "institution",
+            "date_issued",
+            "date_modified",
+            "processing_level",
+            "product_version",
+            "source",
+        }
+        self.assertSetEqual(
+            set(),
+            required_global_attributes - attribute_keys,
+            reference,
+        )
 
 
 if __name__ == "__main__":

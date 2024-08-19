@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+import json
 import logging, os, sys, toml
 from argparse import ArgumentParser
+
+from pypromice.utilities.git import get_commit_hash_and_check_dirty
+
 import pypromice.resources
 from pypromice.process.write import prepare_and_write
 import numpy as np
@@ -284,7 +288,7 @@ def align_surface_heights(data_series_new, data_series_old):
         # Drop NaN values and extract the last `hours_in_5_years` non-NaN data points
         data_series_old_nonan = data_series_old.dropna()
         data_series_old_last_5_years = data_series_old_nonan.iloc[
-            -min(len(data_series_old), hours_in_5_years) :
+            -min(len(data_series_old), hours_in_5_years):
         ]
 
         # Perform a linear fit on the last 5 years of data
@@ -510,6 +514,19 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
     l3_merged.attrs["level"] = "L3"
     l3_merged.attrs["project"] = sorted_list_station_data[0][1]["project"]
     l3_merged.attrs["location_type"] = sorted_list_station_data[0][1]["location_type"]
+
+    site_source = dict(
+        site_config_source_hash=get_commit_hash_and_check_dirty(config_folder),
+        gcnet_source_hash=get_commit_hash_and_check_dirty(folder_gcnet),
+    )
+    for stid, station_attributes in l3_merged.attrs["stations_attributes"].items():
+        station_source = json.loads(station_attributes["source"])
+        for k, v in station_source.items():
+            if k in site_source and site_source[k] != v:
+                site_source[k] = "multiple"
+            else:
+                site_source[k] = v
+    l3_merged.attrs["source"] = json.dumps(site_source)
 
     v = pypromice.resources.load_variables(variables)
     m = pypromice.resources.load_metadata(metadata)
