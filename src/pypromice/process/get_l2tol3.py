@@ -31,7 +31,7 @@ def parse_arguments_l2tol3(debug_args=None):
     args = parser.parse_args(args=debug_args)
     return args
 
-def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, data_issues_path: Path):
+def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, data_issues_path: Path|str):
     if isinstance(config_folder, str):
         config_folder = Path(config_folder)
 
@@ -78,6 +78,9 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
             logging.warning(f"data_issues_path is missing. Using default data issues path: {data_issues_path}")
         else:
             raise ValueError("data_issues_path is missing. Please provide a valid path to the data issues repository")
+    else:
+        data_issues_path = Path(data_issues_path)
+
     data_adjustments_dir = data_issues_path / "adjustments"
     
     # Perform Level 3 processing
