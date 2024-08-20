@@ -25,11 +25,13 @@ def parse_arguments_l2tol3(debug_args=None):
                         required=False, help='File path to variables look-up table')
     parser.add_argument('-m', '--metadata', default=None, type=str, 
                         required=False, help='File path to metadata')
+    parser.add_argument('--data_issues_path', '--issues', default=None, help="Path to data issues repository")
+
 
     args = parser.parse_args(args=debug_args)
     return args
 
-def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata):
+def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, data_issues_path: Path):
     if isinstance(config_folder, str):
         config_folder = Path(config_folder)
 
@@ -68,9 +70,18 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata):
                         "project": "PROMICE",
                         "location_type": "ice sheet",
                         }
-                        
+        
+    # checking that the adjustement directory is properly given
+    if data_issues_path is None:
+        data_issues_path = Path("../PROMICE-AWS-data-issues")
+        if data_issues_path.exists():
+            logging.warning(f"data_issues_path is missing. Using default data issues path: {data_issues_path}")
+        else:
+            raise ValueError("data_issues_path is missing. Please provide a valid path to the data issues repository")
+    data_adjustments_dir = data_issues_path / "adjustments"
+    
     # Perform Level 3 processing
-    l3 = toL3(l2, station_config)
+    l3 = toL3(l2, data_adjustments_dir, station_config)
 
     # Write Level 3 dataset to file if output directory given
     v = pypromice.resources.load_variables(variables)
@@ -83,7 +94,15 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata):
 
 def main():
     args = parse_arguments_l2tol3()
-    _ = get_l2tol3(args.config_folder, args.inpath, args.outpath, args.variables, args.metadata)
+    
+
+
+    _ = get_l2tol3(args.config_folder, 
+                   args.inpath, 
+                   args.outpath,
+                   args.variables, 
+                   args.metadata, 
+                   args.data_issues_path)
     
 if __name__ == "__main__":  
     main()

@@ -8,11 +8,15 @@ import xarray as xr
 from sklearn.linear_model import LinearRegression
 from pypromice.qc.github_data_issues import adjustData
 from scipy.interpolate import interp1d
+from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
 
-def toL3(L2, station_config={}, T_0=273.15):
+def toL3(L2, 
+         data_adjustments_dir: Path,
+         station_config={},
+         T_0=273.15):
     '''Process one Level 2 (L2) product to Level 3 (L3) meaning calculating all
     derived variables:
         - Turbulent fluxes
@@ -109,7 +113,7 @@ def toL3(L2, station_config={}, T_0=273.15):
         
     # processing continuous surface height, ice surface height, snow height
     try:
-        ds = process_surface_height(ds, station_config)
+        ds = process_surface_height(ds, data_adjustments_dir, station_config)
     except Exception as e:
         logger.error("Error processing surface height at %s"%L2.attrs['station_id'])
         logging.error(e, exc_info=True)
@@ -130,7 +134,7 @@ def toL3(L2, station_config={}, T_0=273.15):
     return ds
 
 
-def process_surface_height(ds, station_config={}):
+def process_surface_height(ds, data_adjustments_dir, station_config={}):
     """
     Process surface height data for different site types and create 
     surface height variables.
@@ -180,7 +184,7 @@ def process_surface_height(ds, station_config={}):
                 ds.z_boom_l.sel(time=first_valid_index) - ds['z_boom_l'])
 
     # Adjust data for the created surface height variables
-    ds = adjustData(ds, var_list=['z_surf_1', 'z_surf_2', 'z_ice_surf'])
+    ds = adjustData(ds, data_adjustments_dir, var_list=['z_surf_1', 'z_surf_2', 'z_ice_surf'])
 
     # Convert to dataframe and combine surface height variables
     df_in = ds[[v for v in ['z_surf_1', 'z_surf_2', 'z_ice_surf'] if v in ds.data_vars]].to_dataframe()

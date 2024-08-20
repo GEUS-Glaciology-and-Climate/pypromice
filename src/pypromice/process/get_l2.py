@@ -31,10 +31,27 @@ def get_l2(config_file, inpath, outpath, variables, metadata, data_issues_path: 
     # Define input path
     station_name = config_file.split('/')[-1].split('.')[0] 
     station_path = os.path.join(inpath, station_name)
+    
+    # checking that data_issues_path is valid
+    if data_issues_path is None:
+        data_issues_path = Path("../PROMICE-AWS-data-issues")
+        if data_issues_path.exists():
+            logging.warning(f"data_issues_path is missing. Using default data issues path: {data_issues_path}")
+        else:
+            raise ValueError("data_issues_path is missing. Please provide a valid path to the data issues repository")
+
     if os.path.exists(station_path):
-        aws = AWS(config_file, station_path, data_issues_repository=data_issues_path, var_file=variables, meta_file=metadata)
+        aws = AWS(config_file, 
+                  station_path,
+                  data_issues_repository=data_issues_path, 
+                  var_file=variables, 
+                  meta_file=metadata)
     else:
-        aws = AWS(config_file, inpath, data_issues_repository=data_issues_path, var_file=variables, meta_file=metadata)
+        aws = AWS(config_file, 
+                  inpath, 
+                  data_issues_repository=data_issues_path, 
+                  var_file=variables, 
+                  meta_file=metadata)
 
     # Perform level 1 and 2 processing
     aws.getL1()
@@ -58,21 +75,13 @@ def main():
         stream=sys.stdout,
     )
 
-    data_issues_path = args.data_issues_path
-    if data_issues_path is None:
-        data_issues_path = Path("../PROMICE-AWS-data-issues")
-        if data_issues_path.exists():
-            logging.warning(f"data_issues_path is missing. Using default data issues path: {data_issues_path}")
-        else:
-            raise ValueError(f"data_issues_path is missing. Please provide a valid path to the data issues repository")
-
     _ = get_l2(
         args.config_file,
         args.inpath,
         args.outpath,
         args.variables,
         args.metadata,
-        data_issues_path=data_issues_path,
+        args.data_issues_path,
     )
 
 

@@ -308,7 +308,7 @@ def _getDF(flag_file):
                         ).dropna(how='all', axis='rows')
     else:
         df=None
-        logger.info(f"No {flag_file.split('/')[-2][:-1]} file to read.")
+        logger.info(f"No {flag_file} file to read.")
     return df
 
 
