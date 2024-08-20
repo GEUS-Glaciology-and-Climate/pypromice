@@ -1,5 +1,7 @@
 import logging
 import os
+import urllib.request
+from urllib.error import HTTPError, URLError
 
 import numpy as np
 import pandas as pd
@@ -14,7 +16,8 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def flagNAN(ds_in, flag_dir):
+def flagNAN(ds_in,
+            flag_dir='../PROMICE-AWS-data-issues/flags'):
     '''Read flagged data from .csv file. For each variable, and downstream
     dependents, flag as invalid (or other) if set in the flag .csv
 
@@ -62,15 +65,17 @@ def flagNAN(ds_in, flag_dir):
 
                 for v in varlist:
                     if v in list(ds.keys()):
-                        logger.debug(f'---> flagging {t0} {t1} {v}')
+                        logger.info(f'---> flagging {t0} {t1} {v}')
                         ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
                     else:
-                        logger.debug(f'---> could not flag {v} not in dataset')
+                        logger.info(f'---> could not flag {v} not in dataset')
 
     return ds
 
 
-def adjustTime(ds, adj_dir, var_list=[], skip_var=[]):
+def adjustTime(ds,
+               adj_dir='../PROMICE-AWS-data-issues/adjustments/',
+               var_list=[], skip_var=[]):
     '''Read adjustment data from .csv file. Only applies the "time_shift" adjustment
 
     Parameters
@@ -129,7 +134,9 @@ def adjustTime(ds, adj_dir, var_list=[], skip_var=[]):
     return ds_out
 
 
-def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
+def adjustData(ds,
+               adj_dir='../PROMICE-AWS-data-issues/adjustments/',
+               var_list=[], skip_var=[]):
     '''Read adjustment data from .csv file. For each variable, and downstream
     dependents, adjust data accordingly if set in the adjustment .csv
 
@@ -199,14 +206,13 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
                     t1 = pd.to_datetime(t1, utc=True).tz_localize(None)
 
                 index_slice = dict(time=slice(t0, t1))
+
                 if len(ds_out[var].loc[index_slice].time.time) == 0:
-                    logger.info(f'---> {t0} {t1} {var} {func} {val}')
                     logger.info("Time range does not intersect with dataset")
                     continue
 
-                else:
-                    logger.debug(f'---> {t0} {t1} {var} {func} {val}')
-
+                logger.info(f'---> {t0} {t1} {var} {func} {val}')
+				
                 if func == "add":
                     ds_out[var].loc[index_slice] = ds_out[var].loc[index_slice].values + val
                     # flagging adjusted values
@@ -308,7 +314,7 @@ def _getDF(flag_file):
                         ).dropna(how='all', axis='rows')
     else:
         df=None
-        logger.info(f"No {flag_file} file to read.")
+        logger.info(f"No {flag_file.split('/')[-2][:-1]} file to read.")
     return df
 
 

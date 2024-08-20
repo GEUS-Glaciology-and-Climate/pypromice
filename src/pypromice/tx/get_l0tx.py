@@ -6,7 +6,7 @@ import os, imaplib, email, toml, re, unittest
 from glob import glob
 from datetime import datetime, timedelta
 
-from pypromice.tx import getMail, L0tx, sortLines, isModified
+from pypromice.tx import getMail, L0tx, sortLines
 
 
 def parse_arguments_l0tx():
@@ -134,12 +134,9 @@ def get_l0tx():
  	#----------------------------------
  	
     if out_dir is not None:
-
-        # Find modified files (within the last hour)         
-        mfiles = [mfile for mfile in glob(out_dir+'/'+args.name+'*.txt') if isModified(mfile, 1)]          
-        
-        # Sort L0tx files and add tails 
-        for f in mfiles:
+        # Sort L0tx files and add tails    
+        print(out_dir+'/'+args.name+'*.txt')
+        for f in glob(out_dir+'/'+args.name+'*.txt'):
         
         	# Sort lines in L0tx file and remove duplicates
             in_dirn, in_fn = os.path.split(f)    
