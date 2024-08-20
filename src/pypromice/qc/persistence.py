@@ -9,20 +9,40 @@ __all__ = [
     "persistence_qc",
     "find_persistent_regions",
     "count_consecutive_persistent_values",
-    "count_consecutive_true",
+    "get_duration_consecutive_true",
 ]
 
 logger = logging.getLogger(__name__)
 
 # period is given in hours, 2 persistent 10 min values will be flagged if period < 0.333
 DEFAULT_VARIABLE_THRESHOLDS = {
-    "t": {"max_diff": 0.0001, "period": 2},
-    "p": {"max_diff": 0.0001, "period": 2},
-    'gps_lat_lon':{"max_diff": 0.000001, "period": 6}, # gets special handling to remove simultaneously constant gps_lat and gps_lon
-    'gps_alt':{"max_diff": 0.0001, "period": 6},
-    't_rad':{"max_diff": 0.0001, "period": 2},
-    "rh": {"max_diff": 0.0001, "period": 2}, # gets special handling to allow constant 100%
-    "wspd": {"max_diff": 0.0001, "period": 6},
+    "t_i": {"max_diff": 0.0001, "period": 2},
+    "t_u": {"max_diff": 0.0001, "period": 2},
+    "t_l": {"max_diff": 0.0001, "period": 2},
+    "p_i": {"max_diff": 0.0001, "period": 2},
+    # "p_u": {"max_diff": 0.0001, "period": 2},
+    # "p_l": {"max_diff": 0.0001, "period": 2},
+    "gps_lat_lon": {
+        "max_diff": 0.000001,
+        "period": 6,
+    },  # gets special handling to remove simultaneously constant gps_lat and gps_lon
+    "gps_alt": {"max_diff": 0.0001, "period": 6},
+    "t_rad": {"max_diff": 0.0001, "period": 2},
+    "rh_i": {
+        "max_diff": 0.0001,
+        "period": 2,
+    },  # gets special handling to allow constant 100%
+    "rh_u": {
+        "max_diff": 0.0001,
+        "period": 2,
+    },  # gets special handling to allow constant 100%
+    "rh_l": {
+        "max_diff": 0.0001,
+        "period": 2,
+    },  # gets special handling to allow constant 100%
+    "wspd_i": {"max_diff": 0.0001, "period": 6},
+    "wspd_u": {"max_diff": 0.0001, "period": 6},
+    "wspd_l": {"max_diff": 0.0001, "period": 6},
 }
 
 
@@ -61,11 +81,12 @@ def persistence_qc(
 
     if variable_thresholds is None:
         variable_thresholds = DEFAULT_VARIABLE_THRESHOLDS
-
-    logger.info(f"Running persistence_qc using {variable_thresholds}")
+        logger.debug(f"Running persistence_qc using {variable_thresholds}")
+    else:
+        logger.info(f"Running persistence_qc using custom thresholds:\n {variable_thresholds}")    
 
     for k in variable_thresholds.keys():
-        if k in ['t','p','rh','wspd','wdir', 'z_boom']:
+        if k in ["t", "p", "rh", "wspd", "wdir", "z_boom"]:
             var_all = [
                 k + "_u",
                 k + "_l",
@@ -79,29 +100,28 @@ def persistence_qc(
         for v in var_all:
             if v in df:
                 mask = find_persistent_regions(df[v], period, max_diff)
-                if 'rh' in v:
-                    mask = mask & (df[v]<99)
+                if "rh" in v:
+                    mask = mask & (df[v] < 99)
                 n_masked = mask.sum()
                 n_samples = len(mask)
-                logger.info(
+                logger.debug(
                     f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
                 )
                 # setting outliers to NaN
                 df.loc[mask, v] = np.nan
-            elif v == 'gps_lat_lon':
-                mask = (
-                    find_persistent_regions(df['gps_lon'], period, max_diff)
-                    & find_persistent_regions(df['gps_lat'], period, max_diff) 
-                )
+            elif v == "gps_lat_lon":
+                mask = find_persistent_regions(
+                    df["gps_lon"], period, max_diff
+                ) & find_persistent_regions(df["gps_lat"], period, max_diff)
 
                 n_masked = mask.sum()
                 n_samples = len(mask)
-                logger.info(
+                logger.debug(
                     f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
                 )
                 # setting outliers to NaN
-                df.loc[mask, 'gps_lon'] = np.nan
-                df.loc[mask, 'gps_lat'] = np.nan
+                df.loc[mask, "gps_lon"] = np.nan
+                df.loc[mask, "gps_lat"] = np.nan
 
     # Back to xarray, and re-assign the original attrs
     ds_out = df.to_xarray()
@@ -133,19 +153,21 @@ def count_consecutive_persistent_values(
 ) -> pd.Series:
     diff = data.ffill().diff().abs()  # forward filling all NaNs!
     mask: pd.Series = diff < max_diff
-    return duration_consecutive_true(mask)
+    return get_duration_consecutive_true(mask)
 
 
-def duration_consecutive_true(
+def get_duration_consecutive_true(
     series: pd.Series,
 ) -> pd.Series:
     """
-    From a boolean series, calculates the duration, in hours, of the periods with connective true values.
+    From a boolean series, calculates the duration, in hours, of the periods with concecutive true values.
+
+    The first value will be set to NaN, as it is not possible to calculate the duration of a single value.
 
     Examples
     --------
-    >>> duration_consecutive_true(pd.Series([False, True, False, False, True, True, True, False, True]))
-    pd.Series([0, 1, 0, 0, 1, 2, 3, 0, 1])
+    >>> get_duration_consecutive_true(pd.Series([False, True, False, False, True, True, True, False, True]))
+    pd.Series([np.nan, 1, 0, 0, 1, 2, 3, 0, 1])
 
     Parameters
     ----------
@@ -158,9 +180,9 @@ def duration_consecutive_true(
         Integer pandas Series or DataFrame with values representing the number of connective true values.
 
     """
-    # assert series.dtype == bool
-    cumsum = ((series.index - series.index[0]).total_seconds()/3600).to_series(index=series.index)
     is_first = series.astype("int").diff() == 1
-    offset = (is_first * cumsum).replace(0, np.nan).fillna(method="ffill").fillna(0)
+    delta_time = (series.index.to_series().diff().dt.total_seconds() / 3600)
+    cumsum = delta_time.cumsum()
+    offset = (is_first * (cumsum - delta_time)).replace(0, np.nan).ffill().fillna(0)
 
     return (cumsum - offset) * series

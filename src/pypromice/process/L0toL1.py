@@ -5,9 +5,9 @@ AWS Level 0 (L0) to Level 1 (L1) data processing
 import numpy as np
 import pandas as pd
 import xarray as xr
-import re
-
+import re, logging
 from pypromice.process.value_clipping import clip_values
+logger = logging.getLogger(__name__)
 
 
 def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
@@ -28,9 +28,10 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     -------
     ds : xarray.Dataset
         Level 1 dataset
-    '''
+    '''    
     assert(type(L0) == xr.Dataset)
     ds = L0
+    ds.attrs['level'] = 'L1'
 
     for l in list(ds.keys()):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
@@ -64,9 +65,15 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     if ds['gps_lat'].dtype.kind == 'O':                                        # Decode and reformat GPS information
         if 'NH' in ds['gps_lat'].dropna(dim='time').values[1]:
             ds = decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
+        elif 'L' in ds['gps_lat'].dropna(dim='time').values[1]:
+            logger.info('Found L in GPS string')
+            ds = decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
+            for l in ['gps_lat', 'gps_lon']:
+                ds[l] = ds[l]/100000
         else:
             try:
                 ds = decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])          # TODO this is a work around specifically for L0 RAW processing for THU_U. Find a way to make this slicker
+            
             except:
                 print('Invalid GPS type {ds["gps_lat"].dtype} for decoding')
             
@@ -179,7 +186,7 @@ def addTimeShift(ds, vars_df):
         if ds.attrs['logger_type'] == 'CR1000X':
             # v3, data is hourly all year long
             # shift everything except instantaneous
-            df_a = df_a.shift(periods=-1, freq="H")
+            df_a = df_a.shift(periods=-1, freq="h")
             df_out = pd.concat([df_a, df_i], axis=1) # different columns, same datetime indices
             df_out = df_out.sort_index()
         elif ds.attrs['logger_type'] == 'CR1000':
@@ -247,7 +254,7 @@ def getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef):
         rho_af = 1145
     else:
         rho_af = np.nan
-        print('ERROR: Incorrect metadata: "pt_antifreeze" = ' +
+        logger.info('ERROR: Incorrect metadata: "pt_antifreeze" = ' +
               f'{pt_antifreeze}. Antifreeze mix only supported at 50% or 100%')
         # assert(False)
                 

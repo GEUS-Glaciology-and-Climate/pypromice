@@ -29,7 +29,7 @@ class BUFRExportTestCase(unittest.TestCase):
             timestamp=datetime.datetime(2021, 10, 14, 6, 0),
             relativeHumidity=43.0,
             airTemperature=256.0,
-            pressure=95400.0,
+            nonCoordinatePressure=95400.0,
             windDirection=12.0,
             windSpeed=2.2,
             latitude=66,
@@ -65,7 +65,7 @@ class BUFRExportTestCase(unittest.TestCase):
             timestamp=datetime.datetime(2023, 12, 19, 10, 0),
             relativeHumidity=41,
             airTemperature=263,
-            pressure=100570,
+            nonCoordinatePressure=100570,
             windDirection=108,
             windSpeed=8.2,
             latitude=71.14146,
@@ -114,7 +114,7 @@ class BUFRExportTestCase(unittest.TestCase):
             timestamp=datetime.datetime(2023, 12, 19, 10, 0),
             relativeHumidity=84,
             airTemperature=251.8,
-            pressure=76360,
+            nonCoordinatePressure=76360,
             windDirection=218,
             windSpeed=9.6,
             latitude=66.48248,
@@ -161,7 +161,7 @@ class BUFRExportTestCase(unittest.TestCase):
             timestamp=datetime.datetime(2023, 12, 19, 10, 0),
             relativeHumidity=np.nan,
             airTemperature=np.nan,
-            pressure=np.nan,
+            nonCoordinatePressure=np.nan,
             windDirection=np.nan,
             windSpeed=np.nan,
             latitude=np.nan,
@@ -176,6 +176,40 @@ class BUFRExportTestCase(unittest.TestCase):
             write_bufr_message(variables_src, fp)
             fp.seek(0)
             variables_read = read_bufr_message(fp)
+
+        self.assertEqual(
+            variables_src,
+            variables_read,
+        )
+
+    def test_precision(self):
+        """
+        Test if the BUFRVariable rounding configurations aligns with the BUFR format.
+
+        Use np.random.random() to generate high precision random values.
+        """
+        variables_src = BUFRVariables(
+            wmo_id="04464",
+            station_type="mobile",
+            timestamp=datetime.datetime(2023, 12, 19, 10, 0),
+            relativeHumidity=np.random.random(),
+            airTemperature=np.random.random(),
+            nonCoordinatePressure=1000 * np.random.random(),
+            windDirection=np.random.random(),
+            windSpeed=np.random.random(),
+            latitude=np.random.random(),
+            longitude=np.random.random(),
+            heightOfStationGroundAboveMeanSeaLevel=np.random.random(),
+            heightOfBarometerAboveMeanSeaLevel=np.random.random(),
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=np.random.random(),
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=np.random.random(),
+        )
+        with tempfile.TemporaryFile("w+b") as fp:
+            write_bufr_message(variables=variables_src, file=fp)
+            fp.seek(0)
+            variables_read = read_bufr_message(
+                fp=fp,
+            )
 
         self.assertEqual(
             variables_src,

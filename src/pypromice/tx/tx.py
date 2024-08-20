@@ -886,13 +886,13 @@ def sortLines(in_file, out_file, replace_unsorted=True):                       #
         lines = in_f.readlines()
     
     # Remove duplicate lines and sort
-    unique_lines = findDuplicates(lines)
+    unique_lines = findDuplicates(lines.copy())
     unique_lines.sort()
-    
-    # Write sorted file
-    with open(out_file, 'w') as out_f:
-        # out_f.write(headers)
-        out_f.writelines(unique_lines)
+    if lines != unique_lines:
+        # Write sorted file
+        with open(out_file, 'w') as out_f:
+            # out_f.write(headers)
+            out_f.writelines(unique_lines)
     
     # Replace input file with new sorted file
     if replace_unsorted:
@@ -929,6 +929,27 @@ def addTail(in_file, out_dir, aws_name, header_names='', lines_limit=100):
         #out_f.write(headers)
         out_f.writelines(tail) 
         print(f'Tails file written to {out_pn}')
+
+def isModified(filename, time_threshold=1):
+    '''Return flag denoting if file is modified within a certain timeframe
+    
+    Parameters
+    ----------
+    filename : str
+        File path
+    time_threshold : int
+        Time threshold (provided in hours)
+    
+    Returns
+    -------
+    bool
+        Flag denoting if modified (True) or not (False)
+    '''
+    delta = time.time() - os.path.getmtime(filename)
+    delta = delta / (60*60)
+    if delta < time_threshold:
+        return True
+    return False
 
 def _loadTestMsg():
     '''Load test .msg email file'''

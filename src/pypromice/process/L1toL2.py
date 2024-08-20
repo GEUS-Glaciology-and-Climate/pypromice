@@ -3,6 +3,7 @@
 AWS Level 1 (L1) to Level 2 (L2) data processing
 """
 import logging
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -23,6 +24,8 @@ logger = logging.getLogger(__name__)
 def toL2(
     L1: xr.Dataset,
     vars_df: pd.DataFrame,
+    data_flags_dir: Path,
+    data_adjustments_dir: Path,
     T_0=273.15,
     ews=1013.246,
     ei0=6.1071,
@@ -30,7 +33,18 @@ def toL2(
     eps_clear=9.36508e-6,
     emissivity=0.97,
 ) -> xr.Dataset:
-    '''Process one Level 1 (L1) product to Level 2
+    '''Process one Level 1 (L1) product to Level 2.
+    In this step we do:
+        - manual flagging and adjustments
+        - automated QC: persistence, percentile
+        - custom filter: gps_alt filter, NaN t_rad removed from dlr & ulr
+        - smoothing of tilt and rot
+        - calculation of rh with regards to ice in subfreezin conditions
+        - calculation of cloud coverage
+        - correction of dsr and usr for tilt
+        - filtering of dsr based on a theoritical TOA irradiance and grazing light
+        - calculation of albedo
+        - calculation of directional wind speed
 
     Parameters
     ----------
@@ -59,10 +73,11 @@ def toL2(
         Level 2 dataset
     '''
     ds = L1.copy(deep=True)                                                    # Reassign dataset
+    ds.attrs['level'] = 'L2'
     try:
-        ds = adjustTime(ds)                                                    # Adjust time after a user-defined csv files
-        ds = flagNAN(ds)                                                       # Flag NaNs after a user-defined csv files
-        ds = adjustData(ds)                                                    # Adjust data after a user-defined csv files
+        ds = adjustTime(ds, adj_dir=data_adjustments_dir.as_posix())       # Adjust time after a user-defined csv files
+        ds = flagNAN(ds, flag_dir=data_flags_dir.as_posix())             # Flag NaNs after a user-defined csv files
+        ds = adjustData(ds, adj_dir=data_adjustments_dir.as_posix())       # Adjust data after a user-defined csv files
     except Exception:
         logger.exception('Flagging and fixing failed:')
 
@@ -74,7 +89,7 @@ def toL2(
 
     # filtering gps_lat, gps_lon and gps_alt based on the difference to a baseline elevation
     # right now baseline elevation is gapfilled monthly median elevation
-    baseline_elevation = (ds.gps_alt.to_series().resample('M').median()
+    baseline_elevation = (ds.gps_alt.to_series().resample('MS').median()
                           .reindex(ds.time.to_series().index, method='nearest')
                           .ffill().bfill())
     mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) & ds.gps_alt.notnull()
@@ -85,10 +100,20 @@ def toL2(
     ds['dlr'] = ds.dlr.where(ds.t_rad.notnull())
     ds['ulr'] = ds.ulr.where(ds.t_rad.notnull())
 
+    # calculating realtive humidity with regard to ice
     T_100 = _getTempK(T_0)
     ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],
                                      T_0, T_100, ews, ei0)
 
+    if ds.attrs['number_of_booms']==2:
+        ds['rh_l_cor'] = correctHumidity(ds['rh_l'], ds['t_l'],
+                                         T_0, T_100, ews, ei0)
+
+    if hasattr(ds,'t_i'):
+        if ~ds['t_i'].isnull().all():
+            ds['rh_i_cor'] = correctHumidity(ds['rh_i'], ds['t_i'],
+                                             T_0, T_100, ews, ei0)
+    
     # Determiune cloud cover for on-ice stations
     cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,        # Calculate cloud coverage
                            ds['dlr'], ds.attrs['station_id'])
@@ -176,20 +201,50 @@ def toL2(
         ds['precip_u_cor'], ds['precip_u_rate'] = correctPrecip(ds['precip_u'],
                                                                 ds['wspd_u'])
     if ds.attrs['number_of_booms']==2:
-        ds['rh_l_cor'] = correctHumidity(ds['rh_l'], ds['t_l'],           # Correct relative humidity
-                                         T_0, T_100, ews, ei0)
-
         if ~ds['precip_l'].isnull().all() and precip_flag:                     # Correct precipitation
             ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],
                                                                    ds['wspd_l'])
 
-    if hasattr(ds,'t_i'):
-        if ~ds['t_i'].isnull().all():                                          # Instantaneous msg processing
-            ds['rh_i_cor'] = correctHumidity(ds['rh_i'], ds['t_i'],       # Correct relative humidity
-                                             T_0, T_100, ews, ei0)
+    # Get directional wind speed 
+    ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                   
+    ds['wspd_x_u'], ds['wspd_y_u'] = calcDirWindSpeeds(ds['wspd_u'], ds['wdir_u']) 
+
+    if ds.attrs['number_of_booms']==2:                                         
+        ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0) 
+        ds['wspd_x_l'], ds['wspd_y_l'] = calcDirWindSpeeds(ds['wspd_l'], ds['wdir_l'])
+
+    if hasattr(ds, 'wdir_i'):
+        if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():
+            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)                   
+            ds['wspd_x_i'], ds['wspd_y_i'] = calcDirWindSpeeds(ds['wspd_i'], ds['wdir_i'])   
+    
 
     ds = clip_values(ds, vars_df)
     return ds
+
+
+def calcDirWindSpeeds(wspd, wdir, deg2rad=np.pi/180):
+    '''Calculate directional wind speed from wind speed and direction
+    
+    Parameters
+    ----------
+    wspd : xr.Dataarray
+        Wind speed data array
+    wdir : xr.Dataarray
+        Wind direction data array
+    deg2rad : float
+        Degree to radians coefficient. The default is np.pi/180
+    
+    Returns
+    -------
+    wspd_x : xr.Dataarray
+        Wind speed in X direction
+    wspd_y : xr.Datarray
+        Wind speed in Y direction
+    '''        
+    wspd_x = wspd * np.sin(wdir * deg2rad)
+    wspd_y = wspd * np.cos(wdir * deg2rad) 
+    return wspd_x, wspd_y
 
 
 def calcCloudCoverage(T, T_0, eps_overcast, eps_clear, dlr, station_id):
@@ -275,7 +330,7 @@ def smoothTilt(da: xr.DataArray, threshold=0.2):
     # we calculate the moving standard deviation over a 3-day sliding window
     # hourly resampling is necessary to make sure the same threshold can be used 
     # for 10 min and hourly data
-    moving_std_gap_filled = da.to_series().resample('H').median().rolling(
+    moving_std_gap_filled = da.to_series().resample('h').median().rolling(
                     3*24, center=True, min_periods=2
                     ).std().reindex(da.time, method='bfill').values
     # we select the good timestamps and gapfill assuming that
@@ -302,7 +357,7 @@ def smoothRot(da: xr.DataArray, threshold=4):
     xarray.DataArray
         smoothed rotation measurements from inclinometer
     '''
-    moving_std_gap_filled = da.to_series().resample('H').median().rolling(
+    moving_std_gap_filled = da.to_series().resample('h').median().rolling(
                     3*24, center=True, min_periods=2
                     ).std().reindex(da.time, method='bfill').values
     # same as for tilt with, in addition:
