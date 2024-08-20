@@ -153,7 +153,7 @@ class AWS(object):
         """Perform L2 to L3 data processing, including resampling and metadata
         and attribute population"""
         logger.info("Level 3 processing...")
-        self.L3 = toL3(self.L2)
+        self.L3 = toL3(self.L2, data_adjustments_dir=self.data_issues_repository / "adjustments")
 
     def writeArr(self, dataset, outpath, t=None):
         """Write L3 data to .nc and .csv hourly and daily files
