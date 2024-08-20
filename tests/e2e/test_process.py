@@ -153,6 +153,7 @@ class TestProcess(unittest.TestCase):
                 outpath=output_l3.as_posix(),
                 variables=None,
                 metadata=None,
+                data_issues_path=data_issues_path,
             )
 
             # Part 4 Join L3: Merge Current data and historical GC-Net and convert to site

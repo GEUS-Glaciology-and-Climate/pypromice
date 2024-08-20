@@ -493,7 +493,9 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
                             l3_merged.z_ice_surf.to_series(), l3.z_ice_surf.to_series()
                         ),
                     )
-
+            
+            # saves attributes
+            attrs = l3_merged.attrs
             # merging by time block
             l3_merged = xr.concat(
                 (
@@ -504,6 +506,9 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
                 ),
                 dim="time",
             )
+            
+            # restauring attributes
+            l3_merged.attrs = attrs
 
     # Assign site id
     if not l3_merged:
@@ -519,13 +524,15 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
         site_config_source_hash=get_commit_hash_and_check_dirty(config_folder),
         gcnet_source_hash=get_commit_hash_and_check_dirty(folder_gcnet),
     )
+
     for stid, station_attributes in l3_merged.attrs["stations_attributes"].items():
-        station_source = json.loads(station_attributes["source"])
-        for k, v in station_source.items():
-            if k in site_source and site_source[k] != v:
-                site_source[k] = "multiple"
-            else:
-                site_source[k] = v
+        if "source" in station_attributes.keys():
+            station_source = json.loads(station_attributes["source"])
+            for k, v in station_source.items():
+                if k in site_source and site_source[k] != v:
+                    site_source[k] = "multiple"
+                else:
+                    site_source[k] = v
     l3_merged.attrs["source"] = json.dumps(site_source)
 
     v = pypromice.resources.load_variables(variables)
