@@ -29,7 +29,7 @@ setuptools.setup(
     package_dir={"": "src"},
     include_package_data = True,
     packages=setuptools.find_packages(where="src"),
-    python_requires=">=3.8",
+    python_requires=">=3.10",
     package_data={
     	"pypromice.tx": ["payload_formats.csv", "payload_types.csv"],
         "pypromice.qc.percentiles": ["thresholds.csv"],
