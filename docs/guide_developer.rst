@@ -74,12 +74,12 @@ Keep changes in this branch specific to one bug or enhancement, so it is clear h
 Creating a pull request
 -----------------------
 
-To contribute your changes to pypromice, you need to make a pull request from your forked development branch to pypromice's main branch. Before doing so, retrieve the most recent version of the main repository to keep this branch up to date with pypromice's main branch.
+To contribute your changes to pypromice, you need to make a pull request from your forked development branch to pypromice's develop branch. The develop branch is our staging for operational testing before it is deployed to our live processing in the main branch. Before doing so, retrieve the most recent version to keep your branch up to date with pypromice's develop branch.
 
 .. code:: console
 
 	$ git fetch
-	$ git merge upstream/main
+	$ git merge upstream/develop
 
 And then open a pull request as documented `here <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork>`_. Make sure to include the following in your pull request description:
 
