@@ -9,7 +9,7 @@ Two components are needed to perform Level 0 to Level 3 processing:
 - A Level 0 dataset file (.txt), or a collection of Level 0 dataset files
 - A station config file (.toml)
  
-Two test station datasets and config files are available with pypromice as an example of the Level 0 to Level 3 processing. These can be found on the Github repo `here <https://github.com/GEUS-Glaciology-and-Climate/pypromice/tree/main/src/pypromice/test>`_, in the ``src/pypromice/test/`` directory in the cloned repo.
+Two test station datasets and config files are available with pypromice as an example of the Level 0 to Level 3 processing. These can be found on the Github repo `here <https://github.com/GEUS-Glaciology-and-Climate/pypromice/tree/main/tests>`_, in the ``src/pypromice/test/`` directory in the cloned repo.
 
 
 These can be processed from Level 0 to a Level 3 data product as an ``AWS`` object in pypromice.  
@@ -29,15 +29,15 @@ These can be processed from Level 0 to a Level 3 data product as an ``AWS`` obje
    # Get Level 3
    l3 = a.L3
 
-All processing steps are executed in ``AWS.process``. These can also be broken down into each Level processing 
+All processing steps can be executed in the ``AWS`` object. The example below shows all level processing broken down into each step.
 
 .. code:: python
 
     from pypromice.process import AWS
 
     # Define input paths
-    config = "src/pypromice/test/test_config2.toml"
-    inpath = "src/pypromice/test/"
+    config = "tests/data/test_config1_tx.toml"
+    inpath = "tests/data"
 
     # Initiate
     a = AWS(config, inpath)
@@ -54,18 +54,25 @@ All processing steps are executed in ``AWS.process``. These can also be broken d
     a.getL3()
     l3 = a.L3
 
-Level 3 data can be saved as both NetCDF and csv formatted files using the ``AWS.write`` function.
+Level 2 and Level 3 data can be saved as both NetCDF and csv formatted files using the ``pypromice.process.write.prepare_and_write()`` function.
 
 .. code:: python
- 
-    a.write("src/pypromice/test/")
 
-The Level 0 to Level 3 processing can also be executed from a CLI using the ``getL3`` command.
+    from pypromice.process.write import prepare_and_write
+
+    prepare_and_write(l2, "tests/data/")
+    prepare_and_write(l3, "tests/data/")
+
+The Level 0 to Level 3 processing can also be executed from a CLI using the ``get_l2`` and ``get_l2tol3`` commands.
 
 .. code:: console
 
-    $ get_l3 -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
+    $ get_l2 -c tests/data/test_config1_tx.toml -i tests/data/ -o tests/data/
 
+    $ get_l2tol3 -c src/pypromice/test/test_config1.toml -i src/pypromice/test -o src/pypromice/test
+    
+    get_l2tol3 -c tests/data/station_configurations/ -i tests/data/TEST1_hour.nc -o tests/data/ 
+    
 
 Loading our data
 ================
@@ -91,7 +98,7 @@ All available AWS datasets are retrieved by station name. Use ``aws_names()`` to
 
 Download with pypromice
 -----------------------
-AWS data can be downloaded to file with pypromice. Open up a CLI and use the ``getData`` command.
+AWS data can be downloaded to file with pypromice. Open up a CLI and use the ``get_promice_data`` command.
 
 .. code:: console
 
@@ -158,7 +165,7 @@ Once loaded, variables from an AWS dataset can be simply plotted with using pand
 
 .. note::
 
-	Variable names are provided in the dataset metadata, or can be found on in our `variables look-up table <https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/process/variables.csv>`_. For more complex plotting, please see either the `xarray <https://docs.xarray.dev/en/stable/user-guide/plotting.html>`_ or `pandas <https://pandas.pydata.org/docs/user_guide/10min.html#plotting>`_ plotting documentation.
+	Variable names are provided in the dataset metadata, or can be found on in our `variables look-up table <https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/resources/variables.csv>`_. For more complex plotting, please see either the `xarray <https://docs.xarray.dev/en/stable/user-guide/plotting.html>`_ or `pandas <https://pandas.pydata.org/docs/user_guide/10min.html#plotting>`_ plotting documentation.
 	
 	
 .. warning::
