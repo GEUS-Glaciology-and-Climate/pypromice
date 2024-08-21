@@ -35,7 +35,7 @@ pypromice can be ran in an environment with the pypromice package forked or clon
 
 .. code:: console
 
-	$ conda create --name pypromice python=3.8
+	$ conda create --name pypromice python=3.11
 	$ conda activate pypromice
 	$ git clone git@github.com:GEUS-Glaciology-and-Climate/pypromice.git
 	$ cd pypromice/
@@ -55,5 +55,5 @@ The package has inbuilt unit tests, which can be run to test the package install
         
 .. note::
 
-	This command line unit testing only works if pypromice is installed in the active Python environment. Unit testing can be run directly from the cloned pypromice top directory also either by running each script or from the command line as so: ``$ python -m unittest discover src/pypromice``
+	This command line unit testing only works if pypromice is installed in the active Python environment. Unit testing can be run directly from the cloned pypromice top directory also either by running each script or from the command line as so: ``$ python -m unittest discover pypromice``
 
