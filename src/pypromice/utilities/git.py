@@ -56,7 +56,6 @@ def get_commit_hash_and_check_dirty(file_path: str | Path) -> str:
             logger.warning(f"Warning: The file {file_path} is not under version control.")
             return 'unknown'
 
-        print(f"Commit hash: {commit_hash}")
         return commit_hash
     except subprocess.CalledProcessError as e:
         logger.warning(f"Error: {e.output.decode('utf-8')}")
