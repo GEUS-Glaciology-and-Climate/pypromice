@@ -129,6 +129,6 @@ class GetL2TestCase(unittest.TestCase):
                 )
                 data_root_hash = source_decoded["l0_data_root"]
                 data_issues_hash = source_decoded["data_issues"]
-                self.assertNotEquals(config_hash, 'unknown', 'This test will fail while the commit is dirty')
-                self.assertNotEquals(data_root_hash, 'unknown', 'This test will fail while the commit is dirty')
-                self.assertNotEquals(data_issues_hash, 'unknown', 'This test will fail while the commit is dirty')
+                self.assertFalse(config_hash.endswith(" (dirty)"), 'This test will fail while the commit is dirty')
+                self.assertFalse(data_root_hash.endswith(" (dirty)"), 'This test will fail while the commit is dirty')
+                self.assertFalse(data_issues_hash.endswith(" (dirty)"), 'This test will fail while the commit is dirty')

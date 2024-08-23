@@ -55,7 +55,15 @@ class AWS(object):
         """
         assert os.path.isfile(config_file), "cannot find " + config_file
         assert os.path.isdir(inpath), "cannot find " + inpath
-        logger.info("AWS object initialising...")
+        logger.info(
+            "AWS("
+            f"config_file={config_file},"
+            f" inpath={inpath},"
+            f" data_issues_repository={data_issues_repository},"
+            f" var_file={var_file},"
+            f" meta_file={meta_file}"
+            ")"
+        )
 
         # Load config, variables CSF standards, and L0 files
         self.config = self.loadConfig(config_file, inpath)
@@ -73,6 +81,7 @@ class AWS(object):
             l0_data_root=inpath_hash,
             data_issues=data_issues_hash,
         )
+        logger.debug('Source information: %s', source_dict)
         self.meta["source"] = json.dumps(source_dict)
 
         # Load config file
