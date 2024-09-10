@@ -254,6 +254,7 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
         
         ds['z_surf_combined'] = np.maximum(ds['z_surf_combined'], ds['z_ice_surf'])
         ds['snow_height'] = np.maximum(0, ds['z_surf_combined'] - ds['z_ice_surf'])
+        ds['z_ice_surf'] = ds['z_ice_surf'].where(ds.snow_height.notnull())
     elif ds.attrs['site_type'] in ['accumulation', 'bedrock']:
         # Handle accumulation and bedrock site types
         ds['z_ice_surf'] = ('time', ds['z_surf_1'].data * np.nan)
