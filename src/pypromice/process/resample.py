@@ -34,6 +34,15 @@ def resample_dataset(ds_h, t):
     '''
     df_d = ds_h.to_dataframe().resample(t).mean()
     
+    # taking the 10 min data and using it as instantaneous values:
+    if (t == '60min') and (ds_h.time.diff(dim='time').isel(time=0).dt.total_seconds() == 600):
+        cols_to_update = ['p_i', 't_i', 'rh_i', 'rh_i_cor', 'wspd_i', 'wdir_i','wspd_x_i','wspd_y_i']
+        for col in cols_to_update:
+            df_d[col] = ds_h.reindex(time=df_d.index)[col.replace('_i','_u')].values
+            if col == 'p_i':
+                df_d[col] = df_d[col].values-1000
+            
+
     # recalculating wind direction from averaged directional wind speeds
     for var in ['wdir_u','wdir_l']:
         boom = var.split('_')[1]
@@ -60,9 +69,19 @@ def resample_dataset(ds_h, t):
                 if var+'_cor' in df_d.keys():
                     df_d[var+'_cor'] = (p_vap.to_series().resample(t).mean() \
                                / es_cor.to_series().resample(t).mean())*100
+    
+    # passing each variable attribute to the ressample dataset
+    vals = []
+    for c in df_d.columns:
+        if c in ds_h.data_vars:
+            vals.append(xr.DataArray(
+                data=df_d[c], dims=['time'],
+               coords={'time':df_d.index}, attrs=ds_h[c].attrs))
+        else:
+            vals.append(xr.DataArray(
+                data=df_d[c], dims=['time'],
+               coords={'time':df_d.index}, attrs=None))
             
-    vals = [xr.DataArray(data=df_d[c], dims=['time'],
-           coords={'time':df_d.index}, attrs=ds_h[c].attrs) for c in df_d.columns]
     ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)
     return ds_d
 
