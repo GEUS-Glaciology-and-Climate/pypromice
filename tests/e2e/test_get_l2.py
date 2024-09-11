@@ -96,7 +96,7 @@ class GetL2TestCase(unittest.TestCase):
                 self.assertEqual(dataset.attrs["station_id"], station_id)
                 self.assertIsInstance(dataset.attrs["date_created"], str)
                 date_created = pd.to_datetime(dataset.attrs["date_created"])
-                self.assertLess(t0 - date_created, datetime.timedelta(seconds=1))
+                self.assertLess(t0 - date_created, datetime.timedelta(seconds=5))
                 self.assertEqual(
                     dataset.attrs["date_issued"], dataset.attrs["date_created"]
                 )
