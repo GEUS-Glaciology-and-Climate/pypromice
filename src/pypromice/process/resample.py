@@ -35,10 +35,18 @@ def resample_dataset(ds_h, t):
     df_d = ds_h.to_dataframe().resample(t).mean()
     
     # taking the 10 min data and using it as instantaneous values:
-    if (t == '60min') and (ds_h.time.diff(dim='time').isel(time=0).dt.total_seconds() == 600):
+    msk = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
+    if (t == '60min') and msk.any():
         cols_to_update = ['p_i', 't_i', 'rh_i', 'rh_i_cor', 'wspd_i', 'wdir_i','wspd_x_i','wspd_y_i']
+        timestamp_10min = ds_h.time.where(msk, drop=True).to_index()
+        timestamp_hour = df_d.index
+        
         for col in cols_to_update:
-            df_d[col] = ds_h.reindex(time=df_d.index)[col.replace('_i','_u')].values
+            if col not in df_d.columns:
+                df_d[col] = np.nan
+            df_d.loc[timestamp_hour.intersection(timestamp_10min), col] = ds_h.reindex(
+                time= timestamp_hour.intersection(timestamp_10min)
+                )[col.replace('_i','_u')].values
             if col == 'p_i':
                 df_d[col] = df_d[col].values-1000
             
