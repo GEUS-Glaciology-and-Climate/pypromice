@@ -171,7 +171,7 @@ def writeCSV(outfile, Lx, csv_order):
 
 
 def writeNC(outfile, Lx, col_names=None):
-    """Write data product to NetCDF file
+    """Write data product to NetCDF file with compression
 
     Parameters
     ----------
@@ -187,7 +187,10 @@ def writeNC(outfile, Lx, col_names=None):
     else:
         names = list(Lx.keys())
 
-    Lx[names].to_netcdf(outfile, mode="w", format="NETCDF4", compute=True)
+    comp = dict(zlib=True, complevel=4)
+    encoding = {var: comp for var in names}
+
+    Lx[names].to_netcdf(outfile, mode="w", format="NETCDF4", compute=True, encoding=encoding)
 
 
 def getColNames(vars_df, ds, remove_nan_fields=False):
