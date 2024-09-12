@@ -32,8 +32,22 @@ def resample_dataset(ds_h, t):
     ds_d : xarray.Dataset
         L3 AWS dataset resampled to the frequency defined by t
     '''
-    df_d = ds_h.to_dataframe().resample(t).mean()
+    # Convert dataset to DataFrame
+    df_d = ds_h.to_dataframe()
     
+    # Identify non-numeric columns
+    non_numeric_cols = df_d.select_dtypes(exclude=['number']).columns
+    
+    # Log a warning and drop non-numeric columns
+    if len(non_numeric_cols) > 0:
+        for col in non_numeric_cols:
+            unique_values = df_d[col].unique()
+            logger.warning(f"Dropping column '{col}' because it is of type '{df_d[col].dtype}' and contains unique values: {unique_values}")
+
+        df_d = df_d.drop(columns=non_numeric_cols)
+    # Resample the DataFrame
+    df_d = df_d.resample(t).mean()
+
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
     if (t == '60min') and is_10_minutes_timestamp.any():
