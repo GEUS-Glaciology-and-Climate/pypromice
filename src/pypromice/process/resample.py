@@ -40,15 +40,16 @@ def resample_dataset(ds_h, t):
         cols_to_update = ['p_i', 't_i', 'rh_i', 'rh_i_cor', 'wspd_i', 'wdir_i','wspd_x_i','wspd_y_i']
         timestamp_10min = ds_h.time.where(msk, drop=True).to_index()
         timestamp_hour = df_d.index
+        timestamp_to_update = timestamp_hour.intersection(timestamp_10min)
         
         for col in cols_to_update:
             if col not in df_d.columns:
                 df_d[col] = np.nan
-            df_d.loc[timestamp_hour.intersection(timestamp_10min), col] = ds_h.reindex(
-                time= timestamp_hour.intersection(timestamp_10min)
+            df_d.loc[timestamp_to_update, col] = ds_h.reindex(
+                time= timestamp_to_update
                 )[col.replace('_i','_u')].values
             if col == 'p_i':
-                df_d[col] = df_d[col].values-1000
+                df_d.loc[timestamp_to_update, col] = df_d.loc[timestamp_to_update, col].values-1000
             
 
     # recalculating wind direction from averaged directional wind speeds
