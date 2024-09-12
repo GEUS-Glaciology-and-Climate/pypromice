@@ -35,16 +35,22 @@ def resample_dataset(ds_h, t):
     df_d = ds_h.to_dataframe().resample(t).mean()
     
     # taking the 10 min data and using it as instantaneous values:
-    msk = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
-    if (t == '60min') and msk.any():
+    is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
+    if (t == '60min') and is_10_minutes_timestamp.any():
         cols_to_update = ['p_i', 't_i', 'rh_i', 'rh_i_cor', 'wspd_i', 'wdir_i','wspd_x_i','wspd_y_i']
-        timestamp_10min = ds_h.time.where(msk, drop=True).to_index()
-        timestamp_hour = df_d.index
-        timestamp_to_update = timestamp_hour.intersection(timestamp_10min)
+        timestamp_10min = ds_h.time.where(is_10_minutes_timestamp, drop=True).to_index()
+        timestamp_round_hour = df_d.index
+        timestamp_to_update = timestamp_round_hour.intersection(timestamp_10min)
         
         for col in cols_to_update:
             if col not in df_d.columns:
                 df_d[col] = np.nan
+            else:
+                # if there are already instantaneous values in the dataset
+                # we want to keep them as they are
+                # removing timestamps where there is already t_i filled from a TX file
+                missing_instantaneous = ds_h.reindex(time=timestamp_to_update)[col].isnull()
+                timestamp_to_update = timestamp_to_update[missing_instantaneous]
             df_d.loc[timestamp_to_update, col] = ds_h.reindex(
                 time= timestamp_to_update
                 )[col.replace('_i','_u')].values
