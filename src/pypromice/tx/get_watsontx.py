@@ -120,12 +120,15 @@ def get_watsontx():
 
     # Sort L0tx files and add tails    
     for f in glob(out_dir+'/*.txt'):
-        
-        # Sort lines in L0tx file and remove duplicates
-        in_dirn, in_fn = os.path.split(f)    
-        out_fn = 'sorted_' + in_fn
-        out_pn = os.sep.join((in_dirn, out_fn))
-        sortLines(f, out_pn)
+
+        # Find modified files (within the last hour)
+        if isModified(f, 1):
+            
+            # Sort lines in L0tx file and remove duplicates
+            in_dirn, in_fn = os.path.split(f)    
+            out_fn = 'sorted_' + in_fn
+            out_pn = os.sep.join((in_dirn, out_fn))
+            sortLines(f, out_pn)
         
     # Close mail server if open
     if 'mail_server' in locals():
