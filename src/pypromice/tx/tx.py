@@ -894,10 +894,10 @@ def sortLines(in_file, out_file, replace_unsorted=True):                       #
             # out_f.write(headers)
             out_f.writelines(unique_lines)
     
-    # Replace input file with new sorted file
-    if replace_unsorted:
-        os.remove(in_file)
-        os.rename(out_file, in_file)
+        # Replace input file with new sorted file
+        if replace_unsorted:
+            os.remove(in_file)
+            os.rename(out_file, in_file)
 
 def addTail(in_file, out_dir, aws_name, header_names='', lines_limit=100):    
     '''Generate tails file from L0tx file
