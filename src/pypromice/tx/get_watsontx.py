@@ -15,7 +15,7 @@ import os, imaplib, email, re
 from glob import glob
 from datetime import datetime
 
-from pypromice.tx import getMail, L0tx, sortLines
+from pypromice.tx import getMail, L0tx, sortLines, isModified
 
 
 def parse_arguments_watson():
