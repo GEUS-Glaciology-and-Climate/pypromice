@@ -55,7 +55,8 @@ class AWS(object):
         """
         assert os.path.isfile(config_file), "cannot find " + config_file
         assert os.path.isdir(inpath), "cannot find " + inpath
-        logger.info(
+
+        logger.debug(
             "AWS("
             f"config_file={config_file},"
             f" inpath={inpath},"

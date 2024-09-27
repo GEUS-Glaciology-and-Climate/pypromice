@@ -164,6 +164,7 @@ class TestProcess(unittest.TestCase):
                 site=site_id,
                 folder_l3=output_l3.as_posix(),
                 folder_gcnet=folder_gc_net.as_posix(),
+                folder_glaciobasis='.',
                 outpath=output_site_l3.as_posix(),
                 variables=None,
                 metadata=None,
