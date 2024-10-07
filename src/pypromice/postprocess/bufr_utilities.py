@@ -120,7 +120,8 @@ class BUFRVariables:
     )
     # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/012101
     # Scale: 2, unit: K
-    airTemperature: float = attrs.field(converter=round_converter(2))
+    # NOTE: The expected scale is 2, but our instantanous data is rounded to 1 decimal.
+    airTemperature: float = attrs.field(converter=round_converter(1))
     # There is also a Dewpoint temperature in this template: 012103 which is currently unused.
     # https://vocabulary-manager.eumetsat.int/vocabularies/BUFR/WMO/32/TABLE_B/012103
     # Scale: 0, unit: %
