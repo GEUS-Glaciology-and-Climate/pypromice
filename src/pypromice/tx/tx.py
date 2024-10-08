@@ -454,6 +454,11 @@ class L0tx(EmailMessage, PayloadFormat):
         bool
             Valid format flag
         '''
+
+        # TODO: self.getFirstByte().isdigit() will return true for the values b'0' to b'9'.
+        # b'0' is interpret as a 0 when decoding the payload, But the ord() function will return 48 for b'0'.
+        # This means messages from 48 to 57 will be skipped.
+        # The payload is supposedly as bytearray at the current stage. payload[:2] will therefore match '\n'
         if self.getFirstByte().isdigit() or (self.payload[:2] == '\n' and self.imei == 300234064121930):     #TODO needed?
             return None, None, None, None, -9999, False
         
@@ -463,6 +468,8 @@ class L0tx(EmailMessage, PayloadFormat):
         else:
             bidx = ord(self.getFirstByte()) 
             try:
+                # NOTE: The first three values comes from the original csv file.
+                # The last blength is added init the init function _addCount
                 bval, bfor, bname, blength = self.payload_format[bidx]
                 
                 # if bidx==80:                                                   # TODO. This is a temporary workaround for QAS_Lv3 formatting being different. Needs a more permanent fix!
@@ -697,12 +704,7 @@ def GLI4toDEC(Bytes):
     float
         Decoded value
     '''
-    Csign = int(-2 * (Bytes[0] & 0x80) / 0x80 + 1)
-    byte1 = Bytes[0] & 127
-    byte2 = Bytes[1]
-    byte3 = Bytes[2]
-    byte4 = Bytes[3]    
-    return Csign * byte1 * 0x01000000 + byte2 * 0x010000 + byte3 * 0x0100 + byte4
+    return int.from_bytes(Bytes, byteorder='big', signed=True)
 
 def RAWtoSTR(Bytes):
     '''Byte-to-string decoder
@@ -868,7 +870,7 @@ def findDuplicates(lines):
     return unique_lines
 
 def sortLines(in_file, out_file, replace_unsorted=True):                       #Formerly called sorter.py
-    '''Sort lines in text file
+    """Sort lines in text file
 
     Parameters
     ----------
@@ -878,26 +880,23 @@ def sortLines(in_file, out_file, replace_unsorted=True):                       #
         Output file path
     replace_unsorted : bool, optional
         Flag to replace unsorted files with sorted files. The default is True.
-    '''
-    print(f'\nSorting {in_file}')
-    
-    # Open input file and read lines
-    with open(in_file) as in_f:
-        lines = in_f.readlines()
-    
-    # Remove duplicate lines and sort
-    unique_lines = findDuplicates(lines.copy())
-    unique_lines.sort()
-    if lines != unique_lines:
-        # Write sorted file
-        with open(out_file, 'w') as out_f:
-            # out_f.write(headers)
-            out_f.writelines(unique_lines)
-    
-        # Replace input file with new sorted file
-        if replace_unsorted:
-            os.remove(in_file)
-            os.rename(out_file, in_file)
+    """
+    with tempfile.TemporaryFile('w+') as out_f:
+        # Open input file and read lines
+        with open(in_file) as in_f:
+            lines = in_f.readlines()
+
+
+    print(f"\nSorting {in_file}")
+
+    with open(out_file) as out_f:
+        out_f.write("\n".join(sorted(set(lines))))
+        out_f.write("\n")
+
+    # Replace input file with new sorted file
+    if replace_unsorted:
+        os.remove(in_file)
+        os.rename(out_file, in_file)
 
 def addTail(in_file, out_dir, aws_name, header_names='', lines_limit=100):    
     '''Generate tails file from L0tx file
