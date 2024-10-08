@@ -1,8 +1,5 @@
-from typing import Dict, Set, Mapping
-
 import numpy as np
 import pandas
-import pandas as pd
 import xarray
 
 from pypromice.utilities.dependency_graph import DependencyGraph
@@ -31,8 +28,6 @@ def clip_values(
     """
     cols = ["lo", "hi", "OOL"]
     assert set(cols) <= set(var_configurations.columns)
-    # TODO: Check if this is necessary
-    # variable_limits = var_configurations[cols].dropna(how="all")
 
     variable_limits = var_configurations[cols].assign(
         dependents=lambda df: df.OOL.fillna("").str.split(),
@@ -45,19 +40,16 @@ def clip_values(
     for var, row in variable_limits.iterrows():
         if var not in list(ds.variables):
             continue
-        # TODO: Check if this is necessary
-        # I guess the nan flagging is already handled below
-        # What if rh_u_cor is nan?
-        # What if row.lo/hi is nan?
 
+        # This is a special case for rh_u_cor and rh_l_cor where values are clipped to 0 and 100.
         if var in ["rh_u_cor", "rh_l_cor"]:
-            ds[var] = ds[var].where(ds[var] >= row.lo, other=0)
-            ds[var] = ds[var].where(ds[var] <= row.hi, other=100)
-
-            # Mask out invalid corrections based on uncorrected var
-            var_uncor = var.rstrip("_cor")
-            ds[var] = ds[var].where(~np.isnan(ds[var_uncor]), other=np.nan)
-
+            # Nan inputs should stay nan
+            was_nan = ds[var].isnull()
+            if ~np.isnan(row.lo):
+                ds[var] = ds[var].where(ds[var] >= row.lo, other=0)
+            if ~np.isnan(row.hi):
+                ds[var] = ds[var].where( ds[var] <= row.hi, other=100)
+            ds[var] = ds[var].where(~was_nan)
         else:
             if ~np.isnan(row.lo):
                 ds[var] = ds[var].where(ds[var] >= row.lo)
