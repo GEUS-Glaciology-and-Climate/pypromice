@@ -493,6 +493,10 @@ class L0tx(EmailMessage, PayloadFormat):
             Valid format flag
         """
 
+        # TODO: self.getFirstByte().isdigit() will return true for the values b'0' to b'9'.
+        # b'0' is interpret as a 0 when decoding the payload, But the ord() function will return 48 for b'0'.
+        # This means messages from 48 to 57 will be skipped.
+        # The payload is supposedly as bytearray at the current stage. payload[:2] will therefore match '\n'
         if self.getFirstByte().isdigit() or (
             self.payload[:2] == "\n" and self.imei == 300234064121930
         ):  # TODO needed?
@@ -510,6 +514,8 @@ class L0tx(EmailMessage, PayloadFormat):
         else:
             bidx = ord(self.getFirstByte())
             try:
+                # NOTE: The first three values comes from the original csv file.
+                # The last blength is added init the init function _addCount
                 bval, bfor, bname, blength = self.payload_format[bidx]
 
                 # if bidx==80:                                                   # TODO. This is a temporary workaround for QAS_Lv3 formatting being different. Needs a more permanent fix!
