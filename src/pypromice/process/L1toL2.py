@@ -94,7 +94,7 @@ def toL2(
                           .ffill().bfill())
     mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) & ds.gps_alt.notnull()
     ds[['gps_alt','gps_lon', 'gps_lat']] = ds[['gps_alt','gps_lon', 'gps_lat']].where(mask)
-    
+
     # removing dlr and ulr that are missing t_rad
     # this is done now becasue t_rad can be filtered either manually or with persistence
     ds['dlr'] = ds.dlr.where(ds.t_rad.notnull())
@@ -113,12 +113,12 @@ def toL2(
         if ~ds['t_i'].isnull().all():
             ds['rh_i_cor'] = correctHumidity(ds['rh_i'], ds['t_i'],
                                              T_0, T_100, ews, ei0)
-    
+
     # Determiune cloud cover for on-ice stations
     cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,        # Calculate cloud coverage
                            ds['dlr'], ds.attrs['station_id'])
     ds['cc'] = (('time'), cc.data)
-    
+
     # Determine surface temperature
     ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],           # Calculate surface temperature
                                           emissivity)
@@ -136,7 +136,7 @@ def toL2(
     else:
         lat = ds['gps_lat'].mean()
         lon = ds['gps_lon'].mean()
-    
+
     # smoothing tilt and rot
     ds['tilt_x'] = smoothTilt(ds['tilt_x'])
     ds['tilt_y'] = smoothTilt(ds['tilt_y'])
@@ -151,8 +151,8 @@ def toL2(
     ZenithAngle_rad, ZenithAngle_deg = calcZenith(lat, Declination_rad,        # Calculate zenith
                                                   HourAngle_rad, deg2rad,
                                                   rad2deg)
-    
-    
+
+
     # Correct Downwelling shortwave radiation
     DifFrac = 0.2 + 0.8 * cc
     CorFac_all = calcCorrectionFactor(Declination_rad, phi_sensor_rad,         # Calculate correction
@@ -186,9 +186,9 @@ def toL2(
     TOA_crit_nopass = (ds['dsr_cor'] > (0.9 * isr_toa + 10))                   # Determine filter
     ds['dsr_cor'][TOA_crit_nopass] = np.nan                                    # Apply filter and interpolate
     ds['usr_cor'][TOA_crit_nopass] = np.nan
-    
-    ds['dsr_cor'] = ds.dsr_cor.where(ds.dsr.notnull())  
-    ds['usr_cor'] = ds.usr_cor.where(ds.usr.notnull())  
+
+    ds['dsr_cor'] = ds.dsr_cor.where(ds.dsr.notnull())
+    ds['usr_cor'] = ds.usr_cor.where(ds.usr.notnull())
     # # Check sun position
     # sundown = ZenithAngle_deg >= 90
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)
@@ -205,27 +205,33 @@ def toL2(
             ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],
                                                                    ds['wspd_l'])
 
-    # Get directional wind speed 
-    ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)                   
-    ds['wspd_x_u'], ds['wspd_y_u'] = calcDirWindSpeeds(ds['wspd_u'], ds['wdir_u']) 
+    get_directional_wind_speed(ds)                                            # Get directional wind speed
 
-    if ds.attrs['number_of_booms']==2:                                         
-        ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0) 
+    ds = clip_values(ds, vars_df)
+    return ds
+
+def get_directional_wind_speed(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Calculate directional wind speed from wind speed and direction and mutates the dataset
+    """
+
+    ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)
+    ds['wspd_x_u'], ds['wspd_y_u'] = calcDirWindSpeeds(ds['wspd_u'], ds['wdir_u'])
+
+    if ds.attrs['number_of_booms']==2:
+        ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0)
         ds['wspd_x_l'], ds['wspd_y_l'] = calcDirWindSpeeds(ds['wspd_l'], ds['wdir_l'])
 
     if hasattr(ds, 'wdir_i'):
         if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():
-            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)                   
-            ds['wspd_x_i'], ds['wspd_y_i'] = calcDirWindSpeeds(ds['wspd_i'], ds['wdir_i'])   
-    
-
-    ds = clip_values(ds, vars_df)
+            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)
+            ds['wspd_x_i'], ds['wspd_y_i'] = calcDirWindSpeeds(ds['wspd_i'], ds['wdir_i'])
     return ds
 
 
 def calcDirWindSpeeds(wspd, wdir, deg2rad=np.pi/180):
     '''Calculate directional wind speed from wind speed and direction
-    
+
     Parameters
     ----------
     wspd : xr.Dataarray
@@ -234,16 +240,16 @@ def calcDirWindSpeeds(wspd, wdir, deg2rad=np.pi/180):
         Wind direction data array
     deg2rad : float
         Degree to radians coefficient. The default is np.pi/180
-    
+
     Returns
     -------
     wspd_x : xr.Dataarray
         Wind speed in X direction
     wspd_y : xr.Datarray
         Wind speed in Y direction
-    '''        
+    '''
     wspd_x = wspd * np.sin(wdir * deg2rad)
-    wspd_y = wspd * np.cos(wdir * deg2rad) 
+    wspd_y = wspd * np.cos(wdir * deg2rad)
     return wspd_x, wspd_y
 
 
@@ -328,7 +334,7 @@ def smoothTilt(da: xr.DataArray, threshold=0.2):
         either X or Y smoothed tilt inclinometer measurements
     '''
     # we calculate the moving standard deviation over a 3-day sliding window
-    # hourly resampling is necessary to make sure the same threshold can be used 
+    # hourly resampling is necessary to make sure the same threshold can be used
     # for 10 min and hourly data
     moving_std_gap_filled = da.to_series().resample('h').median().rolling(
                     3*24, center=True, min_periods=2
