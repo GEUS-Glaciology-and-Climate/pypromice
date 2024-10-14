@@ -198,37 +198,48 @@ class ClipValuesTestCase(unittest.TestCase):
             check_dtype=True,
         )
 
-    def test_rh_corrected_case(self):
-        """
-        The rh corrected variables are treated differently in the clipping function.
-        """
-        data_index = pd.RangeIndex(2)
-        rh_u = pd.Series(index=data_index, data=[0, 54], name="rh_u")
-        rh_u_cor = pd.Series(index=data_index, data=[0, np.nan], name="rh_u_cor")
-        rh_l = pd.Series(index=data_index, data=[-20, 54], name="rh_l")
-        rh_l_cor = pd.Series(index=data_index, data=[0, 254], name="rh_l_cor")
-        data = pd.concat([rh_u, rh_u_cor, rh_l, rh_l_cor], axis=1)
+    def test_rh_corrected(self):
         variable_config = pd.DataFrame(
             columns=["field", "lo", "hi", "OOL"],
             data=[
-                ["rh_u", 0, 100, "rh_u_cor"],
+                ["rh_u", 0, 150, "rh_u_cor"],
                 ["rh_u_cor", 0, 150, ""],
-                ["rh_l_cor", np.nan, np.nan, ""],
-                ["rh_l", 0, 100, "rh_l_cor"],
             ],
         ).set_index("field")
-        data_set = xr.Dataset(data)
 
+        rows_input = []
+        rows_expected = []
+        # All values are within the expected range
+        rows_input.append(dict(rh_u=42, rh_u_cor=43))
+        rows_expected.append(dict(rh_u=42, rh_u_cor=43))
+        # rh_u is below range, but rh_u_cor is within range. Both should be flagged due to the OOL relationship
+        rows_input.append(dict(rh_u=-10, rh_u_cor=3))
+        rows_expected.append(dict(rh_u=np.nan, rh_u_cor=np.nan))
+        # rh_u is within range, but rh_u_cor is below range; rh_u_cor should be flagged
+        rows_input.append(dict(rh_u=54, rh_u_cor=-4))
+        rows_expected.append(dict(rh_u=54, rh_u_cor=np.nan))
+        # rh_u is above range, but rh_u_cor is within range. Both should be flagged due to the OOL relationship
+        rows_input.append(dict(rh_u=160, rh_u_cor=120))
+        rows_expected.append(dict(rh_u=np.nan, rh_u_cor=np.nan))
+        # rh_u is within range, but rh_u_cor is above range; rh_u_cor should be flagged
+        rows_input.append(dict(rh_u=100, rh_u_cor=255))
+        rows_expected.append(dict(rh_u=100, rh_u_cor=np.nan))
+
+        # Prepare the data
+        df_input = pd.DataFrame(rows_input, dtype=float)
+        df_expected = pd.DataFrame(rows_expected, dtype=float)
+        data_set = xr.Dataset(df_input)
+
+        # Run the function
         data_set_out = clip_values(data_set, variable_config)
 
-        # Convert to dataframe for easier comparison
         data_frame_out = data_set_out.to_dataframe()
-        # The value of rh_u_cor should be nan since the input was nan
-        self.assertTrue(np.isnan(data_frame_out.iloc[1]["rh_u_cor"]))
-        # The value of rh_l_cor should not be changed since the hi threshold is not nan
-        self.assertEqual(data_frame_out.iloc[1]["rh_l_cor"], 254)
-        # The value of rh_l_cor should be nan since rh_l is below its threshold
-        self.assertTrue(np.isnan(data_frame_out.iloc[0]["rh_l_cor"]))
+        pd.testing.assert_frame_equal(
+            data_frame_out,
+            df_expected,
+            check_names=False,
+            check_dtype=True,
+        )
 
     def test_nan_input(self):
         """

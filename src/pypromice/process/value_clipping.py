@@ -41,20 +41,10 @@ def clip_values(
         if var not in list(ds.variables):
             continue
 
-        # This is a special case for rh_u_cor and rh_l_cor where values are clipped to 0 and 100.
-        if var in ["rh_u_cor", "rh_l_cor"]:
-            # Nan inputs should stay nan
-            was_nan = ds[var].isnull()
-            if ~np.isnan(row.lo):
-                ds[var] = ds[var].where(ds[var] >= row.lo, other=0)
-            if ~np.isnan(row.hi):
-                ds[var] = ds[var].where( ds[var] <= row.hi, other=100)
-            ds[var] = ds[var].where(~was_nan)
-        else:
-            if ~np.isnan(row.lo):
-                ds[var] = ds[var].where(ds[var] >= row.lo)
-            if ~np.isnan(row.hi):
-                ds[var] = ds[var].where(ds[var] <= row.hi)
+        if ~np.isnan(row.lo):
+            ds[var] = ds[var].where(ds[var] >= row.lo)
+        if ~np.isnan(row.hi):
+            ds[var] = ds[var].where(ds[var] <= row.hi)
 
         # Flag dependents as NaN if parent is NaN
         for o in row.dependents_closure:
