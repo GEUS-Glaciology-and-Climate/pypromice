@@ -67,6 +67,7 @@ type,expected_values,format,description,flags,notes
 90,48, tfffffffffffffffffffffffffffffffffgnefffffffffff,THE GC-NET VERSION!,don’t use,GC-NET stations
 90,48,tfffffffffffffffffffffffffffffffffgnefffffffffff,THE GC-NET VERSION!,,GC-NET stations
 95,46,tfffffffffffffffffffffffffffffffgnefffffffffff,THE GC-NET VERSION!,,GC-NET stations
+115,47,tfffffffffffffffffffffffffffffffffgneffffffffff,PREMAS version,,PREMAS stations
 220,29,tfffffffffffffffffffffffnefff,ZAMG Freya 2015 summer message,,ZAMG Freya aws
 221,0,,,,ZAMG Freya aws
 222,29,tfffffffffffffffffffffffnefff,ZAMG Freya 2015 winter message,,ZAMG Freya aws
