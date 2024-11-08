@@ -1,6 +1,6 @@
 GEUS_name,old_name
 wspd_u,wspd
-rh_u_cor,rh_u_corr
+rh_u_wrt_ice_or_water,rh_u_corr
 dsr_cor,dsr_corr
 usr_cor,usr_corr
 cc,cloud_cover
