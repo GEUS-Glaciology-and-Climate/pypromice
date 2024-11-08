@@ -462,7 +462,7 @@ def adjustHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO fi
 
     # Set to Groff & Gratch values when freezing, otherwise just rh
     rh_wrt_ice_or_water = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))
-    return rh_cor
+    return rh_wrt_ice_or_water
 
 
 def correctPrecip(precip, wspd):
