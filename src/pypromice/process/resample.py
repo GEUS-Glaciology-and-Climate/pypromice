@@ -52,11 +52,12 @@ def resample_dataset(ds_h, t):
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
     if (t == '60min') and is_10_minutes_timestamp.any():
         cols_to_update = ['p_i', 't_i', 'rh_i', 'rh_i_wrt_ice_or_water', 'wspd_i', 'wdir_i','wspd_x_i','wspd_y_i']
+        cols_origin = ['p_u', 't_u', 'rh_u', 'rh_u_wrt_ice_or_water', 'wspd_u', 'wdir_u','wspd_x_u','wspd_y_u']
         timestamp_10min = ds_h.time.where(is_10_minutes_timestamp, drop=True).to_index()
         timestamp_round_hour = df_d.index
         timestamp_to_update = timestamp_round_hour.intersection(timestamp_10min)
         
-        for col in cols_to_update:
+        for col, col_org in zip(cols_to_update, cols_origin):
             if col not in df_d.columns:
                 df_d[col] = np.nan
             else:
@@ -67,7 +68,7 @@ def resample_dataset(ds_h, t):
                 timestamp_to_update = timestamp_to_update[missing_instantaneous]
             df_d.loc[timestamp_to_update, col] = ds_h.reindex(
                 time= timestamp_to_update
-                )[col.replace('_i','_u')].values
+                )[col_org].values
             if col == 'p_i':
                 df_d.loc[timestamp_to_update, col] = df_d.loc[timestamp_to_update, col].values-1000
             
