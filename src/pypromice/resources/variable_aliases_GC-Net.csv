@@ -5,10 +5,10 @@ p_l,
 t_u,TA2
 t_l,TA1
 rh_u,RH2
-rh_u_cor,RH2_cor
+rh_u_wrt_ice_or_water,RH2_cor
 qh_u,Q2
 rh_l,RH1
-rh_l_cor,RH1_cor
+rh_l_wrt_ice_or_water,RH1_cor
 qh_l,Q1
 wspd_u,VW2
 wspd_l,VW1

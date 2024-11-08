@@ -102,16 +102,16 @@ def toL2(
 
     # calculating realtive humidity with regard to ice
     T_100 = _getTempK(T_0)
-    ds['rh_u_cor'] = correctHumidity(ds['rh_u'], ds['t_u'],
+    ds['rh_u_wrt_ice_or_water'] = adjustHumidity(ds['rh_u'], ds['t_u'],
                                      T_0, T_100, ews, ei0)
 
     if ds.attrs['number_of_booms']==2:
-        ds['rh_l_cor'] = correctHumidity(ds['rh_l'], ds['t_l'],
+        ds['rh_l_wrt_ice_or_water'] = adjustHumidity(ds['rh_l'], ds['t_l'],
                                          T_0, T_100, ews, ei0)
 
     if hasattr(ds,'t_i'):
         if ~ds['t_i'].isnull().all():
-            ds['rh_i_cor'] = correctHumidity(ds['rh_i'], ds['t_i'],
+            ds['rh_i_wrt_ice_or_water'] = adjustHumidity(ds['rh_i'], ds['t_i'],
                                              T_0, T_100, ews, ei0)
 
     # Determiune cloud cover for on-ice stations
@@ -419,9 +419,12 @@ def calcTilt(tilt_x, tilt_y, deg2rad):
     return phi_sensor_rad, theta_sensor_rad
 
 
-def correctHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO figure out if T replicate is needed
-    '''Correct relative humidity using Groff & Gratch method, where values are
-    set when freezing and remain the original values when not freezing
+def adjustHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO figure out if T replicate is needed
+    '''Adjust relative humidity so that values are given with respect to
+    saturation over ice in subfreezing conditions, and with respect to 
+    saturation over water (as given by the instrument) above the melting 
+    point temperature. Saturation water vapors are calculated after 
+    Groff & Gratch method.
 
     Parameters
     ----------
@@ -440,7 +443,7 @@ def correctHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO f
 
     Returns
     -------
-    rh_cor : xarray.DataArray
+    rh_wrt_ice_or_water : xarray.DataArray
         Corrected relative humidity
     '''
     # Convert to hPa (Groff & Gratch)
@@ -458,7 +461,7 @@ def correctHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO f
     freezing = (T < 0) & (T > -100).values
 
     # Set to Groff & Gratch values when freezing, otherwise just rh
-    rh_cor = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))
+    rh_wrt_ice_or_water = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))
     return rh_cor
 
 
