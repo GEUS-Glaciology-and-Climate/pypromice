@@ -198,32 +198,32 @@ class ClipValuesTestCase(unittest.TestCase):
             check_dtype=True,
         )
 
-    def test_rh_corrected(self):
+    def test_rh_adjusted(self):
         variable_config = pd.DataFrame(
             columns=["field", "lo", "hi", "OOL"],
             data=[
-                ["rh_u", 0, 150, "rh_u_cor"],
-                ["rh_u_cor", 0, 150, ""],
+                ["rh_u", 0, 150, "rh_u_wrt_ice_or_water"],
+                ["rh_u_wrt_ice_or_water", 0, 150, ""],
             ],
         ).set_index("field")
 
         rows_input = []
         rows_expected = []
         # All values are within the expected range
-        rows_input.append(dict(rh_u=42, rh_u_cor=43))
-        rows_expected.append(dict(rh_u=42, rh_u_cor=43))
-        # rh_u is below range, but rh_u_cor is within range. Both should be flagged due to the OOL relationship
-        rows_input.append(dict(rh_u=-10, rh_u_cor=3))
-        rows_expected.append(dict(rh_u=np.nan, rh_u_cor=np.nan))
-        # rh_u is within range, but rh_u_cor is below range; rh_u_cor should be flagged
-        rows_input.append(dict(rh_u=54, rh_u_cor=-4))
-        rows_expected.append(dict(rh_u=54, rh_u_cor=np.nan))
-        # rh_u is above range, but rh_u_cor is within range. Both should be flagged due to the OOL relationship
-        rows_input.append(dict(rh_u=160, rh_u_cor=120))
-        rows_expected.append(dict(rh_u=np.nan, rh_u_cor=np.nan))
-        # rh_u is within range, but rh_u_cor is above range; rh_u_cor should be flagged
-        rows_input.append(dict(rh_u=100, rh_u_cor=255))
-        rows_expected.append(dict(rh_u=100, rh_u_cor=np.nan))
+        rows_input.append(dict(rh_u=42, rh_u_wrt_ice_or_water=43))
+        rows_expected.append(dict(rh_u=42, rh_u_wrt_ice_or_water=43))
+        # rh_u is below range, but rh_u_wrt_ice_or_water is within range. Both should be flagged due to the OOL relationship
+        rows_input.append(dict(rh_u=-10, rh_u_wrt_ice_or_water=3))
+        rows_expected.append(dict(rh_u=np.nan, rh_u_wrt_ice_or_water=np.nan))
+        # rh_u is within range, but rh_u_wrt_ice_or_water is below range; rh_u_wrt_ice_or_water should be flagged
+        rows_input.append(dict(rh_u=54, rh_u_wrt_ice_or_water=-4))
+        rows_expected.append(dict(rh_u=54, rh_u_wrt_ice_or_water=np.nan))
+        # rh_u is above range, but rh_u_wrt_ice_or_water is within range. Both should be flagged due to the OOL relationship
+        rows_input.append(dict(rh_u=160, rh_u_wrt_ice_or_water=120))
+        rows_expected.append(dict(rh_u=np.nan, rh_u_wrt_ice_or_water=np.nan))
+        # rh_u is within range, but rh_u_wrt_ice_or_water is above range; rh_u_wrt_ice_or_water should be flagged
+        rows_input.append(dict(rh_u=100, rh_u_wrt_ice_or_water=255))
+        rows_expected.append(dict(rh_u=100, rh_u_wrt_ice_or_water=np.nan))
 
         # Prepare the data
         df_input = pd.DataFrame(rows_input, dtype=float)
