@@ -11,8 +11,6 @@ def clip_values(
 ):
     """
     Clip values in dataset to defined "hi" and "lo" variables from dataframe.
-    There is a special treatment here for rh_u and rh_l variables, where values
-    are clipped and not assigned to NaN. This is for replication purposes
 
     Parameters
     ----------

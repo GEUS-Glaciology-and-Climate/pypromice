@@ -51,7 +51,7 @@ def resample_dataset(ds_h, t):
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
     if (t == '60min') and is_10_minutes_timestamp.any():
-        cols_to_update = ['p_i', 't_i', 'rh_i', 'rh_i_cor', 'wspd_i', 'wdir_i','wspd_x_i','wspd_y_i']
+        cols_to_update = ['p_i', 't_i', 'rh_i', 'rh_i_wrt_ice_or_water', 'wspd_i', 'wdir_i','wspd_x_i','wspd_y_i']
         timestamp_10min = ds_h.time.where(is_10_minutes_timestamp, drop=True).to_index()
         timestamp_round_hour = df_d.index
         timestamp_to_update = timestamp_round_hour.intersection(timestamp_10min)
@@ -95,8 +95,8 @@ def resample_dataset(ds_h, t):
                 
                 df_d[var] = (p_vap.to_series().resample(t).mean() \
                            / es_wtr.to_series().resample(t).mean())*100
-                if var+'_cor' in df_d.keys():
-                    df_d[var+'_cor'] = (p_vap.to_series().resample(t).mean() \
+                if var+'_wrt_ice_or_water' in df_d.keys():
+                    df_d[var+'_wrt_ice_or_water'] = (p_vap.to_series().resample(t).mean() \
                                / es_cor.to_series().resample(t).mean())*100
     
     # passing each variable attribute to the ressample dataset
