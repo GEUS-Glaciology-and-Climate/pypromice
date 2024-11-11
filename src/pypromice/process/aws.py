@@ -94,7 +94,7 @@ class AWS(object):
         formats = {dataset.attrs["format"].lower() for dataset in self.L0}
         if "raw" in formats:
             self.format = "raw"
-        elif "STM" in formats:
+        elif "stm" in formats:
             self.format = "STM"
         elif "tx" in formats:
             self.format = "tx"
