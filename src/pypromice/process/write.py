@@ -484,7 +484,7 @@ def reformat_time(dataset):
     return dataset
 
 
-def reformat_lon(dataset, exempt=["UWN", "Roof_GEUS", "Roof_PROMICE"]):
+def reformat_lon(dataset, exempt=["UWN", "Roof_GEUS", "Roof_PROMICE", "ORO"]):
     """Switch gps_lon to negative values (degrees_east). We do this here, and
     NOT in addMeta, otherwise we switch back to positive when calling getMeta
     in joinL2"""
