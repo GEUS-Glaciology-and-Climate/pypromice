@@ -92,7 +92,7 @@ def toL2(
     baseline_elevation = (ds.gps_alt.to_series().resample('MS').median()
                           .reindex(ds.time.to_series().index, method='nearest')
                           .ffill().bfill())
-    mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) & ds.gps_alt.notnull()
+    mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) | ds.gps_alt.isnull()
     ds[['gps_alt','gps_lon', 'gps_lat']] = ds[['gps_alt','gps_lon', 'gps_lat']].where(mask)
 
     # removing dlr and ulr that are missing t_rad
@@ -421,9 +421,9 @@ def calcTilt(tilt_x, tilt_y, deg2rad):
 
 def adjustHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO figure out if T replicate is needed
     '''Adjust relative humidity so that values are given with respect to
-    saturation over ice in subfreezing conditions, and with respect to 
-    saturation over water (as given by the instrument) above the melting 
-    point temperature. Saturation water vapors are calculated after 
+    saturation over ice in subfreezing conditions, and with respect to
+    saturation over water (as given by the instrument) above the melting
+    point temperature. Saturation water vapors are calculated after
     Groff & Gratch method.
 
     Parameters
