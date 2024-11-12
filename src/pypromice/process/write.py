@@ -100,14 +100,14 @@ def prepare_and_write(
     elif t == 86400:
         # removing instantaneous values from daily and monthly files
         for v in col_names:
-            if ("_i" in v) and ("_i_" not in v):
+            if v in ['p_i', 't_i', 'rh_i', 'wspd_i', 'wdir_i', 'wspd_x_i', 'wspd_y_i']:
                 col_names.remove(v)
         out_csv = output_dir / f"{name}_day.csv"
         out_nc = output_dir / f"{name}_day.nc"
     else:
         # removing instantaneous values from daily and monthly files
         for v in col_names:
-            if ("_i" in v) and ("_i_" not in v):
+            if v in ['p_i', 't_i', 'rh_i', 'wspd_i', 'wdir_i', 'wspd_x_i', 'wspd_y_i']:
                 col_names.remove(v)
         out_csv = output_dir / f"{name}_month.csv"
         out_nc = output_dir / f"{name}_month.nc"
