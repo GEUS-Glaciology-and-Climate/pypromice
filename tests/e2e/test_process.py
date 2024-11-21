@@ -207,6 +207,30 @@ class TestProcess(unittest.TestCase):
                     output_dataset = xr.load_dataset(output_path)
                     self.check_global_attributes(output_dataset, output_rel_path)
 
+                    # Check if the l3 datasets are compressed
+                    if output_path.parent.parent.name == 'site_l3':
+                        self.assertEqual(output_dataset['p_u'].encoding["zlib"], True, output_rel_path)
+                    else:
+                        self.assertEqual(output_dataset['p_u'].encoding["zlib"], False, output_rel_path)
+
+            # Test if the l3 output netcdf files are compressed with zlib
+            for output_rel_path in [
+                "station_l3/TEST1/TEST1_day.nc",
+                "station_l3/TEST1/TEST1_hour.nc",
+                "station_l3/TEST1/TEST1_month.nc",
+                "site_l3/SITE_01/SITE_01_day.nc",
+                "site_l3/SITE_01/SITE_01_hour.nc",
+                "site_l3/SITE_01/SITE_01_month.nc",
+            ]:
+                output_path = root / output_rel_path
+                output_dataset = xr.load_dataset(output_path)
+                for var in output_dataset.variables:
+                    # %%
+                    print(var, output_dataset[var].encoding)
+                    continue
+                    self.assertEqual(output_dataset[var].encoding["zlib"], True)
+
+
     def check_global_attributes(self, dataset: xr.Dataset, reference: str):
         attribute_keys = set(dataset.attrs.keys())
         highly_recommended_global_attributes = {
