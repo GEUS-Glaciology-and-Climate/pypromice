@@ -123,22 +123,6 @@ class AWS(object):
         self.getL2()
         self.getL3()
 
-    def writeL2(self, outpath):
-        """Write L2 data to .csv and .nc file"""
-        if os.path.isdir(outpath):
-            self.writeArr(self.L2, outpath)
-        else:
-            logger.info(f"Outpath f{outpath} does not exist. Unable to save to file")
-            pass
-
-    def writeL3(self, outpath):
-        """Write L3 data to .csv and .nc file"""
-        if os.path.isdir(outpath):
-            self.writeArr(self.L3, outpath)
-        else:
-            logger.info(f"Outpath f{outpath} does not exist. Unable to save to file")
-            pass
-
     def getL1(self):
         """Perform L0 to L1 data processing"""
         logger.info("Level 1 processing...")
@@ -163,28 +147,6 @@ class AWS(object):
         and attribute population"""
         logger.info("Level 3 processing...")
         self.L3 = toL3(self.L2, data_adjustments_dir=self.data_issues_repository / "adjustments")
-
-    def writeArr(self, dataset, outpath, t=None):
-        """Write L3 data to .nc and .csv hourly and daily files
-
-        Parameters
-        ----------
-        dataset : xarray.Dataset
-            Dataset to write to file
-        outpath : str
-            Output directory
-        t : str
-            Resampling string. This is automatically defined based
-            on the data type if not given. The default is None.
-        """
-        if t is not None:
-            write.prepare_and_write(dataset, outpath, self.vars, self.meta, t)
-        else:
-            f = [l.attrs["format"] for l in self.L0]
-            if "raw" in f or "STM" in f:
-                write.prepare_and_write(dataset, outpath, self.vars, self.meta, "10min")
-            else:
-                write.prepare_and_write(dataset, outpath, self.vars, self.meta, "60min")
 
     def loadConfig(self, config_file, inpath):
         """Load configuration from .toml file
