@@ -17,7 +17,13 @@ logger = logging.getLogger(__name__)
 
 
 def prepare_and_write(
-    dataset, output_path: Path | str, vars_df=None, meta_dict=None, time="60min", resample=True
+    dataset,
+        output_path: Path | str,
+        vars_df=None,
+        meta_dict=None,
+        time="60min",
+        resample=True,
+        nc_compression:bool=False,
 ):
     """Prepare data with resampling, formating and metadata population; then
     write data to .nc and .csv hourly and daily files
@@ -117,38 +123,9 @@ def prepare_and_write(
     writeCSV(out_csv, d2, col_names)
 
     # Write to netcdf file
-    writeNC(out_nc, d2, col_names)
+    writeNC(out_nc, d2, col_names, compression=nc_compression)
     logger.info(f"Written to {out_csv}")
     logger.info(f"Written to {out_nc}")
-
-
-def writeAll(outpath, station_id, l3_h, l3_d, l3_m, csv_order=None):
-    """Write L3 hourly, daily and monthly datasets to .nc and .csv
-    files
-
-    Parameters
-    ----------
-    outpath : str
-        Output file path
-    station_id : str
-        Station name
-    l3_h : xr.Dataset
-        L3 hourly data
-    l3_d : xr.Dataset
-        L3 daily data
-    l3_m : xr.Dataset
-        L3 monthly data
-    csv_order : list, optional
-        List order of variables
-    """
-    if not os.path.isdir(outpath):
-        os.mkdir(outpath)
-    outfile_h = os.path.join(outpath, station_id + "_hour")
-    outfile_d = os.path.join(outpath, station_id + "_day")
-    outfile_m = os.path.join(outpath, station_id + "_month")
-    for o, l in zip([outfile_h, outfile_d, outfile_m], [l3_h, l3_d, l3_m]):
-        writeCSV(o + ".csv", l, csv_order)
-        writeNC(o + ".nc", l)
 
 
 def writeCSV(outfile, Lx, csv_order):
@@ -170,7 +147,7 @@ def writeCSV(outfile, Lx, csv_order):
     Lcsv.to_csv(outfile)
 
 
-def writeNC(outfile, Lx, col_names=None):
+def writeNC(outfile, Lx, col_names=None, compression=False):
     """Write data product to NetCDF file with compression
 
     Parameters
@@ -187,8 +164,12 @@ def writeNC(outfile, Lx, col_names=None):
     else:
         names = list(Lx.keys())
 
-    comp = dict(zlib=True, complevel=4)
-    encoding = {var: comp for var in names}
+    encoding = {var: dict() for var in names}
+
+    if compression:
+        comp = dict(zlib=True, complevel=4)
+        for var in names:
+            encoding[var].update(comp)
 
     Lx[names].to_netcdf(outfile, mode="w", format="NETCDF4", compute=True, encoding=encoding)
 
