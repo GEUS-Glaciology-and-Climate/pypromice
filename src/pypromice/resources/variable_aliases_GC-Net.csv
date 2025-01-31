@@ -14,10 +14,10 @@ wspd_u,VW2
 wspd_l,VW1
 wdir_u,DW2
 wdir_l,DW1
-dsr,
-dsr_cor,ISWR
-usr,
-usr_cor,OSWR
+dsr,ISWR
+dsr_cor,
+usr,OSWR
+usr_cor,
 albedo,Alb
 dlr,
 ulr,
