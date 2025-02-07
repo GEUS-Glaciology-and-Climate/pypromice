@@ -7,6 +7,7 @@ from pypromice.utilities.git import get_commit_hash_and_check_dirty
 
 import pypromice.resources
 from pypromice.process.write import prepare_and_write
+from pypromice.process.L2toL3 import post_processing_z_ice_surf
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -308,7 +309,7 @@ def align_surface_heights(data_series_new, data_series_old):
     return data_series_new
 
 
-def build_station_list(config_folder: str, target_station_site: str) -> list:
+def build_station_list(config_folder: str, target_station_site: str, folder_l3: str) -> list:
     """
     Get a list of unique station information dictionaries for a given station site.
 
@@ -322,8 +323,10 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
     Returns
     -------
     list
-        A list of dictionaries containing station information that have the specified station site.
+        A list of dictionaries containing station information that have the specified station site,
+        structured to handle overlapping data periods.
     """
+
     station_info_list = []  # Initialize an empty list to store station information
 
     found_as_station = False
@@ -363,12 +366,70 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
             % target_station_site
         )
 
-    return station_info_list
+    # first listing of the AWS data blocks
+    merged_blocks = []
+    for station_info in station_info_list:
+        stid = station_info["stid"]
+        filepath = os.path.join(folder_l3, f"{stid}/{stid}_hour.nc")
+        if not os.path.isfile(filepath):
+            continue
+
+        with xr.open_dataset(filepath) as ds:
+            ds.load()
+            first_valid_tu = ds["t_u"].dropna("time").time.min().values
+            last_valid_tu = ds["t_u"].dropna("time").time.max().values
+            first_valid_dsr = ds["dsr"].dropna("time").time.min().values
+            last_valid_dsr = ds["dsr"].dropna("time").time.max().values
+
+        first_valid = min(first_valid_tu, first_valid_dsr)
+        last_valid = max(last_valid_tu, last_valid_dsr)
+
+        merged_blocks.append({
+            "stid": stid,
+            "start_time": first_valid,
+            "end_time": last_valid,
+            **station_info  # Unpack all keys/values from station_info
+        })
+
+
+    merged_blocks = sorted(merged_blocks, key=lambda x: x["start_time"])
+
+    # now going through the AWS data blocks again and splitting if necessary
+    # older stations data so that it can be appended before and after a temporary
+    # newer station.
+    final_blocks = []
+    prev_block = None
+
+    for block in merged_blocks:
+        # if a more recent bloc ends before the previous block stopped
+        if prev_block and block["start_time"] <= prev_block["end_time"]:
+            print('updating', block['stid'],block["start_time"],block["end_time"])
+
+            final_blocks.append({
+                "stid": block["stid"],
+                "start_time": block["start_time"],
+                "end_time": min(block["end_time"], prev_block["end_time"]),
+                **{k: v for k, v in block.items() if k not in ["start_time", "end_time"]}
+            })
+            # then we make a new block out of the previous bloc with the most recent data
+            prev_block = {
+                "stid": prev_block["stid"],
+                "start_time": block["end_time"],
+                "end_time": prev_block["end_time"],
+                **{k: v for k, v in prev_block.items() if k not in ["start_time", "end_time"]}
+            }
+            final_blocks.append(prev_block)
+        else:
+            print(block['stid'],block["start_time"],block["end_time"])
+            final_blocks.append(block)
+            prev_block = block
+
+    return final_blocks
 
 
 def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, metadata):
     # Get the list of station information dictionaries associated with the given site
-    list_station_info = build_station_list(config_folder, site)
+    list_station_info = build_station_list(config_folder, site, folder_l3)
 
     # Read the datasets and store them into a list along with their latest timestamp and station info
     list_station_data = []
@@ -381,15 +442,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             filepath = os.path.join(folder_gcnet, stid + ".csv")
             isNead = True
         if not os.path.isfile(filepath):
-            logger.error(
-                "\n***\n"
-                + stid
-                + " was listed as station but could not be found in "
-                + folder_l3
-                + " nor "
-                + folder_gcnet
-                + "\n***"
-            )
+            logger.error(f"\n***\n{stid} was listed as station but could not be found in {folder_l3} nor {folder_gcnet}\n***")
             continue
 
         l3, _ = loadArr(filepath, isNead)
@@ -400,6 +453,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             logger.info("Skipping %s from %s" % (specific_vars_to_drop, stid))
             l3 = l3.drop_vars([var for var in specific_vars_to_drop if var in l3])
 
+        l3 = l3.sel(time=slice(station_info['start_time'], station_info['end_time']))
         list_station_data.append((l3, station_info))
 
     # Sort the list in reverse chronological order so that we start with the latest data
@@ -428,6 +482,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
                 .item()
             )
 
+            logger.debug('adding',stid,st_attrs[stid]["first_timestamp"] , st_attrs[stid]["last_timestamp"] )
             # then stripping attributes
             attrs_list = list(l3.attrs.keys())
             for k in attrs_list:
@@ -493,20 +548,23 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
                             l3_merged.z_ice_surf.to_series(), l3.z_ice_surf.to_series()
                         ),
                     )
-            
+
             # saves attributes
             attrs = l3_merged.attrs
             # merging by time block
             l3_merged = xr.concat(
                 (
                     l3.sel(
-                        time=slice(l3.time.isel(time=0), l3_merged.time.isel(time=0))
+                        time=slice(l3.time.isel(time=0),
+                                   l3_merged.time.isel(time=0)- pd.Timedelta(minutes=5),
+                                   # subtracting 5 minutes to make sure timestamps are not added once from l3 and once from l3_merge
+                                   )
                     ),
                     l3_merged,
                 ),
                 dim="time",
             )
-            
+
             # restauring attributes
             l3_merged.attrs = attrs
 
@@ -514,6 +572,10 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
     if not l3_merged:
         logger.error("No level 3 station data file found for " + site)
         return None, sorted_list_station_data
+    else:
+        l3_merged["z_ice_surf"] = post_processing_z_ice_surf(l3_merged["z_ice_surf"],
+                                                             l3_merged["z_surf_combined"],
+                                                             l3_merged["z_ice_surf"])
     l3_merged.attrs["site_id"] = site
     l3_merged.attrs["stations"] = " ".join(sorted_stids)
     l3_merged.attrs["level"] = "L3"
