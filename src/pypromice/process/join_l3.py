@@ -402,7 +402,7 @@ def build_station_list(config_folder: str, target_station_site: str, folder_l3: 
 
     for block in merged_blocks:
         # if a more recent bloc ends before the previous block stopped
-        if prev_block and block["start_time"] <= prev_block["end_time"]:
+        if prev_block and block["end_time"] <= prev_block["end_time"]:
             print('updating', block['stid'],block["start_time"],block["end_time"])
 
             final_blocks.append({
