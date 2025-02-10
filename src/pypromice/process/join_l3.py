@@ -537,17 +537,18 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
                             l3.z_surf_combined.to_series(),
                         ),
                     )
-            if "z_ice_surf" in l3_merged.keys() and "z_ice_surf" in l3.keys():
-                if (
-                    l3_merged.z_ice_surf.notnull().any()
-                    and l3.z_ice_surf.notnull().any()
-                ):
-                    l3_merged["z_ice_surf"] = (
-                        "time",
-                        align_surface_heights(
-                            l3_merged.z_ice_surf.to_series(), l3.z_ice_surf.to_series()
-                        ),
-                    )
+            if st_attrs[stid]['site_type'] == 'accumulation':
+                if "z_ice_surf" in l3_merged.keys() and "z_ice_surf" in l3.keys():
+                    if (
+                        l3_merged.z_ice_surf.notnull().any()
+                        and l3.z_ice_surf.notnull().any()
+                    ):
+                        l3_merged["z_ice_surf"] = (
+                            "time",
+                            align_surface_heights(
+                                l3_merged.z_ice_surf.to_series(), l3.z_ice_surf.to_series()
+                            ),
+                        )
 
             # saves attributes
             attrs = l3_merged.attrs
@@ -572,16 +573,19 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
     if not l3_merged:
         logger.error("No level 3 station data file found for " + site)
         return None, sorted_list_station_data
-    else:
-        l3_merged["z_ice_surf"] = post_processing_z_ice_surf(l3_merged["z_ice_surf"],
-                                                             l3_merged["z_surf_combined"],
-                                                             l3_merged["z_ice_surf"])
+
     l3_merged.attrs["site_id"] = site
     l3_merged.attrs["stations"] = " ".join(sorted_stids)
     l3_merged.attrs["level"] = "L3"
+    first_station_name = list(l3_merged.attrs["stations_attributes"].keys())[0]
+
     l3_merged.attrs["project"] = sorted_list_station_data[0][1]["project"]
     l3_merged.attrs["location_type"] = sorted_list_station_data[0][1]["location_type"]
 
+    if l3_merged.attrs["stations_attributes"][first_station_name]['site_type'] == 'ablation':
+        l3_merged["z_ice_surf"] = post_processing_z_ice_surf(l3_merged["z_ice_surf"],
+                                                         l3_merged["z_surf_combined"],
+                                                         l3_merged["z_ice_surf"])
     site_source = dict(
         site_config_source_hash=get_commit_hash_and_check_dirty(config_folder),
         gcnet_source_hash=get_commit_hash_and_check_dirty(folder_gcnet),
