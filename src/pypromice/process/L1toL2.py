@@ -165,21 +165,28 @@ def toL2(
     AngleDif_deg = calcAngleDiff(ZenithAngle_rad, HourAngle_rad,               # Calculate angle between sun and sensor
                                  phi_sensor_rad, theta_sensor_rad)
 
-    ds['albedo'], OKalbedos = calcAlbedo(ds['usr'], ds['dsr_cor'],             # Determine albedo
-                              AngleDif_deg, ZenithAngle_deg)
 
-    # Correct upwelling and downwelling shortwave radiation
+    # Deriving albedo without interpolation
+    ds['albedo']  = (ds['usr'] / ds['dsr_cor']).copy()
+    OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (ds['albedo']  < 1) & (ds['albedo']  > 0)
+    ds['albedo'] = ds['albedo'].where(OKalbedos)
+
+    # Filtering usr for sun on lower dome
+    # in theory, this is not a problem in cloudy conditions, but the cloud cover
+    # index is too uncertain at this point to be used
+    # previously, dsr was also thrown out, but it should be OK
     sunonlowerdome =(AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)             # Determine when sun is in FOV of lower sensor, assuming sensor measures only diffuse radiation
-    ds['dsr_cor'] = ds['dsr_cor'].where(~sunonlowerdome,
-                                        other=ds['dsr'] / DifFrac)             # Apply to downwelling
     ds['usr_cor'] = ds['usr'].copy(deep=True)
-    ds['usr_cor'] = ds['usr_cor'].where(~sunonlowerdome,
-                                        other=ds['albedo'] * ds['dsr'] / DifFrac) # Apply to upwelling
-    bad = (ZenithAngle_deg > 95) | (ds['dsr_cor'] <= 0) | (ds['usr_cor'] <= 0) # Set to zero for solar zenith angles larger than 95 deg or either values are (less than) zero
+    ds['usr_cor'] = ds['usr_cor'].where(~sunonlowerdome) # Apply to upwelling
+
+    # Setting to zero when sun below the horizon or when values are negative
+    bad = (ZenithAngle_deg > 95) | (ds['dsr_cor'] <= 0) | (ds['usr_cor'] <= 0)
     ds['dsr_cor'][bad] = 0
     ds['usr_cor'][bad] = 0
-    ds['dsr_cor'] = ds['usr_cor'].copy(deep=True) / ds['albedo']               # Correct DWR using more reliable USWR when sun not in sight of upper sensor
-    ds['albedo'] = ds['albedo'].where(OKalbedos)                               #TODO remove?
+
+    # Keeping only the radiation values producing OK albedos
+    ds['usr_cor'] = ds['usr_cor'].where(OKalbedos)
+    ds['dsr_cor'] = ds['dsr_cor'].where(OKalbedos)
 
     # Remove data where TOA shortwave radiation invalid
     isr_toa = calcTOA(ZenithAngle_deg, ZenithAngle_rad)                        # Calculate TOA shortwave radiation
@@ -187,8 +194,6 @@ def toL2(
     ds['dsr_cor'][TOA_crit_nopass] = np.nan                                    # Apply filter and interpolate
     ds['usr_cor'][TOA_crit_nopass] = np.nan
 
-    ds['dsr_cor'] = ds.dsr_cor.where(ds.dsr.notnull())
-    ds['usr_cor'] = ds.usr_cor.where(ds.usr.notnull())
     # # Check sun position
     # sundown = ZenithAngle_deg >= 90
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)
@@ -654,43 +659,6 @@ def calcAngleDiff(ZenithAngle_rad, HourAngle_rad, phi_sensor_rad,
                                    * np.sin(phi_sensor_rad)
                                    + np.cos(ZenithAngle_rad)
                                    * np.cos(theta_sensor_rad))
-
-def calcAlbedo(usr, dsr_cor, AngleDif_deg, ZenithAngle_deg):
-    '''Calculate surface albedo based on upwelling and downwelling shorwave
-    flux, the angle between the sun and sensor, and the sun zenith
-
-    Parameters
-    ----------
-    usr : xarray.DataArray
-        Upwelling shortwave radiation
-    dsr_cor : xarray.DataArray
-        Downwelling shortwave radiation corrected
-    AngleDif_def : float
-        Angle between sun and sensor in degrees
-    ZenithAngle_deg: float
-        Zenith angle in degrees
-
-    Returns
-    -------
-    albedo : xarray.DataArray
-        Derived albedo
-    OKalbedos : xarray.DataArray
-        Valid albedo measurements
-    '''
-    albedo = usr / dsr_cor
-
-    # NaN bad data
-    OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (albedo < 1) & (albedo > 0)
-    albedo[~OKalbedos] = np.nan
-
-    # Interpolate all. Note "use_coordinate=False" is used here to force
-    # comparison against the GDL code when that is run with *only* a TX file.
-    # Should eventually set to default (True) and interpolate based on time,
-    # not index.
-    albedo = albedo.interpolate_na(dim='time', use_coordinate=False)
-    albedo = albedo.ffill(dim='time').bfill(dim='time')                        #TODO remove this line and one above?
-    return albedo, OKalbedos
-
 
 def calcTOA(ZenithAngle_deg, ZenithAngle_rad):
     '''Calculate incoming shortwave radiation at the top of the atmosphere,
