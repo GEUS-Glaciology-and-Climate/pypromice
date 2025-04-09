@@ -101,6 +101,11 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     if hasattr(ds, 'bedrock'):                                                 # Fix tilt to zero if station is on bedrock
         if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
             ds.attrs['bedrock'] = True                                         # ensures all AWS objects have a 'bedrock' attribute
+            for var in ['tilt_x','tilt_y']:
+                if var in ds.data_vars:
+                    ds[var] =  ds[var].fillna(0)
+                else:
+                    ds[var] = (('time'), np.arange(ds['time'].size)*0)
         else:
             ds.attrs['bedrock'] = False                                        # ensures all AWS objects have a 'bedrock' attribute
     else:
