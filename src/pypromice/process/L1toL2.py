@@ -206,7 +206,7 @@ def process_sw_radiation(ds):
 
     # Remove data where TOA shortwave radiation invalid
     isr_toa = calcTOA(ZenithAngle_deg, ZenithAngle_rad)                        # Calculate TOA shortwave radiation
-    TOA_crit_nopass = (ds['dsr_cor'] > (0.9 * isr_toa + 20))                   # Determine filter
+    TOA_crit_nopass = (ds['dsr_cor'] > (0.95 * isr_toa + 10))                   # Determine filter
     ds['dsr_cor'][TOA_crit_nopass] = np.nan                                    # Apply filter and interpolate
     ds['usr_cor'][TOA_crit_nopass] = np.nan
 
