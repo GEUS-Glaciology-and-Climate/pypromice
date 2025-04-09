@@ -29,8 +29,6 @@ def toL2(
     T_0=273.15,
     ews=1013.246,
     ei0=6.1071,
-    eps_overcast=1.0,
-    eps_clear=9.36508e-6,
     emissivity=0.97,
 ) -> xr.Dataset:
     '''Process one Level 1 (L1) product to Level 2.
@@ -114,17 +112,42 @@ def toL2(
             ds['rh_i_wrt_ice_or_water'] = adjustHumidity(ds['rh_i'], ds['t_i'],
                                              T_0, T_100, ews, ei0)
 
-    # Determiune cloud cover for on-ice stations
-    cc = calcCloudCoverage(ds['t_u'], T_0, eps_overcast, eps_clear,        # Calculate cloud coverage
-                           ds['dlr'], ds.attrs['station_id'])
-    ds['cc'] = (('time'), cc.data)
-
     # Determine surface temperature
-    ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],           # Calculate surface temperature
+    ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],
                                           emissivity)
     if not ds.attrs['bedrock']:
         ds['t_surf'] = xr.where(ds['t_surf'] > 0, 0, ds['t_surf'])
 
+    # smoothing tilt and rot
+    ds['tilt_x'] = smoothTilt(ds['tilt_x'])
+    ds['tilt_y'] = smoothTilt(ds['tilt_y'])
+    ds['rot'] = smoothRot(ds['rot'])
+
+    # Determiune cloud cover for on-ice stations
+    ds['cc'] = calcCloudCoverage(ds['t_u'], ds['dlr'], ds.attrs['station_id'], T_0)
+
+    # Filtering and correcting shortwave radiation
+    ds, _, _, _, _, _ = process_sw_radiation(ds)
+
+    # Correct precipitation
+    if hasattr(ds, 'correct_precip'):
+        precip_flag = ds.attrs['correct_precip']
+    else:
+        precip_flag=True
+    if ~ds['precip_u'].isnull().all() and precip_flag:
+        ds['precip_u_cor'], ds['precip_u_rate'] = correctPrecip(ds['precip_u'],
+                                                                ds['wspd_u'])
+    if ds.attrs['number_of_booms']==2:
+        if ~ds['precip_l'].isnull().all() and precip_flag:                     # Correct precipitation
+            ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],
+                                                                   ds['wspd_l'])
+
+    get_directional_wind_speed(ds)                                            # Get directional wind speed
+
+    ds = clip_values(ds, vars_df)
+    return ds
+
+def process_sw_radiation(ds):
     # Determine station position relative to sun
     doy = ds['time'].to_dataframe().index.dayofyear.values                     # Gather variables to calculate sun pos
     hour = ds['time'].to_dataframe().index.hour.values
@@ -136,11 +159,6 @@ def toL2(
     else:
         lat = ds['gps_lat'].mean()
         lon = ds['gps_lon'].mean()
-
-    # smoothing tilt and rot
-    ds['tilt_x'] = smoothTilt(ds['tilt_x'])
-    ds['tilt_y'] = smoothTilt(ds['tilt_y'])
-    ds['rot'] = smoothRot(ds['rot'])
 
     deg2rad, rad2deg = _getRotation()                                          # Get degree-radian conversions
     phi_sensor_rad, theta_sensor_rad = calcTilt(ds['tilt_x'], ds['tilt_y'],    # Calculate station tilt
@@ -154,7 +172,7 @@ def toL2(
 
 
     # Correct Downwelling shortwave radiation
-    DifFrac = 0.2 + 0.8 * cc
+    DifFrac = 0.2 + 0.8 * ds['cc']
     CorFac_all = calcCorrectionFactor(Declination_rad, phi_sensor_rad,         # Calculate correction
                                       theta_sensor_rad, HourAngle_rad,
                                       ZenithAngle_rad, ZenithAngle_deg,
@@ -176,6 +194,8 @@ def toL2(
     # index is too uncertain at this point to be used
     # previously, dsr was also thrown out, but it should be OK
     sunonlowerdome =(AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)             # Determine when sun is in FOV of lower sensor, assuming sensor measures only diffuse radiation
+    ds['dsr_cor'] = ds['dsr_cor'].where(~sunonlowerdome,
+                                    other=ds['dsr'] / DifFrac)
     ds['usr_cor'] = ds['usr'].copy(deep=True)
     ds['usr_cor'] = ds['usr_cor'].where(~sunonlowerdome) # Apply to upwelling
 
@@ -184,13 +204,9 @@ def toL2(
     ds['dsr_cor'][bad] = 0
     ds['usr_cor'][bad] = 0
 
-    # Keeping only the radiation values producing OK albedos
-    ds['usr_cor'] = ds['usr_cor'].where(OKalbedos)
-    ds['dsr_cor'] = ds['dsr_cor'].where(OKalbedos)
-
     # Remove data where TOA shortwave radiation invalid
     isr_toa = calcTOA(ZenithAngle_deg, ZenithAngle_rad)                        # Calculate TOA shortwave radiation
-    TOA_crit_nopass = (ds['dsr_cor'] > (0.9 * isr_toa + 10))                   # Determine filter
+    TOA_crit_nopass = (ds['dsr_cor'] > (0.9 * isr_toa + 20))                   # Determine filter
     ds['dsr_cor'][TOA_crit_nopass] = np.nan                                    # Apply filter and interpolate
     ds['usr_cor'][TOA_crit_nopass] = np.nan
 
@@ -198,22 +214,8 @@ def toL2(
     # sundown = ZenithAngle_deg >= 90
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)
 
-    if hasattr(ds, 'correct_precip'):                                          # Correct precipitation
-        precip_flag=ds.attrs['correct_precip']
-    else:
-        precip_flag=True
-    if ~ds['precip_u'].isnull().all() and precip_flag:
-        ds['precip_u_cor'], ds['precip_u_rate'] = correctPrecip(ds['precip_u'],
-                                                                ds['wspd_u'])
-    if ds.attrs['number_of_booms']==2:
-        if ~ds['precip_l'].isnull().all() and precip_flag:                     # Correct precipitation
-            ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],
-                                                                   ds['wspd_l'])
+    return ds, OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass
 
-    get_directional_wind_speed(ds)                                            # Get directional wind speed
-
-    ds = clip_values(ds, vars_df)
-    return ds
 
 def get_directional_wind_speed(ds: xr.Dataset) -> xr.Dataset:
     """
@@ -258,7 +260,8 @@ def calcDirWindSpeeds(wspd, wdir, deg2rad=np.pi/180):
     return wspd_x, wspd_y
 
 
-def calcCloudCoverage(T, T_0, eps_overcast, eps_clear, dlr, station_id):
+def calcCloudCoverage(T, dlr, station_id,T_0, eps_overcast=1.0,
+    eps_clear=9.36508e-6):
     '''Calculate cloud cover from T and T_0
 
     Parameters
@@ -296,6 +299,7 @@ def calcCloudCoverage(T, T_0, eps_overcast, eps_clear, dlr, station_id):
     cc = (dlr - LR_clear) / (LR_overcast - LR_clear)
     cc[cc > 1] = 1
     cc[cc < 0] = 0
+
     return cc
 
 
