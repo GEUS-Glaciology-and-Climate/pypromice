@@ -127,7 +127,7 @@ def toL2(
     ds['cc'] = calcCloudCoverage(ds['t_u'], ds['dlr'], ds.attrs['station_id'], T_0)
 
     # Filtering and correcting shortwave radiation
-    ds, _, _, _, _, _ = process_sw_radiation(ds)
+    ds, _ = process_sw_radiation(ds)
 
     # Correct precipitation
     if hasattr(ds, 'correct_precip'):
@@ -148,6 +148,22 @@ def toL2(
     return ds
 
 def process_sw_radiation(ds):
+    """
+    Processes shortwave radiation data from a dataset by applying tilt and sun 
+    angle corrections.
+    
+    Parameters:
+        ds (xarray.Dataset): Dataset containing variables such as time, tilt_x,
+                tilt_y, dsr (downwelling SW radiation), usr (upwelling SW radiation),
+                cloud cover (cc), gps_lat, gps_lon, and optional attributes
+                 latitude and longitude.
+
+    Returns:
+        ds (xarray.Dataset): Updated dataset with corrected downwelling ('dsr_cor')
+                and upwelling ('usr_cor') SW radiation, and derived surface albedo ('albedo').
+        tuple: A tuple containing masks and calculated TOA radiation:
+               (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass)
+    """
     # Determine station position relative to sun
     doy = ds['time'].to_dataframe().index.dayofyear.values                     # Gather variables to calculate sun pos
     hour = ds['time'].to_dataframe().index.hour.values
@@ -214,7 +230,7 @@ def process_sw_radiation(ds):
     # sundown = ZenithAngle_deg >= 90
     # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)
 
-    return ds, OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass
+    return ds, (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass)
 
 
 def get_directional_wind_speed(ds: xr.Dataset) -> xr.Dataset:
