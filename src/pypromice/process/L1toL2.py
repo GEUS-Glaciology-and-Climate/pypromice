@@ -226,10 +226,6 @@ def process_sw_radiation(ds):
     ds['dsr_cor'][TOA_crit_nopass] = np.nan                                    # Apply filter and interpolate
     ds['usr_cor'][TOA_crit_nopass] = np.nan
 
-    # # Check sun position
-    # sundown = ZenithAngle_deg >= 90
-    # _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass)
-
     return ds, (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass)
 
 
@@ -770,35 +766,6 @@ def calcCorrectionFactor(Declination_rad, phi_sensor_rad, theta_sensor_rad,
 
     return CorFac_all
 
-
-def _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass):
-    '''Check sun position
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        Data set
-    OKalbedos : xarray.DataArray
-        Valid measurements flag
-    sundown : xarray.DataArray
-        Sun below horizon flag
-    sunonlowerdome : xarray.DataArray
-        Sun in view of lower sensor flag
-    TOA_crit_nopass : xarray.DataArray
-        Top-of-Atmosphere flag
-    '''
-    valid = (~(ds['dsr_cor'].isnull())).sum()
-    print('Sun in view of upper sensor / workable albedos:', OKalbedos.sum().values,
-          (100*OKalbedos.sum()/valid).round().values, "%")
-    print('Sun below horizon:', sundown.sum(),
-          (100*sundown.sum()/valid).round().values, "%")
-    print('Sun in view of lower sensor:', sunonlowerdome.sum().values,
-          (100*sunonlowerdome.sum()/valid).round().values, "%")
-    print('Spikes removed using TOA criteria:', TOA_crit_nopass.sum().values,
-          (100*TOA_crit_nopass.sum()/valid).round().values, "%")
-    print('Mean net SR change by corrections:',
-          (ds['dsr_cor']-ds['usr_cor']-ds['dsr']+ds['usr']).sum().values/valid.values,
-          "W/m2")
 
 def _getTempK(T_0):                                                            #TODO same as L2toL3._getTempK()
     '''Return steam point temperature in Kelvins
