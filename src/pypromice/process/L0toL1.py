@@ -98,18 +98,19 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     ds['tilt_x']  = smoothTilt(ds['tilt_x'], 7)                                # Smooth tilt
     ds['tilt_y']  = smoothTilt(ds['tilt_y'], 7)
 
-    if hasattr(ds, 'bedrock'):                                                 # Fix tilt to zero if station is on bedrock
+    # ensures all AWS objects have a 'bedrock' attribute
+    if hasattr(ds, 'bedrock'):
         if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
-            ds.attrs['bedrock'] = True                                         # ensures all AWS objects have a 'bedrock' attribute
+            ds.attrs['bedrock'] = True   
+            # some bedrock stations (e.g. KAN_B) do not have tilt in L0 files
+            # we need to create them manually                                       
             for var in ['tilt_x','tilt_y']:
-                if var in ds.data_vars:
-                    ds[var] =  ds[var].fillna(0)
-                else:
+                if var not in ds.data_vars:
                     ds[var] = (('time'), np.arange(ds['time'].size)*0)
         else:
-            ds.attrs['bedrock'] = False                                        # ensures all AWS objects have a 'bedrock' attribute
+            ds.attrs['bedrock'] = False
     else:
-        ds.attrs['bedrock'] = False                                            # ensures all AWS objects have a 'bedrock' attribute
+        ds.attrs['bedrock'] = False
 
     if ds.attrs['number_of_booms']==1:                                         # 1-boom processing
         if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density
