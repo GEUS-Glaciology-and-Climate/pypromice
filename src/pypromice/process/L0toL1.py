@@ -106,7 +106,13 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
             # we need to create them manually                                       
             for var in ['tilt_x','tilt_y']:
                 if var not in ds.data_vars:
-                    ds[var] = (('time'), np.arange(ds['time'].size)*0)
+                    ds[var] = (('time'), np.full(ds['time'].size, np.nan))
+            
+            # WEG_B has a non-null z_pt even though it is a berock station
+            if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density
+                ds['z_pt'] = (('time'), np.full(ds['time'].size, np.nan))
+                logger.info('Warning: Non-null data for z_pt at a bedrock site')
+                
         else:
             ds.attrs['bedrock'] = False
     else:
