@@ -217,8 +217,8 @@ def process_sw_radiation(ds):
 
     # Setting to zero when sun below the horizon or when values are negative
     bad = (ZenithAngle_deg > 95) | (ds['dsr_cor'] <= 0) | (ds['usr_cor'] <= 0)
-    ds['dsr_cor'][bad] = 0
-    ds['usr_cor'][bad] = 0
+    ds['dsr_cor'][bad & ds['dsr_cor'].notnull()] = 0
+    ds['usr_cor'][bad & ds['usr_cor'].notnull()] = 0
 
     # Remove data where TOA shortwave radiation invalid
     isr_toa = calcTOA(ZenithAngle_deg, ZenithAngle_rad)                        # Calculate TOA shortwave radiation
