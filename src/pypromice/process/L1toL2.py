@@ -70,7 +70,7 @@ def toL2(
     ds : xarray.Dataset
         Level 2 dataset
     '''
-    ds = L1.copy(deep=True)                                                    # Reassign dataset
+    ds = L1.copy()                                                    # Reassign dataset
     ds.attrs['level'] = 'L2'
     try:
         ds = adjustTime(ds, adj_dir=data_adjustments_dir.as_posix())       # Adjust time after a user-defined csv files
@@ -149,9 +149,9 @@ def toL2(
 
 def process_sw_radiation(ds):
     """
-    Processes shortwave radiation data from a dataset by applying tilt and sun 
+    Processes shortwave radiation data from a dataset by applying tilt and sun
     angle corrections.
-    
+
     Parameters:
         ds (xarray.Dataset): Dataset containing variables such as time, tilt_x,
                 tilt_y, dsr (downwelling SW radiation), usr (upwelling SW radiation),
@@ -193,16 +193,19 @@ def process_sw_radiation(ds):
                                       theta_sensor_rad, HourAngle_rad,
                                       ZenithAngle_rad, ZenithAngle_deg,
                                       lat, DifFrac, deg2rad)
-    CorFac_all = xr.where(ds['cc'].notnull(), CorFac_all, 1)
-    ds['dsr_cor'] = ds['dsr'].copy(deep=True) * CorFac_all                     # Apply correction
+    CorFac_all = CorFac_all.where(ds['cc'].notnull())
+    ds['dsr_cor'] = ds['dsr'].copy() * CorFac_all                              # Apply correction
 
     AngleDif_deg = calcAngleDiff(ZenithAngle_rad, HourAngle_rad,               # Calculate angle between sun and sensor
                                  phi_sensor_rad, theta_sensor_rad)
 
 
     # Deriving albedo without interpolation
-    ds['albedo']  = (ds['usr'] / ds['dsr_cor']).copy()
-    OKalbedos = (AngleDif_deg < 70) & (ZenithAngle_deg < 70) & (ds['albedo']  < 1) & (ds['albedo']  > 0)
+    ds['albedo']  = (ds['usr'] / ds['dsr_cor'].fillna(ds['dsr'])).copy()
+    OOL = (ds['albedo']  >= 1) | (ds['albedo']  <= 0)
+    good_zenith_angle = ZenithAngle_deg < 70
+    good_relative_zenith_angle = (AngleDif_deg < 70) | (AngleDif_deg.isnull())
+    OKalbedos = good_relative_zenith_angle & good_zenith_angle & ~OOL
     ds['albedo'] = ds['albedo'].where(OKalbedos)
 
     # Filtering usr for sun on lower dome
@@ -210,10 +213,8 @@ def process_sw_radiation(ds):
     # index is too uncertain at this point to be used
     # previously, dsr was also thrown out, but it should be OK
     sunonlowerdome =(AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)             # Determine when sun is in FOV of lower sensor, assuming sensor measures only diffuse radiation
-    ds['dsr_cor'] = ds['dsr_cor'].where(~sunonlowerdome,
-                                    other=ds['dsr'] / DifFrac)
-    ds['usr_cor'] = ds['usr'].copy(deep=True)
-    ds['usr_cor'] = ds['usr_cor'].where(~sunonlowerdome) # Apply to upwelling
+    ds['dsr_cor'] = ds['dsr_cor'].where(~sunonlowerdome)
+    ds['usr_cor'] = ds['usr'].copy().where(~sunonlowerdome & ~np.isnan(AngleDif_deg))
 
     # Setting to zero when sun below the horizon or when values are negative
     bad = (ZenithAngle_deg > 95) | (ds['dsr_cor'] <= 0) | (ds['usr_cor'] <= 0)
@@ -435,12 +436,10 @@ def calcTilt(tilt_x, tilt_y, deg2rad):
 
     # Total tilt of the sensor, i.e. 0 when horizontal
     theta_sensor_rad = np.arccos(Z / (X**2 + Y**2 + Z**2)**0.5)
-    # phi_sensor_deg = phi_sensor_rad * rad2deg                                #TODO take these out if not needed
-    # theta_sensor_deg = theta_sensor_rad * rad2deg
     return phi_sensor_rad, theta_sensor_rad
 
 
-def adjustHumidity(rh, T, T_0, T_100, ews, ei0):                        #TODO figure out if T replicate is needed
+def adjustHumidity(rh, T, T_0, T_100, ews, ei0):
     '''Adjust relative humidity so that values are given with respect to
     saturation over ice in subfreezing conditions, and with respect to
     saturation over water (as given by the instrument) above the melting
@@ -764,7 +763,7 @@ def calcCorrectionFactor(Declination_rad, phi_sensor_rad, theta_sensor_rad,
     # Calculating ds['dsr'] over a horizontal surface corrected for station/sensor tilt
     CorFac_all = CorFac / (1 - DifFrac + CorFac * DifFrac)
 
-    return CorFac_all
+    return CorFac_all.where(theta_sensor_rad.notnull())
 
 
 def _getTempK(T_0):                                                            #TODO same as L2toL3._getTempK()
