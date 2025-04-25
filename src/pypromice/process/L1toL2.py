@@ -186,48 +186,66 @@ def process_sw_radiation(ds):
                                                   HourAngle_rad, deg2rad,
                                                   rad2deg)
 
+    # Setting to zero when sun below the horizon.
+    bad = ZenithAngle_deg > 95
+    ds['dsr'] = ds['dsr'].where(~bad, 0)
+    ds['usr'] = ds['usr'].where(~bad, 0)
 
-    # Correct Downwelling shortwave radiation
+    # Setting to zero when values are negative
+    ds['dsr'] = ds['dsr'].clip(min=0)
+    ds['usr'] = ds['usr'].clip(min=0)
+
+    # Calculate angle between sun and sensor
+    AngleDif_deg = calcAngleDiff(ZenithAngle_rad, HourAngle_rad,
+                                 phi_sensor_rad, theta_sensor_rad)
+
+    # Filtering usr and dsr for sun on lower dome
+    # in theory, this is not a problem in cloudy conditions, but the cloud cover
+    # index is too uncertain at this point to be used
+    sunonlowerdome = (AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)
+    mask = ~sunonlowerdome | AngleDif_deg.isnull()                             # relaxing the filter for cases where sensor tilt is unknown
+    ds['dsr'] = ds['dsr'].where(mask)
+    ds['usr'] = ds['usr'].where(mask)
+
+    # Filter dsr values that are greater than top of the atmosphere irradiance
+    # Case where no tilt is available. If it is, then the same filter is used
+    # after tilt correction.
+    isr_toa = calcTOA(ZenithAngle_deg, ZenithAngle_rad)                        # Calculate TOA shortwave radiation
+    TOA_crit_nopass = AngleDif_deg.isnull() & (ds['dsr'] > (1.4 * isr_toa + 10))
+    ds['dsr'][TOA_crit_nopass] = np.nan
+    ds['usr'][TOA_crit_nopass] = np.nan
+
+    # Diffuse to direct irradiance fraction
     DifFrac = 0.2 + 0.8 * ds['cc']
     CorFac_all = calcCorrectionFactor(Declination_rad, phi_sensor_rad,         # Calculate correction
                                       theta_sensor_rad, HourAngle_rad,
                                       ZenithAngle_rad, ZenithAngle_deg,
                                       lat, DifFrac, deg2rad)
-    CorFac_all = CorFac_all.where(ds['cc'].notnull())
-    ds['dsr_cor'] = ds['dsr'].copy() * CorFac_all                              # Apply correction
+    tilt_correction_possible = AngleDif_deg.notnull() & ds['cc'].notnull()
+    CorFac_all = CorFac_all.where(tilt_correction_possible)
 
-    AngleDif_deg = calcAngleDiff(ZenithAngle_rad, HourAngle_rad,               # Calculate angle between sun and sensor
-                                 phi_sensor_rad, theta_sensor_rad)
+    # Correct Downwelling shortwave radiation
+    ds['dsr_cor'] = ds['dsr'].copy() * CorFac_all
+    ds['usr_cor'] = ds['usr'].copy()
 
+    # Remove data where TOA shortwave radiation invalid
+    # this can only be done after correcting for tilt
+    TOA_crit_nopass_cor = ds['dsr_cor'] > (1.4 * isr_toa + 10)
+    ds['dsr_cor'][TOA_crit_nopass_cor] = np.nan
+    ds['usr_cor'][TOA_crit_nopass_cor] = np.nan
 
     # Deriving albedo without interpolation
-    ds['albedo']  = (ds['usr'] / ds['dsr_cor'].fillna(ds['dsr'])).copy()
+    ds['albedo'] = xr.where(tilt_correction_possible,
+                            ds['usr_cor'] / ds['dsr_cor'],
+                            ds['usr'] / ds['dsr'])
+
     OOL = (ds['albedo']  >= 1) | (ds['albedo']  <= 0)
     good_zenith_angle = ZenithAngle_deg < 70
     good_relative_zenith_angle = (AngleDif_deg < 70) | (AngleDif_deg.isnull())
     OKalbedos = good_relative_zenith_angle & good_zenith_angle & ~OOL
     ds['albedo'] = ds['albedo'].where(OKalbedos)
 
-    # Filtering usr for sun on lower dome
-    # in theory, this is not a problem in cloudy conditions, but the cloud cover
-    # index is too uncertain at this point to be used
-    # previously, dsr was also thrown out, but it should be OK
-    sunonlowerdome =(AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)             # Determine when sun is in FOV of lower sensor, assuming sensor measures only diffuse radiation
-    ds['dsr_cor'] = ds['dsr_cor'].where(~sunonlowerdome)
-    ds['usr_cor'] = ds['usr'].copy().where(~sunonlowerdome & ~np.isnan(AngleDif_deg))
-
-    # Setting to zero when sun below the horizon or when values are negative
-    bad = (ZenithAngle_deg > 95) | (ds['dsr_cor'] <= 0) | (ds['usr_cor'] <= 0)
-    ds['dsr_cor'][bad & ds['dsr_cor'].notnull()] = 0
-    ds['usr_cor'][bad & ds['usr_cor'].notnull()] = 0
-
-    # Remove data where TOA shortwave radiation invalid
-    isr_toa = calcTOA(ZenithAngle_deg, ZenithAngle_rad)                        # Calculate TOA shortwave radiation
-    TOA_crit_nopass = (ds['dsr_cor'] > (0.95 * isr_toa + 10))                   # Determine filter
-    ds['dsr_cor'][TOA_crit_nopass] = np.nan                                    # Apply filter and interpolate
-    ds['usr_cor'][TOA_crit_nopass] = np.nan
-
-    return ds, (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass)
+    return ds, (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass_cor, TOA_crit_nopass)
 
 
 def get_directional_wind_speed(ds: xr.Dataset) -> xr.Dataset:
