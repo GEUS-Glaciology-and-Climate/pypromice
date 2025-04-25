@@ -226,17 +226,16 @@ def process_sw_radiation(ds):
 
     # Correct Downwelling shortwave radiation
     ds['dsr_cor'] = ds['dsr'].copy() * CorFac_all
-    ds['usr_cor'] = ds['usr'].copy()
 
     # Remove data where TOA shortwave radiation invalid
     # this can only be done after correcting for tilt
     TOA_crit_nopass_cor = ds['dsr_cor'] > (1.3 * isr_toa + 50)
     ds['dsr_cor'][TOA_crit_nopass_cor] = np.nan
-    ds['usr_cor'][TOA_crit_nopass_cor] = np.nan
+    ds['usr'][TOA_crit_nopass_cor] = np.nan
 
     # Deriving albedo without interpolation
     ds['albedo'] = xr.where(tilt_correction_possible,
-                            ds['usr_cor'] / ds['dsr_cor'],
+                            ds['usr'] / ds['dsr_cor'],
                             ds['usr'] / ds['dsr'])
 
     OOL = (ds['albedo']  >= 1) | (ds['albedo']  <= 0)
