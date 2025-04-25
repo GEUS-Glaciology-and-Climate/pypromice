@@ -188,8 +188,8 @@ def process_sw_radiation(ds):
 
     # Setting to zero when sun below the horizon.
     bad = ZenithAngle_deg > 95
-    ds['dsr'] = ds['dsr'].where(~bad, 0)
-    ds['usr'] = ds['usr'].where(~bad, 0)
+    ds['dsr'][bad & ds['dsr'].notnull()] = 0
+    ds['usr'][bad & ds['usr'].notnull()] = 0
 
     # Setting to zero when values are negative
     ds['dsr'] = ds['dsr'].clip(min=0)
@@ -211,7 +211,7 @@ def process_sw_radiation(ds):
     # Case where no tilt is available. If it is, then the same filter is used
     # after tilt correction.
     isr_toa = calcTOA(ZenithAngle_deg, ZenithAngle_rad)                        # Calculate TOA shortwave radiation
-    TOA_crit_nopass = AngleDif_deg.isnull() & (ds['dsr'] > (1.4 * isr_toa + 10))
+    TOA_crit_nopass = AngleDif_deg.isnull() & (ds['dsr'] > (1.3 * isr_toa + 50))
     ds['dsr'][TOA_crit_nopass] = np.nan
     ds['usr'][TOA_crit_nopass] = np.nan
 
@@ -230,7 +230,7 @@ def process_sw_radiation(ds):
 
     # Remove data where TOA shortwave radiation invalid
     # this can only be done after correcting for tilt
-    TOA_crit_nopass_cor = ds['dsr_cor'] > (1.4 * isr_toa + 10)
+    TOA_crit_nopass_cor = ds['dsr_cor'] > (1.3 * isr_toa + 50)
     ds['dsr_cor'][TOA_crit_nopass_cor] = np.nan
     ds['usr_cor'][TOA_crit_nopass_cor] = np.nan
 
