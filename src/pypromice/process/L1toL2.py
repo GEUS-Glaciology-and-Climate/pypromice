@@ -198,6 +198,7 @@ def process_sw_radiation(ds):
     # Calculate angle between sun and sensor
     AngleDif_deg = calcAngleDiff(ZenithAngle_rad, HourAngle_rad,
                                  phi_sensor_rad, theta_sensor_rad)
+    tilt_correction_possible = AngleDif_deg.notnull() & ds['cc'].notnull()
 
     # Filtering usr and dsr for sun on lower dome
     # in theory, this is not a problem in cloudy conditions, but the cloud cover
@@ -211,9 +212,12 @@ def process_sw_radiation(ds):
     # Case where no tilt is available. If it is, then the same filter is used
     # after tilt correction.
     isr_toa = calcTOA(ZenithAngle_deg, ZenithAngle_rad)                        # Calculate TOA shortwave radiation
-    TOA_crit_nopass = AngleDif_deg.isnull() & (ds['dsr'] > (1.3 * isr_toa + 50))
+    TOA_crit_nopass = ~tilt_correction_possible & (ds['dsr'] > (1.2 * isr_toa + 150))
     ds['dsr'][TOA_crit_nopass] = np.nan
-    ds['usr'][TOA_crit_nopass] = np.nan
+
+    # the upward flux should not be higher than the TOA downard flux
+    TOA_crit_nopass_usr = (ds['usr'] > 0.8*(1.2 * isr_toa + 150))
+    ds['usr'][TOA_crit_nopass_usr] = np.nan
 
     # Diffuse to direct irradiance fraction
     DifFrac = 0.2 + 0.8 * ds['cc']
@@ -221,17 +225,17 @@ def process_sw_radiation(ds):
                                       theta_sensor_rad, HourAngle_rad,
                                       ZenithAngle_rad, ZenithAngle_deg,
                                       lat, DifFrac, deg2rad)
-    tilt_correction_possible = AngleDif_deg.notnull() & ds['cc'].notnull()
     CorFac_all = CorFac_all.where(tilt_correction_possible)
 
     # Correct Downwelling shortwave radiation
     ds['dsr_cor'] = ds['dsr'].copy() * CorFac_all
+    ds['usr_cor'] = ds['usr'].copy().where(ds['dsr_cor'].notnull())
 
     # Remove data where TOA shortwave radiation invalid
     # this can only be done after correcting for tilt
-    TOA_crit_nopass_cor = ds['dsr_cor'] > (1.3 * isr_toa + 50)
+    TOA_crit_nopass_cor = ds['dsr_cor'] > (1.2 * isr_toa + 150)
     ds['dsr_cor'][TOA_crit_nopass_cor] = np.nan
-    ds['usr'][TOA_crit_nopass_cor] = np.nan
+    ds['usr_cor'][TOA_crit_nopass_cor] = np.nan
 
     # Deriving albedo without interpolation
     ds['albedo'] = xr.where(tilt_correction_possible,
@@ -244,7 +248,7 @@ def process_sw_radiation(ds):
     OKalbedos = good_relative_zenith_angle & good_zenith_angle & ~OOL
     ds['albedo'] = ds['albedo'].where(OKalbedos)
 
-    return ds, (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass_cor, TOA_crit_nopass)
+    return ds, (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass_cor, TOA_crit_nopass, TOA_crit_nopass_usr)
 
 
 def get_directional_wind_speed(ds: xr.Dataset) -> xr.Dataset:
