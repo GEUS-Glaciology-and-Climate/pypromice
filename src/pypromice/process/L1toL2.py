@@ -124,7 +124,10 @@ def toL2(
     ds['rot'] = smoothRot(ds['rot'])
 
     # Determiune cloud cover for on-ice stations
-    ds['cc'] = calcCloudCoverage(ds['t_u'], ds['dlr'], ds.attrs['station_id'], T_0)
+    if not ds.attrs['bedrock']:
+        ds['cc'] = calcCloudCoverage(ds['t_u'], ds['dlr'], ds.attrs['station_id'], T_0)
+    else:
+        ds['cc'] = ds['t_u'].copy() * np.nan
 
     # Filtering and correcting shortwave radiation
     ds, _ = process_sw_radiation(ds)
