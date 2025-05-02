@@ -115,8 +115,11 @@ def toL2(
     # Determine surface temperature
     ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],
                                           emissivity)
-    if not ds.attrs['bedrock']:
-        ds['t_surf'] = xr.where(ds['t_surf'] > 0, 0, ds['t_surf'])
+    is_bedrock = (ds.attrs['bedrock'] == True) | \
+                    (ds.attrs['bedrock']=='True')| \
+                        (ds.attrs['bedrock']=='true')
+    if not is_bedrock:
+        ds['t_surf'] = ds['t_surf'].clip(max=0)
 
     # smoothing tilt and rot
     ds['tilt_x'] = smoothTilt(ds['tilt_x'])
@@ -124,7 +127,7 @@ def toL2(
     ds['rot'] = smoothRot(ds['rot'])
 
     # Determiune cloud cover for on-ice stations
-    if not ds.attrs['bedrock']:
+    if not is_bedrock:
         ds['cc'] = calcCloudCoverage(ds['t_u'], ds['dlr'], ds.attrs['station_id'], T_0)
     else:
         ds['cc'] = ds['t_u'].copy() * np.nan
