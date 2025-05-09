@@ -454,11 +454,14 @@ class L0tx(EmailMessage, PayloadFormat):
         bool
             Valid format flag
         '''
+        
+        st_names_gios = ['Watson','GIOS','WAT_BR','WAT_R','RUS_R','LRU']
+        
         if self.getFirstByte().isdigit() or (self.payload[:2] == '\n' and self.imei == 300234064121930):     #TODO needed?
             return None, None, None, None, -9999, False
         
-        elif 'watson' in self.email_data['subject'].lower() or 'gios' in self.email_data['subject'].lower():
-            return None, None, None, None, -9999, False    
+        elif any(st in self.email_data['subject'] for st in st_names_gios):
+            return None, None, None, None, -9999, False        
        
         else:
             bidx = ord(self.getFirstByte()) 
