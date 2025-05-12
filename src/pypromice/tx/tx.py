@@ -454,8 +454,12 @@ class L0tx(EmailMessage, PayloadFormat):
         bool
             Valid format flag
         '''
+      
         if self.getFirstByte().isdigit() or (self.payload[:2] == '\n' and self.imei == 300234064121930):     #TODO needed?
             return None, None, None, None, -9999, False
+        
+        elif self.email_data['subject'].startswith("Data from station"):
+            return None, None, None, None, -9999, False    
         
         elif 'watson' in self.email_data['subject'].lower() or 'gios' in self.email_data['subject'].lower():
             return None, None, None, None, -9999, False    
