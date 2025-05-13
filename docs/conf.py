@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('../src/pypromice/'))
 # -- Project information -----------------------------------------------------
 
 project = 'pypromice'
-copyright = '2024, GEUS Glaciology and Climate'
+copyright = '2025, GEUS Glaciology and Climate'
 author = 'GEUS Glaciology and Climate'
 
 # The full version, including alpha/beta/rc tags
