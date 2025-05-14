@@ -59,7 +59,7 @@ def toL3(L2,
             z_WS_u = ds['z_boom_u'].copy() + 0.4                                       # Get height of Anemometer
             z_T_u = ds['z_boom_u'].copy() - 0.1                                        # Get height of thermometer
 
-            is_bedrock = (ds.attrs['bedrock'] == True) | (ds.attrs['bedrock']=='True')| (ds.attrs['bedrock']=='true')
+            is_bedrock = (str(ds.attrs['bedrock']).lower() == 'true')
             if not is_bedrock:
                 SHF_h_u, LHF_h_u= calculate_tubulent_heat_fluxes(T_0, T_h_u, Tsurf_h, WS_h_u,            # Calculate latent and sensible heat fluxes
                                                 z_WS_u, z_T_u, q_h_u, p_h_u)
