@@ -42,7 +42,7 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     # Reformat most variables
     for l in list(ds.keys()):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
-            ds[l] = _reformatArray(ds[l])                                               # TODO reformatting to occur as it is loaded as L0? PHO.
+            ds[l] = _reformat_array(ds[l])                                               # TODO reformatting to occur as it is loaded as L0? PHO.
 
     # ds['time_orig'] = ds['time'] # Not used
 
