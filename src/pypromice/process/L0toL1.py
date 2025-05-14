@@ -7,7 +7,7 @@ import pandas as pd
 import xarray as xr
 import re, logging
 from pypromice.process.value_clipping import clip_values
-from pypromice.process import radiation, pressure_depth, boom_height, tilt
+from pypromice.process import radiation, pressure_depth, boom_height, tilt, gps
 logger = logging.getLogger(__name__)
 
 
@@ -65,11 +65,13 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     if hasattr(ds, 'dlr_eng_coef'):
         ds['dlr'] = radiation.convert_lr(ds['dlr'],
                                          ds['t_rad'],
-                                         ds.attrs['dlr_eng_coef'])
+                                         ds.attrs['dlr_eng_coef'],
+                                         T_0)
     if hasattr(ds, 'ulr_eng_coef'):
         ds['ulr'] = radiation.convert_lr(ds['ulr'],
                                          ds['t_rad'],
-                                         ds.attrs['ulr_eng_coef'])
+                                         ds.attrs['ulr_eng_coef'],
+                                         T_0)
 
     # Reformat boom height
     ds['z_boom_u'] = _reformat_array(ds['z_boom_u'])                            # TODO Is this needed as it should be done on line 45? PHO
@@ -136,10 +138,8 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     # Smooth tilt values
     # Note that this should be OK for CR1000 tx (data only every 6 hrs),
     # since we interpolate above in _getTiltDegrees. PJW
-    ds['tilt_x'] = tilt.smooth(ds['tilt_x'],
-                               tilt_threshold)
-    ds['tilt_y'] = tilt.smooth(ds['tilt_y'],
-                               tilt_threshold)
+    ds['tilt_x'] = tilt.smooth(ds['tilt_x'], 7)
+    ds['tilt_y'] = tilt.smooth(ds['tilt_y'], 7)
 
     # Fix tilt to zero if station is on bedrock
     if hasattr(ds, 'bedrock'):
