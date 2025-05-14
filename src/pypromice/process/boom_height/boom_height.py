@@ -1,3 +1,5 @@
+import pandas as pd
+
 def correct(z_boom, t, T_0):
     '''Adjust sonic ranger readings for sensitivity to air temperature'''
     return z_boom * ((t_interp + T_0) / T_0) ** 0.5
@@ -9,7 +11,7 @@ def correct_with_temp_interp(z_boom, t, vars_df, T_0):
     return z_boom * ((t_interp + T_0) / T_0) ** 0.5
 
 
-def _interpolate_air_temperature(t, var_configurations, max_interp=pd.Timedelta(12, 'h')):      # Move to air temperature submodule? PHO
+def _interpolate_air_temperature(t, var_configurations, max_interp=pd.Timedelta(12, 'h')):      # Move to air temperature
     '''Clip and interpolate temperature dataset for use in corrections
 
     Parameters

@@ -1,3 +1,6 @@
+import pandas as pd
+import numpy as np
+
 def smooth(tilt, win_size):
     '''Smooth tilt values using a rolling window. This is translated from the
     previous IDL/GDL smoothing algorithm:
