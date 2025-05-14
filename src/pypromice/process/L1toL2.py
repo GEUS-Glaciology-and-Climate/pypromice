@@ -115,9 +115,7 @@ def toL2(
     # Determine surface temperature
     ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],
                                           emissivity)
-    is_bedrock = (ds.attrs['bedrock'] == True) | \
-                    (ds.attrs['bedrock']=='True')| \
-                        (ds.attrs['bedrock']=='true')
+    is_bedrock = (str(ds.attrs['bedrock']).lower() == 'true')
     if not is_bedrock:
         ds['t_surf'] = ds['t_surf'].clip(max=0)
 
@@ -243,16 +241,7 @@ def process_sw_radiation(ds):
     ds['dsr_cor'][TOA_crit_nopass_cor] = np.nan
     ds['usr_cor'][TOA_crit_nopass_cor] = np.nan
 
-    # Deriving albedo without interpolation
-    ds['albedo'] = xr.where(tilt_correction_possible,
-                            ds['usr'] / ds['dsr_cor'],
-                            ds['usr'] / ds['dsr'])
-
-    OOL = (ds['albedo']  >= 1) | (ds['albedo']  <= 0)
-    good_zenith_angle = ZenithAngle_deg < 70
-    good_relative_zenith_angle = (AngleDif_deg < 70) | (AngleDif_deg.isnull())
-    OKalbedos = good_relative_zenith_angle & good_zenith_angle & ~OOL
-    ds['albedo'] = ds['albedo'].where(OKalbedos)
+    ds, OKalbedos = calcAlbedo(ds, AngleDif_deg, ZenithAngle_deg)
 
     return ds, (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass_cor, TOA_crit_nopass, TOA_crit_nopass_usr)
 
@@ -701,6 +690,42 @@ def calcAngleDiff(ZenithAngle_rad, HourAngle_rad, phi_sensor_rad,
                                    * np.sin(phi_sensor_rad)
                                    + np.cos(ZenithAngle_rad)
                                    * np.cos(theta_sensor_rad))
+
+
+def calcAlbedo(ds, AngleDif_deg, ZenithAngle_deg):
+    '''
+    Calculate surface albedo based on upwelling and downwelling shortwave
+    flux, the angle between the sun and sensor, and the sun zenith angle.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Dataset containing 'usr' (upwelling shortwave), 'dsr_cor' (corrected downwelling shortwave),
+        and optionally 'dsr' (uncorrected downwelling shortwave) and 'cc' (cloud cover).
+    AngleDif_deg : xarray.DataArray
+        Angle between the sun and the sensor in degrees.
+    ZenithAngle_deg : xarray.DataArray
+        Sun zenith angle in degrees.
+
+    Returns
+    -------
+    ds : xarray.Dataset
+        Input dataset with a new 'albedo' variable added.
+    OKalbedos : xarray.DataArray
+        Boolean mask indicating valid albedo values.
+    '''
+    tilt_correction_possible = AngleDif_deg.notnull() & ds['cc'].notnull()
+
+    ds['albedo'] = xr.where(tilt_correction_possible,
+                            ds['usr'] / ds['dsr_cor'],
+                            ds['usr'] / ds['dsr'])
+
+    OOL = (ds['albedo']  >= 1) | (ds['albedo']  <= 0)
+    good_zenith_angle = ZenithAngle_deg < 70
+    good_relative_zenith_angle = (AngleDif_deg < 70) | (AngleDif_deg.isnull())
+    OKalbedos = good_relative_zenith_angle & good_zenith_angle & ~OOL
+    ds['albedo'] = ds['albedo'].where(OKalbedos)
+    return ds, OKalbedos
 
 def calcTOA(ZenithAngle_deg, ZenithAngle_rad):
     '''Calculate incoming shortwave radiation at the top of the atmosphere,

@@ -100,19 +100,19 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
 
     # ensures all AWS objects have a 'bedrock' attribute
     if hasattr(ds, 'bedrock'):
-        if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
-            ds.attrs['bedrock'] = True   
+        if str(ds.attrs['bedrock']).lower() == 'true':
+            ds.attrs['bedrock'] = True
             # some bedrock stations (e.g. KAN_B) do not have tilt in L0 files
-            # we need to create them manually                                       
+            # we need to create them manually
             for var in ['tilt_x','tilt_y']:
                 if var not in ds.data_vars:
                     ds[var] = (('time'), np.full(ds['time'].size, np.nan))
-            
+
             # WEG_B has a non-null z_pt even though it is a berock station
             if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density
                 ds['z_pt'] = (('time'), np.full(ds['time'].size, np.nan))
                 logger.info('Warning: Non-null data for z_pt at a bedrock site')
-                
+
         else:
             ds.attrs['bedrock'] = False
     else:
