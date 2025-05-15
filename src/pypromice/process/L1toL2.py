@@ -115,7 +115,7 @@ def toL2(
     # Determine surface temperature
     ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],
                                           emissivity)
-    is_bedrock = (str(ds.attrs['bedrock']).lower() == 'true')
+    is_bedrock = ds.attrs['bedrock']
     if not is_bedrock:
         ds['t_surf'] = ds['t_surf'].clip(max=0)
 

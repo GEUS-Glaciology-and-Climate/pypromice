@@ -40,7 +40,9 @@ def toL3(L2,
     ds.attrs['level'] = 'L3'
 
     T_100 = T_0+100                                                            # Get steam point temperature as K
+
     is_bedrock = (str(ds.attrs['bedrock']).lower() == 'true')
+
     # Turbulent heat flux calculation
     if ('t_u' in ds.keys()) and \
         ('p_u' in ds.keys()) and \
