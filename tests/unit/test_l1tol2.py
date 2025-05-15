@@ -4,7 +4,7 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 
-from pypromice.process.L1toL2 import get_directional_wind_speed
+from pypromice.process.wind import filter_wind_direction, calculate_directional_wind_speed
 
 
 class DirectionalWindSpeedTestCase(unittest.TestCase):
@@ -23,7 +23,27 @@ class DirectionalWindSpeedTestCase(unittest.TestCase):
         ds = xr.Dataset(df_in)
         ds.attrs["number_of_booms"] = 1
 
-        ds_out = get_directional_wind_speed(ds.copy())
+        ds_out = ds.copy()
+
+        # Calculate directional wind speed for upper boom
+        ds_out['wdir_u'] = filter_wind_direction(ds_out['wdir_u'],
+                                                 ds_out['wspd_u'])
+        ds_out['wspd_x_u'], ds_out['wspd_y_u'] = calculate_directional_wind_speed(ds_out['wspd_u'],
+                                                                                  ds_out['wdir_u'])
+
+        # Calculate directional wind speed for lower boom
+        if ds_out.attrs['number_of_booms'] == 2:
+            ds_out['wdir_l'] = filter_wind_direction(ds_out['wdir_l'],
+                                                      ds_out['wspd_l'])
+            ds_out['wspd_x_l'], ds_out['wspd_y_l'] = calculate_directional_wind_speed(ds_out['wspd_l'],
+                                                                                      ds_out['wdir_l'])
+
+        # Calculate directional wind speed for instantaneous measurements
+        if hasattr(ds_out, 'wdir_i'):
+            if ~ds_out['wdir_i'].isnull().all() and ~ds_out['wspd_i'].isnull().all():
+                ds_out['wdir_i'] = filter_wind_direction(ds_out['wdir_i'], ds_out['wspd_i'])
+                ds_out['wspd_x_i'], ds_out['wspd_y_i'] = calculate_directional_wind_speed(ds_out['wspd_i'],
+                                                                                          ds_out['wdir_i'])
 
         # Convert to dataframe for easier comparison
         df_out = ds_out.to_dataframe()
@@ -53,7 +73,27 @@ class DirectionalWindSpeedTestCase(unittest.TestCase):
         ds = xr.Dataset(df_in)
         ds.attrs["number_of_booms"] = 2
 
-        ds_out = get_directional_wind_speed(ds.copy())
+        ds_out = ds.copy()
+
+        # Calculate directional wind speed for upper boom
+        ds_out['wdir_u'] = filter_wind_direction(ds_out['wdir_u'],
+                                                 ds_out['wspd_u'])
+        ds_out['wspd_x_u'], ds_out['wspd_y_u'] = calculate_directional_wind_speed(ds_out['wspd_u'],
+                                                                                  ds_out['wdir_u'])
+
+        # Calculate directional wind speed for lower boom
+        if ds_out.attrs['number_of_booms'] == 2:
+            ds_out['wdir_l'] = filter_wind_direction(ds_out['wdir_l'],
+                                                      ds_out['wspd_l'])
+            ds_out['wspd_x_l'], ds_out['wspd_y_l'] = calculate_directional_wind_speed(ds_out['wspd_l'],
+                                                                                      ds_out['wdir_l'])
+
+        # Calculate directional wind speed for instantaneous measurements
+        if hasattr(ds_out, 'wdir_i'):
+            if ~ds_out['wdir_i'].isnull().all() and ~ds_out['wspd_i'].isnull().all():
+                ds_out['wdir_i'] = filter_wind_direction(ds_out['wdir_i'], ds_out['wspd_i'])
+                ds_out['wspd_x_i'], ds_out['wspd_y_i'] = calculate_directional_wind_speed(ds_out['wspd_i'],
+                                                                                          ds_out['wdir_i'])
 
         # Convert to dataframe for easier comparison
         df_out = ds_out.to_dataframe()
@@ -81,7 +121,27 @@ class DirectionalWindSpeedTestCase(unittest.TestCase):
         ds = xr.Dataset(df_in)
         ds.attrs["number_of_booms"] = 1
 
-        ds_out = get_directional_wind_speed(ds.copy())
+        ds_out = ds.copy()
+
+        # Calculate directional wind speed for upper boom
+        ds_out['wdir_u'] = filter_wind_direction(ds_out['wdir_u'],
+                                                 ds_out['wspd_u'])
+        ds_out['wspd_x_u'], ds_out['wspd_y_u'] = calculate_directional_wind_speed(ds_out['wspd_u'],
+                                                                                  ds_out['wdir_u'])
+
+        # Calculate directional wind speed for lower boom
+        if ds_out.attrs['number_of_booms'] == 2:
+            ds_out['wdir_l'] = filter_wind_direction(ds_out['wdir_l'],
+                                                      ds_out['wspd_l'])
+            ds_out['wspd_x_l'], ds_out['wspd_y_l'] = calculate_directional_wind_speed(ds_out['wspd_l'],
+                                                                                      ds_out['wdir_l'])
+
+        # Calculate directional wind speed for instantaneous measurements
+        if hasattr(ds_out, 'wdir_i'):
+            if ~ds_out['wdir_i'].isnull().all() and ~ds_out['wspd_i'].isnull().all():
+                ds_out['wdir_i'] = filter_wind_direction(ds_out['wdir_i'], ds_out['wspd_i'])
+                ds_out['wspd_x_i'], ds_out['wspd_y_i'] = calculate_directional_wind_speed(ds_out['wspd_i'],
+                                                                                          ds_out['wdir_i'])
 
         # Convert to dataframe for easier comparison
         df_out = ds_out.to_dataframe()
