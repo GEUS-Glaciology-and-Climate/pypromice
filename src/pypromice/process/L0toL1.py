@@ -98,25 +98,27 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     ds['tilt_x']  = smoothTilt(ds['tilt_x'], 7)                                # Smooth tilt
     ds['tilt_y']  = smoothTilt(ds['tilt_y'], 7)
 
-    # ensures all AWS objects have a 'bedrock' attribute
-    if hasattr(ds, 'bedrock'):
-        if str(ds.attrs['bedrock']).lower() == 'true':
-            ds.attrs['bedrock'] = True
-            # some bedrock stations (e.g. KAN_B) do not have tilt in L0 files
-            # we need to create them manually
-            for var in ['tilt_x','tilt_y']:
-                if var not in ds.data_vars:
-                    ds[var] = (('time'), np.full(ds['time'].size, np.nan))
-
-            # WEG_B has a non-null z_pt even though it is a berock station
-            if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density
-                ds['z_pt'] = (('time'), np.full(ds['time'].size, np.nan))
-                logger.info('Warning: Non-null data for z_pt at a bedrock site')
-
-        else:
-            ds.attrs['bedrock'] = False
-    else:
+    # Handle cases where the bedrock attribute is incorrectly set
+    if not 'bedrock' in ds.attrs:
+        logger.warning('bedrock attribute is not set')
         ds.attrs['bedrock'] = False
+    elif not isinstance(ds.attrs['bedrock'], bool):
+        logger.warning(f'bedrock attribute is not boolean: {ds.attrs["bedrock"]}')
+        ds.attrs['bedrock'] =  str(ds.attrs['bedrock']).lower() == 'true'
+
+    is_bedrock = ds.attrs['bedrock']
+
+    if is_bedrock:
+        # some bedrock stations (e.g. KAN_B) do not have tilt in L0 files
+        # we need to create them manually
+        for var in ['tilt_x','tilt_y']:
+            if var not in ds.data_vars:
+                ds[var] = (('time'), np.full(ds['time'].size, np.nan))
+
+        # WEG_B has a non-null z_pt even though it is a berock station
+        if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density
+            ds['z_pt'] = (('time'), np.full(ds['time'].size, np.nan))
+            logger.info('Warning: Non-null data for z_pt at a bedrock site')
 
     if ds.attrs['number_of_booms']==1:                                         # 1-boom processing
         if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density
