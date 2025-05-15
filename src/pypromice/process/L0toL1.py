@@ -141,6 +141,13 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     ds['tilt_x'] = tilt.smooth(ds['tilt_x'], 7)
     ds['tilt_y'] = tilt.smooth(ds['tilt_y'], 7)
 
+    # Apply wind factor if provided
+    # This is in the case of an Arctic anemometer operated through a loggerbox assuming a standard anemometer
+    if hasattr(ds, 'wind_coef'):
+        logger.info('Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_coef"]}')
+        ds['wspd_u'] = wind.correct_wind_speed(ds['wspd_u'],
+                                               ds.attrs['wind_coef'])
+
     # Fix tilt to zero if station is on bedrock
     if hasattr(ds, 'bedrock'):
         if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
@@ -195,6 +202,18 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
                                                               ds['t_l'],
                                                               vars_df,
                                                               T_0)
+
+        # Apply wind factor if provided
+        if hasattr(ds, 'wind_coef'):
+            logger.info('Wind speed correction applied to wspd_l based on factor of {ds.attrs["wind_coef"]}')
+            ds['wspd_l'] = wind.correct_wind_speed(ds['wspd_l'],
+                                                   ds.attrs['wind_coef'])
+
+    # Apply wind factor if provided
+    if hasattr(ds, 'wspd_i') and hasattr(ds, 'wind_coef'):
+        logger.info('Wind speed correction applied to wspd_i based on factor of {ds.attrs["wind_coef"]}')
+        ds['wspd_i'] = wind.correct_wind_speed(ds['wspd_i'],
+                                               ds.attrs['wind_coef'])
 
     ds = clip_values(ds, vars_df)
     for key in ['hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
