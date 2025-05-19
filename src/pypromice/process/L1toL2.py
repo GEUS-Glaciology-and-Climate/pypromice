@@ -205,9 +205,10 @@ def toL2(
             ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],
                                                                    ds['wspd_l'])
 
-    get_directional_wind_speed(ds)                                            # Get directional wind speed
+    get_directional_wind_speed(ds)  # Get directional wind speed
 
     ds = clip_values(ds, vars_df)
+    ds = fill_gaps(ds)
     return ds
 
 def get_directional_wind_speed(ds: xr.Dataset) -> xr.Dataset:
@@ -782,6 +783,35 @@ def calcCorrectionFactor(Declination_rad, phi_sensor_rad, theta_sensor_rad,
 
     return CorFac_all
 
+def fill_gaps(ds):
+    '''Fill data gaps with nan values
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Data set to gap fill
+
+    Returns
+    -------
+    ds_filled : xarray.Dataset
+        Gap-filled dataset
+    '''
+    # Determine time range of dataset
+    min_date = ds.to_dataframe().index.min()
+    max_date = ds.to_dataframe().index.max()
+
+    # Determine common time interval
+    time_diffs = np.diff(ds['time'].values)
+    common_diff = pd.Timedelta(pd.Series(time_diffs).mode()[0])
+
+    # Determine gap filled index
+    full_time_range = pd.date_range(start=min_date,
+                                    end=max_date,
+                                    freq=common_diff)
+
+    # Apply gap-fille index to dataset
+    ds_filled = ds.reindex({'time': full_time_range}, fill_value=np.nan)
+    return ds_filled
 
 def _checkSunPos(ds, OKalbedos, sundown, sunonlowerdome, TOA_crit_nopass):
     '''Check sun position
