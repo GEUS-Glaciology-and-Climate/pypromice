@@ -11,7 +11,7 @@ from pypromice.process import radiation, pressure_depth, boom_height, tilt, gps
 logger = logging.getLogger(__name__)
 
 
-def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
+def to_l1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     '''Process one Level 0 (L0) product to Level 1
 
     Parameters

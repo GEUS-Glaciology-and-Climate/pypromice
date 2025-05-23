@@ -21,7 +21,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def toL2(
+def to_l2(
     L1: xr.Dataset,
     vars_df: pd.DataFrame,
     data_flags_dir: Path,

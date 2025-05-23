@@ -5,7 +5,7 @@ from pathlib import Path
 import xarray as xr
 from argparse import ArgumentParser
 import pypromice
-from pypromice.process.L2toL3 import toL3
+from pypromice.pipeline.l2_to_l3 import to_l3
 import pypromice.resources
 from pypromice.process.write import prepare_and_write
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
     data_adjustments_dir = data_issues_path / "adjustments"
     
     # Perform Level 3 processing
-    l3 = toL3(l2, data_adjustments_dir, station_config)
+    l3 = to_l3(l2, data_adjustments_dir, station_config)
 
     # Write Level 3 dataset to file if output directory given
     v = pypromice.resources.load_variables(variables)
