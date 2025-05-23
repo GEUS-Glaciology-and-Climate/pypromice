@@ -13,6 +13,7 @@ from pypromice.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.qc.persistence import persistence_qc
 from pypromice.process.value_clipping import clip_values
+from pypromice.process import wind
 
 __all__ = [
     "toL2",
@@ -205,7 +206,28 @@ def toL2(
             ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],
                                                                    ds['wspd_l'])
 
-    get_directional_wind_speed(ds)                                            # Get directional wind speed
+
+    # Calculate directional wind speed for upper boom
+    ds['wdir_u'] = wind.filter_wind_direction(ds['wdir_u'],
+                                              ds['wspd_u'])
+    ds['wspd_x_u'], ds['wspd_y_u'] = wind.calculate_directional_wind_speed(ds['wspd_u'],
+                                                                           ds['wdir_u'])
+
+    # Calculate directional wind speed for lower boom
+    if ds.attrs['number_of_booms'] == 2:
+        ds['wdir_l'] = wind.filter_wind_direction(ds['wdir_l'],
+                                                  ds['wspd_l'])
+        ds['wspd_x_l'], ds['wspd_y_l'] = wind.calculate_directional_wind_speed(ds['wspd_l'],
+
+                                                                               ds['wdir_l'])
+    # Calculate directional wind speed for instantaneous measurements
+    if hasattr(ds, 'wdir_i'):
+        if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():
+            ds['wdir_i'] = wind.filter_wind_direction(ds['wdir_i'],
+                                                      ds['wspd_i'])
+            ds['wspd_x_i'], ds['wspd_y_i'] = wind.calculate_directional_wind_speed(ds['wspd_i'],
+                                                                                   ds['wdir_i'])
+            # Get directional wind speed
 
     ds = clip_values(ds, vars_df)
     return ds

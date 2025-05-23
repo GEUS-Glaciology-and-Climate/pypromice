@@ -7,6 +7,7 @@ import pandas as pd
 import xarray as xr
 import re, logging
 from pypromice.process.value_clipping import clip_values
+from pypromice.process import wind
 logger = logging.getLogger(__name__)
 
 
@@ -97,7 +98,14 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     # since we interpolate above in _getTiltDegrees. PJW
     ds['tilt_x']  = smoothTilt(ds['tilt_x'], 7)                                # Smooth tilt
     ds['tilt_y']  = smoothTilt(ds['tilt_y'], 7)                               
-    
+
+    # Apply wind factor if provided
+    # This is in the case of an Arctic anemometer operated through a loggerbox assuming a standard anemometer
+    if hasattr(ds, 'wind_coef'):
+        logger.info('Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_coef"]}')
+        ds['wspd_u'] = wind.correct_wind_speed(ds['wspd_u'],
+                                               ds.attrs['wind_coef'])
+
     if hasattr(ds, 'bedrock'):                                                 # Fix tilt to zero if station is on bedrock
         if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
             ds.attrs['bedrock'] = True                                         # ensures all AWS objects have a 'bedrock' attribute
@@ -124,6 +132,18 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height    
         ds['t_l_interp'] = interpTemp(ds['t_l'], vars_df)
         ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l_interp']+ T_0)/T_0)**0.5   # Adjust sonic ranger readings for sensitivity to air temperature    
+
+        # Apply wind factor if provided
+        if hasattr(ds, 'wind_coef'):
+            logger.info('Wind speed correction applied to wspd_l based on factor of {ds.attrs["wind_coef"]}')
+            ds['wspd_l'] = wind.correct_wind_speed(ds['wspd_l'],
+                                                   ds.attrs['wind_coef'])
+
+    # Apply wind factor if provided
+    if hasattr(ds, 'wspd_i') and hasattr(ds, 'wind_coef'):
+        logger.info('Wind speed correction applied to wspd_i based on factor of {ds.attrs["wind_coef"]}')
+        ds['wspd_i'] = wind.correct_wind_speed(ds['wspd_i'],
+                                               ds.attrs['wind_coef'])
 
     ds = clip_values(ds, vars_df)
     for key in ['hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
