@@ -8,7 +8,7 @@ Created on Mon Jun 10 10:58:39 2024
 import logging
 import numpy as np
 import xarray as xr
-from pypromice.process.wind import calculate_directional_wind_speed
+from pypromice.process.L1toL2 import calcDirWindSpeeds
 logger = logging.getLogger(__name__)
 
 def resample_dataset(ds_h, t):
@@ -81,7 +81,7 @@ def resample_dataset(ds_h, t):
                 df_d[var] = _calcWindDir(df_d['wspd_x_'+boom], df_d['wspd_y_'+boom])
             else:
                 logger.info(var+' in dataframe but not wspd_x_'+boom+' nor wspd_y_'+boom+', recalculating them')
-                ds_h['wspd_x_'+boom], ds_h['wspd_y_'+boom] = calculate_directional_wind_speed(ds_h['wspd_'+boom], ds_h['wdir_'+boom])
+                ds_h['wspd_x_'+boom], ds_h['wspd_y_'+boom] = calcDirWindSpeeds(ds_h['wspd_'+boom], ds_h['wdir_'+boom])
                 df_d[['wspd_x_'+boom, 'wspd_y_'+boom]] = ds_h[['wspd_x_'+boom, 'wspd_y_'+boom]].to_dataframe().resample(t).mean()
                 df_d[var] = _calcWindDir(df_d['wspd_x_'+boom], df_d['wspd_y_'+boom])
     
