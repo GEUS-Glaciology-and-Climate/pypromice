@@ -16,9 +16,9 @@ from importlib import metadata
 
 
 import pypromice.resources
-from pypromice.process.L0toL1 import toL1
-from pypromice.process.L1toL2 import toL2
-from pypromice.process.L2toL3 import toL3
+from pypromice.pipeline.l0_to_l1 import to_l1
+from pypromice.pipeline.l1_to_l2 import to_l2
+from pypromice.pipeline.l2_to_l3 import to_l3
 from pypromice.process import write, load, utilities
 from pypromice.utilities.git import get_commit_hash_and_check_dirty
 
@@ -127,7 +127,7 @@ class AWS(object):
         """Perform L0 to L1 data processing"""
         logger.info("Level 1 processing...")
         self.L0 = [utilities.addBasicMeta(item, self.vars) for item in self.L0]
-        self.L1 = [toL1(item, self.vars) for item in self.L0]
+        self.L1 = [to_l1(item, self.vars) for item in self.L0]
         self.L1A = reduce(xr.Dataset.combine_first, reversed(self.L1))
         self.L1A.attrs["format"] = self.format
 
@@ -135,7 +135,7 @@ class AWS(object):
         """Perform L1 to L2 data processing"""
         logger.info("Level 2 processing...")
 
-        self.L2 = toL2(
+        self.L2 = to_l2(
             self.L1A,
             vars_df=self.vars,
             data_flags_dir=self.data_issues_repository / "flags",
@@ -146,7 +146,7 @@ class AWS(object):
         """Perform L2 to L3 data processing, including resampling and metadata
         and attribute population"""
         logger.info("Level 3 processing...")
-        self.L3 = toL3(self.L2, data_adjustments_dir=self.data_issues_repository / "adjustments")
+        self.L3 = to_l3(self.L2, data_adjustments_dir=self.data_issues_repository / "adjustments")
 
     def loadConfig(self, config_file, inpath):
         """Load configuration from .toml file

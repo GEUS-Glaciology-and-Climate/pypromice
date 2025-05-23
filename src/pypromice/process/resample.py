@@ -8,7 +8,7 @@ Created on Mon Jun 10 10:58:39 2024
 import logging
 import numpy as np
 import xarray as xr
-from pypromice.process.L1toL2 import calcDirWindSpeeds
+from pypromice.pipeline.l1_to_l2 import calcDirWindSpeeds
 logger = logging.getLogger(__name__)
 
 def resample_dataset(ds_h, t):

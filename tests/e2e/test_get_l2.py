@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import xarray as xr
 
-from pypromice.process.get_l2 import get_l2
+from pypromice.pipeline.get_l2 import get_l2
 
 TEST_ROOT = Path(__file__).parent.parent
 TEST_DATA_ROOT_PATH = TEST_ROOT / "data"

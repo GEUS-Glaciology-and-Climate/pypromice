@@ -5,7 +5,7 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
-from pypromice.process.aws import AWS
+from pypromice.pipeline.aws import AWS
 from pypromice.process.write import prepare_and_write
 
 
