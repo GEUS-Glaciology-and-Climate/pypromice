@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 import pypromice
 from pypromice.pipeline.l2_to_l3 import to_l3
 import pypromice.resources
-from pypromice.process.write import prepare_and_write
+from pypromice.algorithms.write import prepare_and_write
 logger = logging.getLogger(__name__)
 
 def parse_arguments_l2tol3(debug_args=None):

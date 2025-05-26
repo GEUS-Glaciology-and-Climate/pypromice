@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import re, logging
-from pypromice.process.value_clipping import clip_values
-from pypromice.process import radiation, pressure_depth, boom_height, tilt, gps
+from pypromice.algorithms.value_clipping import clip_values
+from pypromice.algorithms import radiation, pressure_depth, boom_height, tilt, gps
 logger = logging.getLogger(__name__)
 
 

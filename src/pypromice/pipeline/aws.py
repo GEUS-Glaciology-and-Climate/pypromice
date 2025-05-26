@@ -19,7 +19,7 @@ import pypromice.resources
 from pypromice.pipeline.l0_to_l1 import to_l1
 from pypromice.pipeline.l1_to_l2 import to_l2
 from pypromice.pipeline.l2_to_l3 import to_l3
-from pypromice.process import write, load, utilities
+from pypromice.algorithms import write, load, utilities
 from pypromice.utilities.git import get_commit_hash_and_check_dirty
 
 pd.set_option("display.precision", 2)

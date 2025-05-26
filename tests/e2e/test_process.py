@@ -18,7 +18,7 @@ from pypromice.pipeline.get_l2 import get_l2
 from pypromice.pipeline.get_l2tol3 import get_l2tol3
 from pypromice.pipeline.join_l2 import join_l2
 from pypromice.pipeline.join_l3 import join_l3
-from pypromice.process.write import addVars, addMeta
+from pypromice.algorithms.write import addVars, addMeta
 
 TEST_ROOT = Path(__file__).parent.parent
 TEST_DATA_ROOT_PATH = TEST_ROOT / "data"

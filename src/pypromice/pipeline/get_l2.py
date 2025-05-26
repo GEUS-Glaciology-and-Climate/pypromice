@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from pypromice.pipeline.aws import AWS
-from pypromice.process.write import prepare_and_write
+from pypromice.algorithms.write import prepare_and_write
 
 
 def parse_arguments_l2():

@@ -4,7 +4,7 @@ import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
 from pypromice.pipeline.l1_to_l2 import correctPrecip
-from pypromice.process.write import prepare_and_write
+from pypromice.algorithms.write import prepare_and_write
 logger = logging.getLogger(__name__)
 
 def parse_arguments_join():
