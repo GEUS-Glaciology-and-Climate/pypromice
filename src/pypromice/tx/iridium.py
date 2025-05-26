@@ -4,6 +4,13 @@ from email.message import Message
 
 import attrs
 
+class IridiumParseError(Exception):
+    """
+    Exception raised when parsing an Iridium message fails.
+    This is a custom exception to handle specific parsing errors.
+    """
+    pass
+
 
 @attrs.define
 class IridiumMessage:
@@ -24,9 +31,10 @@ class IridiumMessage:
     # It is stored here for payload decoding purposes
     subject: str | None
 
+def is_iridium(email: Message) -> bool:
+    return email["From"] == "sbdservice@sbd.iridium.com"
 
 def parse_mail(email: Message) -> IridiumMessage:
-    assert email["From"] == "sbdservice@sbd.iridium.com"
     subject = str(email["Subject"])
 
     sbd_raw = None
