@@ -232,48 +232,6 @@ def toL2(
     ds = clip_values(ds, vars_df)
     return ds
 
-def get_directional_wind_speed(ds: xr.Dataset) -> xr.Dataset:
-    """
-    Calculate directional wind speed from wind speed and direction and mutates the dataset
-    """
-
-    ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)
-    ds['wspd_x_u'], ds['wspd_y_u'] = calcDirWindSpeeds(ds['wspd_u'], ds['wdir_u'])
-
-    if ds.attrs['number_of_booms']==2:
-        ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0)
-        ds['wspd_x_l'], ds['wspd_y_l'] = calcDirWindSpeeds(ds['wspd_l'], ds['wdir_l'])
-
-    if hasattr(ds, 'wdir_i'):
-        if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():
-            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)
-            ds['wspd_x_i'], ds['wspd_y_i'] = calcDirWindSpeeds(ds['wspd_i'], ds['wdir_i'])
-    return ds
-
-
-def calcDirWindSpeeds(wspd, wdir, deg2rad=np.pi/180):
-    '''Calculate directional wind speed from wind speed and direction
-
-    Parameters
-    ----------
-    wspd : xr.Dataarray
-        Wind speed data array
-    wdir : xr.Dataarray
-        Wind direction data array
-    deg2rad : float
-        Degree to radians coefficient. The default is np.pi/180
-
-    Returns
-    -------
-    wspd_x : xr.Dataarray
-        Wind speed in X direction
-    wspd_y : xr.Datarray
-        Wind speed in Y direction
-    '''
-    wspd_x = wspd * np.sin(wdir * deg2rad)
-    wspd_y = wspd * np.cos(wdir * deg2rad)
-    return wspd_x, wspd_y
-
 
 def calcCloudCoverage(T, T_0, eps_overcast, eps_clear, dlr, station_id):
     '''Calculate cloud cover from T and T_0

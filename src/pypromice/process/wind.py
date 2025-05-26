@@ -3,15 +3,18 @@ __all__=['correct_wind_speed', 'filter_wind_direction', 'calculate_directional_w
 import numpy as np
 import xarray as xr
 
+DEG2RAD=np.pi/180
+
 def correct_wind_speed(wspd: xr.DataArray, coefficient=1.7) -> xr.DataArray:
-    """Correct wind speed with a linear correction coefficient.
+    """Correct wind speed with a linear correction coefficient. The default value is for the conversion from a standard
+    Young anemometer to an Arctic Young anemometer.
 
     Parameters
     ----------
     wspd : xr.DataArray
         Wind speed
     coefficient : float
-        Correction coefficient
+        Correction coefficient. The default is 1.7.
 
     Returns
     -------
@@ -39,7 +42,7 @@ def filter_wind_direction(wdir: xr.DataArray, wspd: xr.DataArray) -> xr.DataArra
     return wdir.where(wspd != 0)
 
 
-def calculate_directional_wind_speed(wspd: xr.DataArray, wdir: xr.DataArray, deg2rad=np.pi/180):
+def calculate_directional_wind_speed(wspd: xr.DataArray, wdir: xr.DataArray):
     """Calculate directional wind speed from wind speed and direction
 
     Parameters
@@ -58,6 +61,6 @@ def calculate_directional_wind_speed(wspd: xr.DataArray, wdir: xr.DataArray, deg
     wspd_y : xr.DatArray
         Wind speed in Y direction
     """
-    wspd_x = wspd * np.sin(wdir * deg2rad)
-    wspd_y = wspd * np.cos(wdir * deg2rad)
+    wspd_x = wspd * np.sin(wdir * DEG2RAD)
+    wspd_y = wspd * np.cos(wdir * DEG2RAD)
     return wspd_x, wspd_y
