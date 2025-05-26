@@ -5,7 +5,7 @@ from configparser import ConfigParser
 from datetime import datetime
 from mailbox import Message
 from pathlib import Path
-from typing import Iterator, List
+from typing import Iterator, List, Tuple
 import dateutil.parser
 
 __all__ = ["GmailClient"]
@@ -46,15 +46,12 @@ class GmailClient:
         """Fetch a single email by Gmail UID."""
         return self.fetch_mails([uid]).__next__()
 
-    def fetch_mails(self, uids: list[str], chunk_size: int = 100) -> Iterator[Message]:
+    def fetch_mails(self, uids: list[str]) -> Iterator[Message]:
         """
         Fetch all messages corresponding to the given list of UIDs.
         The messages are returned in the same order as the UIDs.
         """
-        yield from self._fetch_mail_chunks(uids)
 
-    def _fetch_mail_chunks(self, uids: List[str]) -> Iterator[Message]:
-        """Fetch mails in chunks and yield them as UID -> raw mail data mapping."""
         for i in range(0, len(uids), self.chunk_size):
             chunk = uids[i:i + self.chunk_size]
             uid_string = ','.join(map(str, uids))
@@ -65,9 +62,10 @@ class GmailClient:
             for part in data:
                 if isinstance(part, tuple):
                     # part[0] is the UID, part[1] is the raw mail data
-                    yield {part[0].decode(): part[1].decode()}
-                else:
-                    logger.warning(f"Unexpected part type: {type(part)} in chunk {chunk}")
+                    mail_str = part[1].decode()
+                    message = self.parser.parsestr(mail_str)
+                    yield message
+
 
     # UID query methods
     # --------------------------------------------------------------------------------------------
