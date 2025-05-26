@@ -13,7 +13,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def toL3(L2,
+def to_l3(L2,
          data_adjustments_dir: Path,
          station_config={},
          T_0=273.15):

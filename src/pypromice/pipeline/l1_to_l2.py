@@ -12,7 +12,7 @@ import xarray as xr
 from pypromice.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.qc.persistence import persistence_qc
-from pypromice.process.value_clipping import clip_values
+from pypromice.algorithms.value_clipping import clip_values
 
 __all__ = [
     "toL2",
@@ -21,7 +21,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def toL2(
+def to_l2(
     L1: xr.Dataset,
     vars_df: pd.DataFrame,
     data_flags_dir: Path,

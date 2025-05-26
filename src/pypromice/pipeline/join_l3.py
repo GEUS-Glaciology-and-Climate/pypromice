@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from pypromice.utilities.git import get_commit_hash_and_check_dirty
 
 import pypromice.resources
-from pypromice.process.write import prepare_and_write
+from pypromice.algorithms.write import prepare_and_write
 import numpy as np
 import pandas as pd
 import xarray as xr
