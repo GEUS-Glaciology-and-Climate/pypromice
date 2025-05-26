@@ -3,16 +3,19 @@ import logging
 from mailbox import Message
 
 from pathlib import Path
-from typing import List
+from typing import List, Iterator
 
 from pypromice.tx.gmail_client import GmailClient
-from pypromice.tx.mail_storage import LocalMailStore
+from pypromice.tx.mail_storage import LocalMailStore, wrap_cache
+from pypromice.tx import iridium
+from pypromice.tx.tx_mails import iridium_message
 
 # %%
 
 # Get new uuids
 # Fetch new emails
-# Assign the uuids to the correct stations
+# Decode the iridium messages and store the payload under the imei numbers
+# Assign the uids to the correct stations
 # Decode the new email payloads
 # Store the decoded payloads (l0/tx)
 # Process the stations
@@ -29,6 +32,10 @@ mail_cache_path = Path("/Users/maclu/data/tx_caches/mail")
 mail_cache_path.mkdir(parents=True, exist_ok=True)
 mail_store = LocalMailStore(root_path=mail_cache_path)
 
+iridium_payload_cache_path = Path("/Users/maclu/data/tx_caches/iridium_payloads")
+iridium_payload_cache_path.mkdir(parents=True, exist_ok=True)
+
+
 # %%
 
 gmail_client = GmailClient.from_config(
@@ -38,40 +45,87 @@ gmail_client = GmailClient.from_config(
 
 # %%
 
-last_uuid = "2379170"
+class TXProcessor:
+    """
+    A processor for Iridium SBD messages, fetching them from the Gmail client and storing them in the mail store.
+    """
+
+    def __init__(self, gmail_client: GmailClient, mail_store: LocalMailStore):
+        self.gmail_client = gmail_client
+        self.mail_store = mail_store
+
+    def get_emails(self, uids: List[str]) -> Iterator[Message]:
+        missing_uuids = [u for u in uids if u not in self.mail_store]
+        print(len(missing_uuids))
+        logger.info(f"Fetching {len(missing_uuids)} emails from Gmail client for UIDs")
+        for uid, message in zip(missing_uuids, self.gmail_client.fetch_mails(uids=missing_uuids)):
+            self.mail_store[uid] = message
+
+        for uuid in uids:
+            yield self.mail_store[uuid]
+
+    def get_iridium_messages(self, uids: List[str]) -> Iterator[iridium.IridiumMessage]:
+        """
+        Fetch Iridium messages from the Gmail client and parse them.
+        """
+        for mail in self.get_emails(uids):
+            if iridium.is_iridium(mail):
+                yield iridium.parse_mail(mail)
+
+tx_processor = TXProcessor(
+    gmail_client=gmail_client,
+    mail_store=mail_store,
+)
+
+
 # %%
+
+# %%
+last_uuid = "2383394"
 new_uuids = gmail_client.new_uids(last_uid=last_uuid)
 logger.info(f"Found {len(new_uuids)} new UIDs since last UUID {last_uuid}")
 
-chunk_size = 100
-for i in range(0, len(new_uuids), chunk_size):
-    chunk = new_uuids[i:i + chunk_size]
-    logger.info(len(chunk))
-
-    missing_uuids = [u for u in chunk if u not in mail_store]
-    for uid, message in zip(missing_uuids, gmail_client.fetch_mails(uids=missing_uuids)):
-        mail_store[uid] = message
-
-
+uids = new_uuids
 # %%
-uids = gmail_client.uids_by_subject('Data from station RUS_R')
-
-uids = uids[:200]
-
-missing_uuids = [u for u in uids if u not in mail_store]
-missing_mails = list(gmail_client.fetch_mails(uids=missing_uuids))
-mail_store[missing_uuids] = missing_mails
+uids = gmail_client.uids_by_sbd("300534062923450")
+uids = uids[-400:]
+# %%
 
 
+iridium_messages = list()
+for email in tx_processor.get_emails(uids):
+    if not iridium.is_iridium(email):
+        continue
+    iridium_message = iridium.parse_mail(email)
+
+    output_dir = iridium_payload_cache_path / iridium_message.imei
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / iridium_message.payload_filename
+    with output_path.open("wb") as f:
+        f.write(iridium_message.payload_bytes)
+
+    iridium_messages.append(iridium_message)
 
 
+
+# %% Other examples of using the GmailClient
+# uids = gmail_client.uids_by_subject('Data from station RUS_R')
+# gmail_client.uids_by_date('2025-05-23')
 
 # %%
 uids = gmail_client.uids_by_sbd("300534062923450")
-len(uids)
 
-gmail_client.uids_by_date('2025-05-23')
+latest_uids = uids[-10:]
 
+for uid in latest_uids:
+    if uid in mail_store:
+        mail = mail_store[uid]
+    else:
+        mail = gmail_client.fetch_mail(uid)
+        if mail is not None:
+            mail_store[uid] = mail
+
+iridium.parse_mail(mail)
 
 
 
