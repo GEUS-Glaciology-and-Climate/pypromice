@@ -6,7 +6,7 @@ from datetime import datetime
 from mailbox import Message
 from pathlib import Path
 from typing import Iterator, List
-import pandas as pd
+import dateutil.parser
 
 __all__ = ["GmailClient"]
 
@@ -25,8 +25,8 @@ class GmailClient:
         self.parser = email.parser.Parser()
         logger.info("Logging in to email server...")
         self.mail_server = imaplib.IMAP4_SSL(server, port)
-        typ, account_details = self.mail_server.login(account, password)
-        if typ != "OK":
+        status, account_details = self.mail_server.login(account, password)
+        if status != "OK":
             logger.error("Unable to sign in!")
             raise Exception("Unable to sign in!")
         logger.info("Logged in to email server")
@@ -58,8 +58,8 @@ class GmailClient:
         for i in range(0, len(uids), self.chunk_size):
             chunk = uids[i:i + self.chunk_size]
             uid_string = ','.join(map(str, uids))
-            typ, data = self.mail_server.uid("fetch", uid_string, "(RFC822)")
-            if typ != "OK":
+            status, data = self.mail_server.uid("fetch", uid_string, "(RFC822)")
+            if status != "OK":
                 raise RuntimeError("Failed to fetch mail chunk")
 
             for part in data:
@@ -71,44 +71,46 @@ class GmailClient:
 
     # UID query methods
     # --------------------------------------------------------------------------------------------
-    def get_new_uids(self, last_uid:str) -> List[str]:
+    def _imap_search_uids(self, search_string: str) -> List[str]:
+        """
+        Performs an IMAP UID search and returns a decoded list of string UIDs.
+        This ensures compatibility with Gmail’s byte string responses.
+        """
+        status, data = self.mail_server.uid("search", None, search_string)
+        if status != "OK":
+            logger.error(f"Error searching for mails: {data}")
+            return []
+        return data[0].decode().split()
+
+    def new_uids(self, last_uid:str) -> List[str]:
         """
         Get new Gmail UIDs that are greater than the last known UID.
         """
-        result, data = self.mail_server.uid("search", None, f"(UID {last_uid+1}:*)")
-        return data[0].split()
+        first_uid = int(last_uid) + 1
+        search_string = f"(UID {first_uid}:*)"
+        return self._imap_search_uids(search_string)
 
-    def get_uids_by_date(self, date: datetime | str) -> list[str]:
+    def uids_by_date(self, date: datetime | str) -> list[str]:
         """
         Get Gmail UIDs for messages received on a specific date.
         """
         if isinstance(date, str):
             # Convert string date to datetime object
-            date = pd.to_datetime(date).to_pydatetime()
+            date = dateutil.parser.parse(date)
 
-        result, data = self.mail_server.uid("search", None, f"(ON {date.strftime('%d-%b-%Y')})")
-        if result != "OK":
-            logger.error(f"Error searching for mails on {date}: {data}")
-            return []
-        message_uids = data[0].decode().split()
-        logger.info(f"Found {len(message_uids)} messages on {date}")
-        return message_uids
+        search_string = f"(ON {date.strftime('%d-%b-%Y')})"
+        return self._imap_search_uids(search_string)
 
-    def search_uids_by_subject(self, subject: str) -> List[str]:
+    def uids_by_subject(self, subject: str) -> List[str]:
         """Return UIDs of messages with a specific subject."""
         search_string = f'(HEADER Subject "{subject}")'
-        status, data = self.mail_server.uid("search", None, search_string)
-        if status != "OK":
-            raise RuntimeError("Failed to search by subject")
-        return data[0].decode().split()
+        return self._imap_search_uids(search_string)
 
-    def get_uids_by_sbd_imei(self, imei: str) -> List[str]:
+    def uids_by_sbd(self, imei: str) -> List[str]:
         """
         Return Gmail UIDs of Iridium SBD messages for the specified IMEI number.
         """
-        subject_string = f"SBD Msg From Unit: {imei}"
-        return self.search_uids_by_subject(subject_string)
-
+        return self.uids_by_subject(f"SBD Msg From Unit: {imei}")
 
     @classmethod
     def from_config(cls, *config_files: Path) -> 'GmailClient':
