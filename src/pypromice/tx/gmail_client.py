@@ -5,7 +5,8 @@ from configparser import ConfigParser
 from datetime import datetime
 from mailbox import Message
 from pathlib import Path
-from typing import Iterator, List, Tuple
+from typing import Iterator, List
+
 import dateutil.parser
 
 __all__ = ["GmailClient"]
@@ -20,7 +21,7 @@ class GmailClient:
     of Iridium SBD messages by IMEI number.
     """
 
-    def __init__(self, server: str, port: int, account: str, password: str, chunk_size: int = 500):
+    def __init__(self, server: str, port: int, account: str, password: str, chunk_size: int = 50):
         self.chunk_size = chunk_size
         self.parser = email.parser.Parser()
         logger.info("Logging in to email server...")
