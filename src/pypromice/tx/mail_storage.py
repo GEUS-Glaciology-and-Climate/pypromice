@@ -5,90 +5,80 @@ from typing import MutableMapping, List
 
 import attr
 
+__all__ = ["LocalMailStore"]
+
 
 @attr.define
-class MailLake(MutableMapping[int, Message]):
-    def __delitem__(self, key, /):
+class LocalMailStore(MutableMapping[str, Message]):
+    """
+    A local mail store that uses the filesystem to store email messages.
+    Messages are stored as .eml files named by their keys.
+    """
+    root_path: Path = attr.field()
+
+    def __delitem__(self, key: str, /):
         """
-        Remove a message from the lake.
+        Remove a message from the store by its key.
         """
         path = self.get_path(key)
         if not path.exists():
-            raise KeyError(f"Message with UUID {key} not found in lake.")
+            raise KeyError(f"Message with key {key} not found in the store.")
         path.unlink()
 
     def __len__(self):
         """
-        Get the number of messages in the lake.
+        Get the number of messages in the store.
         """
         return len(list(self.root_path.glob("*.eml")))
 
     def __iter__(self):
         """
-        Iterate over the UUIDs of messages in the lake.
+        Iterate over the keys of messages in the store.
         """
         for path in self.root_path.glob("*.eml"):
-            yield int(path.stem)
+            yield path.stem
 
-    root_path: Path = attr.field()
 
-    def get_path(self, uuid: str) -> Path:
+    def get_path(self, key: str) -> Path:
         """
         Get the path to the message file.
         """
-        return self.root_path / f"{uuid}.eml"
+        return self.root_path / f"{key}.eml"
 
-    def set(self, uuid: str, message: Message):
+    def __contains__(self, key: str) -> bool:
         """
-        Save a message to the lake.
+        Check if the message file exists in the store.
         """
-        path = self.get_path(uuid)
-        with path.open("w") as f:
-            f.write(message.as_string())
+        return self.get_path(key).exists()
 
-    def get(self, uuid: str) -> Message:
+
+    def __getitem__(self, key: str|List[str]) -> Message | List[Message]:
         """
-        Get a message from the lake.
+        Get a message or a list of messages from the store.
         """
-        path = self.get_path(uuid)
+        if isinstance(key, list):
+            return [self[u] for u in key]
+
+        path = self.get_path(key)
         if not path.exists():
-            raise FileNotFoundError(f"Message with UUID {uuid} not found in lake.")
+            raise FileNotFoundError(f"Message with key {key} not found in store.")
         with path.open() as f:
             return email.parser.Parser().parse(f)
 
-    def __contains__(self, uuid: str) -> bool:
-        """
-        Check if the message file exists in the lake.
-        """
-        return self.get_path(uuid).exists()
 
-
-    def __getitem__(self, uuid: str|List[str]) -> Message | List[Message]:
+    def __setitem__(self, key: str|List[str], message: Message|List[Message]):
         """
-        Get a message or a list of messages from the lake.
+        Set a message or a list of messages in the store.
         """
-        if isinstance(uuid, list):
-            return [self.get(u) for u in uuid]
-        return self.get(uuid)
-
-    def __setitem__(self, uuid: str|List[str], message: Message|List[Message]):
-        """
-
-        Parameters
-        ----------
-        uuid
-        message
-
-        Returns
-        -------
-
-        """
-        if isinstance(uuid, list):
+        if isinstance(key, list):
             if not isinstance(message, list):
-                raise ValueError("message must be a list when uuid is a list")
-            if len(uuid) != len(message):
-                raise ValueError("uuid and message must have the same length")
-            for u, m in zip(uuid, message):
-                self.set(u, m)
+                raise ValueError("message must be a list when key is a list")
+            if len(key) != len(message):
+                raise ValueError("key and message must have the same length")
+            for u, m in zip(key, message):
+                self[u] = m
         else:
-            self.set(uuid, message)
+            path = self.get_path(key)
+            with path.open("w") as f:
+                f.write(message.as_string())
+
