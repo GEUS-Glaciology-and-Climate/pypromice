@@ -71,7 +71,7 @@ class GmailClient:
 
     # UID query methods
     # --------------------------------------------------------------------------------------------
-    def get_new_uids(self, last_uid:str|int) -> List[str]:
+    def get_new_uids(self, last_uid:str) -> List[str]:
         """
         Get new Gmail UIDs that are greater than the last known UID.
         """
