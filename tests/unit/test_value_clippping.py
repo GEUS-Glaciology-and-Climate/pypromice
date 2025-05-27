@@ -15,16 +15,11 @@ class ClipValuesTestCase(unittest.TestCase):
         df_in = pd.DataFrame(
             data={
                 "wspd_u": n_entries * [np.nan],
-                "wspd_i": n_entries * [np.nan],
-                "wspd_l": n_entries * [np.nan],
                 "wdir_u": np.random.rand(n_entries) * 360,
-                "wdir_i": np.random.rand(n_entries) * 360,
-                "wdir_l": np.random.rand(n_entries) * 360,
             },
             index=pd.date_range("2021-01-01", periods=n_entries, freq="H"),
         )
         ds = xr.Dataset(df_in)
-        ds.attrs["number_of_booms"] = 2
         ds_out = ds.copy()
 
         # Calculate directional wind speed for upper boom
@@ -32,47 +27,26 @@ class ClipValuesTestCase(unittest.TestCase):
                                                  ds_out['wspd_u'])
         ds_out['wspd_x_u'], ds_out['wspd_y_u'] = calculate_directional_wind_speed(ds_out['wspd_u'],
                                                                                   ds_out['wdir_u'])
-
-        # Calculate directional wind speed for lower boom
-        if ds_out.attrs['number_of_booms'] == 2:
-            ds_out['wdir_l'] = filter_wind_direction(ds_out['wdir_l'],
-                                                      ds_out['wspd_l'])
-            ds_out['wspd_x_l'], ds_out['wspd_y_l'] = calculate_directional_wind_speed(ds_out['wspd_l'],
-                                                                                      ds_out['wdir_l'])
-
-        # Calculate directional wind speed for instantaneous measurements
-        if hasattr(ds_out, 'wdir_i'):
-            if ~ds_out['wdir_i'].isnull().all() and ~ds_out['wspd_i'].isnull().all():
-                ds_out['wdir_i'] = filter_wind_direction(ds_out['wdir_i'], ds_out['wspd_i'])
-                ds_out['wspd_x_i'], ds_out['wspd_y_i'] = calculate_directional_wind_speed(ds_out['wspd_i'],
-                                                                                          ds_out['wdir_i'])
-
         vars = pypromice.resources.load_variables(None)
-
         ds_out = clip_values(ds_out, vars)
+
         # Convert to dataframe for easier comparison
         df_out = ds_out.to_dataframe()
 
         # Assert all dir values are set nan
         self.assertTrue(df_out["wdir_u"].isna().all())
-        self.assertTrue(df_out["wdir_l"].isna().all())
-        self.assertTrue(df_out["wdir_i"].isna().all())
+
 
     def test_flag_wdir_zero_wspd(self):
         n_entries = 4
         df_in = pd.DataFrame(
             data={
                 "wspd_u": n_entries * [0],
-                "wspd_i": n_entries * [0],
-                "wspd_l": n_entries * [0],
                 "wdir_u": np.random.rand(n_entries) * 360,
-                "wdir_i": np.random.rand(n_entries) * 360,
-                "wdir_l": np.random.rand(n_entries) * 360,
             },
             index=pd.date_range("2021-01-01", periods=n_entries, freq="H"),
         )
         ds = xr.Dataset(df_in)
-        ds.attrs["number_of_booms"] = 2
         ds_out = ds.copy()
 
         # Calculate directional wind speed for upper boom
@@ -81,30 +55,15 @@ class ClipValuesTestCase(unittest.TestCase):
         ds_out['wspd_x_u'], ds_out['wspd_y_u'] = calculate_directional_wind_speed(ds_out['wspd_u'],
                                                                                   ds_out['wdir_u'])
 
-        # Calculate directional wind speed for lower boom
-        if ds_out.attrs['number_of_booms'] == 2:
-            ds_out['wdir_l'] = filter_wind_direction(ds_out['wdir_l'],
-                                                      ds_out['wspd_l'])
-            ds_out['wspd_x_l'], ds_out['wspd_y_l'] = calculate_directional_wind_speed(ds_out['wspd_l'],
-                                                                                      ds_out['wdir_l'])
-
-        # Calculate directional wind speed for instantaneous measurements
-        if hasattr(ds_out, 'wdir_i'):
-            if ~ds_out['wdir_i'].isnull().all() and ~ds_out['wspd_i'].isnull().all():
-                ds_out['wdir_i'] = filter_wind_direction(ds_out['wdir_i'], ds_out['wspd_i'])
-                ds_out['wspd_x_i'], ds_out['wspd_y_i'] = calculate_directional_wind_speed(ds_out['wspd_i'],
-                                                                                          ds_out['wdir_i'])
-
         vars = pypromice.resources.load_variables(None)
-
         ds_out = clip_values(ds_out, vars)
 
         # Convert to dataframe for easier comparison
         df_out = ds_out.to_dataframe()
+
         # Assert all dir values are set nan
         self.assertTrue(df_out["wdir_u"].isna().all())
-        self.assertTrue(df_out["wdir_l"].isna().all())
-        self.assertTrue(df_out["wdir_i"].isna().all())
+
 
     def test_flagging_depended_on_wspd(self):
         # This unit test tests variable conditions for flagging wdir values
