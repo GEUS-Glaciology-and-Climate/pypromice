@@ -1,14 +1,14 @@
-import email.parser
 import logging
 from mailbox import Message
 
 from pathlib import Path
-from typing import List, Iterator
+from typing import List, Iterator, Mapping, MutableMapping
 
 from pypromice.tx.gmail_client import GmailClient
-from pypromice.tx.mail_storage import LocalMailStore, wrap_cache
+from pypromice.tx.iridium import IridiumMessage
+from pypromice.tx.mail_storage import LocalMailStore
 from pypromice.tx import iridium
-from pypromice.tx.tx_mails import iridium_message
+from pypromice.tx.station_tx_config import load_tx_configurations
 
 # %%
 
@@ -45,6 +45,7 @@ gmail_client = GmailClient.from_config(
 
 # %%
 
+
 class TXProcessor:
     """
     A processor for Iridium SBD messages, fetching them from the Gmail client and storing them in the mail store.
@@ -53,6 +54,7 @@ class TXProcessor:
     def __init__(self, gmail_client: GmailClient, mail_store: LocalMailStore):
         self.gmail_client = gmail_client
         self.mail_store = mail_store
+
 
     def get_emails(self, uids: List[str]) -> Iterator[Message]:
         missing_uuids = [u for u in uids if u not in self.mail_store]
@@ -72,6 +74,13 @@ class TXProcessor:
             if iridium.is_iridium(mail):
                 yield iridium.parse_mail(mail)
 
+
+    def get_stid_from_iridium_message(self, iridium_message: iridium.IridiumMessage) -> str:
+        """
+        Get the station ID from an Iridium message.
+        """
+        return iridium_message.imei.split("_")[0]
+
 tx_processor = TXProcessor(
     gmail_client=gmail_client,
     mail_store=mail_store,
@@ -90,21 +99,46 @@ uids = new_uuids
 uids = gmail_client.uids_by_sbd("300534062923450")
 uids = uids[-400:]
 # %%
+tx_configurations = load_tx_configurations(*Path("/Users/maclu/data/aws-l0/tx/config").glob("*.toml"),)
+# %%
+tx_configurations[tx_configurations.end.isna()]
+tx_configurations
+# %%
 
 
 iridium_messages = list()
+tx_configuration_messages: MutableMapping[str, List[IridiumMessage]] = dict()
 for email in tx_processor.get_emails(uids):
     if not iridium.is_iridium(email):
         continue
+
+    # Parse the email to get the Iridium message
     iridium_message = iridium.parse_mail(email)
 
-    output_dir = iridium_payload_cache_path / iridium_message.imei
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / iridium_message.payload_filename
-    with output_path.open("wb") as f:
-        f.write(iridium_message.payload_bytes)
+    # # Store the Iridium message payload in the mail store
+    # output_dir = iridium_payload_cache_path / iridium_message.imei
+    # output_dir.mkdir(parents=True, exist_ok=True)
+    # output_path = output_dir / iridium_message.payload_filename
+    # with output_path.open("wb") as f:
+    #     f.write(iridium_message.payload_bytes)
 
-    iridium_messages.append(iridium_message)
+    # Assign the Iridium message to the correct station based on the IMEI number and time
+    configuration = tx_configurations.loc[
+        (tx_configurations.imei == iridium_message.imei) &
+        (tx_configurations.start <= iridium_message.time_of_session) &
+        (tx_configurations.end.isna() | (tx_configurations.end >= iridium_message.time_of_session))
+    ].iloc[0]
+
+    # # Store in local cache
+    # name = configuration['name']
+    # if name not in tx_configuration_messages:
+    #     tx_configuration_messages[name] = list()
+    # tx_configuration_messages[name].append(iridium_message)
+
+    # It might be relevant to split the payload decode into a separate function to allow full repocessing. Or it might also be fine.
+
+    # Decode the Iridium message payload
+    # TODO:
 
 
 

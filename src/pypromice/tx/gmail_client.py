@@ -13,6 +13,7 @@ __all__ = ["GmailClient"]
 
 logger = logging.getLogger(__name__)
 
+
 class GmailClient:
 
     """
@@ -126,4 +127,5 @@ class GmailClient:
             account=parser.get("aws", "account"),
             password=parser.get("aws", "password"),
         )
+
 
