@@ -100,11 +100,19 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     ds['tilt_y']  = smoothTilt(ds['tilt_y'], 7)                               
 
     # Apply wind factor if provided
-    # This is in the case of an Arctic anemometer operated through a loggerbox assuming a standard anemometer
-    if hasattr(ds, 'wind_coef'):
-        logger.info('Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_coef"]}')
+    # This is in the case of an anemometer rotations improperly translated to wind speed by the logger program
+    if hasattr(ds, 'wind_u_coef'):
+        logger.info('Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_u_coef"]}')
         ds['wspd_u'] = wind.correct_wind_speed(ds['wspd_u'],
                                                ds.attrs['wind_coef'])
+    if hasattr(ds, 'wind_l_coef'):
+        logger.info('Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_l_coef"]}')
+        ds['wspd_l'] = wind.correct_wind_speed(ds['wspd_l'],
+                                               ds.attrs['wind_l_coef'])
+    if hasattr(ds, 'wind_i_coef'):
+        logger.info('Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_i_coef"]}')
+        ds['wspd_i'] = wind.correct_wind_speed(ds['wspd_i'],
+                                               ds.attrs['wind_i_coef'])
 
     if hasattr(ds, 'bedrock'):                                                 # Fix tilt to zero if station is on bedrock
         if ds.attrs['bedrock']==True or ds.attrs['bedrock'].lower() in 'true':
