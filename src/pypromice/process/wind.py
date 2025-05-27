@@ -5,16 +5,16 @@ import xarray as xr
 
 DEG2RAD=np.pi/180
 
-def correct_wind_speed(wspd: xr.DataArray, coefficient=1.7) -> xr.DataArray:
-    """Correct wind speed with a linear correction coefficient. The default value is for the conversion from a standard
-    Young anemometer to an Arctic Young anemometer.
+def correct_wind_speed(wspd: xr.DataArray, coefficient) -> xr.DataArray:
+    """Correct wind speed with a linear correction coefficient. For example, the conversion from a standard
+    Young anemometer to an Arctic Young anemometer is 1.7.
 
     Parameters
     ----------
     wspd : xr.DataArray
         Wind speed
     coefficient : float
-        Correction coefficient. The default is 1.7.
+        Correction coefficient
 
     Returns
     -------
