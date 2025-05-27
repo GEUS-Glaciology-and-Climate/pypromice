@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 def process_mail(email: Message) -> None:
         # %%
-        # TODO: Consider a way to store and cache the emails. It might be relevant to integrate this function to GmailClient
-        iridium_message = iridium.parse_mail(email)
+        # TODO: Consider a wsay to store and cache the emails. It might be relevant to integrate this function to GmailClient
+        iridium_message = iridium.pare_mail(email)
 
         # %%
         if "watson" in iridium_message.subject.lower():
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     with last_uid_path.open("r") as last_uid_f:
         last_uid = int(last_uid_f.readline())
 
-    mail_client = GmailClient.from_config_files(accounts_path, credentials_path)
+    mail_client = GmailClient.from_config(accounts_path, credentials_path)
 
     # %%
     email_cache_root = Path("/Users/maclu/data/aws-cache/mails")
@@ -111,14 +111,14 @@ if __name__ == "__main__":
     self = mail_client
     last_uid = 1
 
-    message_ids = self.get_mail_ids(date=datetime(2025, 1, 1))
+    message_ids = self.uids_by_date(date=datetime(2025, 1, 1))
 
     message_ids_missing = [uid for uid in message_ids if uid not in mail_bucket]
-    for message in mail_client.fetch_mails_chunked(message_ids_missing):
+    for message in mail_client.fetch_mails(message_ids_missing):
         mail_bucket[message.uid] = message
 
 
-    messages = list(self.fetch_mails_chunked(message_ids))
+    messages = list(self.fetch_mails(message_ids))
 
     message_id_mapping = dict(zip(message_ids, messages))
 
