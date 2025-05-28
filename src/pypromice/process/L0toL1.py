@@ -7,6 +7,7 @@ import pandas as pd
 import xarray as xr
 import re, logging
 from pypromice.process.value_clipping import clip_values
+from pypromice.process import wind
 logger = logging.getLogger(__name__)
 
 
@@ -96,7 +97,22 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     # Note that this should be OK for CR1000 tx (data only every 6 hrs),
     # since we interpolate above in _getTiltDegrees. PJW
     ds['tilt_x']  = smoothTilt(ds['tilt_x'], 7)                                # Smooth tilt
-    ds['tilt_y']  = smoothTilt(ds['tilt_y'], 7)
+    ds['tilt_y']  = smoothTilt(ds['tilt_y'], 7)                               
+
+    # Apply wind factor if provided
+    # This is in the case of an anemometer rotations improperly translated to wind speed by the logger program
+    if hasattr(ds, 'wind_u_coef'):
+        logger.info(f'Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_u_coef"]}')
+        ds['wspd_u'] = wind.correct_wind_speed(ds['wspd_u'],
+                                               ds.attrs['wind_u_coef'])
+    if hasattr(ds, 'wind_l_coef'):
+        logger.info(f'Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_l_coef"]}')
+        ds['wspd_l'] = wind.correct_wind_speed(ds['wspd_l'],
+                                               ds.attrs['wind_l_coef'])
+    if hasattr(ds, 'wind_i_coef'):
+        logger.info(f'Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_i_coef"]}')
+        ds['wspd_i'] = wind.correct_wind_speed(ds['wspd_i'],
+                                               ds.attrs['wind_i_coef'])
 
     # Handle cases where the bedrock attribute is incorrectly set
     if not 'bedrock' in ds.attrs:
@@ -139,9 +155,9 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
 
     ds = clip_values(ds, vars_df)
     for key in ['hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
-          'dlr_eng_coef', 'ulr_eng_coef', 'pt_z_coef', 'pt_z_p_coef',
-          'pt_z_factor', 'pt_antifreeze', 'boom_azimuth', 'nodata',
-          'conf', 'file']:
+          'dlr_eng_coef', 'ulr_eng_coef', 'wind_u_coef','wind_l_coef',
+          'wind_i_coef', 'pt_z_coef', 'pt_z_p_coef', 'pt_z_factor',
+          'pt_antifreeze', 'boom_azimuth', 'nodata', 'conf', 'file']:
         ds.attrs.pop(key, None)
 
     return ds

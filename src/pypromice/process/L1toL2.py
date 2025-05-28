@@ -13,6 +13,7 @@ from pypromice.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.qc.persistence import persistence_qc
 from pypromice.process.value_clipping import clip_values
+from pypromice.process import wind
 
 __all__ = [
     "toL2",
@@ -146,9 +147,30 @@ def toL2(
             ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],
                                                                    ds['wspd_l'])
 
-    get_directional_wind_speed(ds)                                            # Get directional wind speed
+    # Calculate directional wind speed for upper boom
+    ds['wdir_u'] = wind.filter_wind_direction(ds['wdir_u'],
+                                              ds['wspd_u'])
+    ds['wspd_x_u'], ds['wspd_y_u'] = wind.calculate_directional_wind_speed(ds['wspd_u'],
+                                                                           ds['wdir_u'])
+    
+    # Calculate directional wind speed for lower boom
+    if ds.attrs['number_of_booms'] == 2:
+        ds['wdir_l'] = wind.filter_wind_direction(ds['wdir_l'],
+                                                  ds['wspd_l'])
+        ds['wspd_x_l'], ds['wspd_y_l'] = wind.calculate_directional_wind_speed(ds['wspd_l'],
+
+                                                                               ds['wdir_l'])
+    # Calculate directional wind speed for instantaneous measurements
+    if hasattr(ds, 'wdir_i'):
+        if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():
+            ds['wdir_i'] = wind.filter_wind_direction(ds['wdir_i'],
+                                                      ds['wspd_i'])
+            ds['wspd_x_i'], ds['wspd_y_i'] = wind.calculate_directional_wind_speed(ds['wspd_i'],
+                                                                                   ds['wdir_i'])
+            # Get directional wind speed
 
     ds = clip_values(ds, vars_df)
+    
     return ds
 
 def process_sw_radiation(ds):
@@ -244,49 +266,6 @@ def process_sw_radiation(ds):
     ds, OKalbedos = calcAlbedo(ds, AngleDif_deg, ZenithAngle_deg)
 
     return ds, (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass_cor, TOA_crit_nopass, TOA_crit_nopass_usr)
-
-
-def get_directional_wind_speed(ds: xr.Dataset) -> xr.Dataset:
-    """
-    Calculate directional wind speed from wind speed and direction and mutates the dataset
-    """
-
-    ds['wdir_u'] = ds['wdir_u'].where(ds['wspd_u'] != 0)
-    ds['wspd_x_u'], ds['wspd_y_u'] = calcDirWindSpeeds(ds['wspd_u'], ds['wdir_u'])
-
-    if ds.attrs['number_of_booms']==2:
-        ds['wdir_l'] = ds['wdir_l'].where(ds['wspd_l'] != 0)
-        ds['wspd_x_l'], ds['wspd_y_l'] = calcDirWindSpeeds(ds['wspd_l'], ds['wdir_l'])
-
-    if hasattr(ds, 'wdir_i'):
-        if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():
-            ds['wdir_i'] = ds['wdir_i'].where(ds['wspd_i'] != 0)
-            ds['wspd_x_i'], ds['wspd_y_i'] = calcDirWindSpeeds(ds['wspd_i'], ds['wdir_i'])
-    return ds
-
-
-def calcDirWindSpeeds(wspd, wdir, deg2rad=np.pi/180):
-    '''Calculate directional wind speed from wind speed and direction
-
-    Parameters
-    ----------
-    wspd : xr.Dataarray
-        Wind speed data array
-    wdir : xr.Dataarray
-        Wind direction data array
-    deg2rad : float
-        Degree to radians coefficient. The default is np.pi/180
-
-    Returns
-    -------
-    wspd_x : xr.Dataarray
-        Wind speed in X direction
-    wspd_y : xr.Datarray
-        Wind speed in Y direction
-    '''
-    wspd_x = wspd * np.sin(wdir * deg2rad)
-    wspd_y = wspd * np.cos(wdir * deg2rad)
-    return wspd_x, wspd_y
 
 
 def calcCloudCoverage(T, dlr, station_id,T_0, eps_overcast=1.0,
