@@ -37,9 +37,9 @@ jobs:
       - name: Send repo to Dataverse
         run: |
           python3 $GITHUB_WORKSPACE/main/.github/workflows/upload_to_dataverse.py \
-          -token ${{secrets.DATAVERSE_TOKEN}} \
-          -server https://dataverse.geus.dk \
-          -doi doi:10.22008/FK2/3TSBF0 \
-          -title ${{ steps.getrelease.outputs.release }} \
-          -remove True \
-          -publish False
+          ${{secrets.DATAVERSE_TOKEN}} \
+          https://dataverse.geus.dk \
+          doi:10.22008/FK2/3TSBF0 \
+          ${{ steps.getrelease.outputs.release }} \
+          -r True \
+          -p False
