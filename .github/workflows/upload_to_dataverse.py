@@ -105,7 +105,7 @@ if __name__ == '__main__':
     for m in metadata["fields"]:
         if 'title' in m['typeName']:
             m.update({'value': 'test'})
-    resp = api.edit_dataset_metadata(args.doi, metadata, is_replace=True, auth=True)
+    resp = api.edit_dataset_metadata(args.doi, metadata, replace=True, auth=True)
     print(resp.status_code)
 
     if args.publish.lower() == 'true':
