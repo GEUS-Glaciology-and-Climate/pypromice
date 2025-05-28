@@ -11,16 +11,16 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     # Mandatory arguments
-    parser.add_argument("token", help="Dataverse token.")
-    parser.add_argument("server", help="Dataverse server.")
-    parser.add_argument("doi", help="Dataset DOI.")
-    parser.add_argument("repo", help="GitHub repository.")
-    parser.add_argument("title", help="Amended title of Dataset.")
+    parser.add_argument("-t", "--token", help="Dataverse token.")
+    parser.add_argument("-s","--server", help="Dataverse server.")
+    parser.add_argument("-d", "--doi", help="Dataset DOI.")
+    parser.add_argument("-r", "--repo", help="GitHub repository.")
+    parser.add_argument("-e", "--title", help="Amended title of Dataset.")
 
     # Optional arguments
-    parser.add_argument("-d", "--dir", help="Uploads only a specific dir.")
+    parser.add_argument("-i", "--dir", help="Uploads only a specific dir.")
     parser.add_argument(
-        "-r", "--remove", help="Remove (delete) all files before upload.", \
+        "-v", "--remove", help="Remove (delete) all files before upload.", \
         choices=('True', 'TRUE', 'true', 'False', 'FALSE', 'false'), \
         default='true')
     parser.add_argument(
