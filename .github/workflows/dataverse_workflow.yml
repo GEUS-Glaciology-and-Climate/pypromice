@@ -28,8 +28,7 @@ jobs:
           pip install wheel
           python3 -m pip install --upgrade setuptools  
           pip install -U pyDataverse
-          
-      - name: Retrieve latest release
+
       - id: getrelease
         uses: pozetroninc/github-action-get-latest-release@master
         with:
