@@ -106,11 +106,11 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
         ds['wspd_u'] = wind.correct_wind_speed(ds['wspd_u'],
                                                ds.attrs['wind_u_coef'])
     if hasattr(ds, 'wind_l_coef'):
-        logger.info(f'Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_l_coef"]}')
+        logger.info(f'Wind speed correction applied to wspd_l based on factor of {ds.attrs["wind_l_coef"]}')
         ds['wspd_l'] = wind.correct_wind_speed(ds['wspd_l'],
                                                ds.attrs['wind_l_coef'])
     if hasattr(ds, 'wind_i_coef'):
-        logger.info(f'Wind speed correction applied to wspd_u based on factor of {ds.attrs["wind_i_coef"]}')
+        logger.info(f'Wind speed correction applied to wspd_i based on factor of {ds.attrs["wind_i_coef"]}')
         ds['wspd_i'] = wind.correct_wind_speed(ds['wspd_i'],
                                                ds.attrs['wind_i_coef'])
 
