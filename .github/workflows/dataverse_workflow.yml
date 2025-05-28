@@ -26,10 +26,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install wheel
-          python3 -m pip install --upgrade setuptools
-          cd $GITHUB_WORKSPACE/main
-          pip install .  
-     
+          python3 -m pip install --upgrade setuptools  
+          pip install -U pyDataverse
+          
       - name: Retrieve latest release
       - id: getrelease
         uses: pozetroninc/github-action-get-latest-release@master
