@@ -59,7 +59,10 @@ if __name__ == '__main__':
     dataverse_server = args.server.strip("/")
     api = NativeApi(dataverse_server , token)
 
-    dataset = api.get_dataset(args.doi)
+    resp = api.get_dataset(args.doi)
+    resp.raise_for_status()
+    dataset = resp
+
     files_list = dataset.json()['data']['latestVersion']['files']
     dataset_dbid = dataset.json()['data']['id']
 
@@ -101,12 +104,27 @@ if __name__ == '__main__':
                     args.doi, join(root,f), df.json())
                 check_dataset_lock(5)
 
-    metadata = dataset.json()["data"]["latestVersion"]["metadataBlocks"]["citation"]
-    for m in metadata["fields"]:
-        if 'title' in m['typeName']:
-            m.update({'value': 'test'})
-    resp = api.edit_dataset_metadata(args.doi, metadata, replace=True, auth=True)
-    print(resp.status_code)
+    # Get the full metadata blocks
+    full_metadata = dataset.json()["data"]["latestVersion"]["metadataBlocks"]
+
+    # Edit the citation block to update the title
+    citation_block = full_metadata["citation"]
+
+    for field in citation_block["fields"]:
+        if field["typeName"] == "title":
+            field["value"] = args.title
+
+    # Prepare the full update payload
+    updated_metadata = {
+        "metadataBlocks": {
+            "citation": citation_block
+        }
+    }
+
+    # Send the updated metadata to Dataverse
+    resp = api.edit_dataset_metadata(args.doi, updated_metadata, replace=True, auth=True)
+    print("Metadata update response code:", resp.status_code)
+    print("Metadata update response:", resp.json())
 
     if args.publish.lower() == 'true':
         # publish updated dataset

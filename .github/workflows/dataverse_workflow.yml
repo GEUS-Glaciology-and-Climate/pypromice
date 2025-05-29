@@ -41,5 +41,6 @@ jobs:
           --server https://dataverse.geus.dk \
           --doi doi:10.22008/FK2/3TSBF0 \
           --title "${{ steps.getrelease.outputs.release }}" \
+          --repo $GITHUB_REPOSITORY \
           --remove True \
           --publish False
