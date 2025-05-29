@@ -27,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install wheel requests
           python3 -m pip install --upgrade setuptools  
-          pip install -U pyDataverse
+          pip install -U pyDataverse>=0.3.1
 
       - id: getrelease
         uses: pozetroninc/github-action-get-latest-release@master
