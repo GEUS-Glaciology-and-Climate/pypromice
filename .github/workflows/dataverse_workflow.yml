@@ -44,4 +44,4 @@ jobs:
           --title "pypromice ${{ steps.getrelease.outputs.release }}" \
           --repo $GITHUB_REPOSITORY \
           --remove True \
-          --publish False
+          --publish True
