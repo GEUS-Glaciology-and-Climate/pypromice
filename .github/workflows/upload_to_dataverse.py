@@ -57,8 +57,9 @@ if __name__ == '__main__':
     args = parse_arguments()
     token = args.token
     dataverse_server = args.server.strip("/")
-    api = NativeApi(dataverse_server , token)
+    print(f"Using Dataverse server: {dataverse_server}")
 
+    api = NativeApi(dataverse_server , token)
     resp = api.get_dataset(args.doi)
     resp.raise_for_status()
     dataset = resp
@@ -126,11 +127,12 @@ if __name__ == '__main__':
         "Content-Type": "application/json",
         "X-Dataverse-key": token
     }
-    url = f"{dataverse_server}/api/datasets/versions/:draft?persistentId={args.doi}&replace=true"
-
-
-    # Send the request
-    resp = requests.put(url, headers=headers, data=json.dumps(updated_metadata))
+    url = f"{dataverse_server}/api/datasets/:persistentId/versions/:draft"
+    params = {
+        "persistentId": args.doi,
+        "replace": "true"
+    }
+    resp = requests.put(url, headers=headers, params=params, data=json.dumps(updated_metadata))
     print("Metadata update response code:", resp.status_code)
     print("Metadata update response body:", resp.text)
 
