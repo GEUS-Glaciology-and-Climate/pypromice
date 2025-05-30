@@ -1,8 +1,8 @@
 import argparse
 from time import sleep
-from os.path import join
+from os.path import join, relpath
 from os import walk
-import requests
+import requests, json
 from pyDataverse.api import NativeApi
 from pyDataverse.models import Datafile
 
@@ -95,36 +95,47 @@ if __name__ == '__main__':
                 df.set({
                     "pid" : args.doi,
                     "filename" : f,
-                    "directoryLabel": root[5:],
+                    "directoryLabel": relpath(root, start='repo'),
                     "description" : \
                       "Uploaded with GitHub Action from {}.".format(
                         args.repo),
                     })
                 resp = api.upload_datafile(
                     args.doi, join(root,f), df.json())
+                print(f"Uploaded: {join(root, f)} — Status: {resp.status_code}")
                 check_dataset_lock(5)
 
-    # Get the full metadata blocks
+    # Extract and modify the citation block
     full_metadata = dataset.json()["data"]["latestVersion"]["metadataBlocks"]
-
-    # Edit the citation block to update the title
     citation_block = full_metadata["citation"]
 
+    # Update the title field
     for field in citation_block["fields"]:
         if field["typeName"] == "title":
             field["value"] = args.title
 
-    # Prepare the full update payload
+    # Construct full metadata payload
     updated_metadata = {
         "metadataBlocks": {
             "citation": citation_block
         }
     }
 
-    # Send the updated metadata to Dataverse
-    resp = api.edit_dataset_metadata(args.doi, updated_metadata, replace=True, auth=True)
+    # Build PUT request
+    headers = {
+        "Content-Type": "application/json",
+        "X-Dataverse-key": token
+    }
+    url = f"{dataverse_server}/api/datasets/versions/:draft?persistentId={args.doi}&replace=true"
+
+
+    # Send the request
+    resp = requests.put(url, headers=headers, data=json.dumps(updated_metadata))
     print("Metadata update response code:", resp.status_code)
-    print("Metadata update response:", resp.json())
+    print("Metadata update response body:", resp.text)
+
+    if resp.status_code != 200:
+        raise Exception("Failed to update metadata.")
 
     if args.publish.lower() == 'true':
         # publish updated dataset
