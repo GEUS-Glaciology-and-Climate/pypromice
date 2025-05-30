@@ -8,7 +8,7 @@ Created on Mon Jun 10 10:58:39 2024
 import logging
 import numpy as np
 import xarray as xr
-from pypromice.process.wind import calculate_directional_wind_speed
+from pypromice.algorithms.wind import calculate_directional_wind_speed
 logger = logging.getLogger(__name__)
 
 def resample_dataset(ds_h, t):
