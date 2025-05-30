@@ -1,7 +1,7 @@
 import argparse
 from time import sleep
 from os.path import join, relpath
-from os import walk
+from os import walk, getcwd
 import requests, json
 from pyDataverse.api import NativeApi
 from pyDataverse.models import Datafile
@@ -78,11 +78,12 @@ if __name__ == '__main__':
                 auth = (token  , ""))
 
     # check if there is a list of dirs to upload
-    paths = ['repo']
+    repo_root = getcwd()
+    paths = [repo_root]
     if args.dir:
         dirs = args.dir.strip().replace(",", " ")
         dirs = dirs.split()
-        paths = [join('repo', d) for d in dirs]
+        paths = [join(repo_root, d) for d in dirs]
 
     # the following adds all files from the repository to Dataverse
     for path in paths:
