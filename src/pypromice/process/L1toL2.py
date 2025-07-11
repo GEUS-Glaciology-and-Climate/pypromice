@@ -141,18 +141,22 @@ def toL2(
         precip_flag=True
     if ~ds['precip_u'].isnull().all() and precip_flag:
         ds['precip_u_cor'], ds['precip_u_rate'] = correctPrecip(ds['precip_u'],
-                                                                ds['wspd_u'])
+                                                                ds['wspd_u'],
+                                                                ds['t_u'],
+                                                                ds['p_u'])
     if ds.attrs['number_of_booms']==2:
         if ~ds['precip_l'].isnull().all() and precip_flag:                     # Correct precipitation
             ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],
-                                                                   ds['wspd_l'])
+                                                                   ds['wspd_l'],
+                                                                   ds['t_l'],
+                                                                   ds['p_l'])
 
     # Calculate directional wind speed for upper boom
     ds['wdir_u'] = wind.filter_wind_direction(ds['wdir_u'],
                                               ds['wspd_u'])
     ds['wspd_x_u'], ds['wspd_y_u'] = wind.calculate_directional_wind_speed(ds['wspd_u'],
                                                                            ds['wdir_u'])
-    
+
     # Calculate directional wind speed for lower boom
     if ds.attrs['number_of_booms'] == 2:
         ds['wdir_l'] = wind.filter_wind_direction(ds['wdir_l'],
@@ -170,7 +174,7 @@ def toL2(
             # Get directional wind speed
 
     ds = clip_values(ds, vars_df)
-    
+
     return ds
 
 def process_sw_radiation(ds):
@@ -480,7 +484,7 @@ def adjustHumidity(rh, T, T_0, T_100, ews, ei0):
     return rh_wrt_ice_or_water
 
 
-def correctPrecip(precip, wspd):
+def correctPrecip(precip, wspd, t, p):
     '''Correct precipitation with the undercatch correction method used in
     Yang et al. (1999) and Box et al. (2022), based on Goodison et al. (1998)
 
@@ -511,6 +515,23 @@ def correctPrecip(precip, wspd):
     precip_rate : xarray.DataArray
         Precipitation rate corrected
     '''
+
+    # filter time steps where t and p are not available, meaning that the Lufft is not working
+    mask = (t.isnull() | p.isnull()) & (precip == 0)
+    precip = precip.where(~mask)
+
+    # saving where precip has NaNs and where it comes back after that gap with
+    # an increased value corresponding to real precipitation
+    nan_mask = precip.isnull()
+    valid = np.where(~nan_mask)[0]
+    increments = np.zeros_like(precip)
+    if len(valid) >= 2:
+        gaps = valid[1:] - valid[:-1] > 1
+        gap_ends = valid[1:][gaps]
+        gap_starts = valid[:-1][gaps]
+        increments[gap_ends] = precip.isel(time=gap_ends).data - precip.isel(time=gap_starts).data
+        increments[increments<0] = 0
+
     # Calculate undercatch correction factor
     corr=100/(100.00-4.37*wspd+0.35*wspd*wspd)
 
@@ -520,18 +541,27 @@ def correctPrecip(precip, wspd):
     # Fill nan values in precip with preceding value
     precip = precip.ffill(dim='time')
 
-    # Calculate precipitation rate
-    precip_rate = precip.diff(dim='time', n=1)
+    # Calculate precipitation rate and makes sure it remains of the same size
+    precip_rate = precip.diff('time').reindex_like(precip)
 
     # Apply correction to rate
     precip_rate = precip_rate*corr
 
-    # Flag rain bucket reset
-    precip_rate = precip_rate.where(precip_rate>-0.01, other=np.nan)
-    b = precip_rate.to_dataframe('precip_flag').notna().to_xarray()
+    # Removing all negative precipitation rates
+    precip_rate = precip_rate.where(precip_rate>0)
 
-    # Get corrected cumulative precipitation, reset if rain bucket flag
-    precip_cor = precip_rate.cumsum()-precip_rate.cumsum().where(~b['precip_flag']).ffill(dim='time').fillna(0).astype(float)
+    # filtering cold season precipitation measurements
+    rain_in_cold = (precip_rate>0) & (t<-2)
+    precip_rate = precip_rate.where(~rain_in_cold)
+
+    # Get corrected accumulated precipitation
+    precip_cor = precip_rate.cumsum()
+    precip_cor = precip_cor.where(~nan_mask)
+    precip_cor = precip_cor + increments
+
+    # removing timestamps where precitipation rates have been calculated over
+    # interpolated values
+    precip_rate = precip_rate.where(~nan_mask)
 
     return precip_cor, precip_rate
 
