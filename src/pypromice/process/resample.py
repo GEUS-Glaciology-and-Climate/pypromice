@@ -33,20 +33,39 @@ def resample_dataset(ds_h, t):
         L3 AWS dataset resampled to the frequency defined by t
     '''
     # Convert dataset to DataFrame
-    df_d = ds_h.to_dataframe()
-    
+    df_h = ds_h.to_dataframe()
+
     # Identify non-numeric columns
-    non_numeric_cols = df_d.select_dtypes(exclude=['number']).columns
-    
+    non_numeric_cols = df_h.select_dtypes(exclude=['number']).columns
+
     # Log a warning and drop non-numeric columns
     if len(non_numeric_cols) > 0:
         for col in non_numeric_cols:
-            unique_values = df_d[col].unique()
-            logger.warning(f"Dropping column '{col}' because it is of type '{df_d[col].dtype}' and contains unique values: {unique_values}")
+            unique_values = df_h[col].unique()
+            logger.warning(f"Dropping column '{col}' because it is of type '{df_h[col].dtype}' and contains unique values: {unique_values}")
 
-        df_d = df_d.drop(columns=non_numeric_cols)
+        df_h = df_h.drop(columns=non_numeric_cols)
     # Resample the DataFrame
-    df_d = df_d.resample(t).mean()
+    df_resampled = df_h.resample(t).mean()
+
+    # exception for precip_u_cor and precip_l_cor which are accumulated and should
+    # just be sampled on fixed frequency
+    df_resampled_asfreq = df_h.resample(t).asfreq()
+
+    # calculating the completeness of resampled time intervals
+    df_resampled_count = df_h.resample(t).count()
+
+    # Re-calculate corrected precipitation
+    for var in ['precip_u', 'precip_l']:
+        if var+'_cor' in df_h.columns:
+            if ~df_h[var+'_cor'].isnull().all():
+                df_resampled[var+'_cor'] = df_resampled_asfreq[var+'_cor']
+                diff = df_resampled[var+'_cor'].diff().reindex(df_resampled.index)
+                # the first time interval is likely incomplete, here we assign a value
+                # only if enough hourly data is available within the interval
+                if df_resampled_count[var+'_cor'].iloc[0] > df_resampled_count[var+'_cor'].max()/1.5:
+                    diff.iloc[0] = df_resampled[var+'_cor'].iloc[0]
+                df_resampled[var+'_rate'] = diff
 
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
@@ -54,75 +73,77 @@ def resample_dataset(ds_h, t):
         cols_to_update = ['p_i', 't_i', 'rh_i', 'rh_i_wrt_ice_or_water', 'wspd_i', 'wdir_i','wspd_x_i','wspd_y_i']
         cols_origin = ['p_u', 't_u', 'rh_u', 'rh_u_wrt_ice_or_water', 'wspd_u', 'wdir_u','wspd_x_u','wspd_y_u']
         timestamp_10min = ds_h.time.where(is_10_minutes_timestamp, drop=True).to_index()
-        timestamp_round_hour = df_d.index
+        timestamp_round_hour = df_resampled.index
         timestamp_to_update = timestamp_round_hour.intersection(timestamp_10min)
-        
+
         for col, col_org in zip(cols_to_update, cols_origin):
-            if col not in df_d.columns:
-                df_d[col] = np.nan
+            if col not in df_resampled.columns:
+                df_resampled[col] = np.nan
             else:
                 # if there are already instantaneous values in the dataset
                 # we want to keep them as they are
                 # removing timestamps where there is already t_i filled from a TX file
                 missing_instantaneous = ds_h.reindex(time=timestamp_to_update)[col].isnull()
                 timestamp_to_update = timestamp_to_update[missing_instantaneous]
-            df_d.loc[timestamp_to_update, col] = ds_h.reindex(
+            df_resampled.loc[timestamp_to_update, col] = ds_h.reindex(
                 time= timestamp_to_update
                 )[col_org].values
             if col == 'p_i':
-                df_d.loc[timestamp_to_update, col] = df_d.loc[timestamp_to_update, col].values-1000
-            
+                df_resampled.loc[timestamp_to_update, col] = df_resampled.loc[timestamp_to_update, col].values-1000
+
 
     # recalculating wind direction from averaged directional wind speeds
     for var in ['wdir_u','wdir_l']:
         boom = var.split('_')[1]
-        if var in df_d.columns:
-            if ('wspd_x_'+boom in df_d.columns) & ('wspd_y_'+boom in df_d.columns):
-                df_d[var] = _calcWindDir(df_d['wspd_x_'+boom], df_d['wspd_y_'+boom])
+        if var in df_resampled.columns:
+            if ('wspd_x_'+boom in df_resampled.columns) & ('wspd_y_'+boom in df_resampled.columns):
+                df_resampled[var] = _calcWindDir(df_resampled['wspd_x_'+boom], df_resampled['wspd_y_'+boom])
             else:
                 logger.info(var+' in dataframe but not wspd_x_'+boom+' nor wspd_y_'+boom+', recalculating them')
                 ds_h['wspd_x_'+boom], ds_h['wspd_y_'+boom] = calculate_directional_wind_speed(ds_h['wspd_'+boom], ds_h['wdir_'+boom])
-                df_d[['wspd_x_'+boom, 'wspd_y_'+boom]] = ds_h[['wspd_x_'+boom, 'wspd_y_'+boom]].to_dataframe().resample(t).mean()
-                df_d[var] = _calcWindDir(df_d['wspd_x_'+boom], df_d['wspd_y_'+boom])
-    
+                df_resampled[['wspd_x_'+boom, 'wspd_y_'+boom]] = ds_h[['wspd_x_'+boom, 'wspd_y_'+boom]].to_dataframe().resample(t).mean()
+                df_resampled[var] = _calcWindDir(df_resampled['wspd_x_'+boom], df_resampled['wspd_y_'+boom])
+
     # recalculating relative humidity from average vapour pressure and average
     # saturation vapor pressure
     for var in ['rh_u','rh_l']:
         lvl = var.split('_')[1]
-        if var in df_d.columns:
+        if var in df_resampled.columns:
             if ('t_'+lvl in ds_h.keys()):
                 es_wtr, es_cor = calculateSaturationVaporPressure(ds_h['t_'+lvl])
                 p_vap = ds_h[var] / 100 * es_wtr
-                
-                df_d[var] = (p_vap.to_series().resample(t).mean() \
+
+                df_resampled[var] = (p_vap.to_series().resample(t).mean() \
                            / es_wtr.to_series().resample(t).mean())*100
-                if var+'_wrt_ice_or_water' in df_d.keys():
-                    df_d[var+'_wrt_ice_or_water'] = (p_vap.to_series().resample(t).mean() \
+                if var+'_wrt_ice_or_water' in df_resampled.keys():
+                    df_resampled[var+'_wrt_ice_or_water'] = (p_vap.to_series().resample(t).mean() \
                                / es_cor.to_series().resample(t).mean())*100
-    
+
     # passing each variable attribute to the ressample dataset
     vals = []
-    for c in df_d.columns:
+    for c in df_resampled.columns:
         if c in ds_h.data_vars:
             vals.append(xr.DataArray(
-                data=df_d[c], dims=['time'],
-               coords={'time':df_d.index}, attrs=ds_h[c].attrs))
+                data=df_resampled[c], dims=['time'],
+               coords={'time':df_resampled.index}, attrs=ds_h[c].attrs))
         else:
             vals.append(xr.DataArray(
-                data=df_d[c], dims=['time'],
-               coords={'time':df_d.index}, attrs=None))
-            
-    ds_d = xr.Dataset(dict(zip(df_d.columns,vals)), attrs=ds_h.attrs)
-    return ds_d
+                data=df_resampled[c], dims=['time'],
+               coords={'time':df_resampled.index}, attrs=None))
+
+    ds_resampled = xr.Dataset(dict(zip(df_resampled.columns,vals)), attrs=ds_h.attrs)
+
+
+    return ds_resampled
 
 
 def calculateSaturationVaporPressure(t, T_0=273.15, T_100=373.15, es_0=6.1071,
-                                     es_100=1013.246, eps=0.622):            
+                                     es_100=1013.246, eps=0.622):
     '''Calculate specific humidity
-    
+
     Parameters
     ----------
-    T_0 : float 
+    T_0 : float
         Steam point temperature. Default is 273.15.
     T_100 : float
         Steam point temperature in Kelvin
@@ -132,14 +153,14 @@ def calculateSaturationVaporPressure(t, T_0=273.15, T_100=373.15, es_0=6.1071,
         Saturation vapour pressure at the melting point (hPa)
     es_100 : float
         Saturation vapour pressure at steam point temperature (hPa)
-    
+
     Returns
     -------
     xarray.DataArray
         Saturation vapour pressure with regard to water above 0 C (hPa)
     xarray.DataArray
         Saturation vapour pressure where subfreezing timestamps are with regards to ice (hPa)
-    '''                                                         
+    '''
     # Saturation vapour pressure above 0 C (hPa)
     es_wtr = 10**(-7.90298 * (T_100 / (t + T_0) - 1) + 5.02808 * np.log10(T_100 / (t + T_0))
                   - 1.3816E-7 * (10**(11.344 * (1 - (t + T_0) / T_100)) - 1)
@@ -149,11 +170,11 @@ def calculateSaturationVaporPressure(t, T_0=273.15, T_100=373.15, es_0=6.1071,
     es_ice = 10**(-9.09718 * (T_0 / (t + T_0) - 1) - 3.56654
                   * np.log10(T_0 / (t + T_0)) + 0.876793
                   * (1 - (t + T_0) / T_0)
-                  + np.log10(es_0)) 
-    
+                  + np.log10(es_0))
+
     # Saturation vapour pressure (hPa)
     es_cor = xr.where(t < 0, es_ice, es_wtr)
-    
+
     return es_wtr, es_cor
 
 def _calcWindDir(wspd_x, wspd_y):
