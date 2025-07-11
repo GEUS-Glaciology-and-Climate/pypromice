@@ -493,20 +493,35 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
                             l3_merged.z_ice_surf.to_series(), l3.z_ice_surf.to_series()
                         ),
                     )
-            
+
+            # adjusting accumulated precipitation when merging
+            for var in ['precip_u_cor', 'precip_l_cor']:
+                if hasattr(l3_merged, var):
+                    if l3_merged[var].notnull().any() and l3[var].notnull().any():
+                        t0 = l3_merged[var].to_series().first_valid_index()
+                        l3_merged[var] = l3_merged[var] \
+                            - l3_merged[var].sel(time=t0) + l3[var].sel(time=t0, method ='nearest')
+
+                        # we now remove the negative step in accumulated precipitation
+                        # that appears at the transition between raw and transmitted data
+                        neg_diff = l3_merged[var].diff(dim='time')
+                        neg_diff = neg_diff.where(neg_diff<0, other=0)
+                        l3_merged[var] = l3_merged[var] - neg_diff.cumsum()
+
             # saves attributes
             attrs = l3_merged.attrs
             # merging by time block
-            l3_merged = xr.concat(
-                (
-                    l3.sel(
-                        time=slice(l3.time.isel(time=0), l3_merged.time.isel(time=0))
-                    ),
-                    l3_merged,
-                ),
-                dim="time",
-            )
-            
+            t_start = l3.time.values[0]
+            t_stop = l3_merged.time.values[0]
+
+            l3_part = l3.sel(time=slice(t_start, t_stop))
+
+            # we don't want the first timestamp of l3_merged to also be in l3
+            if l3_part.time.values[-1] == t_stop:
+                l3_part = l3_part.isel(time=slice(None, -1))
+
+            l3_merged = xr.concat([l3_part, l3_merged], dim="time")
+
             # restauring attributes
             l3_merged.attrs = attrs
 
