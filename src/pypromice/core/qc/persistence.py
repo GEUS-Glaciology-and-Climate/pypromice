@@ -125,9 +125,9 @@ def find_persistent_regions(
     consecutive_true_df  = count_consecutive_persistent_values(data, max_diff)
     persistent_regions = consecutive_true_df  >= min_repeats
     for i in range(1, min_repeats):
-        persistent_regions |= persistent_regions.shift(-i, fill_value=False)
-    # Ignore entries which already nan in the input data
-    persistent_regions[data.isna()] = False
+        persistent_regions |= persistent_regions.shift(-1, fill_value=False)
+        # Ignore entries which already nan in the input data
+        persistent_regions[data.isna()] = False
     return persistent_regions
 
 
