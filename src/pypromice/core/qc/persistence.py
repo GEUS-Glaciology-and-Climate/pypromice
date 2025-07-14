@@ -19,9 +19,9 @@ DEFAULT_VARIABLE_THRESHOLDS = {
     "t_i": {"max_diff": 0.0001, "period": 2},
     "t_u": {"max_diff": 0.0001, "period": 2},
     "t_l": {"max_diff": 0.0001, "period": 2},
-    "p_i": {"max_diff": 0.0001, "period": 2},
-    # "p_u": {"max_diff": 0.0001, "period": 2},
-    # "p_l": {"max_diff": 0.0001, "period": 2},
+    "p_i": {"max_diff": 0.0001, "period": 3},
+    "p_u": {"max_diff": 0.0001, "period": 3},
+    "p_l": {"max_diff": 0.0001, "period": 3},
     "gps_lat_lon": {
         "max_diff": 0.000001,
         "period": 6,
@@ -83,7 +83,7 @@ def persistence_qc(
         variable_thresholds = DEFAULT_VARIABLE_THRESHOLDS
         logger.debug(f"Running persistence_qc using {variable_thresholds}")
     else:
-        logger.info(f"Running persistence_qc using custom thresholds:\n {variable_thresholds}")    
+        logger.info(f"Running persistence_qc using custom thresholds:\n {variable_thresholds}")
 
     for k in variable_thresholds.keys():
         if k in ["t", "p", "rh", "wspd", "wdir", "z_boom"]:
@@ -140,8 +140,10 @@ def find_persistent_regions(
     """
     Algorithm that ensures values can stay the same within the outliers_mask
     """
-    consecutive_true_df = count_consecutive_persistent_values(data, max_diff)
-    persistent_regions = consecutive_true_df >= min_repeats
+    consecutive_true_df  = count_consecutive_persistent_values(data, max_diff)
+    persistent_regions = consecutive_true_df  >= min_repeats
+    for i in range(1, min_repeats):
+        persistent_regions |= persistent_regions.shift(i, fill_value=False)
     # Ignore entries which already nan in the input data
     persistent_regions[data.isna()] = False
     return persistent_regions
