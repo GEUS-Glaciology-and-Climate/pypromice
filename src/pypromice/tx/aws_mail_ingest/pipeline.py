@@ -1,9 +1,12 @@
 from __future__ import annotations
 import json, hashlib, time
 import logging
+import uuid
+from typing import List, Set
+
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
-from .config import DATABASE_URL, GMAIL_USER, GMAIL_OAUTH_TOKEN, MAILBOX, BLOB_ROOT, IMAPConfig, env
+from .config import DATABASE_URL, BLOB_ROOT, IMAPConfig, env
 from .loging_conf import setup_logging
 from .metrics import Metrics
 from .models import init_db as _init_db, get_engine, Message, DecodedL0, MailboxState
@@ -25,8 +28,23 @@ def _get_last_uid(s: Session, mailbox: str) -> int:
     st = s.get(MailboxState, mailbox)
     if st: return st.last_uid
     # fallback to highest in messages table
-    last = s.scalar(select(Message.gmail_uid).where(Message.mailbox == mailbox).order_by(Message.gmail_uid.desc()).limit(1))
+    last = s.scalar(
+        select(Message.gmail_uid)
+        .where(Message.mailbox == mailbox)
+        .order_by(Message.gmail_uid.desc())
+        .limit(1)
+    )
     return int(last or 0)
+
+def _get_first_uid(s: Session, mailbox: str) -> int:
+    first = s.scalar(
+        select(Message.gmail_uid)
+        .where(Message.mailbox == mailbox)
+        .order_by(Message.gmail_uid.asc())
+        .limit(1)
+    )
+    return int(first or 0)
+
 
 def _set_last_uid(s: Session, mailbox: str, uid: int) -> None:
     st = s.get(MailboxState, mailbox)
@@ -37,14 +55,37 @@ def _set_last_uid(s: Session, mailbox: str, uid: int) -> None:
         st.last_uid = max(st.last_uid, uid)
     s.commit()
 
+def _uids_exist(session: Session, mailbox: str, uids: List[int]) -> Set[int]:
+    if not uids:
+        return set()
+    rows = session.execute(
+        select(Message.gmail_uid).where(
+            Message.mailbox == mailbox, Message.gmail_uid.in_(uids)
+        )
+    ).scalars().all()
+    return set(int(u) for u in rows)
 
-def ingest(window: int = 2000, throttle_ms: int = 0, start_override: int | None = None, max_messages: int | None = None):
+
+def ingest(
+        window: int = 2000,
+        throttle_ms: int = 0,
+        start_override: int | None = None,
+        max_messages: int | None = None,
+        direction: str = "forward",
+):
     """
     Windowed ingest. Resumes from checkpoint unless start_override is given.
     throttle_ms: sleep between windows to be gentle on Gmail.
     max_messages: stop after N messages (useful for backfill batches).
+
+    direction: forward or backward:
+      - forward: from (start_uid or last seen)+1 to UIDNEXT-1
+      - backward: from max UID (or start_override) downward
+        Stops early if an entire window already exists in DB.
+
     """
     setup_logging()
+    run_id = uuid.uuid4().hex[:8]
     engine = get_engine(DATABASE_URL)
     blob = BlobStore(BLOB_ROOT)
     cfg = IMAPConfig.from_files(
@@ -52,15 +93,35 @@ def ingest(window: int = 2000, throttle_ms: int = 0, start_override: int | None 
         "/Users/maclu/data/credentials/credentials.ini",
     )
     window = min(window, max_messages)
-    fetcher = GmailFetcher(cfg, window=window)
+    fetcher = GmailFetcher(cfg, window=window, run_id=run_id)
+
+    t0 = time.perf_counter()
+    log.info("ingest.start", extra={"run_id": run_id, "mailbox": cfg.mailbox, "window": window, "direction": direction, "start_uid": start_override})
 
     with Session(engine) as s:
-        start_uid = start_override if start_override is not None else _get_last_uid(s, cfg.mailbox)
+        def exists_pred(uids: List[int]) -> Set[int]:
+            return _uids_exist(s, cfg.mailbox, uids)
+
+
+        if start_override is None:
+            if direction == "forward":
+                start_uid = _get_last_uid(s, cfg.mailbox)
+            else:
+                start_uid = _get_first_uid(s, cfg.mailbox)
+        else:
+            start_uid = start_override
+
         seen = 0
         log.info("ingest.start", extra={"mailbox": cfg.mailbox, "start_uid": start_uid, "window": window})
-        for uid, raw in fetcher.fetch_windowed(start_uid):
-            envd = parse_envelope(raw)
+
+        # Iterate windows
+        for uid, raw in fetcher.fetch_windowed(
+            start_uid=start_uid,
+            direction=direction,
+            exists_predicate=exists_pred,
+        ):
             try:
+                envd = parse_envelope(raw)
                 raw_uri = blob.save_raw(cfg.mailbox, uid, raw)
                 m = Message(
                     mailbox=cfg.mailbox,
@@ -81,15 +142,22 @@ def ingest(window: int = 2000, throttle_ms: int = 0, start_override: int | None 
                 metrics.inc("ingested_messages")
                 if seen % 100 == 0:
                     log.info("ingest.progress", extra={"last_uid": uid, "seen": seen})
+
+                if max_messages and seen >= max_messages:
+                    break
+                if throttle_ms:
+                    time.sleep(throttle_ms / 1000.0)
             except Exception as e:
                 s.rollback()  # likely duplicate due to UNIQUE
-                log.exception("ingest.error", extra={"gmail_uid": uid})
+                log.exception("ingest.error", extra={"run_id": run_id, "gmail_uid": uid})
                 metrics.inc("ingest_errors")
-            if max_messages and seen >= max_messages:
-                break
-            if throttle_ms:
-                time.sleep(throttle_ms / 1000.0)
         log.info("ingest.done", extra={"seen": seen})
+
+    elapsed = time.perf_counter() - t0
+    rate = (seen / elapsed) if elapsed > 0 else 0.0
+    log.info("ingest.done", extra={"run_id": run_id, "seen": seen, "elapsed_ms": int(elapsed * 1000), "rate_msgs_per_s": round(rate, 2), "direction": direction})
+    metrics.set_gauge("ingest_rate_msgs_per_s", rate)
+    metrics.write()
 
 
 def run_classify(limit: int = 200):
