@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+from configparser import ConfigParser
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -20,5 +21,25 @@ BLOB_ROOT = Path(os.getenv("BLOB_ROOT", "./blobs")).resolve()
 @dataclass
 class IMAPConfig:
     user: str
-    token: str
-    mailbox: str = "INBOX"
+    password: str
+    host: str = "image.gmail.com"
+    port: int = 993
+    mailbox: str = '"[Gmail]/All Mail"'
+
+    @classmethod
+    def from_files(cls, *paths: str|Path) -> 'IMAPConfig':
+        """
+        Initialize GmailClient from a list of config file paths.
+        Expects config files with [imap] section and keys: server, port, account, password.
+        """
+        parser = ConfigParser()
+        parser.read([str(p) for p in paths])
+
+        return cls(
+            host=parser.get("aws", "server"),
+            port=parser.getint("aws", "port"),
+            user=parser.get("aws", "account"),
+            password=parser.get("aws", "password"),
+        )
+
+

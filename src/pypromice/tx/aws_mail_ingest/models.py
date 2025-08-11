@@ -72,6 +72,12 @@ class DecodedL0(Base):
     decoder_version: Mapped[str] = mapped_column(String(32), default="stub-1")
     decoded_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow)
 
+class MailboxState(Base):
+    __tablename__ = "mailbox_state"
+    mailbox: Mapped[str] = mapped_column(String(64), primary_key=True)
+    last_uid: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow)
+
 def get_engine(url: str):
     return create_engine(url, future=True)
 

@@ -1,29 +1,56 @@
 from __future__ import annotations
-import json, hashlib
+import json, hashlib, time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .config import DATABASE_URL, GMAIL_USER, GMAIL_OAUTH_TOKEN, MAILBOX, BLOB_ROOT, IMAPConfig, env
-from .models import init_db as _init_db, get_engine, Message, DecodedL0
+from .models import init_db as _init_db, get_engine, Message, DecodedL0, MailboxState
 from .blobs import BlobStore
 from .imap_fetch import GmailFetcher
 from .classify import parse_envelope, extract_attachments, classify_message
 from .decoder import extract_payload, DecoderStub
 
+def _get_last_uid(s: Session, mailbox: str) -> int:
+    st = s.get(MailboxState, mailbox)
+    if st: return st.last_uid
+    # fallback to highest in messages table
+    last = s.scalar(select(Message.gmail_uid).where(Message.mailbox == mailbox).order_by(Message.gmail_uid.desc()).limit(1))
+    return int(last or 0)
+
+def _set_last_uid(s: Session, mailbox: str, uid: int) -> None:
+    st = s.get(MailboxState, mailbox)
+    if not st:
+        st = MailboxState(mailbox=mailbox, last_uid=uid)
+        s.add(st)
+    else:
+        st.last_uid = max(st.last_uid, uid)
+    s.commit()
+
+
 def init_db():
     BLOB_ROOT.mkdir(parents=True, exist_ok=True)
     _init_db(get_engine(DATABASE_URL))
 
-def ingest():
+
+def ingest(window: int = 2000, throttle_ms: int = 0, start_override: int | None = None, max_messages: int | None = None):
+    """
+    Windowed ingest. Resumes from checkpoint unless start_override is given.
+    throttle_ms: sleep between windows to be gentle on Gmail.
+    max_messages: stop after N messages (useful for backfill batches).
+    """
     engine = get_engine(DATABASE_URL)
     blob = BlobStore(BLOB_ROOT)
-    cfg = IMAPConfig(user=env("GMAIL_USER", GMAIL_USER), token=env("GMAIL_OAUTH_TOKEN", GMAIL_OAUTH_TOKEN), mailbox=MAILBOX)
-    fetcher = GmailFetcher(cfg)
+    cfg = IMAPConfig.from_files(
+        "/Users/maclu/data/credentials/accounts.ini",
+        "/Users/maclu/data/credentials/credentials.ini",
+    )
+    fetcher = GmailFetcher(cfg, window=window)
 
     with Session(engine) as s:
-        last_uid = s.scalar(select(Message.gmail_uid).where(Message.mailbox == cfg.mailbox).order_by(Message.gmail_uid.desc()).limit(1))
-        new_count = 0
-        for uid, raw in fetcher.fetch_since_uid(last_uid):
+        start_uid = start_override if start_override is not None else _get_last_uid(s, cfg.mailbox)
+        seen = 0
+        for uid, raw in fetcher.fetch_windowed(start_uid):
             envd = parse_envelope(raw)
+            print(f"Ingesting {uid:9n}")
             try:
                 raw_uri = blob.save_raw(cfg.mailbox, uid, raw)
                 m = Message(
@@ -39,11 +66,17 @@ def ingest():
                 )
                 s.add(m); s.flush()
                 extract_attachments(envd["email_obj"], blob, m, s)
-                s.commit(); new_count += 1
+                s.commit()
+                _set_last_uid(s, cfg.mailbox, uid)
+                seen += 1
             except Exception as e:
-                s.rollback()  # likely duplicate
-                print(f"Skip UID {uid}: {e}")
-        print(f"Ingested {new_count} new messages.")
+                s.rollback()  # likely duplicate due to UNIQUE
+            if max_messages and seen >= max_messages:
+                break
+            if throttle_ms:
+                time.sleep(throttle_ms / 1000.0)
+        print(f"Ingested {seen} messages (window={window}).")
+
 
 def run_classify(limit: int = 200):
     engine = get_engine(DATABASE_URL)
