@@ -2,8 +2,11 @@ from __future__ import annotations
 import imaplib
 import email
 import email.policy
+import logging
 from typing import Iterable, Tuple
 from .config import IMAPConfig
+
+log = logging.getLogger("aws_mail_ingest.imap")
 
 EMAIL_POLICY = email.policy.default
 
@@ -14,18 +17,22 @@ class GmailFetcher:
 
 
     def _connect(self) -> imaplib.IMAP4_SSL:
+        log.debug("IMAP connect/select", extra={"mailbox": self.cfg.mailbox})
         imap = imaplib.IMAP4_SSL(host=self.cfg.host, port=self.cfg.port)
         typ, _ = imap.login(self.cfg.user, self.cfg.password)
         if typ != "OK":
+            log.error("Authentication failed")
             raise RuntimeError("Authentication failed")
         typ, _ = imap.select(self.cfg.mailbox, readonly=True)
         if typ != "OK":
+            log.error("Cannot select mailbox", extra={"mailbox": self.cfg.mailbox})
             raise RuntimeError(f"Cannot select mailbox {self.cfg.mailbox}")
         return imap
 
     def _uidnext(self, imap: imaplib.IMAP4_SSL) -> int:
         typ, data = imap.status(self.cfg.mailbox, "(UIDNEXT)")
         if typ != "OK" or not data:
+            log.error("STATUS UIDNEXT failed")
             raise RuntimeError("STATUS UIDNEXT failed")
         # data like: [b'INBOX (UIDNEXT 1234567)']
         s = data[0].decode("utf-8", "ignore")
@@ -43,23 +50,25 @@ class GmailFetcher:
             uidnext = self._uidnext(imap)
             max_uid = uidnext - 1
             if max_uid < 1:
+                log.info("Mailbox empty", extra={"mailbox": self.cfg.mailbox})
                 return  # mailbox empty
 
             cur = max(1, (start_uid or 0) + 1)
             while cur <= max_uid:
                 end = min(cur + self.window - 1, max_uid)
+                log.info("FETCH window", extra={"start_uid": cur, "end_uid": end, "mailbox": self.cfg.mailbox})
                 # Fetch this window; Gmail accepts ranges without pre-listing UIDs
                 # Note: response is a list of tuples and trailers; we scan for the bytes
                 typ, fetch_data = imap.uid("FETCH", f"{cur}:{end}", "(RFC822 UID)")
                 if typ != "OK":
                     # Move forward cautiously to avoid infinite loops
+                    log.warning("FETCH failed; skipping window", extra={"start_uid": cur, "end_uid": end})
                     cur = end + 1
                     continue
 
                 # Gmail may interleave responses; parse per message
                 # Each data chunk looks like: (b'123 (UID 456 RFC822 {N}', raw_bytes), b')'
-                it = iter(fetch_data or [])
-                for part in it:
+                for part in fetch_data or []:
                     if isinstance(part, tuple) and len(part) == 2 and isinstance(part[1], (bytes, bytearray)):
                         # Extract UID from header string (part[0])
                         header = part[0].decode("utf-8", "ignore")
@@ -82,3 +91,4 @@ class GmailFetcher:
                 cur = end + 1
         finally:
             imap.logout()
+            log.debug("IMAP logout", extra={"mailbox": self.cfg.mailbox})
