@@ -3,6 +3,8 @@ import imaplib
 import email
 import email.policy
 import logging
+import os
+import time
 from typing import Iterable, Tuple, List, Optional, Callable
 import re
 
@@ -11,6 +13,9 @@ from .config import IMAPConfig
 log = logging.getLogger("aws_mail_ingest.imap")
 
 EMAIL_POLICY = email.policy.default
+IMAP_TIMEOUT = float(os.getenv("IMAP_TIMEOUT", "30"))           # seconds
+IMAP_MAX_RETRIES = int(os.getenv("IMAP_MAX_RETRIES", "3"))      # per window
+IMAP_RETRY_DELAY_MS = int(os.getenv("IMAP_RETRY_DELAY_MS", "500"))
 
 class GmailFetcher:
     def __init__(self, cfg: IMAPConfig, window: int = 2000, run_id: str | None = None):
@@ -21,7 +26,7 @@ class GmailFetcher:
 
     def _connect(self) -> imaplib.IMAP4_SSL:
         log.debug("IMAP connect/select", extra={"mailbox": self.cfg.mailbox})
-        imap = imaplib.IMAP4_SSL(host=self.cfg.host, port=self.cfg.port)
+        imap = imaplib.IMAP4_SSL(host=self.cfg.host, port=self.cfg.port, timeout=IMAP_TIMEOUT)
         typ, _ = imap.login(self.cfg.user, self.cfg.password)
         if typ != "OK":
             log.error("Authentication failed")
@@ -72,6 +77,65 @@ class GmailFetcher:
             raise RuntimeError("Could not parse UID of first message")
         return int(m.group(1))
 
+    def _safe_close(self, imap: Optional[imaplib.IMAP4_SSL]) -> None:
+        """Always close underlying sockets to avoid ResourceWarning."""
+        if not imap:
+            return
+        try:
+            imap.logout()
+        except Exception:
+            # logout can fail after abort; force-close the socket/file
+            try:
+                # Python 3.11 IMAP4 has .sock and .file
+                if getattr(imap, "file", None):
+                    try:
+                        imap.file.close()  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
+                if getattr(imap, "sock", None):
+                    try:
+                        imap.sock.close()  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    def _fetch_range_with_retries(
+        self,
+        low: int,
+        high: int,
+        fetch_items: str,
+    ) -> List[Tuple[int, bytes]]:
+        """
+        Fetch a UID range with bounded retries and reconnects.
+        Always returns parsed list (possibly empty) or raises on final failure.
+        """
+        attempt = 0
+        last_exc: Optional[Exception] = None
+        while attempt < IMAP_MAX_RETRIES:
+            attempt += 1
+            imap = None
+            try:
+                imap = self._connect()
+                typ, data = imap.uid("FETCH", f"{low}:{high}", fetch_items)
+                if typ != "OK":
+                    raise imaplib.IMAP4.error(f"FETCH failed: {typ}")
+                return self._parse_fetch(data)
+            except (imaplib.IMAP4.abort, imaplib.IMAP4.error, OSError) as e:
+                last_exc = e
+                log.warning(
+                    "fetch.retry",
+                    extra={"run_id": self.run_id, "low": low, "high": high, "attempt": attempt, "err": str(e)},
+                )
+                time.sleep(IMAP_RETRY_DELAY_MS / 1000.0)
+            finally:
+                self._safe_close(imap)
+        # after retries, bubble up
+        if last_exc:
+            raise last_exc
+        return []
+
+
     def fetch_windowed(
             self,
             start_uid: int | None = None,
@@ -120,8 +184,7 @@ class GmailFetcher:
                     break
 
 
-                typ, fetch_data = imap.uid("FETCH", f"{uid0}:{uid1 - direction_factor}", "(RFC822 UID)")
-                msgs = self._parse_fetch(fetch_data)
+                msgs = self._fetch_range_with_retries(uid0, uid1 - direction_factor, "(RFC822 UID)")
                 # Sort descending by UID for backward processing
                 if ~forward:
                     msgs.sort(key=lambda t: t[0], reverse=True)
@@ -152,5 +215,5 @@ class GmailFetcher:
                 uid0 = uid1
 
         finally:
-            imap.logout()
+            self._safe_close(imap)
             log.debug("imap.logout", extra={"run_id": self.run_id, "mailbox": self.cfg.mailbox})
