@@ -71,17 +71,12 @@ def ingest(
         throttle_ms: int = 0,
         start_override: int | None = None,
         max_messages: int | None = None,
-        direction: str = "forward",
+        forward: bool = True,
 ):
     """
     Windowed ingest. Resumes from checkpoint unless start_override is given.
     throttle_ms: sleep between windows to be gentle on Gmail.
     max_messages: stop after N messages (useful for backfill batches).
-
-    direction: forward or backward:
-      - forward: from (start_uid or last seen)+1 to UIDNEXT-1
-      - backward: from max UID (or start_override) downward
-        Stops early if an entire window already exists in DB.
 
     """
     setup_logging()
@@ -96,15 +91,14 @@ def ingest(
     fetcher = GmailFetcher(cfg, window=window, run_id=run_id)
 
     t0 = time.perf_counter()
-    log.info("ingest.start", extra={"run_id": run_id, "mailbox": cfg.mailbox, "window": window, "direction": direction, "start_uid": start_override})
+    log.info("ingest.start", extra={"run_id": run_id, "mailbox": cfg.mailbox, "window": window, "forward": forward, "start_uid": start_override})
 
     with Session(engine) as s:
         def exists_pred(uids: List[int]) -> Set[int]:
             return _uids_exist(s, cfg.mailbox, uids)
 
-
         if start_override is None:
-            if direction == "forward":
+            if forward:
                 start_uid = _get_last_uid(s, cfg.mailbox)
             else:
                 start_uid = _get_first_uid(s, cfg.mailbox)
@@ -117,7 +111,7 @@ def ingest(
         # Iterate windows
         for uid, raw in fetcher.fetch_windowed(
             start_uid=start_uid,
-            direction=direction,
+            forward=forward,
             exists_predicate=exists_pred,
         ):
             try:
@@ -133,6 +127,7 @@ def ingest(
                     size=envd["size"],
                     raw_blob_uri=raw_uri,
                     envelope_hash=envd["env_hash"],
+                    header_date=envd["header_date"],
                 )
                 s.add(m); s.flush()
                 extract_attachments(envd["email_obj"], blob, m, s)
@@ -151,11 +146,12 @@ def ingest(
                 s.rollback()  # likely duplicate due to UNIQUE
                 log.exception("ingest.error", extra={"run_id": run_id, "gmail_uid": uid})
                 metrics.inc("ingest_errors")
+                raise
         log.info("ingest.done", extra={"seen": seen})
 
     elapsed = time.perf_counter() - t0
     rate = (seen / elapsed) if elapsed > 0 else 0.0
-    log.info("ingest.done", extra={"run_id": run_id, "seen": seen, "elapsed_ms": int(elapsed * 1000), "rate_msgs_per_s": round(rate, 2), "direction": direction})
+    log.info("ingest.done", extra={"run_id": run_id, "seen": seen, "elapsed_ms": int(elapsed * 1000), "rate_msgs_per_s": round(rate, 2), "forward": forward})
     metrics.set_gauge("ingest_rate_msgs_per_s", rate)
     metrics.write()
 

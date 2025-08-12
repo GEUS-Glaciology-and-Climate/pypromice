@@ -14,7 +14,8 @@ class Message(Base):
     gmail_uid: Mapped[int] = mapped_column(Integer, nullable=False)
     gmail_history_id: Mapped[int | None] = mapped_column(Integer)
     message_id: Mapped[str | None] = mapped_column(String(255), index=True)
-    internal_date: Mapped[dt.datetime | None] = mapped_column(DateTime)
+    internal_date: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    header_date: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 
     from_addr: Mapped[str | None] = mapped_column(String(255))
     to_addr: Mapped[str | None] = mapped_column(String(255))
@@ -27,8 +28,8 @@ class Message(Base):
     state: Mapped[str] = mapped_column(String(16), default="NEW", index=True)  # NEW|CLASSIFIED|DECODED|FAILED
     error: Mapped[str | None] = mapped_column(Text)
 
-    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow)
-    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=dt.datetime.utcnow)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow)
 
     attachments = relationship("Attachment", back_populates="message", cascade="all, delete-orphan")
     classified = relationship("ClassifiedMessage", back_populates="message", uselist=False, cascade="all, delete-orphan")

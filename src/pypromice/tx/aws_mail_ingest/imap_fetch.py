@@ -4,6 +4,8 @@ import email
 import email.policy
 import logging
 from typing import Iterable, Tuple, List, Optional, Callable
+import re
+
 from .config import IMAPConfig
 
 log = logging.getLogger("aws_mail_ingest.imap")
@@ -57,22 +59,23 @@ class GmailFetcher:
                     out.append((uid_val, part[1]))
         return out
 
-    def get_first_uid(self, mailbox: str) -> int:
+    def _uidmin(self) -> int:
+        """Get the minimum available uid in the mailbox"""
         imap = self._connect()
 
-        status, data = imap.uid("FETCH", b"1", "(UID)")
-        if status != "OK" or not data or data[0] is None:
-            raise RuntimeError(f"Could not get first UID for mailbox {mailbox}")
+        typ, data = imap.fetch("1", "(UID)")
+        if typ != "OK" or not data or data[0] is None:
+            raise RuntimeError(f"Could not get first UID")
 
-        parts = data[0][0].decode().split()
-        uid_index = parts.index("UID") + 1
-
-        return int(parts[uid_index])
+        m = re.search(rb"UID (\d+)", data[0])
+        if not m:
+            raise RuntimeError("Could not parse UID of first message")
+        return int(m.group(1))
 
     def fetch_windowed(
             self,
             start_uid: int | None = None,
-            direction: str = "forward",
+            forward: bool = True,
             exists_predicate: Optional[Callable[[List[int]], set[int]]] = None,
     ) -> Iterable[Tuple[int, bytes]]:
         """
@@ -89,85 +92,65 @@ class GmailFetcher:
             if max_uid < 1:
                 log.info("mailbox.empty", extra={"run_id": self.run_id, "mailbox": self.cfg.mailbox})
                 return
+            min_uid = self._uidmin()
 
-            if direction == "backward":
-                cur_high = min(max_uid, start_uid if start_uid is not None else max_uid)
-                while cur_high >= 1:
-                    cur_low = max(1, cur_high - self.window + 1)
-                    # Always fetch low:high per IMAP syntax; we’ll yield in reverse.
-                    typ, fetch_data = imap.uid("FETCH", f"{cur_low}:{cur_high}", "(RFC822 UID)")
-                    msgs = self._parse_fetch(fetch_data)
-                    # Sort descending by UID for backward processing
-                    msgs.sort(key=lambda t: t[0], reverse=True)
-                    uids = [u for (u, _) in msgs]
-                    skipped = 0
-                    if exists_predicate and uids:
-                        existing = exists_predicate(uids)
-                        skipped = len(existing)
-                        if skipped == len(uids):
-                            log.info(
-                                "FETCH window",
-                                extra={
-                                    "run_id": self.run_id,
-                                    "start_uid": cur_high,
-                                    "end_uid": cur_low,
-                                    "mailbox": self.cfg.mailbox,
-                                    "direction": "backward",
-                                    "fetched": len(uids),
-                                    "skipped": skipped,
-                                },
-                            )
-                            # early stop: entire window already present
-                            return
-                    log.info(
-                        "FETCH window",
-                        extra={
-                            "run_id": self.run_id,
-                            "start_uid": cur_high,
-                            "end_uid": cur_low,
-                            "mailbox": self.cfg.mailbox,
-                            "direction": "backward",
-                            "fetched": len(uids),
-                            "skipped": skipped,
-                        },
-                    )
-                    # Yield only non-existing first (if predicate provided), otherwise all
-                    for uid, raw in msgs:
-                        if exists_predicate:
-                            # only yield if not in DB
-                            if uid in existing:  # type: ignore[name-defined]
-                                continue
-                        yield uid, raw
-                    cur_high = cur_low - 1
+            if forward:
+                start_uid = start_uid if start_uid else min_uid
+                direction_factor = 1
             else:
-                # FORWARD (original behavior)
-                cur_low = max(1, (start_uid or 0) + 1)
-                while cur_low <= max_uid:
-                    cur_high = min(cur_low + self.window - 1, max_uid)
-                    typ, fetch_data = imap.uid("FETCH", f"{cur_low}:{cur_high}", "(RFC822 UID)")
-                    msgs = self._parse_fetch(fetch_data)
-                    uids = [u for (u, _) in msgs]
-                    skipped = 0
-                    if exists_predicate and uids:
-                        existing = exists_predicate(uids)
-                        skipped = len(existing)
-                    log.info(
-                        "FETCH window",
-                        extra={
-                            "run_id": self.run_id,
-                            "start_uid": cur_low,
-                            "end_uid": cur_high,
-                            "mailbox": self.cfg.mailbox,
-                            "direction": "forward",
-                            "fetched": len(uids),
-                            "skipped": skipped,
-                        },
-                    )
-                    for uid, raw in msgs:
-                        if exists_predicate and uid in existing:  # type: ignore[name-defined]
-                            continue
-                        yield uid, raw
-                    cur_low = cur_high + 1
+                start_uid = start_uid if start_uid else max_uid
+                direction_factor = -1
+
+            log.info("Init loops", extra=dict(
+                start_uid=start_uid,
+                direction_factor=direction_factor,
+                window=self.window,
+                forward=forward,
+                min_uid=min_uid,
+                max_uid=max_uid,
+            ))
+
+            uid0 = start_uid
+            while min_uid <= uid0 <= max_uid:
+                uid1 = uid0 + self.window * direction_factor
+                uid1 = min(uid1, max_uid)
+                uid1 = max(uid1, min_uid)
+
+                if uid1 == uid0:
+                    break
+
+
+                typ, fetch_data = imap.uid("FETCH", f"{uid0}:{uid1 - direction_factor}", "(RFC822 UID)")
+                msgs = self._parse_fetch(fetch_data)
+                # Sort descending by UID for backward processing
+                if ~forward:
+                    msgs.sort(key=lambda t: t[0], reverse=True)
+                uids = [u for (u, _) in msgs]
+
+                existing = set()
+                if exists_predicate and uids:
+                    existing = exists_predicate(uids)
+
+                log.info(
+                    "FETCH window",
+                    extra={
+                        "run_id": self.run_id,
+                        "start_uid": uid0,
+                        "end_uid": uid1,
+                        "mailbox": self.cfg.mailbox,
+                        "forward": forward,
+                        "fetched": len(uids),
+                        "skipped": len(existing),
+                    },
+                )
+
+                for uid, raw in msgs:
+                    if uid in existing:  # type: ignore[name-defined]
+                        continue
+                    yield uid, raw
+
+                uid0 = uid1
+
         finally:
             imap.logout()
             log.debug("imap.logout", extra={"run_id": self.run_id, "mailbox": self.cfg.mailbox})
