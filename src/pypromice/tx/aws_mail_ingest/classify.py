@@ -1,5 +1,6 @@
 from __future__ import annotations
 import email, email.policy, hashlib, re
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,6 +16,14 @@ def parse_envelope(raw_bytes: bytes) -> dict:
     to_addr = str(msg.get("To", ""))
     subject = str(msg.get("Subject", ""))
     message_id = str(msg.get("Message-Id", ""))
+
+    # Try to parse "Date" header
+    date_header = msg.get("Date")
+    try:
+        header_date = parsedate_to_datetime(date_header) if date_header else None
+    except Exception:
+        header_date = None
+
     env_hash = hashlib.sha256("\n".join([from_addr, to_addr, subject, message_id]).encode()).hexdigest()
     return {
         "email_obj": msg,
@@ -24,6 +33,7 @@ def parse_envelope(raw_bytes: bytes) -> dict:
         "message_id": message_id,
         "env_hash": env_hash,
         "size": len(raw_bytes),
+        "header_date": header_date,
     }
 
 def extract_attachments(msg: email.message.Message, blob: BlobStore, message_rec: Message, session: Session) -> None:
