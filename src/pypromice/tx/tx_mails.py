@@ -2,10 +2,8 @@ import email.parser
 from email.message import Message
 from pathlib import Path
 
-from partd.file import filename
-
-from pypromice.tx.iridium import parse_mail
-from pypromice.tx.payload_decoder import DecodeError, decode_payload
+from pypromice.tx.email_parsing.iridium import parse_mail
+from pypromice.tx.payload_decoding.payload_decoder import DecodeError, decode_payload
 
 
 # %%

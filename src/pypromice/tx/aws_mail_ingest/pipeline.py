@@ -115,8 +115,8 @@ def ingest(
             exists_predicate=exists_pred,
         ):
             try:
-                envd = parse_envelope(raw)
                 raw_uri = blob.save_raw(cfg.mailbox, uid, raw)
+                envd = parse_envelope(raw)
                 m = Message(
                     mailbox=cfg.mailbox,
                     gmail_uid=uid,

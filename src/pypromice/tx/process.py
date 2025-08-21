@@ -5,9 +5,9 @@ It is not fully functional and need more functionality to be added and logging.
 from email.message import Message
 from pathlib import Path
 
-from gmail_client import GmailClient
-from pypromice.tx import iridium
-from pypromice.tx.payload_decoder import decode_payload
+from pypromice.tx.email_client.gmail_client import GmailClient
+from pypromice.tx.email_parsing import iridium
+from pypromice.tx.payload_decoding.payload_decoder import decode_payload
 from datetime import datetime
 import email.parser
 import logging
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def process_mail(email: Message) -> None:
         # %%
         # TODO: Consider a wsay to store and cache the emails. It might be relevant to integrate this function to GmailClient
-        iridium_message = iridium.pare_mail(email)
+        iridium_message = iridium.parse_mail(email)
 
         # %%
         if "watson" in iridium_message.subject.lower():

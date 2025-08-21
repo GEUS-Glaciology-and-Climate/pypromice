@@ -2,12 +2,12 @@ import logging
 from mailbox import Message
 
 from pathlib import Path
-from typing import List, Iterator, Mapping, MutableMapping
+from typing import List, Iterator, MutableMapping
 
-from pypromice.tx.gmail_client import GmailClient
-from pypromice.tx.iridium import IridiumMessage
-from pypromice.tx.mail_storage import LocalMailStore
-from pypromice.tx import iridium
+from pypromice.tx.email_client.gmail_client import GmailClient
+from pypromice.tx.email_parsing.iridium import IridiumMessage
+from pypromice.tx.email_client.mail_storage import LocalMailStore
+from pypromice.tx.email_parsing import iridium
 from pypromice.tx.station_tx_config import load_tx_configurations
 
 # %%
