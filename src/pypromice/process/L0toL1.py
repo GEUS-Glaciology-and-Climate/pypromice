@@ -61,7 +61,11 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
 
     ds['t_u_interp'] = interpTemp(ds['t_u'], vars_df)
-    ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u_interp'] + T_0)/T_0)**0.5      # Adjust sonic ranger readings for sensitivity to air temperature
+    # Adjust sonic ranger readings for sensitivity to air temperature
+    # leaving values uncorrected if air temperature is unknown
+    ds['z_boom_u'] = xr.where(ds['t_u_interp'].notnull(),
+                              ds['z_boom_u'] * ((ds['t_u_interp'] + T_0)/T_0)**0.5,
+                              ds['z_boom_u'])
 
     if ds['gps_lat'].dtype.kind == 'O':                                        # Decode and reformat GPS information
         if 'NH' in ds['gps_lat'].dropna(dim='time').values[1]:
@@ -97,7 +101,7 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     # Note that this should be OK for CR1000 tx (data only every 6 hrs),
     # since we interpolate above in _getTiltDegrees. PJW
     ds['tilt_x']  = smoothTilt(ds['tilt_x'], 7)                                # Smooth tilt
-    ds['tilt_y']  = smoothTilt(ds['tilt_y'], 7)                               
+    ds['tilt_y']  = smoothTilt(ds['tilt_y'], 7)
 
     # Apply wind factor if provided
     # This is in the case of an anemometer rotations improperly translated to wind speed by the logger program
@@ -146,12 +150,18 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
                                                     ds.attrs['pt_z_coef'],
                                                     ds.attrs['pt_z_p_coef'])
         ds['z_stake'] = _reformatArray(ds['z_stake'])                          # Reformat boom height
-        ds['z_stake'] = ds['z_stake'] * ((ds['t_u'] + T_0)/T_0)**0.5           # Adjust sonic ranger readings for sensitivity to air temperature
+        ds['z_stake'] = xr.where(ds['t_u_interp'].notnull(),
+                                  ds['z_stake'] * ((ds['t_u_interp'] + T_0)/T_0)**0.5,
+                                  ds['z_stake'])
 
     elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height
         ds['t_l_interp'] = interpTemp(ds['t_l'], vars_df)
-        ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l_interp']+ T_0)/T_0)**0.5   # Adjust sonic ranger readings for sensitivity to air temperature
+        # Adjust sonic ranger readings for sensitivity to air temperature
+        # leaving values uncorrected if air temperature is unknown
+        ds['z_boom_l'] = xr.where(ds['t_l_interp'].notnull(),
+                                  ds['z_boom_l'] * ((ds['t_l_interp'] + T_0)/T_0)**0.5,
+                                  ds['z_boom_l'])
 
     ds = clip_values(ds, vars_df)
     for key in ['hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
