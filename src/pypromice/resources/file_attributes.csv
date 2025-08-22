@@ -3,7 +3,7 @@ acknowledgements,The Programme for Monitoring of the Greenland Ice Sheet (PROMIC
 alt.axis,Z
 alt.coverage_content_type,coordinate
 gps_alt.positive,up
-cdm_data_type,
+cdm_data_type,Station
 comment,https://doi.org/10.22008/promice/data/aws
 contributor_name,
 contributor_role,
