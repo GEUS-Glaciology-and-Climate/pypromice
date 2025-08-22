@@ -22,7 +22,7 @@ geospatial_lon_extents_match,gps_lon
 geospatial_lon_resolution,
 geospatial_lon_units,degrees_east
 geospatial_vertical_resolution,
-geospatial_vertical_units,EPSG:4979
+geospatial_vertical_units,meters
 institution,Geological Survey of Denmark and Greenland (GEUS)
 instrument,See https://doi.org/10.5194/essd-13-3819-2021
 instrument_vocabulary,GCMD:GCMD Keywords
