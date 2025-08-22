@@ -140,16 +140,18 @@ def toL2(
     else:
         precip_flag=True
     if ~ds['precip_u'].isnull().all() and precip_flag:
-        ds['precip_u_cor'], ds['precip_u_rate'] = correctPrecip(ds['precip_u'],
+        ds['precip_u_cor'], ds['precip_u_rate'] = process_luft_precipitation(ds['precip_u'],
                                                                 ds['wspd_u'],
                                                                 ds['t_u'],
-                                                                ds['p_u'])
+                                                                ds['p_u'],
+                                                                ds['rh_u'])
     if ds.attrs['number_of_booms']==2:
         if ~ds['precip_l'].isnull().all() and precip_flag:                     # Correct precipitation
-            ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],
+            ds['precip_l_cor'], ds['precip_l_rate']= process_luft_precipitation(ds['precip_l'],
                                                                    ds['wspd_l'],
                                                                    ds['t_l'],
-                                                                   ds['p_l'])
+                                                                   ds['p_l'],
+                                                                   ds['rh_l'])
 
     # Calculate directional wind speed for upper boom
     ds['wdir_u'] = wind.filter_wind_direction(ds['wdir_u'],
@@ -484,7 +486,7 @@ def adjustHumidity(rh, T, T_0, T_100, ews, ei0):
     return rh_wrt_ice_or_water
 
 
-def correctPrecip(precip, wspd, t, p):
+def process_luft_precipitation(precip, wspd, t, p, rh):
     '''Correct precipitation with the undercatch correction method used in
     Yang et al. (1999) and Box et al. (2022), based on Goodison et al. (1998)
 
@@ -516,21 +518,11 @@ def correctPrecip(precip, wspd, t, p):
         Precipitation rate corrected
     '''
 
-    # filter time steps where t and p are not available, meaning that the Lufft is not working
-    mask = (t.isnull() | p.isnull()) & (precip == 0)
+    # filter time steps where t, p or rh are not available, meaning that the Lufft is not working
+    mask = (t.isnull() | p.isnull() | rh.isnull()) & (precip == 0)
     precip = precip.where(~mask)
 
-    # saving where precip has NaNs and where it comes back after that gap with
-    # an increased value corresponding to real precipitation
     nan_mask = precip.isnull()
-    valid = np.where(~nan_mask)[0]
-    increments = np.zeros_like(precip)
-    if len(valid) >= 2:
-        gaps = valid[1:] - valid[:-1] > 1
-        gap_ends = valid[1:][gaps]
-        gap_starts = valid[:-1][gaps]
-        increments[gap_ends] = precip.isel(time=gap_ends).data - precip.isel(time=gap_starts).data
-        increments[increments<0] = 0
 
     # Calculate undercatch correction factor
     corr=100/(100.00-4.37*wspd+0.35*wspd*wspd)
@@ -557,7 +549,6 @@ def correctPrecip(precip, wspd, t, p):
     # Get corrected accumulated precipitation
     precip_cor = precip_rate.cumsum()
     precip_cor = precip_cor.where(~nan_mask)
-    precip_cor = precip_cor + increments
 
     # removing timestamps where precitipation rates have been calculated over
     # interpolated values
