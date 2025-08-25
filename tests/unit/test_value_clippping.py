@@ -5,8 +5,8 @@ import pandas as pd
 import xarray as xr
 
 import pypromice.resources
-from pypromice.process.wind import filter_wind_direction, calculate_directional_wind_speed
-from pypromice.process.value_clipping import clip_values
+from pypromice.algorithms.wind import filter_wind_direction, calculate_directional_wind_speed
+from pypromice.qc.value_clipping import clip_values
 
 
 class ClipValuesTestCase(unittest.TestCase):

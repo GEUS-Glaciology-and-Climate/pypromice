@@ -12,8 +12,8 @@ import xarray as xr
 from pypromice.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.qc.persistence import persistence_qc
-from pypromice.process.value_clipping import clip_values
-from pypromice.process import wind
+from pypromice.qc.value_clipping import clip_values
+from pypromice.algorithms import wind
 
 __all__ = [
     "toL2",

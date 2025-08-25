@@ -16,10 +16,11 @@ from importlib import metadata
 
 
 import pypromice.resources
-from pypromice.process.L0toL1 import toL1
-from pypromice.process.L1toL2 import toL2
-from pypromice.process.L2toL3 import toL3
-from pypromice.process import write, load, utilities
+from pypromice.pipeline.L0toL1 import toL1
+from pypromice.pipeline.L1toL2 import toL2
+from pypromice.pipeline.L2toL3 import toL3
+from pypromice.pipeline import utilities
+from pypromice.io import write, load
 from pypromice.utilities.git import get_commit_hash_and_check_dirty
 
 pd.set_option("display.precision", 2)
