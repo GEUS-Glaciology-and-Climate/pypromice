@@ -19,20 +19,25 @@ DEFAULT_VARIABLE_THRESHOLDS = {
     "t_i": {"max_diff": 0.0001, "period": 2},
     "t_u": {"max_diff": 0.0001, "period": 2},
     "t_l": {"max_diff": 0.0001, "period": 2},
+
     "p_i": {"max_diff": 0.0001, "period": 3},
-    "p_u": {"max_diff": 0.0001, "period": 24},
-    "p_l": {"max_diff": 0.0001, "period": 24},
-    "gps_lat_lon": {
-        "max_diff": 0.000001,
-        "period": 6,
-    },  # gets special handling to remove simultaneously constant gps_lat and gps_lon
+    "p_u": {"max_diff": 0.0001, "period": 150},
+    "p_l": {"max_diff": 0.0001, "period": 150},
+
+    # gets special handling to remove simultaneously constant gps_lat and gps_lon
+    "gps_lat_lon": {"max_diff": 0.000001, "period": 6},
+
     "gps_alt": {"max_diff": 0.0001, "period": 6},
     "t_rad": {"max_diff": 0.0001, "period": 2},
-    "rh": {
-        "max_diff": 0.0001,
-        "period": 2,
-    },  # gets special handling to allow constant 100%
-    "wspd": {"max_diff": 0.0001, "period": 6},
+
+    # gets special handling to allow constant 100%
+    "rh_i": {"max_diff": 0.0001, "period": 2},
+    "rh_u": {"max_diff": 0.0001, "period": 2},
+    "rh_l": {"max_diff": 0.0001, "period": 2},
+
+    "wspd_i": {"max_diff": 0.0001, "period": 6},
+    "wspd_u": {"max_diff": 0.0001, "period": 6},
+    "wspd_l": {"max_diff": 0.0001, "period": 6},
 }
 
 
