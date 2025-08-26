@@ -19,27 +19,22 @@ DEFAULT_VARIABLE_THRESHOLDS = {
     "t_i": {"max_diff": 0.0001, "period": 2},
     "t_u": {"max_diff": 0.0001, "period": 2},
     "t_l": {"max_diff": 0.0001, "period": 2},
-    "p_i": {"max_diff": 0.0001, "period": 2},
-    # "p_u": {"max_diff": 0.0001, "period": 2},
-    # "p_l": {"max_diff": 0.0001, "period": 2},
-    "gps_lat_lon": {
-        "max_diff": 0.000001,
-        "period": 6,
-    },  # gets special handling to remove simultaneously constant gps_lat and gps_lon
+
+    "p_i": {"max_diff": 0.0001, "period": 3},
+    "p_u": {"max_diff": 0.0001, "period": 150},
+    "p_l": {"max_diff": 0.0001, "period": 150},
+
+    # gets special handling to remove simultaneously constant gps_lat and gps_lon
+    "gps_lat_lon": {"max_diff": 0.000001, "period": 6},
+
     "gps_alt": {"max_diff": 0.0001, "period": 6},
     "t_rad": {"max_diff": 0.0001, "period": 2},
-    "rh_i": {
-        "max_diff": 0.0001,
-        "period": 2,
-    },  # gets special handling to allow constant 100%
-    "rh_u": {
-        "max_diff": 0.0001,
-        "period": 2,
-    },  # gets special handling to allow constant 100%
-    "rh_l": {
-        "max_diff": 0.0001,
-        "period": 2,
-    },  # gets special handling to allow constant 100%
+
+    # gets special handling to allow constant 100%
+    "rh_i": {"max_diff": 0.0001, "period": 2},
+    "rh_u": {"max_diff": 0.0001, "period": 2},
+    "rh_l": {"max_diff": 0.0001, "period": 2},
+
     "wspd_i": {"max_diff": 0.0001, "period": 6},
     "wspd_u": {"max_diff": 0.0001, "period": 6},
     "wspd_l": {"max_diff": 0.0001, "period": 6},
@@ -83,15 +78,11 @@ def persistence_qc(
         variable_thresholds = DEFAULT_VARIABLE_THRESHOLDS
         logger.debug(f"Running persistence_qc using {variable_thresholds}")
     else:
-        logger.info(f"Running persistence_qc using custom thresholds:\n {variable_thresholds}")    
+        logger.info(f"Running persistence_qc using custom thresholds:\n {variable_thresholds}")
 
     for k in variable_thresholds.keys():
         if k in ["t", "p", "rh", "wspd", "wdir", "z_boom"]:
-            var_all = [
-                k + "_u",
-                k + "_l",
-                k + "_i",
-            ]  # apply to upper, lower boom, and instant
+            var_all = [k + l for l in ["_u", "_l", "_i"]]  # apply to upper, lower boom, and instant
         else:
             var_all = [k]
         max_diff = variable_thresholds[k]["max_diff"]  # loading persistent limit
@@ -140,10 +131,12 @@ def find_persistent_regions(
     """
     Algorithm that ensures values can stay the same within the outliers_mask
     """
-    consecutive_true_df = count_consecutive_persistent_values(data, max_diff)
-    persistent_regions = consecutive_true_df >= min_repeats
-    # Ignore entries which already nan in the input data
-    persistent_regions[data.isna()] = False
+    consecutive_true_df  = count_consecutive_persistent_values(data, max_diff)
+    persistent_regions = consecutive_true_df  >= min_repeats
+    for i in range(1, min_repeats):
+        persistent_regions |= persistent_regions.shift(-1, fill_value=False)
+        # Ignore entries which already nan in the input data
+        persistent_regions[data.isna()] = False
     return persistent_regions
 
 
