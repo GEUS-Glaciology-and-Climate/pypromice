@@ -16,8 +16,12 @@ logger = logging.getLogger(__name__)
 
 # period is given in hours, 2 persistent 10 min values will be flagged if period < 0.333
 DEFAULT_VARIABLE_THRESHOLDS = {
-    "t": {"max_diff": 0.0001, "period": 2},
-    "p": {"max_diff": 0.0001, "period": 3},
+    "t_i": {"max_diff": 0.0001, "period": 2},
+    "t_u": {"max_diff": 0.0001, "period": 2},
+    "t_l": {"max_diff": 0.0001, "period": 2},
+    "p_i": {"max_diff": 0.0001, "period": 3},
+    "p_u": {"max_diff": 0.0001, "period": 24},
+    "p_l": {"max_diff": 0.0001, "period": 24},
     "gps_lat_lon": {
         "max_diff": 0.000001,
         "period": 6,
