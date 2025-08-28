@@ -140,14 +140,14 @@ def toL2(
     else:
         precip_flag=True
     if ~ds['precip_u'].isnull().all() and precip_flag:
-        ds['precip_u_cor'], ds['precip_u_rate'] = process_luft_precipitation(ds['precip_u'],
+        ds['precip_rate_u'] = process_luft_precipitation(ds['precip_u'],
                                                                 ds['wspd_u'],
                                                                 ds['t_u'],
                                                                 ds['p_u'],
                                                                 ds['rh_u'])
     if ds.attrs['number_of_booms']==2:
         if ~ds['precip_l'].isnull().all() and precip_flag:                     # Correct precipitation
-            ds['precip_l_cor'], ds['precip_l_rate']= process_luft_precipitation(ds['precip_l'],
+            ds['precip_rate_l']= process_luft_precipitation(ds['precip_l'],
                                                                    ds['wspd_l'],
                                                                    ds['t_l'],
                                                                    ds['p_l'],
@@ -546,15 +546,11 @@ def process_luft_precipitation(precip, wspd, t, p, rh):
     rain_in_cold = (precip_rate>0) & (t<-2)
     precip_rate = precip_rate.where(~rain_in_cold)
 
-    # Get corrected accumulated precipitation
-    precip_cor = precip_rate.cumsum()
-    precip_cor = precip_cor.where(~nan_mask)
-
     # removing timestamps where precitipation rates have been calculated over
     # interpolated values
     precip_rate = precip_rate.where(~nan_mask)
 
-    return precip_cor, precip_rate
+    return precip_rate
 
 
 def calcDeclination(doy, hour, minute):
