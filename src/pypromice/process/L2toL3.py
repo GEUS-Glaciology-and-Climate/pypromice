@@ -221,7 +221,8 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
                                        .rolling('1D', center=True, min_periods=1)
                                        .median())
 
-        z_ice_surf = z_ice_surf.loc[ds.time]
+        z_ice_surf = z_ice_surf.reindex(ds.time,
+                                        method=None).interpolate(method='time')
         # here we make sure that the periods where both z_stake and z_pt are
         # missing are also missing in z_ice_surf
         msk = ds['z_ice_surf'].notnull() | ds['z_surf_2_adj'].notnull()
@@ -234,7 +235,7 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
         # sides are less than 0.01 m appart
 
         # Forward and backward fill to identify bounds of gaps
-        df_filled = z_ice_surf.fillna(method='ffill').fillna(method='bfill')
+        df_filled = z_ice_surf.ffill().bfill()
 
         # Identify gaps and their start and end dates
         gaps = pd.DataFrame(index=z_ice_surf[z_ice_surf.isna()].index)
@@ -253,7 +254,7 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
         z_ice_surf.loc[gaps_to_fill] = df_filled.loc[gaps_to_fill]
 
         # bringing the variable into the dataset
-        ds['z_ice_surf'] = z_ice_surf
+        ds['z_ice_surf'] = ('time', z_ice_surf.values)
 
         ds['z_surf_combined'] = np.maximum(ds['z_surf_combined'], ds['z_ice_surf'])
         ds['snow_height'] = np.maximum(0, ds['z_surf_combined'] - ds['z_ice_surf'])
@@ -271,6 +272,7 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
         ice_temp_vars = [v for v in ds.data_vars if 't_i_' in v]
         vars_out = [v.replace('t', 'd_t') for v in ice_temp_vars]
         vars_out.append('t_i_10m')
+
         df_out = get_thermistor_depth(
             ds[ice_temp_vars + ['z_surf_combined']].to_dataframe(),
             ds.attrs['station_id'],
@@ -880,14 +882,18 @@ def get_thermistor_depth(df_in, site, station_config):
 
             # removing negative depth
             df_in.loc[df_in[depth_cols_name[i]]<0, depth_cols_name[i]] = np.nan
-        logger.info("interpolating 10 m firn/ice temperature")
-        df_in['t_i_10m'] = interpolate_temperature(
-            df_in.index.values,
-            df_in[depth_cols_name].values.astype(float),
-            df_in[temp_cols_name].values.astype(float),
+
+        logger.info("interpolating 10 m firn/ice temperature (on hourly values)")
+        df_in_h = df_in[depth_cols_name+temp_cols_name].resample('h').mean()
+        df_in_h['t_i_10m'] = interpolate_temperature(
+            df_in_h.index.values,
+            df_in_h[depth_cols_name].values.astype(float),
+            df_in_h[temp_cols_name].values.astype(float),
             kind="linear",
             min_diff_to_depth=1.5,
         ).set_index('date').values
+        df_in['t_i_10m'] = df_in_h['t_i_10m'].reindex(df_in.index,
+                                        method=None).interpolate(method='time')
 
         # filtering
         ind_pos = df_in["t_i_10m"] > 0.1
