@@ -534,7 +534,10 @@ def process_luft_precipitation(precip, wspd, t, p, rh):
     precip = precip.ffill(dim='time')
 
     # Calculate precipitation rate and makes sure it remains of the same size
-    precip_rate = precip.diff('time').reindex_like(precip)
+    # and taking into account the time step size to ensure mm/hr
+    dt_hours = precip['time'].diff('time') / np.timedelta64(1, 'h')
+    dt_hours = dt_hours.reindex_like(precip)
+    precip_rate = precip.diff('time') / dt_hours
 
     # Apply correction to rate
     precip_rate = precip_rate*corr

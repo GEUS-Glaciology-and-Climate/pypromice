@@ -48,24 +48,18 @@ def resample_dataset(ds_h, t):
     # Resample the DataFrame
     df_resampled = df_h.resample(t).mean()
 
-    # exception for precip_u_cor and precip_l_cor which are accumulated and should
-    # just be sampled on fixed frequency
-    df_resampled_asfreq = df_h.resample(t).asfreq()
-
     # calculating the completeness of resampled time intervals
     df_resampled_count = df_h.resample(t).count()
 
-    # Re-calculate corrected precipitation
+    # exception for precip_u and precip_l which are accumulated with some reset
+    # we therefore take the positive increments in the higher resolution data (like 10 min)
+    # and sum them into the aggregated data (hourly/daily/monthly).
+    # This makes the assumption of 0 precipitation during data gaps.
     for var in ['precip_u', 'precip_l']:
-        if var+'_cor' in df_h.columns:
-            if ~df_h[var+'_cor'].isnull().all():
-                df_resampled[var+'_cor'] = df_resampled_asfreq[var+'_cor']
-                diff = df_resampled[var+'_cor'].diff().reindex(df_resampled.index)
-                # the first time interval is likely incomplete, here we assign a value
-                # only if enough hourly data is available within the interval
-                if df_resampled_count[var+'_cor'].iloc[0] > df_resampled_count[var+'_cor'].max()/1.5:
-                    diff.iloc[0] = df_resampled[var+'_cor'].iloc[0]
-                df_resampled[var+'_rate'] = diff
+        if var in df_h.columns:
+            df_resampled[var] = df_h[var].diff().clip(lower=0).resample(t).sum()
+
+    # There is currently not completeness threshold!
 
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
@@ -90,7 +84,6 @@ def resample_dataset(ds_h, t):
                 )[col_org].values
             if col == 'p_i':
                 df_resampled.loc[timestamp_to_update, col] = df_resampled.loc[timestamp_to_update, col].values-1000
-
 
     # recalculating wind direction from averaged directional wind speeds
     for var in ['wdir_u','wdir_l']:
@@ -132,7 +125,6 @@ def resample_dataset(ds_h, t):
                coords={'time':df_resampled.index}, attrs=None))
 
     ds_resampled = xr.Dataset(dict(zip(df_resampled.columns,vals)), attrs=ds_h.attrs)
-
 
     return ds_resampled
 
