@@ -555,7 +555,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
     if outpath is not None:
         prepare_and_write(l3_merged, outpath, v, m, "60min", nc_compression=True)
         prepare_and_write(l3_merged, outpath, v, m, "1D", nc_compression=True)
-        prepare_and_write(l3_merged, outpath, v, m, "M", nc_compression=True)
+        prepare_and_write(l3_merged, outpath, v, m, "ME", nc_compression=True)
     return l3_merged, sorted_list_station_data
 
 
