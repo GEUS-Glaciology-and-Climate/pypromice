@@ -13,7 +13,7 @@ from pypromice.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.qc.persistence import persistence_qc
 from pypromice.qc.value_clipping import clip_values
-from pypromice.algorithms import wind
+from pypromice.core import wind
 
 __all__ = [
     "toL2",
