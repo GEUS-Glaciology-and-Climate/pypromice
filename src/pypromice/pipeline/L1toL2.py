@@ -9,11 +9,11 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypromice.qc.github_data_issues import flagNAN, adjustTime, adjustData
-from pypromice.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
-from pypromice.qc.persistence import persistence_qc
-from pypromice.qc.value_clipping import clip_values
-from pypromice.core import wind
+from pypromice.core.qc.github_data_issues import flagNAN, adjustTime, adjustData
+from pypromice.core.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
+from pypromice.core.qc.persistence import persistence_qc
+from pypromice.core.qc.value_clipping import clip_values
+from pypromice.core.variables import wind
 
 __all__ = [
     "toL2",

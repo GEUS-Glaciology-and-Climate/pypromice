@@ -1,8 +1,8 @@
 import random
 import uuid
 
-from pypromice.postprocess.bufr_utilities import BUFR_TEMPLATES
-from pypromice.station_configuration import StationConfiguration
+from pypromice.io.bufr.bufr_utilities import BUFR_TEMPLATES
+from pypromice.io.bufr.station_configuration import StationConfiguration
 
 STATION_TYPE_STRINGS = tuple(BUFR_TEMPLATES.keys())
 

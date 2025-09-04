@@ -21,7 +21,7 @@ from pypromice.pipeline.L1toL2 import toL2
 from pypromice.pipeline.L2toL3 import toL3
 from pypromice.pipeline import utilities
 from pypromice.io import write, load
-from pypromice.utilities.git import get_commit_hash_and_check_dirty
+from pypromice.io.git_repo.git import get_commit_hash_and_check_dirty
 
 pd.set_option("display.precision", 2)
 xr.set_options(keep_attrs=True)

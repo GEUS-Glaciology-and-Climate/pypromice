@@ -9,14 +9,14 @@ from unittest import TestCase, mock
 
 import pandas as pd
 
-from pypromice.postprocess.bufr_utilities import BUFRVariables
-from pypromice.postprocess.get_bufr import (
+from pypromice.io.bufr.bufr_utilities import BUFRVariables
+from pypromice.io.bufr.get_bufr import (
     get_station_positions,
     get_bufr_variables,
     REQUIRED_KEYS,
     get_bufr,
 )
-from pypromice.station_configuration import StationConfiguration
+from pypromice.io.bufr.station_configuration import StationConfiguration
 from tests.utilities import get_station_configuration
 
 logging.basicConfig(

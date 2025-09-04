@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 
-from pypromice.postprocess.bufr_utilities import (
+from pypromice.io.bufr.bufr_utilities import (
     write_bufr_message,
     read_bufr_message,
     BUFRVariables,

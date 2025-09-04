@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Sequence, List
 
 import pandas as pd
-from pypromice.station_configuration import load_station_configuration_mapping
+from pypromice.io.bufr.station_configuration import load_station_configuration_mapping
 
 from pypromice.postprocess.get_bufr import (
     get_bufr,

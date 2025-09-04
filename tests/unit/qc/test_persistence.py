@@ -3,8 +3,8 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from pypromice.qc import persistence
-from pypromice.qc.persistence import find_persistent_regions
+from pypromice.core.qc import persistence
+from pypromice.core.qc.persistence import find_persistent_regions
 
 
 class PersistenceQATestCase(unittest.TestCase):

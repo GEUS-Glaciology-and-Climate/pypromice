@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from sklearn.linear_model import LinearRegression
-from pypromice.qc.github_data_issues import adjustData
+from pypromice.core.qc.github_data_issues import adjustData
 from scipy.interpolate import interp1d
 from pathlib import Path
 import logging
