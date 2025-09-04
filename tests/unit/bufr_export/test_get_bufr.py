@@ -351,7 +351,7 @@ class TestGetBufrVariablesTestCase(TestCase):
                 )
 
 
-MOCK_BASE_STR = "pypromice.postprocess.get_bufr.{}"
+MOCK_BASE_STR = "pypromice.io.bufr.get_bufr.{}"
 
 
 @mock.patch(MOCK_BASE_STR.format("get_station_positions"))
