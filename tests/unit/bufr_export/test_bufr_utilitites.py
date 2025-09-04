@@ -40,7 +40,7 @@ class BUFRExportTestCase(unittest.TestCase):
             heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=4.6,
         )
 
-    @mock.patch("pypromice.postprocess.bufr_utilities.codes_write")
+    @mock.patch("pypromice.io.bufr.bufr_utilities.codes_write")
     def test_bufr_file_are_deleted_on_exception(self, codes_write_mock: mock.MagicMock):
         codes_write_mock.side_effect = MockException()
         with tempfile.TemporaryFile("w+b") as file:
