@@ -5,7 +5,7 @@ from typing import Sequence, List
 import pandas as pd
 from pypromice.io.bufr.station_configuration import load_station_configuration_mapping
 
-from pypromice.postprocess.get_bufr import (
+from pypromice.io.bufr.get_bufr import (
     get_bufr,
     DEFAULT_LIN_REG_TIME_LIMIT,
     DEFAULT_POSITION_SEED_PATH,
