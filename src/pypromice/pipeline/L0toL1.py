@@ -50,20 +50,21 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     ds = addTimeShift(ds, vars_df)
 
     # Convert radiation from engineering to physical units
+    # TODO add metadata to indicate whether radiometer values are corrected with calibration values or not
     if hasattr(ds, 'dsr_eng_coef'):
         ds['dsr'] = radiation.convert_sr(ds['dsr'],
                                          ds.attrs['dsr_eng_coef'])
-    if hasattr(ds, 'usr_eng_coef'):                                            # TODO add metadata to indicate whether radiometer values are corrected with calibration values or not
+    if hasattr(ds, 'usr_eng_coef'):
         ds['usr'] = radiation.convert_sr(ds['usr'],
                                          ds.attrs['usr_eng_coef'])
     if hasattr(ds, 'dlr_eng_coef'):
-        ds['dlr'] = radiation.convert_lr((ds['dlr'],
-                                          ds['t_rad'],
-                                          ds.attrs['dlr_eng_coef'])
+        ds['dlr'] = radiation.convert_lr(ds['dlr'],
+                                         ds['t_rad'],
+                                         ds.attrs['dlr_eng_coef'])
     if hasattr(ds, 'ulr_eng_coef'):
-        ds['ulr'] = radiation.convert_lr((ds['ulr'],
-                                          ds['t_rad'],
-                                          ds.attrs['ulr_eng_coef'])
+        ds['ulr'] = radiation.convert_lr(ds['ulr'],
+                                         ds['t_rad'],
+                                         ds.attrs['ulr_eng_coef'])
 
     ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
 
