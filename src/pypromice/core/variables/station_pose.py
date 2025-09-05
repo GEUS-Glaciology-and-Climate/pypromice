@@ -132,10 +132,6 @@ def calculate_zenith(lat: float,
         Sun declination in radians
     HourAngle_rad : float
         Sun hour angle in radians
-    deg2rad : float
-        Degrees to radians conversion
-    rad2deg : float
-        Radians to degrees conversion
 
     Returns
     -------

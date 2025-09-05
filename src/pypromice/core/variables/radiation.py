@@ -100,21 +100,15 @@ def correct_sr(ds):
         lat = ds['gps_lat'].mean()
         lon = ds['gps_lon'].mean()
 
-    phi_sensor_rad, theta_sensor_rad = station_pose.calculate_tilt(ds['tilt_x'],
-                                                      ds['tilt_y'],    # Calculate station tilt
-                                                      deg2rad)
+    phi_sensor_rad, theta_sensor_rad = station_pose.calculate_tilt(ds['tilt_x'], ds['tilt_y'])
 
-    Declination_rad = station_pose.calculate_declination(doy,
-                                            hour,
-                                            minute)
-    HourAngle_rad = station_pose.calculate_hour_angle(hour,
-                                         minute,
-                                         lon)
+    Declination_rad = station_pose.calculate_declination(doy, hour, minute)
+
+    HourAngle_rad = station_pose.calculate_hour_angle(hour, minute, lon)
+
     ZenithAngle_rad, ZenithAngle_deg = station_pose.calculate_zenith(lat,
                                                         Declination_rad,
-                                                        HourAngle_rad,
-                                                        deg2rad,
-                                                        rad2deg)
+                                                        HourAngle_rad)
 
     # Setting to zero when sun below the horizon.
     bad = ZenithAngle_deg > 95
