@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import re, logging
-from pypromice.process.value_clipping import clip_values
-from pypromice.process import wind
+from pypromice.core.qc.value_clipping import clip_values
+from pypromice.core.variables import wind
 logger = logging.getLogger(__name__)
 
 

@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest import TestCase
 from tempfile import TemporaryDirectory
 
-from pypromice.station_configuration import (
+from pypromice.io.bufr.station_configuration import (
     StationConfiguration,
     load_station_configuration_mapping,
     write_station_configuration_mapping,

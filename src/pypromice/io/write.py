@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from pypromice.process.resample import resample_dataset
+from pypromice.pipeline.resample import resample_dataset
 import pypromice.resources
 
 logger = logging.getLogger(__name__)
