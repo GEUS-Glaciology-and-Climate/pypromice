@@ -152,8 +152,7 @@ def correct_sr(ds):
                                              ZenithAngle_rad,
                                              ZenithAngle_deg,
                                              lat,
-                                             DifFrac,
-                                             deg2rad)
+                                             DifFrac)
     CorFac_all = CorFac_all.where(tilt_correction_possible)
 
     # Correct Downwelling shortwave radiation
