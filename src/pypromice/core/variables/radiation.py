@@ -48,3 +48,21 @@ def convert_lr(lr: xr.DataArray,
     """
     return ((lr * 10) / lr_eng_coef) + 5.67e-8 * (t_rad + T_0) **4
 
+def filter_lr(lr: xr.DataArray,
+           t_rad: xr.DataArray) -> xr.DataArray:
+    """Remove longwave radiation measurements that are missing
+    simultaneous radiometer temperature measurements
+
+    Parameters
+    ----------
+    lr : xr.DataArray
+        Longwave radiation measurements (upwelling or downwelling)
+    t_rad : xr.DataArray
+        Radiometer temperature
+
+    Returns
+    -------
+    xr.DataArray
+        Filtered radiation measurements
+    """
+    return lr.where(t_rad.notnull())

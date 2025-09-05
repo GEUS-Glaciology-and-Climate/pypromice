@@ -94,10 +94,10 @@ def toL2(
     mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) | ds.gps_alt.isnull()
     ds[['gps_alt','gps_lon', 'gps_lat']] = ds[['gps_alt','gps_lon', 'gps_lat']].where(mask)
 
-    # removing dlr and ulr that are missing t_rad
-    # this is done now becasue t_rad can be filtered either manually or with persistence
-    ds['dlr'] = ds.dlr.where(ds.t_rad.notnull())
-    ds['ulr'] = ds.ulr.where(ds.t_rad.notnull())
+    # Removing dlr and ulr that are missing t_rad
+    # this is done now because t_rad can be filtered either manually or with persistence
+    ds["dlr"] = radiation.filter_lr(ds["dlr"], ds["t_rad"])
+    ds["ulr"] = radiation.filter_lr(ds["ulr"], ds["t_rad"])
 
     # calculating realtive humidity with regard to ice
     T_100 = _getTempK(T_0)
