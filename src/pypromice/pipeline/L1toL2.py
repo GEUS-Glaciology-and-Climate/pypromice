@@ -139,6 +139,7 @@ def toL2(
         precip_flag = ds.attrs['correct_precip']
     else:
         precip_flag=True
+
     if ~ds['precip_u'].isnull().all() and precip_flag:
         ds['precip_u_cor'], ds['precip_u_rate'] = correctPrecip(ds['precip_u'],
                                                                 ds['wspd_u'])

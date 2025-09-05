@@ -165,7 +165,7 @@ def correct_sr(ds):
     ds['dsr_cor'][TOA_crit_nopass_cor] = np.nan
     ds['usr_cor'][TOA_crit_nopass_cor] = np.nan
 
-    ds, OKalbedos = calculate_albedo(ds['usr'], ds['dsr'], ds['dsr_cor'], ds['cc'], AngleDif_deg, ZenithAngle_deg)
+    ds['albedo'], OKalbedos = calculate_albedo(ds['usr'], ds['dsr'], ds['dsr_cor'], ds['cc'], AngleDif_deg, ZenithAngle_deg)
 
     return ds, (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass_cor, TOA_crit_nopass, TOA_crit_nopass_usr)
 
