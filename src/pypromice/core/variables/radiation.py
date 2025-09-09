@@ -1,12 +1,13 @@
+__all__ = ["convert_sr", "convert_lr", "filter_lr", "filter_sr",
+           "correct_sr", "calculate_albedo"]
 
 import xarray as xr
 import numpy as np
 from pypromice.core.variables import station_pose
 
 # Define air temperature for radiometer adjustments
-T_0=273.15                  # radiometer air temperature adjustment
+T_0=273.15                  # degrees Celsius to Kelvin conversion
 deg2rad = np.pi / 180       # Degrees to radians conversion
-rad2deg = 1 / deg2rad       # Radians to degrees conversion
 
 def convert_sr(sr: xr.DataArray,
                sr_eng_coef: float) -> xr.DataArray:
@@ -43,7 +44,6 @@ def convert_lr(lr: xr.DataArray,
         Radiometer temperature
     lr_eng_coef : float
         Longwave engineering calibration coefficient
-    T_0 : float
 
     Returns
     -------
@@ -71,141 +71,196 @@ def filter_lr(lr: xr.DataArray,
     """
     return lr.where(t_rad.notnull())
 
-def correct_sr(ds):
+def filter_sr(dsr: xr.DataArray,
+              usr: xr.DataArray,
+              cc : xr.DataArray,
+              ZenithAngle_rad: xr.DataArray,
+              ZenithAngle_deg: xr.DataArray,
+              AngleDif_deg: xr.DataArray
+) -> tuple[xr.DataArray, xr.DataArray, tuple]:
+    """Filter shortwave radiation data for tilt, station pose relative to sun position, and top-of-atmosphere (TOA)
+    irradiance
+
+    Parameters
+    ----------
+    dsr : xr.DataArray
+        Downwelling shortwave radiation
+    usr : xr.DataArray
+        Upwelling shortwave radiation
+    cc : xr.DataArray
+        Cloud cover
+    ZenithAngle_deg : xr.DataArray
+        Zenith angle in degrees
+    ZenithAngle_rad : xr.DataArray
+        Zenith angle in radians
+     AngleDif_deg : xr.DataArray
+        Angle between sun and sensor in degrees
+
+    Returns
+    -------
+    dsr_filtered : xr.DataArray
+        Filtered downwelling shortwave radiation
+    usr_filtered : xr. DataArray
+        Filtered upwelling shortwave radiation
+    tuple
+        Filter flags for 1) sun position below horizon; 2) sun on lower dome; 3) downwelling sr measurements greater
+        than TOA; and 4) upwelling sr measurements greater than TOA
     """
-    Processes shortwave radiation data from a dataset by applying tilt and sun
-    angle corrections.
-
-    Parameters:
-        ds (xarray.Dataset): Dataset containing variables such as time, tilt_x,
-                tilt_y, dsr (downwelling SW radiation), usr (upwelling SW radiation),
-                cloud cover (cc), gps_lat, gps_lon, and optional attributes
-                 latitude and longitude.
-
-    Returns:
-        ds (xarray.Dataset): Updated dataset with corrected downwelling ('dsr_cor')
-                and upwelling ('usr_cor') SW radiation, and derived surface albedo ('albedo').
-        tuple: A tuple containing masks and calculated TOA radiation:
-               (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass)
-    """
-    # Determine station position relative to sun
-    doy = ds['time'].to_dataframe().index.dayofyear.values                     # Gather variables to calculate sun pos
-    hour = ds['time'].to_dataframe().index.hour.values
-    minute = ds['time'].to_dataframe().index.minute.values
-
-    if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
-        lat = ds.attrs['latitude']                                             # TODO Why is mean GPS lat lon not preferred for calcs?
-        lon = ds.attrs['longitude']
-    else:
-        lat = ds['gps_lat'].mean()
-        lon = ds['gps_lon'].mean()
-
-    phi_sensor_rad, theta_sensor_rad = station_pose.calculate_tilt(ds['tilt_x'], ds['tilt_y'])
-
-    Declination_rad = station_pose.calculate_declination(doy, hour, minute)
-
-    HourAngle_rad = station_pose.calculate_hour_angle(hour, minute, lon)
-
-    ZenithAngle_rad, ZenithAngle_deg = station_pose.calculate_zenith(lat,
-                                                        Declination_rad,
-                                                        HourAngle_rad)
+    dsr_filtered = dsr.copy()
+    usr_filtered = usr.copy()
 
     # Setting to zero when sun below the horizon.
     bad = ZenithAngle_deg > 95
-    ds['dsr'][bad & ds['dsr'].notnull()] = 0
-    ds['usr'][bad & ds['usr'].notnull()] = 0
+    dsr_filtered[bad & dsr_filtered.notnull()] = 0
+    usr_filtered[bad & usr_filtered.notnull()] = 0
 
     # Setting to zero when values are negative
-    ds['dsr'] = ds['dsr'].clip(min=0)
-    ds['usr'] = ds['usr'].clip(min=0)
-
-    # Calculate angle between sun and sensor
-    AngleDif_deg = station_pose.calculate_angle_difference(ZenithAngle_rad, HourAngle_rad,
-                                 phi_sensor_rad, theta_sensor_rad)
-    tilt_correction_possible = AngleDif_deg.notnull() & ds['cc'].notnull()
+    dsr_filtered = dsr_filtered.clip(min=0)
+    usr_filtered = usr_filtered.clip(min=0)
 
     # Filtering usr and dsr for sun on lower dome
     # in theory, this is not a problem in cloudy conditions, but the cloud cover
     # index is too uncertain at this point to be used
     sunonlowerdome = (AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)
-    mask = ~sunonlowerdome | AngleDif_deg.isnull()                             # relaxing the filter for cases where sensor tilt is unknown
-    ds['dsr'] = ds['dsr'].where(mask)
-    ds['usr'] = ds['usr'].where(mask)
+
+    # Relaxing the filter for cases where sensor tilt is unknown
+    mask = ~sunonlowerdome | AngleDif_deg.isnull()
+
+    # Perform filter
+    dsr_filtered = dsr_filtered.where(mask)
+    usr_filtered = usr_filtered.where(mask)
+
+    # Calculate TOA shortwave radiation
+    isr_toa = calculate_TOA(ZenithAngle_deg, ZenithAngle_rad)
 
     # Filter dsr values that are greater than top of the atmosphere irradiance
     # Case where no tilt is available. If it is, then the same filter is used
     # after tilt correction.
-    isr_toa = calculate_TOA(ZenithAngle_deg, ZenithAngle_rad)                        # Calculate TOA shortwave radiation
-    TOA_crit_nopass = ~tilt_correction_possible & (ds['dsr'] > (1.2 * isr_toa + 150))
-    ds['dsr'][TOA_crit_nopass] = np.nan
+    tilt_correction_possible = AngleDif_deg.notnull() & cc.notnull()
+    TOA_crit_nopass_dsr = ~tilt_correction_possible & (dsr_filtered > (1.2 * isr_toa + 150))
+    dsr_filtered[TOA_crit_nopass_dsr] = np.nan
 
-    # the upward flux should not be higher than the TOA downard flux
-    TOA_crit_nopass_usr = (ds['usr'] > 0.8*(1.2 * isr_toa + 150))
-    ds['usr'][TOA_crit_nopass_usr] = np.nan
+    # The upward flux should not be higher than the TOA downward flux
+    TOA_crit_nopass_usr = (usr_filtered > 0.8 * (1.2 * isr_toa + 150))
+    usr_filtered[TOA_crit_nopass_usr] = np.nan
 
+    return dsr_filtered, usr_filtered, (bad, sunonlowerdome, TOA_crit_nopass_dsr, TOA_crit_nopass_usr)
+
+def correct_sr(dsr_filtered: xr.DataArray,
+               usr_filtered: xr.DataArray,
+               cc: xr.DataArray,
+               phi_sensor_rad : xr.DataArray,
+               theta_sensor_rad : xr.DataArray,
+               lat: float,
+               Declination_rad : xr.DataArray,
+               HourAngle_rad : xr.DataArray,
+               ZenithAngle_rad : xr.DataArray,
+               ZenithAngle_deg : xr.DataArray,
+               AngleDif_deg: xr.DataArray
+) -> tuple[xr.DataArray, xr.DataArray, tuple]:
+    """Correct shortwave radiation data for station tilt and top-of-atmosphere (TOA) irradiance
+
+    Parameters
+    ----------
+    dsr_filtered : xr.DataArray
+        Downwelling shortwave radiation (filtered for tilt)
+    usr_filtered : xr.DataArray
+        Upwelling shortwave radiation (filtered for tilt)
+    cc : xr.DataArray
+        Cloud cover
+    phi_sensor_rad : xr.DataArray
+        Spherical tilt coordinates
+    theta_sensor_rad : xr.DataArray
+        Total tilt of sensor, where 0 is horizontal
+    lat : float
+        Station latitude
+    Declination_rad : xr.DataArray
+        Sun declination
+    HourAngle_rad : xr.DataArray
+        Hour angle of sun
+    ZenithAngle_rad : xr.DataArray
+        Zenith angle in radians
+    ZenithAngle_deg : xr.DataArray
+        Zenith angle in degrees
+    AngleDif_deg : xr.DataArray
+        Angle between sun and sensor in degree
+
+    Returns
+    -------
+    dsr_cor : xr.DataArray
+        Corrected downwelling shortwave radiation
+    usr_cor : xr.DataArray
+        Corrected upwelling shortwave radiation
+    TOA_crit_nopass_cor : xr.DataArray
+        Correction flags for invalid TOA values
+    """
     # Diffuse to direct irradiance fraction
-    DifFrac = 0.2 + 0.8 * ds['cc']
-    CorFac_all = calculate_correction_factor(Declination_rad,
-                                             phi_sensor_rad,
+    DifFrac = 0.2 + 0.8 * cc
+    CorFac_all = calculate_correction_factor(phi_sensor_rad,
                                              theta_sensor_rad,
+                                             Declination_rad,
                                              HourAngle_rad,
                                              ZenithAngle_rad,
                                              ZenithAngle_deg,
                                              lat,
                                              DifFrac)
+
+    tilt_correction_possible = AngleDif_deg.notnull() & cc.notnull()
     CorFac_all = CorFac_all.where(tilt_correction_possible)
 
-    # Correct Downwelling shortwave radiation
-    ds['dsr_cor'] = ds['dsr'].copy() * CorFac_all
-    ds['usr_cor'] = ds['usr'].copy().where(ds['dsr_cor'].notnull())
+    # Apply correction to downwelling shortwave radiation and then mask upwelling values
+    dsr_cor = dsr_filtered * CorFac_all
+    usr_cor = usr_filtered.where(dsr_cor.notnull())
+
+    # Calculate TOA shortwave radiation
+    isr_toa = calculate_TOA(ZenithAngle_deg, ZenithAngle_rad)
 
     # Remove data where TOA shortwave radiation invalid
-    # this can only be done after correcting for tilt
-    TOA_crit_nopass_cor = ds['dsr_cor'] > (1.2 * isr_toa + 150)
-    ds['dsr_cor'][TOA_crit_nopass_cor] = np.nan
-    ds['usr_cor'][TOA_crit_nopass_cor] = np.nan
+    TOA_crit_nopass_cor = dsr_cor > (1.2 * isr_toa + 150)
+    dsr_cor[TOA_crit_nopass_cor] = np.nan
+    usr_cor[TOA_crit_nopass_cor] = np.nan
 
-    ds['albedo'], OKalbedos = calculate_albedo(ds['usr'], ds['dsr'], ds['dsr_cor'], ds['cc'], AngleDif_deg, ZenithAngle_deg)
-
-    return ds, (OKalbedos, sunonlowerdome, bad, isr_toa, TOA_crit_nopass_cor, TOA_crit_nopass, TOA_crit_nopass_usr)
+    return dsr_cor, usr_cor, TOA_crit_nopass_cor
 
 
-def calculate_albedo(usr: xr.DataArray,
-                     dsr: xr.DataArray,
+def calculate_albedo(dsr_filtered: xr.DataArray,
+                     usr_filtered: xr.DataArray,
                      dsr_cor: xr.DataArray,
                      cc: xr.DataArray,
-                     AngleDif_deg: xr.DataArray,
-                     ZenithAngle_deg: xr.DataArray
+                     ZenithAngle_deg: xr.DataArray,
+                     AngleDif_deg: xr.DataArray
 ) -> tuple[xr.DataArray, xr.DataArray]:
-    '''
+    """
     Calculate surface albedo based on upwelling and downwelling shortwave
     flux, the angle between the sun and sensor, and the sun zenith angle.
 
     Parameters
     ----------
-    usr : xr.DataArray
-        Upwelling shortwave radiation
-    dsr : xr.DataArray
+    dsr_filtered : xr.DataArray
         Downwelling shortwave radiation
+    usr_filtered : xr.DataArray
+        Upwelling shortwave radiation
     dsr_cor : xr.DataArray
         Corrected downwelling shortwave radiation
-    AngleDif_deg : xr.DataArray
-        Angle between the sun and the sensor in degrees.
+    cc : xr.DataArray
+        Cloud cover
     ZenithAngle_deg : xr.DataArray
         Sun zenith angle in degrees.
+    AngleDif_deg : xr.DataArray
+        Angle between the sun and the sensor in degrees
 
     Returns
     -------
     albedo : xr.DataArray
         Calculated albedo
     OKalbedos : xr.DataArray
-        Boolean mask indicating valid albedo values.
-    '''
+        Boolean mask indicating valid albedo values
+    """
     tilt_correction_possible = AngleDif_deg.notnull() & cc.notnull()
 
     albedo = xr.where(tilt_correction_possible,
-                            usr / dsr_cor,
-                            usr / dsr)
+                      usr_filtered / dsr_cor,
+                      usr_filtered / dsr_filtered)
 
     OOL = (albedo  >= 1) | (albedo  <= 0)
     good_zenith_angle = ZenithAngle_deg < 70
@@ -215,24 +270,24 @@ def calculate_albedo(usr: xr.DataArray,
     return albedo, OKalbedos
 
 
-def calculate_TOA(ZenithAngle_deg: float,
-                  ZenithAngle_rad: float
-) -> float:
-    '''Calculate incoming shortwave radiation at the top of the atmosphere,
+def calculate_TOA(ZenithAngle_deg: xr.DataArray,
+                  ZenithAngle_rad: xr.DataArray
+) -> xr.DataArray:
+    """Calculate incoming shortwave radiation at the top of the atmosphere,
     accounting for sunset periods
 
     Parameters
     ----------
-    ZenithAngle_deg : float
+    ZenithAngle_deg : xr.DataArray
         Zenith angle in degrees
-    ZenithAngle_rad : float
+    ZenithAngle_rad : xr.DataArray
         Zenith angle in radians
 
     Returns
     -------
     isr_toa : float
         Incoming shortwave radiation at the top of the atmosphere
-    '''
+    """
     sundown = ZenithAngle_deg >= 90
 
     # Incoming shortware radiation at the top of the atmosphere
@@ -241,16 +296,16 @@ def calculate_TOA(ZenithAngle_deg: float,
     return isr_toa
 
 
-def calculate_correction_factor(Declination_rad: float,
-                                phi_sensor_rad: xr.DataArray,
+def calculate_correction_factor(phi_sensor_rad: xr.DataArray,
                                 theta_sensor_rad: xr.DataArray,
-                                HourAngle_rad: float,
-                                ZenithAngle_rad: float,
-                                ZenithAngle_deg: float,
+                                Declination_rad: xr.DataArray,
+                                HourAngle_rad: xr.DataArray,
+                                ZenithAngle_rad: xr.DataArray,
+                                ZenithAngle_deg: xr.DataArray,
                                 lat: float,
-                                DifFrac: float
+                                DifFrac: xr.DataArray
 ) -> xr.DataArray:
-    '''Calculate radiometer correction factor for direct beam radiation, as described
+    """Calculate radiometer correction factor for direct beam radiation, as described
     here: http://solardat.uoregon.edu/SolarRadiationBasics.html
 
     Offset correction (where solar zenith angles are larger than 110 degrees) not
@@ -277,14 +332,14 @@ def calculate_correction_factor(Declination_rad: float,
         Zenith Angle in degrees
     lat :  float
         Latitude
-    DifFrac : float
+    DifFrac : xr.DataArray
         Fractional cloud cover
 
     Returns
     -------
     CorFac_all : xr.DataArray
         Correction factor
-    '''
+    """
     CorFac = np.sin(Declination_rad) * np.sin(lat * deg2rad) \
         * np.cos(theta_sensor_rad) \
         - np.sin(Declination_rad) \

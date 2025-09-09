@@ -13,7 +13,7 @@ from pypromice.core.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.core.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.core.qc.persistence import persistence_qc
 from pypromice.core.qc.value_clipping import clip_values
-from pypromice.core.variables import wind, radiation
+from pypromice.core.variables import wind, radiation, station_pose
 
 __all__ = [
     "toL2",
@@ -131,8 +131,61 @@ def toL2(
     else:
         ds['cc'] = ds['t_u'].copy() * np.nan
 
-    # Filtering and correcting shortwave radiation
-    ds, _ = radiation.correct_sr(ds)
+    # Determine station pose relative to sun position
+    if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
+        lat = ds.attrs['latitude']                                             # TODO Why is mean GPS lat lon not preferred for calcs?
+        lon = ds.attrs['longitude']
+    else:
+        lat = ds['gps_lat'].mean()
+        lon = ds['gps_lon'].mean()
+
+        # Determine station position relative to sun
+    #    doy = ds['time'].to_dataframe().index.dayofyear.values
+    #    hour = ds['time'].to_dataframe().index.hour.values
+    #    minute = ds['time'].to_dataframe().index.minute.values
+
+    # Determine station position relative to sun
+    doy = ds['time'].dt.dayofyear
+    hour = ds['time'].dt.hour
+    minute = ds['time'].dt.minute
+    phi_sensor_rad, theta_sensor_rad = station_pose.calculate_spherical_tilt(ds['tilt_x'], ds['tilt_y'])
+    Declination_rad = station_pose.calculate_declination(doy, hour, minute)
+    HourAngle_rad = station_pose.calculate_hour_angle(hour, minute, lon)
+    ZenithAngle_rad, ZenithAngle_deg = station_pose.calculate_zenith(lat,
+                                                                     Declination_rad,
+                                                                     HourAngle_rad)
+    AngleDif_deg = station_pose.calculate_angle_difference(ZenithAngle_rad,
+                                                           HourAngle_rad,
+                                                           phi_sensor_rad,
+                                                           theta_sensor_rad)
+
+    # Filter shortwave radiation
+    ds["dsr_filtered"], ds["usr_filtered"], _ = radiation.filter_sr(ds["dsr"],
+                                                                    ds["usr"],
+                                                                    ds["cc"],
+                                                                    ZenithAngle_rad,
+                                                                    ZenithAngle_deg,
+                                                                    AngleDif_deg)
+
+    # Correct shortwave radiation
+    ds["dsr_cor"], ds["usr_cor"], _ = radiation.correct_sr(ds["dsr_filtered"],
+                                                           ds["usr_filtered"],
+                                                           ds["cc"],
+                                                           phi_sensor_rad,
+                                                           theta_sensor_rad,
+                                                           lat,
+                                                           Declination_rad,
+                                                           HourAngle_rad,
+                                                           ZenithAngle_rad,
+                                                           ZenithAngle_deg,
+                                                           AngleDif_deg)
+
+    ds['albedo'], _ = radiation.calculate_albedo(ds["usr_filtered"],
+                                                 ds["dsr_filtered"],
+                                                 ds["dsr_cor"],
+                                                 ds["cc"],
+                                                 ZenithAngle_deg,
+                                                 AngleDif_deg)
 
     # Correct precipitation
     if hasattr(ds, 'correct_precip'):
