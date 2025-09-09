@@ -1,10 +1,26 @@
-import dataclasses
+"""
+Module for handling configuration loading and parsing of L0 data files.
+
+This module provides the functionalities to interpret configuration files,
+detect file types for data parsing, and process L0 data into xarray.Dataset
+objects with associated metadata.
+
+The module implements explicit input file type detection and parsing logic
+for different data file types including `csv_v1`, `toa5`, and `csv_default`.
+Additionally, it supports post-processing for time offsets and metadata
+enrichment.
+
+Functions
+---------
+- load_data_files: Reads and processes multiple data files given a configuration dictionary.
+- load_config: Parses a TOML configuration file and produces a dictionary of configurations.
+"""
 import logging
 import os
 import re
 from datetime import timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Protocol, Iterable, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import pandas as pd
 import toml
@@ -15,82 +31,12 @@ from . import toa5
 __all__ = [
     "load_data_files",
     "load_config",
-    "L0Repository",
-    "L0RepositoryFS",
 ]
 
 logger = logging.getLogger(__name__)
 
 DELIMITER = ","
 COMMENT = "#"
-
-
-class L0Repository(Protocol):
-    def get_tx(self, station_id: str) -> Iterable[xr.Dataset]: ...
-    def get_raw(self, station_id: str) -> Iterable[xr.Dataset]: ...
-    def get_available_stations(self) -> Iterable[str]: ...
-    def contains_tx(self, station_id: str) -> bool: ...
-    def contains_raw(self, station_id: str) -> bool: ...
-
-
-@dataclasses.dataclass(slots=True)
-class L0RepositoryFS:
-    root: Path
-
-    template_tx_config = "tx/config/{station_id}.toml"
-    template_tx_data_root = "tx/"
-    template_raw_config = "raw/config/{station_id}.toml"
-    template_row_data_root = "raw/{station_id}/"
-
-    def get_tx_config(self, station_id: str) -> Path:
-        return self.root / self.template_tx_config.format(station_id=station_id)
-
-    def get_tx_data_root(self, station_id: str) -> Path:
-        return self.root / self.template_tx_data_root.format(station_id=station_id)
-
-    def get_raw_config_path(self, station_id: str) -> Path:
-        return self.root / self.template_raw_config.format(station_id=station_id)
-
-    def get_raw_data_root(self, station_id: str) -> Path:
-        return self.root / self.template_row_data_root.format(station_id=station_id)
-
-    def contains_tx(self, station_id: str) -> bool:
-        return self.get_tx_config(station_id).exists()
-
-    def contains_raw(self, station_id: str) -> bool:
-        return self.get_raw_config_path(station_id).exists()
-
-    def get_tx(self, station_id: str) -> List[xr.Dataset]:
-        config = load_config(
-            self.get_tx_config(station_id),
-            self.get_tx_data_root(station_id),
-        )
-        return load_data_files(config)
-
-    def get_raw(self, station_id: str) -> List[xr.Dataset]:
-        config = load_config(
-            self.get_raw_config_path(station_id),
-            self.get_raw_data_root(station_id),
-        )
-        return load_data_files(config)
-
-    def get_available_stations(self) -> List[str]:
-        """
-        Iterate over all available station configuration files
-
-        """
-        tx_pattern = self.get_tx_config("*")
-        raw_pattern = self.get_raw_config_path("*")
-
-        station_ids = {
-            p.stem
-            for p in [
-                *tx_pattern.parent.glob(tx_pattern.name),
-                *raw_pattern.parent.glob(raw_pattern.name),
-            ]
-        }
-
-        return sorted(station_ids)
 
 
 # ---------------------------------------------------------------------
