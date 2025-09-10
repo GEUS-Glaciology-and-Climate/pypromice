@@ -103,8 +103,9 @@ def calculate_hour_angle(hour: xr.DataArray,
 def calculate_sun_direction_degrees(HourAngle_rad: xr.DataArray
 ) -> xr.DataArray:
     """Calculate sun direction as degrees. This is an alternative to
-    _calcHourAngle that is currently not implemented into the offical L0>>L3
-    workflow. Here, 180 degrees is at noon (NH), as opposed to HourAngle
+    calculate_hour_angle that is currently not implemented into the official
+    L0>>L3 workflow. Here, 180 degrees is at noon (NH), as opposed to
+    HourAngle
 
     Parameters
     ----------
@@ -142,7 +143,7 @@ def calculate_zenith(lat: float,
         Zenith angle in radians
     ZenithAngle_deg : xr.DataArray
         Zenith angle in degrees
-    """
+"""
     ZenithAngle_rad = np.arccos(np.cos(lat * deg2rad)
                                 * np.cos(Declination_rad)
                                 * np.cos(HourAngle_rad)
