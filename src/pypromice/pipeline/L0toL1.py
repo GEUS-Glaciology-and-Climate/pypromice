@@ -61,10 +61,9 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
 
     # Find range threshold and use it to clip and interpolate temperature measurements
-    variable_limits = vars_df[["lo", "hi", "OOL"]].dropna(how="all")
-    t_lo = variable_limits.loc["t_u","lo"]
-    t_hi = variable_limits.loc["t_u","hi"]
-    ds["t_u_interp"] = air_temperature.clip_and_interpolate(ds["t_u"], t_lo, t_hi)
+    tu_lo = vars_df.loc["t_u","lo"]
+    tu_hi = vars_df.loc["t_u","hi"]
+    ds["t_u_interp"] = air_temperature.clip_and_interpolate(ds["t_u"], tu_lo, tu_hi)
 
     ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u_interp'] + T_0)/T_0)**0.5      # Adjust sonic ranger readings for sensitivity to air temperature
 
@@ -157,10 +156,9 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height
 
         # Find range threshold and use it to clip and interpolate temperature measurements
-        variable_limits = vars_df["lo", "hi", "OOL"].dropna(how="all")
-        t_lo = variable_limits.loc["t_l", "lo"]
-        t_hi = variable_limits.loc["t_l", "hi"]
-        ds["t_l_interp"] = air_temperature.clip_and_interpolate(ds["t_l"], t_lo, t_hi)
+        tl_lo = vars_df.loc["t_l", "lo"]
+        tl_hi = vars_df.loc["t_l", "hi"]
+        ds["t_l_interp"] = air_temperature.clip_and_interpolate(ds["t_l"], tl_lo, tl_hi)
 
         ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l_interp']+ T_0)/T_0)**0.5   # Adjust sonic ranger readings for sensitivity to air temperature
 
