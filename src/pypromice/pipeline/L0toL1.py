@@ -61,7 +61,7 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
 
     # Find range threshold and use it to clip and interpolate temperature measurements
-    variable_limits = vars_df["lo", "hi", "OOL"].dropna(how="all")
+    variable_limits = vars_df[["lo", "hi", "OOL"]].dropna(how="all")
     t_lo = variable_limits.loc["t_u","lo"]
     t_hi = variable_limits.loc["t_u","hi"]
     ds["t_u_interp"] = air_temperature.clip_and_interpolate(ds["t_u"], t_lo, t_hi)
