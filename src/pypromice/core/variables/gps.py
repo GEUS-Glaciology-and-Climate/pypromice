@@ -6,6 +6,8 @@ __all__ = ["decode", "filter", "piecewise_smoothing_and_interpolation",
 import xarray as xr
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LinearRegression
+
 import logging
 logger = logging.getLogger(__name__)
 
