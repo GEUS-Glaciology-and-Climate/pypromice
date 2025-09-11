@@ -1,4 +1,5 @@
-__all__ = ["decode", "convert_from_degrees_and_decimal_minutes",
+__all__ = ["decode", "filter", "piecewise_smoothing_and_interpolation",
+           "convert_from_degrees_and_decimal_minutes",
            "convert_from_decimal_minutes", "flag_decimal_minutes",
            "flag_for_decoding"]
 
@@ -7,6 +8,61 @@ import numpy as np
 import pandas as pd
 import logging
 logger = logging.getLogger(__name__)
+
+def piecewise_smoothing_and_interpolation(data_series, breaks):
+    '''Smoothes, inter- or extrapolate the GPS observations. The processing is
+    done piecewise so that each period between station relocations are done
+    separately (no smoothing of the jump due to relocation). Piecewise linear
+    regression is then used to smooth the available observations. Then this
+    smoothed curve is interpolated linearly over internal gaps. Eventually, this
+    interpolated curve is extrapolated linearly for timestamps before the first
+    valid measurement and after the last valid measurement.
+
+    Parameters
+    ----------
+    data_series : pd.Series
+        Series of observed latitude, longitude or elevation with datetime index.
+    breaks: list
+        List of timestamps of station relocation. First and last item should be
+        None so that they can be used in slice(breaks[i], breaks[i+1])
+
+    Returns
+    -------
+    np.ndarray
+        Smoothed and interpolated values corresponding to the input series.
+    '''
+    df_all = pd.Series(dtype=float)  # Initialize an empty Series to gather all smoothed pieces
+    breaks = [None] + breaks + [None]
+    _inferred_series = []
+    for i in range(len(breaks) - 1):
+        df = data_series.loc[slice(breaks[i], breaks[i+1])]
+
+        # Drop NaN values and calculate the number of segments based on valid data
+        df_valid = df.dropna()
+        if df_valid.shape[0] > 2:
+            # Fit linear regression model to the valid data range
+            x = pd.to_numeric(df_valid.index).values.reshape(-1, 1)
+            y = df_valid.values.reshape(-1, 1)
+
+            model = LinearRegression()
+            model.fit(x, y)
+
+            # Predict using the model for the entire segment range
+            x_pred = pd.to_numeric(df.index).values.reshape(-1, 1)
+
+            y_pred = model.predict(x_pred)
+            df =  pd.Series(y_pred.flatten(), index=df.index)
+        # adds to list the predicted values for the current segment
+        _inferred_series.append(df)
+
+    df_all = pd.concat(_inferred_series)
+
+    # Fill internal gaps with linear interpolation
+    df_all = df_all.interpolate(method='linear', limit_area='inside')
+
+    # Remove duplicate indices and return values as numpy array
+    df_all = df_all[~df_all.index.duplicated(keep='last')]
+    return df_all.values
 
 def filter(gps_lat: xr.DataArray,
            gps_lon: xr.DataArray,
