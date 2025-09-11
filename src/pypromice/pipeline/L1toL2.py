@@ -13,7 +13,7 @@ from pypromice.core.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.core.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.core.qc.persistence import persistence_qc
 from pypromice.core.qc.value_clipping import clip_values
-from pypromice.core.variables import wind
+from pypromice.core.variables import wind, gps
 
 __all__ = [
     "toL2",
@@ -86,13 +86,8 @@ def toL2(
     #     outlier_detector = ThresholdBasedOutlierDetector.default()
     #     ds = outlier_detector.filter_data(ds)                                 # Flag and remove percentile outliers
 
-    # filtering gps_lat, gps_lon and gps_alt based on the difference to a baseline elevation
-    # right now baseline elevation is gapfilled monthly median elevation
-    baseline_elevation = (ds.gps_alt.to_series().resample('MS').median()
-                          .reindex(ds.time.to_series().index, method='nearest')
-                          .ffill().bfill())
-    mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) | ds.gps_alt.isnull()
-    ds[['gps_alt','gps_lon', 'gps_lat']] = ds[['gps_alt','gps_lon', 'gps_lat']].where(mask)
+    # Filter GPS values based on baseline elevation
+    ds["gps_lat"], ds["gps_lon"], ds["gps_alt"] = gps.filter(ds["gps_lat"], ds["gps_lon"], ds["gps_alt"])
 
     # removing dlr and ulr that are missing t_rad
     # this is done now becasue t_rad can be filtered either manually or with persistence

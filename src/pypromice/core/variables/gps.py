@@ -8,6 +8,77 @@ import pandas as pd
 import logging
 logger = logging.getLogger(__name__)
 
+def filter(gps_lat: xr.DataArray,
+           gps_lon: xr.DataArray,
+           gps_alt: xr.DataArray
+) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+    """ Filter GPS latitude, longitude and altitude based on the difference
+    to a baseline elevation. The baseline elevation is a gap-filled monthly
+    median elevation based on the inputted GPS altitude.
+
+    Parameters
+    ----------
+    gps_lat : xr.DataArray
+        GPS latitude
+    gps_lon : xr.DataArray
+        GPS longitude
+    gps_alt : xr.DataArray
+        GPS altitude values with a time dimension
+
+    Returns
+    ----------
+    gps_lat_filtered : xr.DataArray
+        Filtered latitude values
+    gps_lon_filtered : xr.DataArray
+        Filtered longitude values
+    gps_alt_filtered : xr.DataArray
+        Filtered altitude values
+    """
+    # Get baseline elevations
+    baseline_elevation = get_baseline_elevation(gps_alt)
+
+    # Produce conditional mask
+    mask = (np.abs(gps_alt - baseline_elevation) < 100) | gps_alt.isnull()
+
+    # Apply mask
+    gps_lat_filtered = gps_lat.where(mask)
+    gps_lon_filtered = gps_lon.where(mask)
+    gps_alt_filtered = gps_alt.where(mask)
+
+    return gps_lat_filtered, gps_lon_filtered, gps_alt_filtered
+
+
+def get_baseline_elevation(gps_alt: xr.DataArray) -> pd.Series:
+    """
+    Return gap-filled monthly median elevation for filtering purposes.
+
+    Parameters
+    ----------
+    gps_alt : xr.DataArray
+        Altitude values with a time dimension.
+
+    Returns
+    -------
+    baseline_elevation : pd.Series
+        A pandas Series indexed like `gps_alt.time`, containing the
+        monthly-median-based, gap-filled elevation.
+    """
+    # Convert to pandas Series (time as index)
+    ser = gps_alt.to_series()
+
+    # Compute monthly median at month start ('MS')
+    monthly_median = ser.resample("MS").median()
+
+    # Reindex back to the original timestamps
+    baseline_elevation = (
+        monthly_median
+        .reindex(ser.index, method="nearest")
+        .ffill()
+        .bfill()
+    )
+
+    return baseline_elevation
+
 def convert_from_degrees_and_decimal_minutes(gps):
     """Convert positions (i.e. latitude, longitude) from degrees
     and decimal minutes format (ddmm.mmmm) to decimal degree
