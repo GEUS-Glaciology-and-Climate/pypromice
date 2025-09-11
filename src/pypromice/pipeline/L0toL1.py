@@ -74,9 +74,11 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
 
     # Decode GPS information if array is an object array
     if gps.flag_for_decoding(ds["gps_lat"]):
-        ds["gps_lat"], ds["gps_lon"], ds["gps_time"] = gps.decode(ds["gps_lat"],
-                                                                  ds["gps_lon"],
-                                                                  ds["gps_time"])
+        lat, lon, time = gps.decode(ds["gps_lat"], ds["gps_lon"], ds["gps_time"])
+        if lat is None:
+            logger.warning("GPS decoding failed, skipping this routine.")
+        else:
+            ds["gps_lat"], ds["gps_lon"], ds["gps_time"] = lat, lon, time
 
     for l in ['gps_lat', 'gps_lon', 'gps_alt','gps_time']:
         ds[l] = _reformatArray(ds[l])

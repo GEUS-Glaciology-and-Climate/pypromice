@@ -190,6 +190,7 @@ def decode(gps_lat: xr.DataArray,
     except Exception as e:
         logger.error(f"Failed to decode GPS data: {e!r} "
                      f"(dtype={gps_lat.dtype})")
+        return None, None, None
 
 
 def gps_object_decoder(gps : xr.DataArray) -> xr.DataArray:
