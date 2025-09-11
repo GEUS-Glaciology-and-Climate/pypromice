@@ -55,7 +55,7 @@ class TestFilter(unittest.TestCase):
         gps_alt = xr.DataArray([1000]*30 + [1200]*30, dims=["time"], coords={"time": time})
 
         lat_f, lon_f, alt_f = filter(gps_lat, gps_lon, gps_alt)
-        
+
         # First month should be kept (1000 ±100), second month values outside threshold (1200 vs median 1000) → masked
         first_month_mask = np.isnan(alt_f.sel(time=slice("2025-01-20","2025-01-30")))
         second_month_mask = np.isnan(alt_f.sel(time=slice("2025-02-01","2025-02-10")))

@@ -70,7 +70,9 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     # Decode and convert GPS positions
     ds["gps_lat"], ds["gps_lon"], ds["gps_time"] = gps.decode_and_convert(ds["gps_lat"],
                                                                           ds["gps_lon"],
-                                                                          ds["gps_time"])
+                                                                          ds["gps_time"],
+                                                                          ds.attrs["latitude"],
+                                                                          ds.attrs["longitude"])
 
     if hasattr(ds, 'logger_type'):                                             # Convert tilt voltage to degrees
         if ds.attrs['logger_type'].upper() == 'CR1000':
