@@ -1,7 +1,6 @@
-__all__ = ["decode", "filter", "piecewise_smoothing_and_interpolation",
-           "convert_from_degrees_and_decimal_minutes",
-           "convert_from_decimal_minutes", "flag_decimal_minutes",
-           "flag_for_decoding"]
+__all__ = ["decode_and_convert",  "filter", "piecewise_smoothing_and_interpolation",
+           "decode", "convert_from_degrees_and_decimal_minutes",
+           "convert_from_decimal_minutes"]
 
 import xarray as xr
 import numpy as np
@@ -66,6 +65,71 @@ def piecewise_smoothing_and_interpolation(data_series, breaks):
     df_all = df_all[~df_all.index.duplicated(keep='last')]
     return df_all.values
 
+def decode_and_convert(gps_lat: xr.DataArray,
+                       gps_lon: xr.DataArray,
+                       gps_time: xr.DataArray,
+                       latitude: float,
+                       longitude: float
+) -> tuple[xr.DataArray,xr.DataArray,xr.DataArray]:
+    """Decode and convert GPS latitude, longtitude and time values."flag_decimal_minutes",
+           "flag_for_decoding"
+    Decoding is performed if values are detected as string types.
+    Conversion consists of transforming to decimal degrees (DD),
+    from either decimal minutes (mm.mmmmm) or degrees and
+    decimal minutes (ddmm.mmmm)
+
+    Parameters
+    ----------
+    gps_lat : `xr.DataArray`
+        GPS latitude
+    gps_lon : `xr.DataArray`
+        GPS longitude
+    gps_time : `xr.DataArray`
+        GPS time
+
+    Returns
+    -------
+    gps_lat : `xr.DataArray`
+        Decoded and converted GPS latitude
+    gps_lon : `xr.DataArray`
+        Decoded and converted GPS longitude
+    gps_time : `xr.DataArray`
+        Decoded and converted GPS time
+    """
+    # Retain GPS array attributes
+    lat_attrs = gps_lat.attrs
+    lon_attrs = gps_lon.attrs
+    time_attrs = gps_time.attrs
+
+    # Decode GPS information if array is an object array
+    if gps_lat.dtype.kind == "O":
+        lat, lon, time = decode(gps_lat, gps_lon, gps_time)
+        if lat is None:
+            logger.warning("GPS decoding failed, skipping this routine.")
+        else:
+            gps_lat, gps_lon, gps_time = lat, lon, time
+
+    # Reformat values to numeric
+#    gps_lat.values = pd.to_numeric(gps_lat, errors='coerce')
+#    gps_lon.values = pd.to_numeric(gps_lon, errors='coerce')
+#    gps_time.values = pd.to_numeric(gps_time, errors='coerce')
+
+    # Convert GPS positions to decimal degrees
+    if np.any((gps_lat <= 90) & (gps_lat > 0)):
+        gps_lat = convert_from_decimal_minutes(gps_lat, latitude)
+        gps_lon = convert_from_decimal_minutes(gps_lon, longitude)
+    else:
+        gps_lat = convert_from_degrees_and_decimal_minutes(gps_lat)
+        gps_lon = convert_from_degrees_and_decimal_minutes(gps_lon)
+
+    # Reassign GPS array attributes
+    gps_lat.attrs = lat_attrs
+    gps_lon.attrs = lon_attrs
+    gps_time.attrs = time_attrs
+
+    return gps_lat, gps_lon, gps_time
+
+
 def filter(gps_lat: xr.DataArray,
            gps_lon: xr.DataArray,
            gps_alt: xr.DataArray
@@ -92,8 +156,16 @@ def filter(gps_lat: xr.DataArray,
     gps_alt_filtered : xr.DataArray
         Filtered altitude values
     """
-    # Get baseline elevations
-    baseline_elevation = get_baseline_elevation(gps_alt)
+    # Get altitude monthly median (at month start)
+    # This will serve as baseline elevations for filtering
+    ser = gps_alt.to_series()
+    monthly_median = ser.resample("MS").median()
+    baseline_elevation = (
+        monthly_median
+        .reindex(ser.index, method="nearest")
+        .ffill()
+        .bfill()
+    )
 
     # Produce conditional mask
     mask = (np.abs(gps_alt - baseline_elevation) < 100) | gps_alt.isnull()
@@ -106,89 +178,21 @@ def filter(gps_lat: xr.DataArray,
     return gps_lat_filtered, gps_lon_filtered, gps_alt_filtered
 
 
-def get_baseline_elevation(gps_alt: xr.DataArray) -> pd.Series:
-    """
-    Return gap-filled monthly median elevation for filtering purposes.
-
-    Parameters
-    ----------
-    gps_alt : xr.DataArray
-        Altitude values with a time dimension.
-
-    Returns
-    -------
-    baseline_elevation : pd.Series
-        A pandas Series indexed like `gps_alt.time`, containing the
-        monthly-median-based, gap-filled elevation.
-    """
-    # Convert to pandas Series (time as index)
-    ser = gps_alt.to_series()
-
-    # Compute monthly median at month start ('MS')
-    monthly_median = ser.resample("MS").median()
-
-    # Reindex back to the original timestamps
-    baseline_elevation = (
-        monthly_median
-        .reindex(ser.index, method="nearest")
-        .ffill()
-        .bfill()
-    )
-
-    return baseline_elevation
-
 def convert_from_degrees_and_decimal_minutes(gps):
     """Convert positions (i.e. latitude, longitude) from degrees
-    and decimal minutes format (ddmm.mmmm) to decimal degree
-    values (DD).
-
-    Parameters
-    ----------
-    gps : `xr.DataArray`
-        Array of latitude or longitude measured by the GPS
-
-    Returns
-    -------
-    `xr.DataArray`
-        Formatted GPS position array in decimal degree
-    """
+    and decimal minutes (ddmm.mmmm) to decimal degree values (DD)"""
     return np.floor(gps / 100) + (gps / 100 - np.floor(gps / 100)) * 100 / 60
 
 
 def convert_from_decimal_minutes(gps: xr.DataArray, pos: float
 ) -> xr.DataArray:
     """Convert decimal minutes (mm.mmmmm) to decimal degree
-    values (DD). In this case, we use the integer part of the
-    latitude/longitude array attribute and append the gps value
-    after it to form the degrees and decimal minutes positions
-    as an intermediary step.
-
-    This is applied, for example, in the case of PROMICE v1
-    stations, where logger programs saved positions only in
-    decimal minutes.
-
-    Parameters
-    ----------
-    gps : `xr.DataArray`
-        Array of latitude or longitude measured by the GPS
-    pos : float
-        A global, static position (e.g. latitude, longtitude)
-
-    Returns
-    -------
-    `xr.DataArray`
-        Formatted GPS position array in decimal degree
-    """
+    values (DD), using a predefined position to append values to.
+    Needed in the case of PROMICE v1 stations, where logger
+    programs saved positions only in decimal minutes."""
     new_gps = np.sign(pos) * (gps + 100 * np.floor(np.abs(pos)))
     return convert_from_degrees_and_decimal_minutes(new_gps)
 
-def flag_decimal_minutes(gps_lat: xr.DataArray
-) -> bool:
-    """Flag if GPS positions are recorded in decimal minutes (mm.mmmmm)"""
-    if np.any((gps_lat <= 90) & (gps_lat > 0)):
-        return True
-    else:
-        return False
 
 def decode(gps_lat: xr.DataArray,
            gps_lon: xr.DataArray,
@@ -219,18 +223,17 @@ def decode(gps_lat: xr.DataArray,
     # Pick the first non-null sample safely and detect decoding format
     non_null = gps_lat.dropna(dim='time').values
     sample_value = str(non_null[0])
-    fmt = detect_format(sample_value)
 
     try:
         # Object decoding
-        if fmt == "NH":
+        if "NH" in sample_value:
             new_lat = gps_object_decoder(gps_lat)
             new_lon = gps_object_decoder(gps_lon)
             new_time = gps_object_decoder(gps_time)
             return new_lat, new_lon, new_time
 
         # L-string decoding
-        elif fmt == "L":
+        elif "L" in sample_value:
             logger.info("Found 'L' in GPS string; applying decode + scaling.")
             new_lat = gps_l_string_decoder(gps_lat)
             new_lon = gps_l_string_decoder(gps_lon)
@@ -252,17 +255,16 @@ def decode(gps_lat: xr.DataArray,
 
 
 def gps_object_decoder(gps : xr.DataArray) -> xr.DataArray:
-    """GPS decoder for object array formatting. For example,
-    PROMICE v2 stations should send information as
-    'NH6429.01544,WH04932.86061' original formatting
-    (NUK_L 2022); PROMICE v3 stations should send
-    coordinates as '6430,4916' (NUK_Uv3); and GC-Net
-    stations should send coordinates as
-    '6628.93936',04617.59187' (DY2)"""
+    """GPS decoder for object array formatting. For example, PROMICE v2
+    stations should send information as 'NH6429.01544,WH04932.86061'
+    original formatting (NUK_L 2022); PROMICE v3 stations should send
+    coordinates as '6430,4916' (NUK_Uv3); and GC-Net stations should
+    send coordinates as '6628.93936',04617.59187' (DY2)"""
     str2nums = [re.findall(r"[-+]?\d*\.\d+|\d+", _) if isinstance(_, str) else [np.nan] for _ in gps.values]
     gps[:] = pd.DataFrame(str2nums).astype(float).T.values[0]
     gps = gps.astype(float)
     return gps
+
 
 def gps_l_string_decoder(gps : xr.DataArray) -> xr.DataArray:
     """GPS L-string decoder"""
@@ -272,25 +274,3 @@ def gps_l_string_decoder(gps : xr.DataArray) -> xr.DataArray:
     # Convert from integer-like values to degrees
     gps = gps/100000
     return gps
-
-def flag_for_decoding(gps : xr.DataArray) -> bool:
-    """
-    Check if GPS values need decoding.
-    If true then decoding routine is needed.
-    """
-    if gps.dtype.kind == "O":
-        return True
-    else:
-        return False
-
-def detect_format(sample_value : str) -> str | None:
-    """
-    Infer the GPS string format from a sample value.
-    Returns one of: "NH", "L", or None if no known marker is found.
-    """
-    if "NH" in sample_value:
-        return "NH"
-    elif "L" in sample_value:
-        return "L"
-    else:
-        return None

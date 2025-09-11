@@ -67,34 +67,10 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
 
     ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u_interp'] + T_0)/T_0)**0.5      # Adjust sonic ranger readings for sensitivity to air temperature
 
-    # Retain GPS array attributes
-    lat_attrs = ds["gps_lat"].attrs
-    lon_attrs = ds["gps_lon"].attrs
-    time_attrs = ds["gps_time"].attrs
-
-    # Decode GPS information if array is an object array
-    if gps.flag_for_decoding(ds["gps_lat"]):
-        lat, lon, time = gps.decode(ds["gps_lat"], ds["gps_lon"], ds["gps_time"])
-        if lat is None:
-            logger.warning("GPS decoding failed, skipping this routine.")
-        else:
-            ds["gps_lat"], ds["gps_lon"], ds["gps_time"] = lat, lon, time
-
-    for l in ['gps_lat', 'gps_lon', 'gps_alt','gps_time']:
-        ds[l] = _reformatArray(ds[l])
-
-    # Convert GPS positions to decimal degrees
-    if gps.flag_decimal_minutes(ds["gps_lat"]):
-        ds["gps_lat"] = gps.convert_from_decimal_minutes(ds["gps_lat"], ds.attrs["latitude"])
-        ds["gps_lon"] = gps.convert_from_decimal_minutes(ds["gps_lon"], ds.attrs["longitude"])
-    else:
-        ds['gps_lat'] = gps.convert_from_degrees_and_decimal_minutes(ds['gps_lat'])
-        ds['gps_lon'] = gps.convert_from_degrees_and_decimal_minutes(ds['gps_lon'])
-
-    # Reassign GPS array attributes
-    ds["gps_lat"].attrs = lat_attrs
-    ds["gps_lon"].attrs = lon_attrs
-    ds["gps_time"].attrs = time_attrs
+    # Decode and convert GPS positions
+    ds["gps_lat"], ds["gps_lon"], ds["gps_time"] = gps.decode_and_convert(ds["gps_lat"],
+                                                                          ds["gps_lon"],
+                                                                          ds["gps_time"])
 
     if hasattr(ds, 'logger_type'):                                             # Convert tilt voltage to degrees
         if ds.attrs['logger_type'].upper() == 'CR1000':
