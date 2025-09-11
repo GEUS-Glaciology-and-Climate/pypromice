@@ -110,9 +110,9 @@ def decode_and_convert(gps_lat: xr.DataArray,
             gps_lat, gps_lon, gps_time = lat, lon, time
 
     # Reformat values to numeric
-#    gps_lat.values = pd.to_numeric(gps_lat, errors='coerce')
-#    gps_lon.values = pd.to_numeric(gps_lon, errors='coerce')
-#    gps_time.values = pd.to_numeric(gps_time, errors='coerce')
+    gps_lat.values = pd.to_numeric(gps_lat, errors='coerce')
+    gps_lon.values = pd.to_numeric(gps_lon, errors='coerce')
+    gps_time.values = pd.to_numeric(gps_time, errors='coerce')
 
     # Convert GPS positions to decimal degrees
     if np.any((gps_lat <= 90) & (gps_lat > 0)):
