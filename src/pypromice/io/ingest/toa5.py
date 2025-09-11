@@ -1,8 +1,14 @@
+"""
+This module provides functionality to read and convert Campbell Scientific TOA5 files into xarray
+datasets. It extracts metadata, variable names, units, and statistical types, and formats the
+data for further analysis.
+"""
 from pathlib import Path
 from typing import Dict
 
 import pandas as pd
 import xarray as xr
+
 
 def read_metadata(filepath: Path|str, raise_exception_on_error: bool = False)  -> Dict | None:
     # 1) Read the first four lines manually
