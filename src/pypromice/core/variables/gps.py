@@ -1,7 +1,7 @@
 __all__ = ["decode_and_convert",  "filter", "piecewise_smoothing_and_interpolation",
            "decode", "convert_from_degrees_and_decimal_minutes",
            "convert_from_decimal_minutes"]
-
+import re
 import xarray as xr
 import numpy as np
 import pandas as pd
