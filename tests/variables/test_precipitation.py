@@ -92,5 +92,30 @@ class TestPrecipConvert(unittest.TestCase):
         result = convert_to_rate(precip_desc, self.wspd, self.t)
         self.assertTrue(np.isnan(result.values).all())
 
+    def test_precipitation_counter_reset(self):
+        # The expected precipitation rate should have the same dimension and coordinates as the input
+        precip_accumulated_values =   [0.0, 1.0, 1.0, 3.0, 6.0, np.nan, 0.0,    1.0, np.nan, 2.0]
+        expected_precip_rate_values = [0.0, 1.0, 0.0, 2.0, 3.0, np.nan, np.nan, 1.0, np.nan, np.nan]
+
+        n_values = len(precip_accumulated_values)
+        time = pd.date_range("2025-06-01", periods=n_values, freq="H")
+        wspd = xr.DataArray(np.zeros(shape=n_values), dims="time", coords={"time": time})
+        temperature = xr.DataArray(np.ones(shape=n_values), dims="time", coords={"time": time})
+        precip_accumulated = xr.DataArray(precip_accumulated_values, dims="time", coords={"time": time})
+        expected_precip_rate = xr.DataArray(expected_precip_rate_values, dims="time", coords={"time": time})
+
+        result = convert_to_rate(precip_accumulated, wspd, temperature)
+
+        xr.testing.assert_equal(result, expected_precip_rate)
+
+    def test_irregular_sample_rates(self):
+        self.fail()
+
+    def test_sub_hourly_rates(self):
+        self.fail()
+
+    def test_sup_hourly_rates(self):
+        self.fail()
+
 if __name__ == "__main__":
     unittest.main()
