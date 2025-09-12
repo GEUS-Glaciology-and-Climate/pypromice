@@ -1,4 +1,4 @@
-__all__ = ["convert_to_rate_and_correct_undercatch", "filter_lufft_errors"]
+__all__ = ["convert_to_rate_and_correct_undercatch", "filter_lufft_errors", "get_rate"]
 
 import numpy as np
 import xarray as xr
@@ -66,35 +66,59 @@ def convert_to_rate_and_correct_undercatch(
     precip_rate : xr.DataArray
         Corrected precipitation rate
     """
-    nan_mask = precip.isnull()
+    precip_rate = get_rate(precip)
 
     # Calculate undercatch correction factor
-    corr=100/(100.00-4.37*wspd+0.35*wspd*wspd)
+    corr = 100 / (100.00 - 4.37 * wspd + 0.35 * wspd * wspd)
 
     # Fix all values below 1.02 to 1.02
-    corr = corr.where(corr>1.02, other=1.02)
-
-    # Fill nan values in precip with preceding value
-    precip = precip.ffill(dim='time')
-
-    # Calculate precipitation rate and makes sure it remains of the same size
-    # and taking into account the time step size to ensure mm/hr
-    dt_hours = precip['time'].diff('time') / np.timedelta64(1, 'h')
-    dt_hours = dt_hours.reindex_like(precip)
-    precip_rate = precip.diff('time') / dt_hours
+    corr = corr.where(corr > 1.02, other=1.02)
 
     # Apply correction to rate
-    precip_rate = precip_rate*corr
+    precip_rate = precip_rate * corr
 
     # Removing all negative precipitation rates
-    precip_rate = precip_rate.where(precip_rate>0)
+    precip_rate = precip_rate.where(precip_rate > 0)
 
     # Filtering cold season precipitation measurements
-    rain_in_cold = (precip_rate>0) & (t<-2)
+    rain_in_cold = (precip_rate > 0) & (t < -2)
     precip_rate = precip_rate.where(~rain_in_cold)
 
+    return precip_rate
+
+
+def get_rate(
+    precip: xr.DataArray,
+) -> xr.DataArray:
+    """
+    Calculates the precipitation rate by differentiating the precipitation values
+    with respect to time while considering the time step size to ensure the rate
+    is in the units of mm/hr. It also handles missing values by forward-filling
+    and removes results at locations where calculation depends on interpolated
+    values.
+
+    Parameters
+    ----------
+    precip : xarray.DataArray
+        The precipitation data with a time dimension. It includes timestamped
+        precipitation values.
+
+    Returns
+    -------
+    xarray.DataArray
+        The calculated precipitation rate with the same dimensions as the input
+        data. Missing values are ignored in the rate calculation and replaced
+        appropriately.
+    """
+    nan_mask = precip.isnull()
+    # Fill nan values in precip with preceding value
+    precip = precip.ffill(dim="time")
+    # Calculate precipitation rate and makes sure it remains of the same size
+    # and taking into account the time step size to ensure mm/hr
+    dt_hours = precip["time"].diff("time") / np.timedelta64(1, "h")
+    dt_hours = dt_hours.reindex_like(precip)
+    precip_rate = precip.diff("time") / dt_hours
     # Removing timestamps where precipitation rates have been calculated over
     # interpolated values
     precip_rate = precip_rate.where(~nan_mask)
-
     return precip_rate
