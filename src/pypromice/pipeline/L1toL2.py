@@ -9,11 +9,11 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypromice.qc.github_data_issues import flagNAN, adjustTime, adjustData
-from pypromice.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
-from pypromice.qc.persistence import persistence_qc
-from pypromice.process.value_clipping import clip_values
-from pypromice.process import wind
+from pypromice.core.qc.github_data_issues import flagNAN, adjustTime, adjustData
+from pypromice.core.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
+from pypromice.core.qc.persistence import persistence_qc
+from pypromice.core.qc.value_clipping import clip_values
+from pypromice.core.variables import wind
 
 __all__ = [
     "toL2",
@@ -158,7 +158,7 @@ def toL2(
                                               ds['wspd_u'])
     ds['wspd_x_u'], ds['wspd_y_u'] = wind.calculate_directional_wind_speed(ds['wspd_u'],
                                                                            ds['wdir_u'])
-
+    
     # Calculate directional wind speed for lower boom
     if ds.attrs['number_of_booms'] == 2:
         ds['wdir_l'] = wind.filter_wind_direction(ds['wdir_l'],
@@ -176,7 +176,6 @@ def toL2(
             # Get directional wind speed
 
     ds = clip_values(ds, vars_df)
-
     return ds
 
 def process_sw_radiation(ds):
@@ -517,7 +516,6 @@ def process_luft_precipitation(precip, wspd, t, p, rh):
     precip_rate : xarray.DataArray
         Precipitation rate corrected
     '''
-
     # filter time steps where t, p or rh are not available, meaning that the Lufft is not working
     mask = (t.isnull() | p.isnull() | rh.isnull()) & (precip == 0)
     precip = precip.where(~mask)

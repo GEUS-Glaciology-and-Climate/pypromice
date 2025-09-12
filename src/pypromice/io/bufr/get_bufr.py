@@ -23,11 +23,11 @@ from typing import List, Dict, Optional, Sequence, Mapping
 import numpy as np
 import pandas as pd
 
-from pypromice.postprocess.bufr_utilities import write_bufr_message, BUFRVariables
-from pypromice.postprocess.real_time_utilities import get_latest_data
+from pypromice.io.bufr.bufr_utilities import write_bufr_message, BUFRVariables
+from pypromice.io.bufr.real_time_utilities import get_latest_data
 
 
-from pypromice.station_configuration import (
+from pypromice.io.bufr.station_configuration import (
     StationConfiguration,
     load_station_configuration_mapping,
 )

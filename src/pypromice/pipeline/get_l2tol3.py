@@ -5,9 +5,9 @@ from pathlib import Path
 import xarray as xr
 from argparse import ArgumentParser
 import pypromice
-from pypromice.process.L2toL3 import toL3
+from pypromice.pipeline.L2toL3 import toL3
 import pypromice.resources
-from pypromice.process.write import prepare_and_write
+from pypromice.io.write import prepare_and_write
 logger = logging.getLogger(__name__)
 
 def parse_arguments_l2tol3(debug_args=None):
@@ -97,9 +97,6 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
 
 def main():
     args = parse_arguments_l2tol3()
-
-
-
     _ = get_l2tol3(args.config_folder,
                    args.inpath,
                    args.outpath,

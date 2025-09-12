@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from sklearn.linear_model import LinearRegression
-from pypromice.qc.github_data_issues import adjustData
+from pypromice.core.qc.github_data_issues import adjustData
 from scipy.interpolate import interp1d
 from pathlib import Path
 import logging
@@ -223,6 +223,7 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
 
         z_ice_surf = z_ice_surf.reindex(ds.time,
                                         method=None).interpolate(method='time')
+
         # here we make sure that the periods where both z_stake and z_pt are
         # missing are also missing in z_ice_surf
         msk = ds['z_ice_surf'].notnull() | ds['z_surf_2_adj'].notnull()
@@ -894,7 +895,7 @@ def get_thermistor_depth(df_in, site, station_config):
         ).set_index('date').values
         df_in['t_i_10m'] = df_in_h['t_i_10m'].reindex(df_in.index,
                                         method=None).interpolate(method='time')
-
+        
         # filtering
         ind_pos = df_in["t_i_10m"] > 0.1
         ind_low = df_in["t_i_10m"] < -70

@@ -3,10 +3,10 @@ from datetime import datetime
 
 import pandas as pd
 
-from pypromice.process import AWS
+from pypromice.pipeline.aws import AWS
 from pathlib import Path
 import logging
-from pypromice.qc.github_data_issues import adjustTime, flagNAN, adjustData
+from pypromice.core.qc.github_data_issues import adjustTime, flagNAN, adjustData
 
 
 # %%

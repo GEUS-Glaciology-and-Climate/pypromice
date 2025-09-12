@@ -3,7 +3,7 @@ import logging, sys, os, unittest
 import pandas as pd
 import xarray as xr
 from argparse import ArgumentParser
-from pypromice.process.write import prepare_and_write
+from pypromice.io.write import prepare_and_write
 logger = logging.getLogger(__name__)
 
 def parse_arguments_join():
@@ -45,7 +45,6 @@ def loadArr(infile):
 
     logger.info(f'{name} array loaded from {infile}')
     return ds, name
-
 
 def join_l2(file1,file2,outpath,variables,metadata) -> xr.Dataset:
     logging.basicConfig(

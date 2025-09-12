@@ -3,13 +3,13 @@ acknowledgements,The Programme for Monitoring of the Greenland Ice Sheet (PROMIC
 alt.axis,Z
 alt.coverage_content_type,coordinate
 gps_alt.positive,up
-cdm_data_type,
+cdm_data_type,Station
 comment,https://doi.org/10.22008/promice/data/aws
 contributor_name,
 contributor_role,
 conventions,ACDD-1.3; CF-1.7
-creater_email,pho@geus.dk
-creater_url,https://promice.dk
+creator_email,pho@geus.dk
+creator_url,https://promice.dk
 creator_institution,Geological Survey of Denmark and Greenland (GEUS)
 creator_name,Penelope How
 creator_type,person
@@ -22,7 +22,7 @@ geospatial_lon_extents_match,gps_lon
 geospatial_lon_resolution,
 geospatial_lon_units,degrees_east
 geospatial_vertical_resolution,
-geospatial_vertical_units,EPSG:4979
+geospatial_vertical_units,meters
 institution,Geological Survey of Denmark and Greenland (GEUS)
 instrument,See https://doi.org/10.5194/essd-13-3819-2021
 instrument_vocabulary,GCMD:GCMD Keywords
