@@ -16,6 +16,7 @@ Functions and attributes exposed:
     - Mechanisms to verify dataset presence and access configuration paths.
 
 """
+
 import dataclasses
 from pathlib import Path
 from typing import List, Protocol, Iterable
@@ -47,7 +48,7 @@ class L0RepositoryFS:
     template_raw_config = "raw/config/{station_id}.toml"
     template_row_data_root = "raw/{station_id}/"
 
-    def get_tx_config(self, station_id: str) -> Path:
+    def get_tx_config_path(self, station_id: str) -> Path:
         return self.root / self.template_tx_config.format(station_id=station_id)
 
     def get_tx_data_root(self, station_id: str) -> Path:
@@ -60,31 +61,35 @@ class L0RepositoryFS:
         return self.root / self.template_row_data_root.format(station_id=station_id)
 
     def contains_tx(self, station_id: str) -> bool:
-        return self.get_tx_config(station_id).exists()
+        return self.get_tx_config_path(station_id).exists()
 
     def contains_raw(self, station_id: str) -> bool:
         return self.get_raw_config_path(station_id).exists()
 
     def get_tx(self, station_id: str) -> List[xr.Dataset]:
-        config = load_config(
-            self.get_tx_config(station_id),
+        return load_data_files(self.get_tx_config(station_id))
+
+    def get_tx_config(self, station_id):
+        return load_config(
+            self.get_tx_config_path(station_id),
             self.get_tx_data_root(station_id),
         )
-        return load_data_files(config)
 
     def get_raw(self, station_id: str) -> List[xr.Dataset]:
-        config = load_config(
+        return load_data_files(self.get_raw_config(station_id))
+
+    def get_raw_config(self, station_id):
+        return load_config(
             self.get_raw_config_path(station_id),
             self.get_raw_data_root(station_id),
         )
-        return load_data_files(config)
 
     def get_available_stations(self) -> List[str]:
         """
         Iterate over all available station configuration files
 
         """
-        tx_pattern = self.get_tx_config("*")
+        tx_pattern = self.get_tx_config_path("*")
         raw_pattern = self.get_raw_config_path("*")
 
         station_ids = {
@@ -96,4 +101,3 @@ class L0RepositoryFS:
         }
 
         return sorted(station_ids)
-
