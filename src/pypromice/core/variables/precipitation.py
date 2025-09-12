@@ -33,6 +33,7 @@ def filter(precip: xr.DataArray,
     mask = (t.isnull() | p.isnull() | rh.isnull()) & (precip == 0)
     return precip.where(~mask)
 
+
 def convert_to_rate(precip: xr.DataArray,
                     wspd: xr.DataArray,
                     t: xr.DataArray
