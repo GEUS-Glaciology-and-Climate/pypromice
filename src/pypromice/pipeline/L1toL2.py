@@ -140,12 +140,12 @@ def toL2(
     else:
         precip_flag=True
     if ~ds["precip_u"].isnull().all() and precip_flag:
-        ds["precip_u"] = precipitation.mask(ds["precip_u"], ds["t_u"], ds["p_u"], ds["rh_u"])
+        ds["precip_u"] = precipitation.filter(ds["precip_u"], ds["t_u"], ds["p_u"], ds["rh_u"])
         ds["precip_rate_u"] = precipitation.correct(ds["precip_u"], ds["wspd_u"], ds["t_u"])
 
     if ds.attrs["number_of_booms"]==2:
         if ~ds["precip_l"].isnull().all() and precip_flag:
-                ds["precip_l"] = precipitation.mask(ds["precip_l"], ds["t_l"], ds["p_l"], ds["rh_l"])
+                ds["precip_l"] = precipitation.filter(ds["precip_l"], ds["t_l"], ds["p_l"], ds["rh_l"])
                 ds["precip_rate_l"] = precipitation.correct(ds["precip_l"], ds["wspd_l"], ds["t_l"])
 
     # Calculate directional wind speed for upper boom
