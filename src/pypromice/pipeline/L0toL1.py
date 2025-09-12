@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import re, logging
-from pypromice.process.value_clipping import clip_values
-from pypromice.process import wind
+from pypromice.core.qc.value_clipping import clip_values
+from pypromice.core.variables import wind, air_temperature
 logger = logging.getLogger(__name__)
 
 
@@ -60,7 +60,11 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
 
     ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
 
-    ds['t_u_interp'] = interpTemp(ds['t_u'], vars_df)
+    # Find range threshold and use it to clip and interpolate temperature measurements
+    tu_lo = vars_df.loc["t_u","lo"]
+    tu_hi = vars_df.loc["t_u","hi"]
+    ds["t_u_interp"] = air_temperature.clip_and_interpolate(ds["t_u"], tu_lo, tu_hi)
+
     ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u_interp'] + T_0)/T_0)**0.5      # Adjust sonic ranger readings for sensitivity to air temperature
 
     if ds['gps_lat'].dtype.kind == 'O':                                        # Decode and reformat GPS information
@@ -150,7 +154,12 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
 
     elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height
-        ds['t_l_interp'] = interpTemp(ds['t_l'], vars_df)
+
+        # Find range threshold and use it to clip and interpolate temperature measurements
+        tl_lo = vars_df.loc["t_l", "lo"]
+        tl_hi = vars_df.loc["t_l", "hi"]
+        ds["t_l_interp"] = air_temperature.clip_and_interpolate(ds["t_l"], tl_lo, tl_hi)
+
         ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l_interp']+ T_0)/T_0)**0.5   # Adjust sonic ranger readings for sensitivity to air temperature
 
     ds = clip_values(ds, vars_df)
@@ -295,38 +304,7 @@ def getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef):
     return z_pt_cor, z_pt
 
 
-def interpTemp(temp, var_configurations, max_interp=pd.Timedelta(12,'h')):
-    '''Clip and interpolate temperature dataset for use in corrections
 
-    Parameters
-    ----------
-    temp : `xarray.DataArray`
-        Array of temperature data
-    vars_df : `pandas.DataFrame`
-        Dataframe to retrieve attribute hi-lo values from for temperature clipping
-    max_interp : `pandas.Timedelta`
-        Maximum time steps to interpolate across. The default is 12 hours.
-
-    Returns
-    -------
-    temp_interp : `xarray.DataArray`
-        Array of interpolatedtemperature data
-    '''
-    # Determine if upper or lower temperature array
-    var = temp.name.lower()
-
-    # Find range threshold and use it to clip measurements
-    cols = ["lo", "hi", "OOL"]
-    assert set(cols) <= set(var_configurations.columns)
-    variable_limits = var_configurations[cols].dropna(how="all")
-    temp = temp.where(temp >= variable_limits.loc[var,'lo'])
-    temp = temp.where(temp <= variable_limits.loc[var, 'hi'])
-
-    # Drop duplicates and interpolate across NaN values
-#    temp_interp = temp.drop_duplicates(dim='time', keep='first')
-    temp_interp = temp.interpolate_na(dim='time', max_gap=max_interp)
-
-    return temp_interp
 
 
 def smoothTilt(tilt, win_size):

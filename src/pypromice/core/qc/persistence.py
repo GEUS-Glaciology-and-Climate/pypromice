@@ -26,7 +26,6 @@ DEFAULT_VARIABLE_THRESHOLDS = {
 
     # gets special handling to remove simultaneously constant gps_lat and gps_lon
     "gps_lat_lon": {"max_diff": 0.000001, "period": 6},
-
     "gps_alt": {"max_diff": 0.0001, "period": 6},
     "t_rad": {"max_diff": 0.0001, "period": 2},
 

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypromice.qc.percentiles.outlier_detector import (
+from pypromice.core.qc.percentiles.outlier_detector import (
     detect_outliers,
     filter_data,
     ThresholdBasedOutlierDetector,

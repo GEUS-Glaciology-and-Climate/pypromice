@@ -4,9 +4,9 @@ from typing import Optional
 from unittest import TestCase
 
 import toml
-from pypromice.station_configuration import write_station_configuration_mapping
+from pypromice.io.bufr.station_configuration import write_station_configuration_mapping
 
-from pypromice.postprocess.create_bufr_files import create_bufr_files
+from pypromice.io.bufr.create_bufr_files import create_bufr_files
 from tests.utilities import get_station_configuration
 
 DATA_DIR = Path(__file__).parent.absolute()

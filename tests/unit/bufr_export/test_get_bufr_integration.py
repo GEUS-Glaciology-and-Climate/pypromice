@@ -14,9 +14,9 @@ from unittest import TestCase
 import numpy as np
 import pandas as pd
 
-from pypromice.postprocess import get_bufr
-from pypromice.postprocess.bufr_utilities import read_bufr_message, BUFRVariables
-from pypromice.station_configuration import (
+from pypromice.io.bufr import get_bufr
+from pypromice.io.bufr.bufr_utilities import read_bufr_message, BUFRVariables
+from pypromice.io.bufr.station_configuration import (
     StationConfiguration,
 )
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from pypromice.postprocess.bufr_utilities import read_bufr_file
+from pypromice.io.bufr.bufr_utilities import read_bufr_file
 
 
 def main():

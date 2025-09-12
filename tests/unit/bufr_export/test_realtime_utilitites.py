@@ -5,7 +5,7 @@ from io import StringIO
 import numpy as np
 import pandas as pd
 
-from pypromice.postprocess.real_time_utilities import get_latest_data
+from pypromice.io.bufr.real_time_utilities import get_latest_data
 
 
 class GetLatestDataTestCase(unittest.TestCase):
