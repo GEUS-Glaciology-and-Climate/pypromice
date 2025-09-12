@@ -156,7 +156,7 @@ def _parse_toa5(conf) -> pd.DataFrame:
     return df
 
 
-def read_data_file(conf: Dict) -> xr.Dataset:
+def load_data_file(conf: Dict) -> xr.Dataset:
     """Read L0 data file to xarray.Dataset using config dictionary and
     populate with initial metadata. The file type is detected automatically.
 
@@ -222,12 +222,12 @@ def load_data_files(config: Dict[str, Dict]) -> List[xr.Dataset]:
     for k in config.keys():
         target = config[k]
         try:
-            ds_list.append(read_data_file(target))
+            ds_list.append(load_data_file(target))
         except pd.errors.ParserError:
             for item in ["msg_lat", "msg_lon"]:
                 if item in target["columns"]:
                     target["columns"].remove(item)
-            ds_list.append(read_data_file(target))
+            ds_list.append(load_data_file(target))
         logger.info(f"L0 data successfully loaded from {k}")
     return ds_list
 
