@@ -17,13 +17,13 @@ def parse_arguments_l2tol3(debug_args=None):
     parser.add_argument('-c', '--config_folder', type=str, required=True,
                         default='../aws-l0/metadata/station_configurations/',
                         help='Path to folder with sites configuration (TOML) files')
-    parser.add_argument('-i', '--inpath', type=str, required=True, 
+    parser.add_argument('-i', '--inpath', type=str, required=True,
                         help='Path to Level 2 .nc data file')
-    parser.add_argument('-o', '--outpath', default=None, type=str, required=False, 
+    parser.add_argument('-o', '--outpath', default=None, type=str, required=False,
                         help='Path where to write output')
-    parser.add_argument('-v', '--variables', default=None, type=str, 
+    parser.add_argument('-v', '--variables', default=None, type=str,
                         required=False, help='File path to variables look-up table')
-    parser.add_argument('-m', '--metadata', default=None, type=str, 
+    parser.add_argument('-m', '--metadata', default=None, type=str,
                         required=False, help='File path to metadata')
     parser.add_argument('--data_issues_path', '--issues', default=None, help="Path to data issues repository")
 
@@ -40,11 +40,11 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
         level=logging.INFO,
         stream=sys.stdout,
     )
-  
+
     # Define Level 2 dataset from file
     with xr.open_dataset(inpath) as l2:
         l2.load()
-    
+
     # Remove encoding attributes from NetCDF
     for varname in l2.variables:
         if l2[varname].encoding!={}:
@@ -54,7 +54,7 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
         l2.attrs['bedrock'] = l2.attrs['bedrock'] == 'True'
     if 'number_of_booms' in l2.attrs.keys():
         l2.attrs['number_of_booms'] = int(l2.attrs['number_of_booms'])
-    
+
     # importing station_config (dict) from config_folder (str path)
     config_file = config_folder / (l2.attrs['station_id']+'.toml')
 
@@ -62,7 +62,7 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
         # File exists, load the configuration
         station_config = toml.load(config_file)
     else:
-        # File does not exist, initialize with standard info 
+        # File does not exist, initialize with standard info
         # this was prefered by RSF over exiting with error
         logger.error("\n***\nNo station_configuration file for %s.\nPlease create one on AWS-L0/metadata/station_configurations.\n***"%l2.attrs['station_id'])
         station_config = {"stid":l2.attrs['station_id'],
@@ -70,7 +70,7 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
                         "project": "PROMICE",
                         "location_type": "ice sheet",
                         }
-        
+
     # checking that the adjustement directory is properly given
     if data_issues_path is None:
         data_issues_path = Path("../PROMICE-AWS-data-issues")
@@ -82,7 +82,7 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
         data_issues_path = Path(data_issues_path)
 
     data_adjustments_dir = data_issues_path / "adjustments"
-    
+
     # Perform Level 3 processing
     l3 = toL3(l2, data_adjustments_dir, station_config)
 
@@ -92,20 +92,17 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
     if outpath is not None:
         prepare_and_write(l3, outpath, v, m, '60min')
         prepare_and_write(l3, outpath, v, m, '1D')
-        prepare_and_write(l3, outpath, v, m, 'M')
+        prepare_and_write(l3, outpath, v, m, 'ME')
     return l3
 
 def main():
     args = parse_arguments_l2tol3()
-    
-
-
-    _ = get_l2tol3(args.config_folder, 
-                   args.inpath, 
+    _ = get_l2tol3(args.config_folder,
+                   args.inpath,
                    args.outpath,
-                   args.variables, 
-                   args.metadata, 
+                   args.variables,
+                   args.metadata,
                    args.data_issues_path)
-    
-if __name__ == "__main__":  
+
+if __name__ == "__main__":
     main()

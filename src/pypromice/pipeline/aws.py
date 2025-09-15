@@ -20,8 +20,9 @@ from pypromice.pipeline.L0toL1 import toL1
 from pypromice.pipeline.L1toL2 import toL2
 from pypromice.pipeline.L2toL3 import toL3
 from pypromice.pipeline import utilities
-from pypromice.io import write, load
-from pypromice.io.git_repo.git import get_commit_hash_and_check_dirty
+from pypromice.io import write
+from pypromice.io.ingest.l0 import (load_data_files, load_config)
+from pypromice.io.ingest.git import get_commit_hash_and_check_dirty
 
 pd.set_option("display.precision", 2)
 xr.set_options(keep_attrs=True)
@@ -67,7 +68,6 @@ class AWS(object):
         )
 
         # Load config, variables CSF standards, and L0 files
-        self.config = self.loadConfig(config_file, inpath)
         self.vars = pypromice.resources.load_variables(var_file)
         self.meta = pypromice.resources.load_metadata(meta_file)
         self.data_issues_repository = Path(data_issues_repository)
@@ -86,7 +86,9 @@ class AWS(object):
         self.meta["source"] = json.dumps(source_dict)
 
         # Load config file
-        L0 = self.loadL0()
+        config = load_config(config_file, inpath)
+        L0 = load_data_files(config)
+
         self.L0 = []
         for l in L0:
             n = write.getColNames(self.vars, l)
@@ -149,78 +151,3 @@ class AWS(object):
         logger.info("Level 3 processing...")
         self.L3 = toL3(self.L2, data_adjustments_dir=self.data_issues_repository / "adjustments")
 
-    def loadConfig(self, config_file, inpath):
-        """Load configuration from .toml file
-
-        Parameters
-        ----------
-        config_file : str
-            TOML file path
-        inpath : str
-            Input folder directory where L0 files can be found
-
-        Returns
-        -------
-        conf : dict
-            Configuration parameters
-        """
-        conf = load.getConfig(config_file, inpath)
-        return conf
-
-    def loadL0(self):
-        """Load level 0 (L0) data from associated TOML-formatted
-        config file and L0 data file
-
-        Try readL0file() using the config with msg_lat & msg_lon appended. The
-        specific ParserError except will occur when the number of columns in
-        the tx file does not match the expected columns. In this case, remove
-        msg_lat & msg_lon from the config and call readL0file() again. These
-        station files either have no data after Nov 2022 (when msg_lat &
-        msg_lon were added to processing), or for whatever reason these fields
-        did not exist in the modem message and were not added.
-
-        Returns
-        -------
-        ds_list : list
-            List of L0 xr.Dataset objects
-        """
-        ds_list = []
-        for k in self.config.keys():
-            target = self.config[k]
-            try:
-                ds_list.append(self.readL0file(target))
-
-            except pd.errors.ParserError as e:
-                # ParserError: Too many columns specified: expected 40 and found 38
-                # logger.info(f'-----> No msg_lat or msg_lon for {k}')
-                for item in ["msg_lat", "msg_lon"]:
-                    target["columns"].remove(item)  # Also removes from self.config
-                ds_list.append(self.readL0file(target))
-            logger.info(f"L0 data successfully loaded from {k}")
-        return ds_list
-
-    def readL0file(self, conf):
-        """Read L0 .txt file to Dataset object using config dictionary and
-        populate with initial metadata
-
-        Parameters
-        ----------
-        conf : dict
-            Configuration parameters
-
-        Returns
-        -------
-        ds : xr.Dataset
-            L0 data
-        """
-        file_version = conf.get("file_version", -1)
-        ds = load.getL0(
-            conf["file"],
-            conf["nodata"],
-            conf["columns"],
-            conf["skiprows"],
-            file_version,
-            time_offset=conf.get("time_offset"),
-        )
-        ds = utilities.populateMeta(ds, conf, ["columns", "skiprows", "modem"])
-        return ds

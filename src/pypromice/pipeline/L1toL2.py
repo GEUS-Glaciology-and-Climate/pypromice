@@ -13,7 +13,7 @@ from pypromice.core.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.core.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.core.qc.persistence import persistence_qc
 from pypromice.core.qc.value_clipping import clip_values
-from pypromice.core.variables import wind, radiation, station_pose
+from pypromice.core.variables import wind, precipitation, radiation, station_pose
 
 __all__ = [
     "toL2",
@@ -188,18 +188,18 @@ def toL2(
                                                  AngleDif_deg)
 
     # Correct precipitation
-    if hasattr(ds, 'correct_precip'):
-        precip_flag = ds.attrs['correct_precip']
+    if hasattr(ds, "correct_precip"):
+        precip_flag = ds.attrs["correct_precip"]
     else:
         precip_flag=True
+    if ~ds["precip_u"].isnull().all() and precip_flag:
+        ds["precip_u"] = precipitation.filter(ds["precip_u"], ds["t_u"], ds["p_u"], ds["rh_u"])
+        ds["precip_rate_u"] = precipitation.convert_to_rate(ds["precip_u"], ds["wspd_u"], ds["t_u"])
 
-    if ~ds['precip_u'].isnull().all() and precip_flag:
-        ds['precip_u_cor'], ds['precip_u_rate'] = correctPrecip(ds['precip_u'],
-                                                                ds['wspd_u'])
-    if ds.attrs['number_of_booms']==2:
-        if ~ds['precip_l'].isnull().all() and precip_flag:                     # Correct precipitation
-            ds['precip_l_cor'], ds['precip_l_rate']= correctPrecip(ds['precip_l'],
-                                                                   ds['wspd_l'])
+    if ds.attrs["number_of_booms"]==2:
+        if ~ds["precip_l"].isnull().all() and precip_flag:
+                ds["precip_l"] = precipitation.filter(ds["precip_l"], ds["t_l"], ds["p_l"], ds["rh_l"])
+                ds["precip_rate_l"] = precipitation.convert_to_rate(ds["precip_l"], ds["wspd_l"], ds["t_l"])
 
     # Calculate directional wind speed for upper boom
     ds['wdir_u'] = wind.filter_wind_direction(ds['wdir_u'],
@@ -224,7 +224,6 @@ def toL2(
             # Get directional wind speed
 
     ds = clip_values(ds, vars_df)
-    
     return ds
 
 def calcCloudCoverage(T, dlr, station_id,T_0, eps_overcast=1.0,
@@ -397,62 +396,6 @@ def adjustHumidity(rh, T, T_0, T_100, ews, ei0):
     # Set to Groff & Gratch values when freezing, otherwise just rh
     rh_wrt_ice_or_water = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))
     return rh_wrt_ice_or_water
-
-
-def correctPrecip(precip, wspd):
-    '''Correct precipitation with the undercatch correction method used in
-    Yang et al. (1999) and Box et al. (2022), based on Goodison et al. (1998)
-
-    Yang, D., Ishida, S., Goodison, B. E., and Gunther, T.: Bias correction of
-    daily precipitation measurements for Greenland,
-    https://doi.org/10.1029/1998jd200110, 1999.
-
-    Box, J., Wehrle, A., van As, D., Fausto, R., Kjeldsen, K., Dachauer, A.,
-    Ahlstrom, A. P., and Picard, G.: Greenland Ice Sheet rainfall, heat and
-    albedo feedback imapacts from the Mid-August 2021 atmospheric river,
-    Geophys. Res. Lett. 49 (11), e2021GL097356,
-    https://doi.org/10.1029/2021GL097356, 2022.
-
-    Goodison, B. E., Louie, P. Y. T., and Yang, D.: Solid Precipitation
-    Measurement Intercomparison, WMO, 1998
-
-    Parameters
-    ----------
-    precip : xarray.DataArray
-        Cumulative precipitation measurements
-    wspd : xarray.DataArray
-        Wind speed measurements
-
-    Returns
-    -------
-    precip_cor : xarray.DataArray
-        Cumulative precipitation corrected
-    precip_rate : xarray.DataArray
-        Precipitation rate corrected
-    '''
-    # Calculate undercatch correction factor
-    corr=100/(100.00-4.37*wspd+0.35*wspd*wspd)
-
-    # Fix all values below 1.02 to 1.02
-    corr = corr.where(corr>1.02, other=1.02)
-
-    # Fill nan values in precip with preceding value
-    precip = precip.ffill(dim='time')
-
-    # Calculate precipitation rate
-    precip_rate = precip.diff(dim='time', n=1)
-
-    # Apply correction to rate
-    precip_rate = precip_rate*corr
-
-    # Flag rain bucket reset
-    precip_rate = precip_rate.where(precip_rate>-0.01, other=np.nan)
-    b = precip_rate.to_dataframe('precip_flag').notna().to_xarray()
-
-    # Get corrected cumulative precipitation, reset if rain bucket flag
-    precip_cor = precip_rate.cumsum()-precip_rate.cumsum().where(~b['precip_flag']).ffill(dim='time').fillna(0).astype(float)
-
-    return precip_cor, precip_rate
 
 
 def _getTempK(T_0):                                                            #TODO same as L2toL3._getTempK()

@@ -2,7 +2,7 @@ import numpy as np
 import pandas
 import xarray
 
-from pypromice.io.git_repo.dependency_graph import DependencyGraph
+from pypromice.core.dependency_graph import DependencyGraph
 
 
 def clip_values(

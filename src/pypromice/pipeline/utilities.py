@@ -44,25 +44,3 @@ def addBasicMeta(ds, vars_df):
             ds[v].attrs[c] = vars_df[c][v]
     return ds
 
-def populateMeta(ds, conf, skip):
-    '''Populate L0 Dataset with metadata dictionary
-
-    Parameters
-    ----------
-    ds : xarray.Dataset
-        L0 dataset
-    conf : dict
-        Metadata dictionary
-    skip : list
-        List of column names to skip parsing to metadata
-
-    Returns
-    -------
-    ds : xarray.Dataset
-        L0 dataset with metadata populated as Dataset attributes
-    '''
-    # skip = ["columns", "skiprows"]
-    for k in conf.keys():
-        if k not in skip: ds.attrs[k] = conf[k]
-    return ds
-
