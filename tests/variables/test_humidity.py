@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypromice.core.variables.humidity import correct, calculate_specific_humidity, convert
+from pypromice.core.variables.humidity import adjust, calculate_specific_humidity, convert
 
 
 class TestHumidityProcessing(unittest.TestCase):
@@ -27,8 +27,8 @@ class TestHumidityProcessing(unittest.TestCase):
         p_values[10] = np.nan
         self.p = xr.DataArray(p_values, coords=[("time", self.time)])
 
-    def test_correct(self):
-        result = correct(self.rh, self.t)
+    def test_adjust(self):
+        result = adjust(self.rh, self.t)
 
         # Freezing (<0) should adjust relative humidity (ignoring NaNs)
         self.assertNotEqual(result.values[0], self.rh.values[0])
@@ -41,7 +41,7 @@ class TestHumidityProcessing(unittest.TestCase):
         np.testing.assert_array_equal(result.time.values, self.time.values)
 
     def test_calculate_specific_humidity(self):
-        rh_corr = correct(self.rh, self.t)
+        rh_corr = adjust(self.rh, self.t)
         qh = calculate_specific_humidity(self.t, self.p, rh_corr)
 
         # Values should be positive and reasonably small (~kg/kg)
@@ -59,7 +59,7 @@ class TestHumidityProcessing(unittest.TestCase):
         np.testing.assert_array_equal(qh.time.values, self.time.values)
 
     def test_convert(self):
-        rh_corr = correct(self.rh, self.t)
+        rh_corr = adjust(self.rh, self.t)
         qh = calculate_specific_humidity(self.t, self.p, rh_corr)
         qh_g = convert(qh)
 

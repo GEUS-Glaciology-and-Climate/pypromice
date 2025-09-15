@@ -1,4 +1,4 @@
-__all__ = ["correct", "convert", "calculate_specific_humidity"]
+__all__ = ["adjust", "convert", "calculate_specific_humidity"]
 
 import xarray as xr
 import numpy as np
@@ -10,7 +10,7 @@ ews = 1013.246              # Saturation vapour pressure at steam point temperat
 ei0 = 6.1071                # Saturation vapour pressure at ice melting point temperature (normal atmosphere) (hPa)
 eps=0.622                   # Ratio of molar masses of vapor and dry air
 
-def correct(rh: xr.DataArray,
+def adjust(rh: xr.DataArray,
            t: xr.DataArray
 ) -> xr.DataArray:
     """Correct relative humidity so that values are given with respect to
