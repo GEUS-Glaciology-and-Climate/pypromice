@@ -46,7 +46,8 @@ def correct(rh: xr.DataArray,
     freezing = (t < 0) & (t > -100).values
 
     # Set to Groff & Gratch values when freezing, otherwise just rh
-    rh_wrt_ice_or_water = rh.where(~freezing, other=rh*(e_s_wtr / e_s_ice))
+    rh_wrt_ice_or_water = rh.where(~freezing,
+                                   other=rh*(e_s_wtr/e_s_ice))
     return rh_wrt_ice_or_water
 
 
