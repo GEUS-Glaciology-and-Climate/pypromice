@@ -6,8 +6,7 @@ import xarray as xr
 from pypromice.core.variables.gps import (
     decode_and_convert,
     decode,
-    filter,
-    piecewise_smoothing_and_interpolation,
+    filter
 )
 
 class TestFilter(unittest.TestCase):

@@ -8,10 +8,8 @@ import xarray as xr
 from sklearn.linear_model import LinearRegression
 from scipy.interpolate import interp1d
 from pathlib import Path
-import logging
-
-from pypromice.core.variables import gps
 from pypromice.core.qc.github_data_issues import adjustData
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -985,8 +983,62 @@ def gps_coordinate_postprocessing(ds, var, station_config={}):
         else:
             logger.info('processing '+var+' with relocation on ' + ', '.join([br.strftime('%Y-%m-%dT%H:%M:%S') for br in breaks]))
 
-        return gps.piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks)
+        return piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks)
 
+def piecewise_smoothing_and_interpolation(data_series, breaks):
+    '''Smoothes, inter- or extrapolate the GPS observations. The processing is
+    done piecewise so that each period between station relocations are done
+    separately (no smoothing of the jump due to relocation). Piecewise linear
+    regression is then used to smooth the available observations. Then this
+    smoothed curve is interpolated linearly over internal gaps. Eventually, this
+    interpolated curve is extrapolated linearly for timestamps before the first
+    valid measurement and after the last valid measurement.
+
+    Parameters
+    ----------
+    data_series : pd.Series
+        Series of observed latitude, longitude or elevation with datetime index.
+    breaks: list
+        List of timestamps of station relocation. First and last item should be
+        None so that they can be used in slice(breaks[i], breaks[i+1])
+
+    Returns
+    -------
+    np.ndarray
+        Smoothed and interpolated values corresponding to the input series.
+    '''
+    df_all = pd.Series(dtype=float)  # Initialize an empty Series to gather all smoothed pieces
+    breaks = [None] + breaks + [None]
+    _inferred_series = []
+    for i in range(len(breaks) - 1):
+        df = data_series.loc[slice(breaks[i], breaks[i+1])]
+
+        # Drop NaN values and calculate the number of segments based on valid data
+        df_valid = df.dropna()
+        if df_valid.shape[0] > 2:
+            # Fit linear regression model to the valid data range
+            x = pd.to_numeric(df_valid.index).values.reshape(-1, 1)
+            y = df_valid.values.reshape(-1, 1)
+
+            model = LinearRegression()
+            model.fit(x, y)
+
+            # Predict using the model for the entire segment range
+            x_pred = pd.to_numeric(df.index).values.reshape(-1, 1)
+
+            y_pred = model.predict(x_pred)
+            df =  pd.Series(y_pred.flatten(), index=df.index)
+        # adds to list the predicted values for the current segment
+        _inferred_series.append(df)
+
+    df_all = pd.concat(_inferred_series)
+
+    # Fill internal gaps with linear interpolation
+    df_all = df_all.interpolate(method='linear', limit_area='inside')
+
+    # Remove duplicate indices and return values as numpy array
+    df_all = df_all[~df_all.index.duplicated(keep='last')]
+    return df_all.values
 
 def calculate_tubulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h,
                 kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622,
