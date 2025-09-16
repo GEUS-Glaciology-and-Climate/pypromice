@@ -1,12 +1,11 @@
-__all__ = ["convert_to_rate", "filter"]
+__all__ = ["convert_to_rate_and_correct_undercatch", "filter_lufft_errors"]
 
 import numpy as np
 import xarray as xr
 
-def filter(precip: xr.DataArray,
-           t: xr.DataArray,
-           p: xr.DataArray,
-           rh: xr.DataArray
+
+def filter_lufft_errors(
+    precip: xr.DataArray, t: xr.DataArray, p: xr.DataArray, rh: xr.DataArray
 ) -> xr.DataArray:
     """Filter precipitation measurements where air temperature, pressure, or
     relative humidity measurements are null values. This assumes that
@@ -33,9 +32,9 @@ def filter(precip: xr.DataArray,
     mask = (t.isnull() | p.isnull() | rh.isnull()) & (precip == 0)
     return precip.where(~mask)
 
-def convert_to_rate(precip: xr.DataArray,
-                    wspd: xr.DataArray,
-                    t: xr.DataArray
+
+def convert_to_rate_and_correct_undercatch(
+    precip: xr.DataArray, wspd: xr.DataArray, t: xr.DataArray
 ) -> xr.DataArray:
     """Correct precipitation with the undercatch correction method used in
     Yang et al. (1999) and Box et al. (2022), based on Goodison et al. (1998).
