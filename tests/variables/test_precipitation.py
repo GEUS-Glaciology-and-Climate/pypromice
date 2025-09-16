@@ -1,9 +1,11 @@
 import unittest
+
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypromice.core.variables.precipitation import filter, convert_to_rate
+from pypromice.core.variables import precipitation
+
 
 class TestPrecipFilter(unittest.TestCase):
 
@@ -15,12 +17,12 @@ class TestPrecipFilter(unittest.TestCase):
         self.rh = xr.DataArray([50.0, 60.0, 70.0], dims="time", coords={"time": time})
 
     def test_filter_removes_when_nan_and_zero(self):
-        result = filter(self.precip, self.t, self.p, self.rh)
+        result = precipitation.filter_lufft_errors(self.precip, self.t, self.p, self.rh)
         # Expect NaN at index 2 because p is NaN and precip==0
         self.assertTrue(np.isnan(result[0].item()))
 
     def test_filter_keeps_nonzero_precip(self):
-        result = filter(self.precip, self.t, self.p, self.rh)
+        result = precipitation.filter_lufft_errors(self.precip, self.t, self.p, self.rh)
         # precip[1] = 1.0, even though t is NaN, should be kept
         self.assertEqual(result[1].item(), 1.0)
 
@@ -28,7 +30,7 @@ class TestPrecipFilter(unittest.TestCase):
         t = xr.DataArray([0.0, 1.0, 2.0], dims="time", coords=self.precip.coords)
         p = xr.DataArray([1013.0, 1012.0, 1011.0], dims="time", coords=self.precip.coords)
         rh = xr.DataArray([50.0, 60.0, 70.0], dims="time", coords=self.precip.coords)
-        result = filter(self.precip, t, p, rh)
+        result = precipitation.filter_lufft_errors(self.precip, t, p, rh)
         xr.testing.assert_equal(result, self.precip)
 
 class TestPrecipConvert(unittest.TestCase):
@@ -46,7 +48,7 @@ class TestPrecipConvert(unittest.TestCase):
                               coords={"time": time})
 
     def test_convert_output(self):
-        result = convert_to_rate(self.precip, self.wspd, self.t)
+        result = precipitation.convert_to_rate_and_correct_undercatch(self.precip, self.wspd, self.t)
 
         expected_result = np.array([
             1.15074799, 3.28587076, 6.90448792, 5.75373993,
@@ -63,7 +65,7 @@ class TestPrecipConvert(unittest.TestCase):
         )
 
     def test_convert_applies_correction_factor(self):
-        result = convert_to_rate(self.precip, self.wspd, self.t)
+        result = precipitation.convert_to_rate_and_correct_undercatch(self.precip, self.wspd, self.t)
         # Ensure precipitation rates are scaled by factor >= 1.02
         self.assertTrue(((result.dropna(dim="time") >= 0).all()).item())
 
@@ -71,7 +73,7 @@ class TestPrecipConvert(unittest.TestCase):
         precip_nan = xr.DataArray([10.0, 11.0, np.nan, 20.0, 25.0, 29.0, np.nan, 46.0],
                                dims="time",
                                coords=self.precip.coords)
-        result = convert_to_rate(precip_nan, self.wspd, self.t)
+        result = precipitation.convert_to_rate_and_correct_undercatch(precip_nan, self.wspd, self.t)
         # The NaN in precip[2] should be forward-filled before diff
         self.assertFalse(result.isnull()[2].item())
         self.assertFalse(result.isnull()[6].item())
@@ -80,7 +82,7 @@ class TestPrecipConvert(unittest.TestCase):
         t_allneg = xr.DataArray([-3.0, -5.0, -4.0, -6.0, -4.0, -4.0, -5.0, -8.0],
                                 dims="time",
                                 coords=self.t.coords)
-        result = convert_to_rate(self.precip, self.wspd, t_allneg)
+        result = precipitation.convert_to_rate_and_correct_undercatch(self.precip, self.wspd, t_allneg)
         # When t < -2 and precip_rate > 0, it should become NaN
         self.assertTrue(np.isnan(result).all())
 
@@ -89,7 +91,7 @@ class TestPrecipConvert(unittest.TestCase):
         precip_desc = xr.DataArray([100.0, 90.0, 87.0, 84.0, 72.0, 60.0, 38.0, 26.0],
                                   dims="time",
                                   coords=self.precip.coords)
-        result = convert_to_rate(precip_desc, self.wspd, self.t)
+        result = precipitation.convert_to_rate_and_correct_undercatch(precip_desc, self.wspd, self.t)
         self.assertTrue(np.isnan(result.values).all())
 
 if __name__ == "__main__":
