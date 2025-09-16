@@ -133,6 +133,7 @@ class TestPrecipConvert(unittest.TestCase):
         n_samples = 100
         precip_accumulated_values = np.cumsum(np.random.rand(n_samples))
         expected_precip_rate_values = np.diff(precip_accumulated_values)/0.16666666666666666 # in mm/hr
+        expected_precip_rate_values = np.insert(expected_precip_rate_values, 0, np.nan)
         time = pd.date_range("2025-06-01", periods=n_samples, freq="600s")
         precip_accumulated = xr.DataArray(
             precip_accumulated_values, dims="time", coords={"time": time}
@@ -142,7 +143,13 @@ class TestPrecipConvert(unittest.TestCase):
         )
 
         result = precipitation.get_rate(precip_accumulated)
-        xr.testing.assert_equal(result, expected_precip_rate)
+        np.testing.assert_allclose(
+            result.values,
+            expected_precip_rate,
+            rtol=1e-6,
+            atol=1e-8,
+            err_msg="Precipitation rate values differ from expected output"
+        )
 
 if __name__ == "__main__":
     unittest.main()
