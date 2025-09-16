@@ -132,7 +132,7 @@ class TestPrecipConvert(unittest.TestCase):
         """
         n_samples = 100
         precip_accumulated_values = np.cumsum(np.random.rand(n_samples))
-        expected_precip_rate_values = np.diff(precip_accumulated_values)
+        expected_precip_rate_values = np.diff(precip_accumulated_values)/0.16666666666666666 # in mm/hr
         time = pd.date_range("2025-06-01", periods=n_samples, freq="600s")
         precip_accumulated = xr.DataArray(
             precip_accumulated_values, dims="time", coords={"time": time}
