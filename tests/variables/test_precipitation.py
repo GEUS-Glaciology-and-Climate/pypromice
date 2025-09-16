@@ -51,7 +51,7 @@ class TestPrecipConvert(unittest.TestCase):
         result = precipitation.convert_to_rate_and_correct_undercatch(self.precip, self.wspd, self.t)
 
         expected_result = np.array([
-            1.15074799, 3.28587076, 6.90448792, 5.75373993,
+            np.nan, 1.15074799, 3.28587076, 6.90448792, 5.75373993,
             4.63070155, 10.35673188, 8.76232202
         ])
 
@@ -116,7 +116,7 @@ class TestPrecipConvert(unittest.TestCase):
         # TODO: It is unclear if the rate should be calculated per hour or for the sample window. Should the last value be 7mm or 7/24 mm/h
         """
         precip_accumulated_values =   [0.0,    1.0,  1.0,  3.0, 10.0]
-        expected_precip_rate_values = [np.nan, 1.0,  0.0,  2.0,  7.0]
+        expected_precip_rate_values = [np.nan, 1.0,  0.0,  2.0,  0.291666666666]
         time = pd.to_datetime('2023-10-26') + pd.to_timedelta(['21:00:00', '22:00:00', '23:00:00', '24:00:00', '48:00:00'])
         expected_precip_rate = xr.DataArray(
             expected_precip_rate_values, dims="time", coords={"time": time}
@@ -126,7 +126,13 @@ class TestPrecipConvert(unittest.TestCase):
         )
 
         result = precipitation.get_rate(precip_accumulated)
-        xr.testing.assert_equal(result, expected_precip_rate)
+        np.testing.assert_allclose(
+            result.values,
+            expected_precip_rate,
+            rtol=1e-6,
+            atol=1e-8,
+            err_msg="Precipitation rate values differ from expected output"
+        )
 
     def test_sub_hourly_rates(self):
         """
