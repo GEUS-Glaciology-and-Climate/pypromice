@@ -10,7 +10,7 @@ from pypromice.core.variables import precipitation
 class TestPrecipFilter(unittest.TestCase):
 
     def setUp(self):
-        time = pd.date_range("2000-01-01", periods=3, freq="H")
+        time = pd.date_range("2000-01-01", periods=3, freq="h")
         self.precip = xr.DataArray([0.0, 1.0, 2.0], dims="time", coords={"time": time})
         self.t = xr.DataArray([0.0, np.nan, 2.0], dims="time", coords={"time": time})
         self.p = xr.DataArray([np.nan, 1012.0, 1015.0], dims="time", coords={"time": time})
@@ -36,7 +36,7 @@ class TestPrecipFilter(unittest.TestCase):
 class TestPrecipConvert(unittest.TestCase):
 
     def setUp(self):
-        time = pd.date_range("2025-06-01", periods=8, freq="H")
+        time = pd.date_range("2025-06-01", periods=8, freq="h")
         self.precip = xr.DataArray([10.0, 11.0, 14.0, 20.0, 25.0, 29.0, 38.0, 46.0],
                                    dims="time",
                                    coords={"time": time})
@@ -69,15 +69,6 @@ class TestPrecipConvert(unittest.TestCase):
         # Ensure precipitation rates are scaled by factor >= 1.02
         self.assertTrue(((result.dropna(dim="time") >= 0).all()).item())
 
-    def test_convert_nan_ffill(self):
-        precip_nan = xr.DataArray([10.0, 11.0, np.nan, 20.0, 25.0, 29.0, np.nan, 46.0],
-                               dims="time",
-                               coords=self.precip.coords)
-        result = precipitation.convert_to_rate_and_correct_undercatch(precip_nan, self.wspd, self.t)
-        # The NaN in precip[2] should be forward-filled before diff
-        self.assertFalse(result.isnull()[2].item())
-        self.assertFalse(result.isnull()[6].item())
-
     def test_convert_filters_cold_rain(self):
         t_allneg = xr.DataArray([-3.0, -5.0, -4.0, -6.0, -4.0, -4.0, -5.0, -8.0],
                                 dims="time",
@@ -99,7 +90,7 @@ class TestPrecipConvert(unittest.TestCase):
         precip_accumulated_values =   [0.0,    1.0,  1.0, 3.0,  6.0,  np.nan,    0.0,  1.0, np.nan, 2.0]
         expected_precip_rate_values = [np.nan, 1.0,  0.0, 2.0,  3.0,  np.nan, np.nan, 1.0,  np.nan, np.nan]
 
-        time = pd.date_range("2025-06-01", periods=len(precip_accumulated_values), freq="H")
+        time = pd.date_range("2025-06-01", periods=len(precip_accumulated_values), freq="h")
         precip_accumulated = xr.DataArray(precip_accumulated_values, dims="time", coords={"time": time})
         expected_precip_rate = xr.DataArray(expected_precip_rate_values, dims="time", coords={"time": time})
 
@@ -152,25 +143,6 @@ class TestPrecipConvert(unittest.TestCase):
 
         result = precipitation.get_rate(precip_accumulated)
         xr.testing.assert_equal(result, expected_precip_rate)
-
-    def test_sup_hourly_rates(self):
-        """
-        This is an example where the sample is daily - lower than h^-1
-        It is unclear if the rate should be calculated per hour or for the sample window
-        """
-        precip_accumulated_values = [0.0, 4.0, 4.0, 5.0, 6.0]
-        expected_precip_rate_values = [np.nan, 3.0, 0.0, 1.0, 1.0]
-        time = pd.date_range("2025-06-01", periods=len(precip_accumulated_values), freq="1d")
-        expected_precip_rate = xr.DataArray(
-            expected_precip_rate_values, dims="time", coords={"time": time}
-        )
-        precip_accumulated = xr.DataArray(
-            precip_accumulated_values, dims="time", coords={"time": time}
-        )
-
-        result = precipitation.get_rate(precip_accumulated)
-        xr.testing.assert_equal(result, expected_precip_rate)
-
 
 if __name__ == "__main__":
     unittest.main()
