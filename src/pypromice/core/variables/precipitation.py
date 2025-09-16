@@ -111,13 +111,11 @@ def get_rate(
         appropriately.
     """
     nan_mask = precip.isnull()
-    # Fill nan values in precip with preceding value
-    precip = precip.ffill(dim="time")
+
     # Calculate precipitation rate and makes sure it remains of the same size
     # and taking into account the time step size to ensure mm/hr
-    dt_hours = precip["time"].diff("time") / np.timedelta64(1, "h")
-    dt_hours = dt_hours.reindex_like(precip)
-    precip_rate = precip.diff("time") / dt_hours
+    dt_hours = precip["time"].diff("time").reindex_like(precip) / np.timedelta64(1, "h")
+    precip_rate = precip.diff("time").reindex_like(precip) / dt_hours
     # Removing timestamps where precipitation rates have been calculated over
     # interpolated values
     precip_rate = precip_rate.where(~nan_mask)

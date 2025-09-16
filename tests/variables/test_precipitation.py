@@ -96,12 +96,12 @@ class TestPrecipConvert(unittest.TestCase):
 
     def test_precipitation_counter_reset(self):
         # The expected precipitation rate should have the same dimension and coordinates as the input
-        precip_accumulated_values =   [0.0, 1.0,  1.0,  3.0,  6.0, np.nan,    0.0,  1.0, np.nan, 2.0]
-        expected_precip_rate_values =      [1.0,  0.0, 2.0,  3.0,  np.nan, np.nan, 1.0,  np.nan, np.nan]
+        precip_accumulated_values =   [0.0,    1.0,  1.0, 3.0,  6.0,  np.nan,    0.0,  1.0, np.nan, 2.0]
+        expected_precip_rate_values = [np.nan, 1.0,  0.0, 2.0,  3.0,  np.nan, np.nan, 1.0,  np.nan, np.nan]
 
         time = pd.date_range("2025-06-01", periods=len(precip_accumulated_values), freq="H")
         precip_accumulated = xr.DataArray(precip_accumulated_values, dims="time", coords={"time": time})
-        expected_precip_rate = xr.DataArray(expected_precip_rate_values, dims="time", coords={"time": time[1:]})
+        expected_precip_rate = xr.DataArray(expected_precip_rate_values, dims="time", coords={"time": time})
 
         result = precipitation.get_rate(precip_accumulated)
 
@@ -115,11 +115,11 @@ class TestPrecipConvert(unittest.TestCase):
         # TODO: Should we allow this?
         # TODO: It is unclear if the rate should be calculated per hour or for the sample window. Should the last value be 7mm or 7/24 mm/h
         """
-        precip_accumulated_values =   [0.0, 1.0,  1.0,  3.0, 10.0]
-        expected_precip_rate_values = [     1.0,  0.0,  2.0,  7.0]
+        precip_accumulated_values =   [0.0,    1.0,  1.0,  3.0, 10.0]
+        expected_precip_rate_values = [np.nan, 1.0,  0.0,  2.0,  7.0]
         time = pd.to_datetime('2023-10-26') + pd.to_timedelta(['21:00:00', '22:00:00', '23:00:00', '24:00:00', '48:00:00'])
         expected_precip_rate = xr.DataArray(
-            expected_precip_rate_values, dims="time", coords={"time": time[1:]}
+            expected_precip_rate_values, dims="time", coords={"time": time}
         )
         precip_accumulated = xr.DataArray(
             precip_accumulated_values, dims="time", coords={"time": time}
@@ -141,7 +141,7 @@ class TestPrecipConvert(unittest.TestCase):
             precip_accumulated_values, dims="time", coords={"time": time}
         )
         expected_precip_rate = xr.DataArray(
-            expected_precip_rate_values, dims="time", coords={"time": time[1:]}
+            expected_precip_rate_values, dims="time", coords={"time": time}
         )
 
         result = precipitation.get_rate(precip_accumulated)
@@ -153,10 +153,10 @@ class TestPrecipConvert(unittest.TestCase):
         It is unclear if the rate should be calculated per hour or for the sample window
         """
         precip_accumulated_values = [0.0, 4.0, 4.0, 5.0, 6.0]
-        expected_precip_rate_values = [3.0, 0.0, 1.0, 1.0]
+        expected_precip_rate_values = [np.nan, 3.0, 0.0, 1.0, 1.0]
         time = pd.date_range("2025-06-01", periods=len(precip_accumulated_values), freq="1d")
         expected_precip_rate = xr.DataArray(
-            expected_precip_rate_values, dims="time", coords={"time": time[1:]}
+            expected_precip_rate_values, dims="time", coords={"time": time}
         )
         precip_accumulated = xr.DataArray(
             precip_accumulated_values, dims="time", coords={"time": time}
