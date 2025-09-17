@@ -3,7 +3,6 @@ import numpy as np
 from argparse import ArgumentParser
 from typing import Dict, Any
 
-
 def compare_datasets(ds1: xr.Dataset,
                      ds2: xr.Dataset,
                      rtol=1e-6,
@@ -30,44 +29,61 @@ def compare_datasets(ds1: xr.Dataset,
         if da1.shape != da2.shape:
             diffs.append(f"Shape mismatch {da1.shape} vs {da2.shape}")
 
+        # Compare variable coordinates
         for c in da1.coords:
             if c not in da2.coords:
                 diffs.append(f"Coordinate '{c}' missing in ds2")
-            elif not np.allclose(da1[c], da2[c], rtol=rtol, atol=atol, equal_nan=False):
-                diffs.append(f"Coordinate '{c}' values differ")
+            else:
+                a = da1[c].values
+                b = da2[c].values
+                if np.issubdtype(a.dtype, np.number):
+                    if not np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=True):
+                        diffs.append(f"Coordinate '{c}' values differ")
+                else:
+                    if not np.array_equal(a, b):
+                        diffs.append(f"Coordinate '{c}' values differ")
 
         for c in da2.coords:
             if c not in da1.coords:
                 diffs.append(f"Coordinate '{c}' missing in ds1")
 
+        # Compare variable values
         try:
-            if not np.allclose(da1.values, da2.values, rtol=rtol, atol=atol, equal_nan=False):
+            if not np.allclose(da1.values, da2.values, rtol=rtol, atol=atol, equal_nan=True):
                 diffs.append("Data values differ")
         except Exception as e:
             diffs.append(f"Could not compare values: {e!r}")
 
+        # Compare variable attributes
         if da1.attrs != da2.attrs:
             diffs.append(f"Attribute mismatch: {da1.attrs} vs {da2.attrs}")
 
         if diffs:
             report["variable_diffs"][v] = diffs
 
+    # Compare dataset attributes
     if ds1.attrs != ds2.attrs:
         report["attr_diffs"] = {"ds1": ds1.attrs, "ds2": ds2.attrs}
 
+    # Compare dataset coordinates
     for c in set(ds1.coords) | set(ds2.coords):
         if c not in ds1.coords:
             report["coord_diffs"][c] = "Missing in ds1"
         elif c not in ds2.coords:
             report["coord_diffs"][c] = "Missing in ds2"
         else:
-            if not np.allclose(ds1[c], ds2[c], rtol=rtol, atol=atol, equal_nan=True):
-                report["coord_diffs"][c] = "Values differ"
-            elif ds1[c].attrs != ds2[c].attrs:
+            a = ds1[c].values
+            b = ds2[c].values
+            if np.issubdtype(a.dtype, np.number):
+                if not np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=True):
+                    report["coord_diffs"][c] = "Values differ"
+            else:
+                if not np.array_equal(a, b):
+                    report["coord_diffs"][c] = "Values differ"
+            if ds1[c].attrs != ds2[c].attrs:
                 report["coord_diffs"][c] = f"Attr mismatch: {ds1[c].attrs} vs {ds2[c].attrs}"
 
     return report
-
 
 def format_report_md(report: Dict[str, Any]) -> str:
     """Format report dictionary into markdown string."""
