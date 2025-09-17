@@ -43,9 +43,10 @@ jobs:
 
       # Step 5: Check out main branch${i}
       - name: Check out main branch
-        run: |
-          git fetch origin main
-          git checkout origin/main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       # Step 6: Reinstall repo from main branch
       - name: Install package (main branch)
@@ -67,7 +68,7 @@ jobs:
       # Step 8: Run reporter
       - name: Run reporter
         run: |
-          python reporter.py \
+          python $GITHUB_WORKSPACE/main/.github/workflows/data_output_reporter.py \
             -o $GITHUB_WORKSPACE/out/original/L2toL3/TEST1_hour.nc \
             -n $GITHUB_WORKSPACE/out/new/L2toL3/TEST1_hour.nc
 

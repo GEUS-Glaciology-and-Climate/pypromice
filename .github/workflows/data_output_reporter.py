@@ -33,7 +33,7 @@ def compare_datasets(ds1: xr.Dataset,
         for c in da1.coords:
             if c not in da2.coords:
                 diffs.append(f"Coordinate '{c}' missing in ds2")
-            elif not np.allclose(da1[c], da2[c], rtol=rtol, atol=atol, equal_nan=True):
+            elif not np.allclose(da1[c], da2[c], rtol=rtol, atol=atol, equal_nan=False):
                 diffs.append(f"Coordinate '{c}' values differ")
 
         for c in da2.coords:
@@ -41,7 +41,7 @@ def compare_datasets(ds1: xr.Dataset,
                 diffs.append(f"Coordinate '{c}' missing in ds1")
 
         try:
-            if not np.allclose(da1.values, da2.values, rtol=rtol, atol=atol, equal_nan=True):
+            if not np.allclose(da1.values, da2.values, rtol=rtol, atol=atol, equal_nan=False):
                 diffs.append("Data values differ")
         except Exception as e:
             diffs.append(f"Could not compare values: {e!r}")
