@@ -22,26 +22,32 @@ jobs:
         with:
           python-version: "3.11"
 
-      # Step 3: Install repo + dependencies
+      # Step 3: Install repo + dependencies (PR branch)
       - name: Install package (PR branch)
         run: |
           python -m pip install --upgrade pip
           pip install wheel xarray numpy
           python3 -m pip install --upgrade setuptools
-          cd $GITHUB_WORKSPACE/${{ github.head_ref }}
+          cd $GITHUB_WORKSPACE
           pip install .
 
       # Step 4: Run code on test data using PR branch
       - name: Run L0 to L3 processing using PR branch
         shell: bash
         run: |
-          mkdir $GITHUB_WORKSPACE/out/
-          mkdir $GITHUB_WORKSPACE/out/new/
-          mkdir $GITHUB_WORKSPACE/data_issues
-          get_l2 -c $GITHUB_WORKSPACE/${{ github.head_ref }}/tests/data/test_config1_raw.toml -i $GITHUB_WORKSPACE/${{ github.head_ref }}/tests/data/ --issues $GITHUB_WORKSPACE/data_issues -o $GITHUB_WORKSPACE/out/new/ --data_issues_path $GITHUB_WORKSPACE/data_issues
-          get_l2tol3 -c $GITHUB_WORKSPACE/${{ github.head_ref }}/tests/data/station_configurations/TEST1.toml -i $GITHUB_WORKSPACE/out/new/L0toL2/TEST1/TEST1_hour.nc -o $GITHUB_WORKSPACE/out/new/ --data_issues_path $GITHUB_WORKSPACE/data_issues
+          mkdir -p $GITHUB_WORKSPACE/out/new/
+          mkdir -p $GITHUB_WORKSPACE/data_issues/pr
+          get_l2 -c $GITHUB_WORKSPACE/tests/data/test_config1_raw.toml \
+                 -i $GITHUB_WORKSPACE/tests/data/ \
+                 --issues $GITHUB_WORKSPACE/data_issues/pr \
+                 -o $GITHUB_WORKSPACE/out/new/ \
+                 --data_issues_path $GITHUB_WORKSPACE/data_issues/pr
+          get_l2tol3 -c $GITHUB_WORKSPACE/tests/data/station_configurations/TEST1.toml \
+                     -i $GITHUB_WORKSPACE/out/new/L0toL2/TEST1/TEST1_hour.nc \
+                     -o $GITHUB_WORKSPACE/out/new/ \
+                     --data_issues_path $GITHUB_WORKSPACE/data_issues/pr
 
-      # Step 5: Check out main branch${i}
+      # Step 5: Check out main branch
       - name: Check out main branch
         uses: actions/checkout@v4
         with:
@@ -54,21 +60,29 @@ jobs:
           python -m pip install --upgrade pip
           pip install wheel
           python3 -m pip install --upgrade setuptools
-          cd $GITHUB_WORKSPACE/main
+          cd $GITHUB_WORKSPACE
           pip install .
 
       # Step 7: Run code on test data using main branch
-      - name: Run L0 to L3 processing
+      - name: Run L0 to L3 processing (main branch)
         shell: bash
         run: |
-          mkdir $GITHUB_WORKSPACE/out/original/
-          get_l2 -c $GITHUB_WORKSPACE/main/tests/data/test_config1_raw.toml -i $GITHUB_WORKSPACE/main/tests/data/ --issues $GITHUB_WORKSPACE/data_issues -o $GITHUB_WORKSPACE/out/original/ --data_issues_path $GITHUB_WORKSPACE/data_issues
-          get_l2tol3 -c $GITHUB_WORKSPACE/main/tests/data/station_configurations/TEST1.toml -i $GITHUB_WORKSPACE/out/original/L0toL2/TEST1/TEST1_hour.nc -o $GITHUB_WORKSPACE/out/original/ --data_issues_path $GITHUB_WORKSPACE/data_issues
+          mkdir -p $GITHUB_WORKSPACE/out/original/
+          mkdir -p $GITHUB_WORKSPACE/data_issues/main
+          get_l2 -c $GITHUB_WORKSPACE/tests/data/test_config1_raw.toml \
+                 -i $GITHUB_WORKSPACE/tests/data/ \
+                 --issues $GITHUB_WORKSPACE/data_issues/main \
+                 -o $GITHUB_WORKSPACE/out/original/ \
+                 --data_issues_path $GITHUB_WORKSPACE/data_issues/main
+          get_l2tol3 -c $GITHUB_WORKSPACE/tests/data/station_configurations/TEST1.toml \
+                     -i $GITHUB_WORKSPACE/out/original/L0toL2/TEST1/TEST1_hour.nc \
+                     -o $GITHUB_WORKSPACE/out/original/ \
+                     --data_issues_path $GITHUB_WORKSPACE/data_issues/main
 
       # Step 8: Run reporter
       - name: Run reporter
         run: |
-          python $GITHUB_WORKSPACE/${{ github.head_ref }}/.github/workflows/data_output_reporter.py \
+          python $GITHUB_WORKSPACE/.github/workflows/data_output_reporter.py \
             -o $GITHUB_WORKSPACE/out/original/L2toL3/TEST1_hour.nc \
             -n $GITHUB_WORKSPACE/out/new/L2toL3/TEST1_hour.nc
 
