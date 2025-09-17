@@ -124,6 +124,7 @@ def format_report_md(report: Dict[str, Any]) -> str:
         lines.append("No differences have been found between " +
                      "the datasets produced using the PR " +
                      "branch and the main branch")
+        return "\n".join(lines)
 
     lines.append("Differences have been found between " +
                  "the datasets produced using the PR " +
