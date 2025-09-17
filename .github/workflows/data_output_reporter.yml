@@ -28,7 +28,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install wheel xarray numpy
           python3 -m pip install --upgrade setuptools
-          cd $GITHUB_WORKSPACE/main
+          cd $GITHUB_WORKSPACE/${{ github.head_ref }}
           pip install .
 
       # Step 4: Run code on test data using PR branch
@@ -38,8 +38,8 @@ jobs:
           mkdir $GITHUB_WORKSPACE/out/
           mkdir $GITHUB_WORKSPACE/out/new/
           mkdir $GITHUB_WORKSPACE/data_issues
-          get_l2 -c $GITHUB_WORKSPACE/main/tests/data/test_config1_raw.toml -i $GITHUB_WORKSPACE/main/tests/data/ --issues $GITHUB_WORKSPACE/data_issues -o $GITHUB_WORKSPACE/out/new/ --data_issues_path $GITHUB_WORKSPACE/data_issues
-          get_l2tol3 -c $GITHUB_WORKSPACE/main/tests/data/station_configurations/TEST1.toml -i $GITHUB_WORKSPACE/out/new/L0toL2/TEST1/TEST1_hour.nc -o $GITHUB_WORKSPACE/out/new/ --data_issues_path $GITHUB_WORKSPACE/data_issues
+          get_l2 -c $GITHUB_WORKSPACE/${{ github.head_ref }}/tests/data/test_config1_raw.toml -i $GITHUB_WORKSPACE/${{ github.head_ref }}/tests/data/ --issues $GITHUB_WORKSPACE/data_issues -o $GITHUB_WORKSPACE/out/new/ --data_issues_path $GITHUB_WORKSPACE/data_issues
+          get_l2tol3 -c $GITHUB_WORKSPACE/${{ github.head_ref }}/tests/data/station_configurations/TEST1.toml -i $GITHUB_WORKSPACE/out/new/L0toL2/TEST1/TEST1_hour.nc -o $GITHUB_WORKSPACE/out/new/ --data_issues_path $GITHUB_WORKSPACE/data_issues
 
       # Step 5: Check out main branch${i}
       - name: Check out main branch
@@ -68,7 +68,7 @@ jobs:
       # Step 8: Run reporter
       - name: Run reporter
         run: |
-          python $GITHUB_WORKSPACE/main/.github/workflows/data_output_reporter.py \
+          python $GITHUB_WORKSPACE/${{ github.head_ref }}/.github/workflows/data_output_reporter.py \
             -o $GITHUB_WORKSPACE/out/original/L2toL3/TEST1_hour.nc \
             -n $GITHUB_WORKSPACE/out/new/L2toL3/TEST1_hour.nc
 
