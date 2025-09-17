@@ -46,6 +46,12 @@ jobs:
                      -o $GITHUB_WORKSPACE/out/new/ \
                      --data_issues_path $GITHUB_WORKSPACE/data_issues/pr
 
+      # Step 4.5: Save PR output file (so it's not lost when we checkout main)
+      - name: Save PR TEST1_hour.nc
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/pr_output
+          cp $GITHUB_WORKSPACE/out/new/TEST1/TEST1_hour.nc $GITHUB_WORKSPACE/pr_output/
+
       # Step 5: Check out main branch
       - name: Check out main branch
         uses: actions/checkout@v4
@@ -63,7 +69,7 @@ jobs:
           pip install .
 
       # Step 7: Run code on test data using main branch
-      - name: Run L0 to L3 processing (main branch)
+      - name: Run L0 to L3 processing using main branch
         shell: bash
         run: |
           mkdir -p $GITHUB_WORKSPACE/out/original/
@@ -77,6 +83,12 @@ jobs:
                      -i $GITHUB_WORKSPACE/out/original/TEST1/TEST1_hour.nc \
                      -o $GITHUB_WORKSPACE/out/original/ \
                      --data_issues_path $GITHUB_WORKSPACE/data_issues/main
+
+      # Step 7.5: Restore PR file into place
+      - name: Restore PR TEST1_hour.nc
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/out/new/TEST1
+          cp $GITHUB_WORKSPACE/pr_output/TEST1_hour.nc $GITHUB_WORKSPACE/out/new/TEST1/
 
       # Step 8: Run reporter
       - name: Run reporter
