@@ -43,7 +43,7 @@ def adjust(rh: xr.DataArray,
                    + np.log10(ei0))
 
     # Define freezing point. Why > -100?
-    freezing = (t < 0) & (t > -100).values
+    freezing = (t < 0) & (t > -100)
 
     # Set to Groff & Gratch values when freezing, otherwise just rh
     rh_wrt_ice_or_water = rh.where(~freezing,
