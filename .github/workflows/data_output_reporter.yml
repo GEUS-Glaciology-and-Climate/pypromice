@@ -103,3 +103,11 @@ jobs:
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           path: report.md
+
+      # Step 9.5: Upload main branch output file as artifact
+      - name: Upload main TEST1_hour.nc
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-test1-hour
+          path: |
+            out/original/TEST1/TEST1_hour.nc
