@@ -46,11 +46,12 @@ jobs:
                      -o $GITHUB_WORKSPACE/out/new/ \
                      --data_issues_path $GITHUB_WORKSPACE/data_issues/pr
 
-      # Step 4.5: Save PR output file (so it's not lost when we checkout main)
-      - name: Save PR TEST1_hour.nc
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/pr_output
-          cp $GITHUB_WORKSPACE/out/new/TEST1/TEST1_hour.nc $GITHUB_WORKSPACE/pr_output/
+      # Step 4.5: Upload PR output file as artifact
+      - name: Upload PR TEST1_hour.nc
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-test1-hour
+          path: $GITHUB_WORKSPACE/out/new/TEST1/TEST1_hour.nc
 
       # Step 5: Check out main branch
       - name: Check out main branch
@@ -84,11 +85,12 @@ jobs:
                      -o $GITHUB_WORKSPACE/out/original/ \
                      --data_issues_path $GITHUB_WORKSPACE/data_issues/main
 
-      # Step 7.5: Restore PR file into place
-      - name: Restore PR TEST1_hour.nc
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/out/new/TEST1
-          cp $GITHUB_WORKSPACE/pr_output/TEST1_hour.nc $GITHUB_WORKSPACE/out/new/TEST1/
+      # Step 7.5: Download PR file artifact
+      - name: Download PR TEST1_hour.nc
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-test1-hour
+          path: $GITHUB_WORKSPACE/out/new/TEST1/
 
       # Step 8: Run reporter
       - name: Run reporter
