@@ -28,30 +28,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install wheel xarray numpy
           python3 -m pip install --upgrade setuptools
-          cd $GITHUB_WORKSPACE
           pip install .
 
       # Step 4: Run code on test data using PR branch
       - name: Run L0 to L3 processing using PR branch
         shell: bash
         run: |
-          mkdir -p $GITHUB_WORKSPACE/out/new/
-          mkdir -p $GITHUB_WORKSPACE/data_issues/pr
-          get_l2 -c $GITHUB_WORKSPACE/tests/data/test_config1_raw.toml \
-                 -i $GITHUB_WORKSPACE/tests/data/ \
-                 -o $GITHUB_WORKSPACE/out/new/ \
-                 --data_issues_path $GITHUB_WORKSPACE/data_issues/pr
-          get_l2tol3 -c $GITHUB_WORKSPACE/tests/data/station_configurations/TEST1.toml \
-                     -i $GITHUB_WORKSPACE/out/new/TEST1/TEST1_hour.nc \
-                     -o $GITHUB_WORKSPACE/out/new/ \
-                     --data_issues_path $GITHUB_WORKSPACE/data_issues/pr
+          mkdir -p out/new/
+          mkdir -p data_issues/pr
+          get_l2 -c tests/data/test_config1_raw.toml \
+                 -i tests/data/ \
+                 -o out/new/ \
+                 --data_issues_path data_issues/pr
+          get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
+                     -i out/new/TEST1/TEST1_hour.nc \
+                     -o out/new/ \
+                     --data_issues_path data_issues/pr
 
       # Step 4.5: Upload PR output file as artifact
       - name: Upload PR TEST1_hour.nc
         uses: actions/upload-artifact@v4
         with:
           name: pr-test1-hour
-          path: $GITHUB_WORKSPACE/out/new/TEST1/TEST1_hour.nc
+          path: |
+            out/new/TEST1/TEST1_hour.nc
 
       # Step 5: Check out main branch
       - name: Check out main branch
@@ -66,38 +66,37 @@ jobs:
           python -m pip install --upgrade pip
           pip install wheel
           python3 -m pip install --upgrade setuptools
-          cd $GITHUB_WORKSPACE
           pip install .
 
       # Step 7: Run code on test data using main branch
       - name: Run L0 to L3 processing using main branch
         shell: bash
         run: |
-          mkdir -p $GITHUB_WORKSPACE/out/original/
-          mkdir -p $GITHUB_WORKSPACE/data_issues/main
-          get_l2 -c $GITHUB_WORKSPACE/tests/data/test_config1_raw.toml \
-                 -i $GITHUB_WORKSPACE/tests/data/ \
-                 --issues $GITHUB_WORKSPACE/data_issues/main \
-                 -o $GITHUB_WORKSPACE/out/original/ \
-                 --data_issues_path $GITHUB_WORKSPACE/data_issues/main
-          get_l2tol3 -c $GITHUB_WORKSPACE/tests/data/station_configurations/TEST1.toml \
-                     -i $GITHUB_WORKSPACE/out/original/TEST1/TEST1_hour.nc \
-                     -o $GITHUB_WORKSPACE/out/original/ \
-                     --data_issues_path $GITHUB_WORKSPACE/data_issues/main
+          mkdir -p out/original/
+          mkdir -p data_issues/main
+          get_l2 -c tests/data/test_config1_raw.toml \
+                 -i tests/data/ \
+                 --issues data_issues/main \
+                 -o out/original/ \
+                 --data_issues_path data_issues/main
+          get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
+                     -i out/original/TEST1/TEST1_hour.nc \
+                     -o out/original/ \
+                     --data_issues_path data_issues/main
 
-      # Step 7.5: Download PR file artifact
+      # Step 7.5: Download PR output artifact back into correct place
       - name: Download PR TEST1_hour.nc
         uses: actions/download-artifact@v4
         with:
           name: pr-test1-hour
-          path: $GITHUB_WORKSPACE/out/new/TEST1/
+          path: out/new/TEST1/
 
       # Step 8: Run reporter
       - name: Run reporter
         run: |
-          python $GITHUB_WORKSPACE/.github/workflows/data_output_reporter.py \
-            -o $GITHUB_WORKSPACE/out/original/TEST1/TEST1_hour.nc \
-            -n $GITHUB_WORKSPACE/out/new/TEST1/TEST1_hour.nc
+          python .github/workflows/data_output_reporter.py \
+            -o out/original/TEST1/TEST1_hour.nc \
+            -n out/new/TEST1/TEST1_hour.nc
 
       # Step 9: Comment on PR
       - name: Comment on PR
