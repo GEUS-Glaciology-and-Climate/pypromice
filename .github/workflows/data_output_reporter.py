@@ -79,8 +79,8 @@ def compare_datasets(ds1: xr.Dataset,
             report["variable_diffs"][v] = diffs
 
     # Compare dataset attributes
-    if ds1.attrs != ds2.attrs:
-        report["attr_diffs"] = {"ds1": ds1.attrs, "ds2": ds2.attrs}
+    if sorted(ds1.attrs) != sorted(ds2.attrs):
+        report["attr_diffs"] = {"ds1": sorted(ds1.attrs), "ds2": sorted(ds2.attrs)}
 
     # Compare dataset-level coordinates
     all_ds_coords = set(ds1.coords) | set(ds2.coords)
@@ -122,40 +122,55 @@ def format_report_md(report: Dict[str, Any]) -> str:
     if not any(report.values()):
         return "# ✅ Datasets match perfectly!"
 
+    lines.append("## Variables missing in PR dataset")
     if report["missing_in_ds1"]:
-        lines.append("## Variables missing in PR dataset")
-        lines.append("| Variable |")
-        lines.append("|----------|")
-        for v in report["missing_in_ds1"]:
+      lines.append("| Variable |")
+      lines.append("|----------|")
+      for v in report["missing_in_ds1"]:
             lines.append(f"| {v} |")
+    else:
+      lines.append("None")
 
+    lines.append("## Variables missing in Main dataset")
     if report["missing_in_ds2"]:
-        lines.append("## Variables missing in Main dataset")
-        lines.append("| Variable |")
-        lines.append("|----------|")
-        for v in report["missing_in_ds2"]:
+      lines.append("| Variable |")
+      lines.append("|----------|")
+      for v in report["missing_in_ds2"]:
             lines.append(f"| {v} |")
+    else:
+      lines.append("None")
 
+    lines.append("## Variable differences")
     if report["variable_diffs"]:
-        lines.append("## Variable differences")
         lines.append("| Variable | Issue |")
         lines.append("|----------|-------|")
         for v, diffs in report["variable_diffs"].items():
             for d in diffs:
                 lines.append(f"| {v} | {d} |")
+    else:
+      lines.append("None")
 
+    lines.append("## Dataset attribute differences")
     if report["attr_diffs"]:
-        lines.append("## Dataset attribute differences")
+        lines.append("Original dataset attributes (main branch)")
         lines.append("```")
-        lines.append(str(report["attr_diffs"]))
+        lines.append(str(report["attr_diffs"]["ds1"]))
         lines.append("```")
+        lines.append("New dataset atrributes (PR branch)")
+        lines.append("```")
+        lines.append(str(report["attr_diffs"]["ds2"]))
+        lines.append("```")
+    else:
+      lines.append("None")
 
+    lines.append("## Coordinate differences")
     if report["coord_diffs"]:
-        lines.append("## Coordinate differences")
         lines.append("| Coordinate | Issue |")
         lines.append("|------------|-------|")
         for c, d in report["coord_diffs"].items():
             lines.append(f"| {c} | {d} |")
+    else:
+      lines.append("None")
 
     return "\n".join(lines)
 
