@@ -39,11 +39,10 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/data_issues/pr
           get_l2 -c $GITHUB_WORKSPACE/tests/data/test_config1_raw.toml \
                  -i $GITHUB_WORKSPACE/tests/data/ \
-                 --issues $GITHUB_WORKSPACE/data_issues/pr \
                  -o $GITHUB_WORKSPACE/out/new/ \
                  --data_issues_path $GITHUB_WORKSPACE/data_issues/pr
           get_l2tol3 -c $GITHUB_WORKSPACE/tests/data/station_configurations/TEST1.toml \
-                     -i $GITHUB_WORKSPACE/out/new/L0toL2/TEST1/TEST1_hour.nc \
+                     -i $GITHUB_WORKSPACE/out/new/TEST1/TEST1_hour.nc \
                      -o $GITHUB_WORKSPACE/out/new/ \
                      --data_issues_path $GITHUB_WORKSPACE/data_issues/pr
 
@@ -75,7 +74,7 @@ jobs:
                  -o $GITHUB_WORKSPACE/out/original/ \
                  --data_issues_path $GITHUB_WORKSPACE/data_issues/main
           get_l2tol3 -c $GITHUB_WORKSPACE/tests/data/station_configurations/TEST1.toml \
-                     -i $GITHUB_WORKSPACE/out/original/L0toL2/TEST1/TEST1_hour.nc \
+                     -i $GITHUB_WORKSPACE/out/original/TEST1/TEST1_hour.nc \
                      -o $GITHUB_WORKSPACE/out/original/ \
                      --data_issues_path $GITHUB_WORKSPACE/data_issues/main
 
@@ -83,8 +82,8 @@ jobs:
       - name: Run reporter
         run: |
           python $GITHUB_WORKSPACE/.github/workflows/data_output_reporter.py \
-            -o $GITHUB_WORKSPACE/out/original/L2toL3/TEST1_hour.nc \
-            -n $GITHUB_WORKSPACE/out/new/L2toL3/TEST1_hour.nc
+            -o $GITHUB_WORKSPACE/out/original/TEST1/TEST1_hour.nc \
+            -n $GITHUB_WORKSPACE/out/new/TEST1/TEST1_hour.nc
 
       # Step 9: Comment on PR
       - name: Comment on PR
