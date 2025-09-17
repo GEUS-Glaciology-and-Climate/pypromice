@@ -120,8 +120,19 @@ def format_report_md(report: Dict[str, Any]) -> str:
     lines = ["# Dataset Comparison Report"]
 
     if not any(report.values()):
-        return "# ✅ Datasets match perfectly!"
+        lines.append("## ✅ Datasets match perfectly!")
+        lines.append("No differences have been found between " \
+                     "the datasets produced using the PR " \
+                     "branch and the main branch")
 
+    lines.append("Differences have been found between " \ 
+                 "the datasets produced using the PR " \
+                 "branch and the main branch.")
+    lines.append("If you did not expect changes to be "\
+                 "made to the dataset from your PR "\
+                 "then please check this report and" \
+                 "update your branch accordingly.")
+  
     lines.append("## Variables missing in PR dataset")
     if report["missing_in_ds1"]:
       lines.append("| Variable |")
