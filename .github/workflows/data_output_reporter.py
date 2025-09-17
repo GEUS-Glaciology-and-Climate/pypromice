@@ -30,7 +30,7 @@ def compare_datasets(ds1: xr.Dataset,
 
         # Shape comparison
         if da1.shape != da2.shape:
-            diffs.append(f"Shape mismatch {da1.shape} vs {da2.shape}")
+            diffs.append(f"Data shape mismatch {da1.shape} vs {da2.shape}")
 
         # Compare coordinates for this variable
         all_coords = set(da1.coords) | set(da2.coords)
@@ -58,13 +58,14 @@ def compare_datasets(ds1: xr.Dataset,
             if da1[c].attrs != da2[c].attrs:
                 diffs.append(f"Coordinate '{c}' attribute mismatch: {da1[c].attrs} vs {da2[c].attrs}")
 
-        # Compare variable data
-        if np.issubdtype(da1.values.dtype, np.number):
-            if not np.allclose(da1.values, da2.values, rtol=rtol, atol=atol, equal_nan=True):
-                diffs.append("Data values differ")
-        else:
-            if not np.array_equal(da1.values, da2.values):
-                diffs.append("Data values differ")
+        # Compare variable values only if shapes match
+        if da1.shape == da2.shape:
+            if np.issubdtype(da1.values.dtype, np.number):
+                if not np.allclose(da1.values, da2.values, rtol=rtol, atol=atol, equal_nan=True):
+                    diffs.append("Data values differ")
+            else:
+                if not np.array_equal(da1.values, da2.values):
+                    diffs.append("Data values differ")
 
         # Compare variable attributes
         if da1.attrs != da2.attrs:
@@ -103,7 +104,6 @@ def compare_datasets(ds1: xr.Dataset,
             report["coord_diffs"][c] = f"Attr mismatch: {ds1[c].attrs} vs {ds2[c].attrs}"
 
     return report
-
 
 def format_report_md(report: Dict[str, Any]) -> str:
     """Format report dictionary into markdown string."""
