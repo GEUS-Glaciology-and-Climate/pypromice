@@ -1,5 +1,5 @@
 __all__ = ["convert_sr", "convert_lr", "filter_lr", "filter_sr",
-           "correct_sr", "calculate_albedo"]
+           "correct_sr", "calculate_albedo", "calculate_surface_temperature"]
 
 import xarray as xr
 import numpy as np
@@ -8,6 +8,7 @@ from pypromice.core.variables import station_pose
 # Define air temperature for radiometer adjustments
 T_0=273.15                  # degrees Celsius to Kelvin conversion
 deg2rad = np.pi / 180       # Degrees to radians conversion
+emissivity=0.97
 
 def convert_sr(sr: xr.DataArray,
                sr_eng_coef: float) -> xr.DataArray:
@@ -369,3 +370,25 @@ def calculate_correction_factor(phi_sensor_rad: xr.DataArray,
     CorFac_all = CorFac / (1 - DifFrac + CorFac * DifFrac)
 
     return CorFac_all.where(theta_sensor_rad.notnull())
+
+
+def calculate_surface_temperature(dlr: xr.DataArray,
+                                  ulr: xr.DataArray
+) -> xr.DataArray:
+    """Calculate surface temperature from downwelling and
+    upwelling longwave radiation.
+
+    Parameters
+    ----------
+    dlr : xr.DataArray
+        Downwelling longwave radiation
+    ulr : xr.DataArray
+        Upwelling longwave radiation
+
+    Returns
+    -------
+    xr.DataArray
+        Calculated surface temperature
+    """
+    t_surf = ((ulr - (1 - emissivity) * dlr) / emissivity / 5.67e-8)**0.25 - T_0
+    return t_surf

@@ -114,8 +114,8 @@ def toL2(
                                              T_0, T_100, ews, ei0)
 
     # Determine surface temperature
-    ds['t_surf'] = calcSurfaceTemperature(T_0, ds['ulr'], ds['dlr'],
-                                          emissivity)
+    ds['t_surf'] = radiation.calculate_surface_temperature(ds['dlr'],
+                                                           ds['ulr'])
     is_bedrock = ds.attrs['bedrock']
     if not is_bedrock:
         ds['t_surf'] = ds['t_surf'].clip(max=0)
@@ -267,30 +267,6 @@ def calcCloudCoverage(T, dlr, station_id,T_0, eps_overcast=1.0,
     cc[cc < 0] = 0
 
     return cc
-
-
-def calcSurfaceTemperature(T_0, ulr, dlr, emissivity):
-    '''Calculate surface temperature from air temperature, upwelling and
-    downwelling radiation and emissivity
-
-    Parameters
-    ----------
-    T_0 : xarray.DataArray
-        Air temperature
-    ulr : xarray.DataArray
-        Upwelling longwave radiation
-    dlr : xarray.DataArray
-        Downwelling longwave radiation
-    emissivity : int
-        Assumed emissivity
-
-    Returns
-    -------
-    xarray.DataArray
-        Calculated surface temperature
-    '''
-    t_surf = ((ulr - (1 - emissivity) * dlr) / emissivity / 5.67e-8)**0.25 - T_0
-    return t_surf
 
 
 def smoothTilt(da: xr.DataArray, threshold=0.2):
