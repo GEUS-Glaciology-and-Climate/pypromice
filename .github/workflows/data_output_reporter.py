@@ -25,18 +25,18 @@ def compare_datasets(ds1: xr.Dataset,
     for v in vars1 & vars2:
         da1 = ds1[v]
         da2 = ds2[v]
-
         diffs = []
 
-        # Shape comparison
+        # Shape comparison for variable data
         if da1.shape != da2.shape:
             diffs.append(f"Data shape mismatch {da1.shape} vs {da2.shape}")
 
-        # Compare coordinates for this variable
+        # Compare variable coordinates
         all_coords = set(da1.coords) | set(da2.coords)
         for c in all_coords:
             in_ds1 = c in da1.coords
             in_ds2 = c in da2.coords
+
             if not in_ds1:
                 diffs.append(f"Coordinate '{c}' missing in ds1")
                 continue
@@ -47,18 +47,22 @@ def compare_datasets(ds1: xr.Dataset,
             a = da1[c].values
             b = da2[c].values
 
-            if np.issubdtype(a.dtype, np.number):
-                if not np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=True):
-                    diffs.append(f"Coordinate '{c}' values differ")
+            # Shape check first
+            if a.shape != b.shape:
+                diffs.append(f"Coordinate '{c}' shape mismatch {a.shape} vs {b.shape}")
             else:
-                if not np.array_equal(a, b):
-                    diffs.append(f"Coordinate '{c}' values differ")
+                if np.issubdtype(a.dtype, np.number):
+                    if not np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=True):
+                        diffs.append(f"Coordinate '{c}' values differ")
+                else:
+                    if not np.array_equal(a, b):
+                        diffs.append(f"Coordinate '{c}' values differ")
 
             # Compare coordinate attributes
             if da1[c].attrs != da2[c].attrs:
                 diffs.append(f"Coordinate '{c}' attribute mismatch: {da1[c].attrs} vs {da2[c].attrs}")
 
-        # Compare variable values only if shapes match
+        # Compare variable data if shapes match
         if da1.shape == da2.shape:
             if np.issubdtype(da1.values.dtype, np.number):
                 if not np.allclose(da1.values, da2.values, rtol=rtol, atol=atol, equal_nan=True):
@@ -83,6 +87,7 @@ def compare_datasets(ds1: xr.Dataset,
     for c in all_ds_coords:
         in_ds1 = c in ds1.coords
         in_ds2 = c in ds2.coords
+
         if not in_ds1:
             report["coord_diffs"][c] = "Missing in ds1"
             continue
@@ -93,15 +98,20 @@ def compare_datasets(ds1: xr.Dataset,
         a = ds1[c].values
         b = ds2[c].values
 
-        if np.issubdtype(a.dtype, np.number):
-            if not np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=True):
-                report["coord_diffs"][c] = "Values differ"
+        # Shape check first
+        if a.shape != b.shape:
+            report["coord_diffs"][c] = f"Shape mismatch {a.shape} vs {b.shape}"
         else:
-            if not np.array_equal(a, b):
-                report["coord_diffs"][c] = "Values differ"
+            if np.issubdtype(a.dtype, np.number):
+                if not np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=True):
+                    report["coord_diffs"][c] = "Values differ"
+            else:
+                if not np.array_equal(a, b):
+                    report["coord_diffs"][c] = "Values differ"
 
-        if ds1[c].attrs != ds2[c].attrs:
-            report["coord_diffs"][c] = f"Attr mismatch: {ds1[c].attrs} vs {ds2[c].attrs}"
+            # Compare coordinate attributes
+            if ds1[c].attrs != ds2[c].attrs:
+                report["coord_diffs"][c] = f"Attr mismatch: {ds1[c].attrs} vs {ds2[c].attrs}"
 
     return report
 
