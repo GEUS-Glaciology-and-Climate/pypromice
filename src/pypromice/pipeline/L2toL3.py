@@ -902,8 +902,8 @@ def get_thermistor_depth(df_in, site, station_config):
             min_diff_to_depth=1.5,
         ).set_index('date').values
         df_in['t_i_10m'] = df_in_h['t_i_10m'].reindex(df_in.index,
-                                        method=None).interpolate(method='time')
-        
+                                        method=None)
+
         # filtering
         ind_pos = df_in["t_i_10m"] > 0.1
         ind_low = df_in["t_i_10m"] < -70
