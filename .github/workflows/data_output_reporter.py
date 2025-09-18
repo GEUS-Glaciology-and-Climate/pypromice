@@ -123,7 +123,12 @@ def format_report_md(report: Dict[str, Any]) -> str:
         lines.append("## ✅ Datasets match perfectly!")
         lines.append("No differences have been found between " +
                      "the datasets produced using the PR " +
-                     "branch and the main branch")
+                     "branch and the main branch.")
+        lines.append("⚠️ This report is generated from a small " +
+                     "subset of test data that does not reflect " +
+                     "all scenarios. Please check using more " +
+                     "input data if you suspect changes to the " +
+                     "output data have occurred.")
         return "\n".join(lines)
 
     lines.append("Differences have been found between " +

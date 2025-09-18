@@ -79,14 +79,16 @@ def toL2(
     #     ds = outlier_detector.filter_data(ds)                                 # Flag and remove percentile outliers
 
     # Filter GPS values based on baseline elevation
-    ds["gps_lat"], ds["gps_lon"], ds["gps_alt"] = gps.filter(ds["gps_lat"], ds["gps_lon"], ds["gps_alt"])
+    ds["gps_lat"], ds["gps_lon"], ds["gps_alt"] = gps.filter(ds["gps_lat"],
+                                                             ds["gps_lon"],
+                                                             ds["gps_alt"])
 
     # removing dlr and ulr that are missing t_rad
     # this is done now becasue t_rad can be filtered either manually or with persistence
     ds['dlr'] = ds.dlr.where(ds.t_rad.notnull())
     ds['ulr'] = ds.ulr.where(ds.t_rad.notnull())
 
-    # calculating realtive humidity with regard to ice
+    # Calculate relative humidity with regard to ice
     ds['rh_u_wrt_ice_or_water'] = humidity.adjust(ds['rh_u'], ds['t_u'])
 
     if ds.attrs['number_of_booms']==2:
@@ -108,7 +110,7 @@ def toL2(
     ds['tilt_y'] = smoothTilt(ds['tilt_y'])
     ds['rot'] = smoothRot(ds['rot'])
 
-    # Determiune cloud cover for on-ice stations
+    # Determine cloud cover for on-ice stations
     if not is_bedrock:
         ds['cc'] = calcCloudCoverage(ds['t_u'], ds['dlr'], ds.attrs['station_id'], T_0)
     else:
