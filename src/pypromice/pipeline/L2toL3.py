@@ -355,9 +355,6 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
         # defining ice ablation period from the decrease of a smoothed version of z_pt
         # meaning when smoothed_z_pt.diff() < threshold_ablation
-        # first smoothing
-
-        # processing steps
         hourly_interp = (df["z_ice_surf"]
                          .resample("h")
                          .interpolate(limit=72))
@@ -367,12 +364,12 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
         # ablation detection
         diff_series = smoothed_PT.diff()
+        ind_ablation = np.full_like(diff_series, False, dtype=bool)
         ind_ablation = np.logical_and(diff_series.values < threshold_ablation,
                                       np.isin(diff_series.index.month, [6, 7, 8, 9]))
-
         # making sure that we only qualify as ablation timestamps where we actually have ablation data
         msk = np.isnan(hourly_interp.values)
-        ind_ablation[msk] = np.nan
+        ind_ablation[msk] = False
 
         # finding the beginning and end of each period with True
         idx = np.argwhere(np.diff(np.r_[False,ind_ablation, False])).reshape(-1, 2)
@@ -391,6 +388,36 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         # finding the beginning and end of each period with True
         idx = np.argwhere(np.diff(np.r_[False,ind_ablation, False])).reshape(-1, 2)
         idx[:, 1] -= 1
+        # because the smooth_PT sees 7 days ahead, it starts showing a decline
+        # 7 days in advance, we therefore need to exclude the first few days of
+        # each ablation period
+        for start, end in idx:
+            period_start = df.index[start]
+            period_end = period_start + pd.Timedelta(days=3)
+            exclusion_period = (df.index >= period_start) & (df.index < period_end)
+            ind_ablation[exclusion_period] = False
+
+        # %% illustration plot
+        # import pdb; pdb.set_trace()
+        # import matplotlib.pyplot as plt
+
+        # ablation_times = smoothed_PT.index[ind_ablation]
+
+        # plt.figure(figsize=(10, 6))
+        # plt.plot(hourly_interp.index, hourly_interp, 'x', linewidth=1, label="Hourly + interp (≤72h)")
+        # plt.scatter(df.index, df["z_ice_surf"], s=10, label="Original (irregular)")
+        # plt.plot(once_smoothed.index, once_smoothed, linewidth=1.5, label="Smoothed (14D)")
+        # plt.plot(smoothed_PT.index, smoothed_PT, linewidth=2, label="Smoothed x2 (14D) → reindexed")
+        # plt.scatter(ablation_times, smoothed_PT.loc[ablation_times], s=30, marker="v", label="Ablation detected")
+        # plt.scatter(smoothed_PT.index, (ind_ablation)*1+14, s=30, marker="v", label="Ablation detected")
+
+        # plt.title("Gradual processing of z_ice_surf → smoothed_PT and ablation detection")
+        # plt.xlabel("Time")
+        # plt.ylabel("z_ice_surf")
+        # plt.legend()
+        # plt.tight_layout()
+        # plt.show()
+        # %%
 
         hs1=df["z_surf_1_adj"].interpolate(limit=24*2).copy()
         hs2=df["z_surf_2_adj"].interpolate(limit=24*2).copy()
