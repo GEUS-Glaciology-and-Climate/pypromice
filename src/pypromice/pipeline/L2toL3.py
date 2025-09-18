@@ -11,6 +11,9 @@ from pathlib import Path
 from pypromice.core.qc.github_data_issues import adjustData
 import logging
 
+from pypromice.core.qc.github_data_issues import adjustData
+from pypromice.core.variables import humidity
+
 logger = logging.getLogger(__name__)
 
 def toL3(L2,
@@ -23,7 +26,6 @@ def toL3(L2,
         - smoothed and inter/extrapolated GPS coordinates
         - continuous surface height, ice surface height, snow height
         - thermistor depths
-
 
     Parameters
     ----------
@@ -50,9 +52,12 @@ def toL3(L2,
         # Upper boom bulk calculation
         T_h_u = ds['t_u'].copy()                                                   # Copy for processing
         p_h_u = ds['p_u'].copy()
-        rh_h_u_wrt_ice_or_water = ds['rh_u_wrt_ice_or_water'].copy()
 
-        q_h_u = calculate_specific_humidity(T_0, T_100, T_h_u, p_h_u, rh_h_u_wrt_ice_or_water)                  # Calculate specific humidity
+        # Calculate specific humidity
+        q_h_u = humidity.calculate_specific_humidity(ds["t_u"],
+                                                     ds["p_u"],
+                                                     ds["rh_u_wrt_ice_or_water"])
+
         if ('wspd_u' in ds.keys()) and \
             ('t_surf' in ds.keys()) and \
                 ('z_boom_u' in ds.keys()):
@@ -70,8 +75,8 @@ def toL3(L2,
         else:
             logger.info('wspd_u, t_surf or z_boom_u missing, cannot calulate tubrulent heat fluxes')
 
-        q_h_u = 1000 * q_h_u                                                       # Convert sp.humid from kg/kg to g/kg
-        ds['qh_u'] = (('time'), q_h_u.data)
+        # Convert specific humidity from kg/kg to g/kg
+        ds['qh_u'] = humidity.convert(q_h_u)
     else:
         logger.info('t_u, p_u or rh_u_wrt_ice_or_water missing, cannot calulate tubrulent heat fluxes')
 
@@ -82,9 +87,11 @@ def toL3(L2,
                 ('rh_l_wrt_ice_or_water' in ds.keys()):
             T_h_l = ds['t_l'].copy()                                               # Copy for processing
             p_h_l = ds['p_l'].copy()
-            rh_h_l_wrt_ice_or_water = ds['rh_l_wrt_ice_or_water'].copy()
 
-            q_h_l = calculate_specific_humidity(T_0, T_100, T_h_l, p_h_l, rh_h_l_wrt_ice_or_water)              # Calculate sp.humidity
+            # Calculate specific humidity
+            q_h_l = humidity.calculate_specific_humidity(ds["t_l"],
+                                                         ds["p_l"],
+                                                         ds["rh_l_wrt_ice_or_water"])
 
             if ('wspd_l' in ds.keys()) and \
                 ('t_surf' in ds.keys()) and \
@@ -102,8 +109,9 @@ def toL3(L2,
             else:
                 logger.info('wspd_l, t_surf or z_boom_l missing, cannot calulate tubrulent heat fluxes')
 
-            q_h_l = 1000 * q_h_l                                                       # Convert sp.humid from kg/kg to g/kg
-            ds['qh_l'] = (('time'), q_h_l.data)
+            # Convert specific humidity from kg/kg to g/kg
+            ds['qh_l'] = humidity.convert(q_h_l)
+
         else:
             logger.info('t_l, p_l or rh_l_wrt_ice_or_water missing, cannot calulate tubrulent heat fluxes')
 
@@ -1234,56 +1242,6 @@ def calculate_viscosity(T_h, T_0, rho_atm):
 
     # Kinematic viscosity of air in m^2/s
     return mu / rho_atm
-
-def calculate_specific_humidity(T_0, T_100, T_h, p_h, rh_h_wrt_ice_or_water, es_0=6.1071, es_100=1013.246, eps=0.622):
-    '''Calculate specific humidity
-    Parameters
-    ----------
-    T_0 : float
-        Steam point temperature. Default is 273.15.
-    T_100 : float
-        Steam point temperature in Kelvin
-    T_h : xarray.DataArray
-        Air temperature
-    p_h : xarray.DataArray
-        Air pressure
-    rh_h_wrt_ice_or_water : xarray.DataArray
-        Relative humidity corrected
-    es_0 : float
-        Saturation vapour pressure at the melting point (hPa)
-    es_100 : float
-        Saturation vapour pressure at steam point temperature (hPa)
-    eps : int
-        ratio of molar masses of vapor and dry air (0.622)
-
-    Returns
-    -------
-    xarray.DataArray
-        Specific humidity data array
-    '''
-    # Saturation vapour pressure above 0 C (hPa)
-    es_wtr = 10**(-7.90298 * (T_100 / (T_h + T_0) - 1) + 5.02808 * np.log10(T_100 / (T_h + T_0))
-                  - 1.3816E-7 * (10**(11.344 * (1 - (T_h + T_0) / T_100)) - 1)
-                  + 8.1328E-3 * (10**(-3.49149 * (T_100 / (T_h + T_0) -1)) - 1) + np.log10(es_100))
-
-    # Saturation vapour pressure below 0 C (hPa)
-    es_ice = 10**(-9.09718 * (T_0 / (T_h + T_0) - 1) - 3.56654
-                  * np.log10(T_0 / (T_h + T_0)) + 0.876793
-                  * (1 - (T_h + T_0) / T_0)
-                  + np.log10(es_0))
-
-    # Specific humidity at saturation (incorrect below melting point)
-    q_sat = eps * es_wtr / (p_h - (1 - eps) * es_wtr)
-
-    # Replace saturation specific humidity values below melting point
-    freezing = T_h < 0
-    q_sat[freezing] = eps * es_ice[freezing] / (p_h[freezing] - (1 - eps) * es_ice[freezing])
-
-    q_nan = np.isnan(T_h) | np.isnan(p_h)
-    q_sat[q_nan] = np.nan
-
-    # Convert to kg/kg
-    return rh_h_wrt_ice_or_water * q_sat / 100
 
 if __name__ == "__main__":
     # unittest.main()
