@@ -33,10 +33,11 @@ def filter_lufft_errors(
     return precip.where(~mask)
 
 
-def convert_to_rate_and_correct_undercatch(
+def convert_to_rainfall_per_timestep_and_correct_undercatch(
     precip: xr.DataArray, wspd: xr.DataArray, t: xr.DataArray
 ) -> xr.DataArray:
-    """Correct precipitation with the undercatch correction method used in
+    """Converts accumulated precipitation to rainfall amount per timestep,
+    then corrects precipitation with the undercatch correction method used in
     Yang et al. (1999) and Box et al. (2022), based on Goodison et al. (1998).
 
     Yang, D., Ishida, S., Goodison, B. E., and Gunther, T.: Bias correction of
@@ -63,10 +64,12 @@ def convert_to_rate_and_correct_undercatch(
 
     Returns
     -------
-    precip_rate : xr.DataArray
-        Corrected precipitation rate
+    rainfall : xr.DataArray
+        Uncorrected rainfall per timestep
+    rainfall_cor : xr.DataArray
+        Corrected rainfall per timestep
     """
-    precip_rate = get_rate(precip)
+    rainfall_per_timestep = precip.diff("time").reindex_like(precip)
 
     # Calculate undercatch correction factor
     corr = 100 / (100.00 - 4.37 * wspd + 0.35 * wspd * wspd)
@@ -75,48 +78,16 @@ def convert_to_rate_and_correct_undercatch(
     corr = corr.where(corr > 1.02, other=1.02)
 
     # Apply correction to rate
-    precip_rate = precip_rate * corr
+    rainfall_per_timestep_cor = rainfall_per_timestep * corr
 
-    # Removing all negative precipitation rates
-    precip_rate = precip_rate.where(precip_rate > 0)
+    # Removing all negative precipitation, both corrected and uncorrected
+    rainfall_per_timestep = rainfall_per_timestep.where(rainfall_per_timestep > 0)
+    rainfall_per_timestep_cor = rainfall_per_timestep_cor.where(rainfall_per_timestep_cor > 0)
 
-    # Filtering cold season precipitation measurements
-    rain_in_cold = (precip_rate > 0) & (t < -2)
-    precip_rate = precip_rate.where(~rain_in_cold)
+    # Filtering cold season precipitation, both corrected and uncorrected
+    rain_in_cold = (rainfall_per_timestep > 0) & (t < -2)
+    rainfall_per_timestep = rainfall_per_timestep.where(~rain_in_cold)
+    rain_in_cold = (rainfall_per_timestep_cor > 0) & (t < -2)
+    rainfall_per_timestep_cor = rainfall_per_timestep_cor.where(~rain_in_cold)
 
-    return precip_rate
-
-
-def get_rate(
-    precip: xr.DataArray,
-) -> xr.DataArray:
-    """
-    Calculates the precipitation rate by differentiating the precipitation values
-    with respect to time while considering the time step size to ensure the rate
-    is in the units of mm/hr. It also handles missing values by forward-filling
-    and removes results at locations where calculation depends on interpolated
-    values.
-
-    Parameters
-    ----------
-    precip : xarray.DataArray
-        The precipitation data with a time dimension. It includes timestamped
-        precipitation values.
-
-    Returns
-    -------
-    xarray.DataArray
-        The calculated precipitation rate with the same dimensions as the input
-        data. Missing values are ignored in the rate calculation and replaced
-        appropriately.
-    """
-    nan_mask = precip.isnull()
-
-    # Calculate precipitation rate and makes sure it remains of the same size
-    # and taking into account the time step size to ensure mm/hr
-    dt_hours = precip["time"].diff("time").reindex_like(precip) / np.timedelta64(1, "h")
-    precip_rate = precip.diff("time").reindex_like(precip) / dt_hours
-    # Removing timestamps where precipitation rates have been calculated over
-    # interpolated values
-    precip_rate = precip_rate.where(~nan_mask)
-    return precip_rate
+    return rainfall_per_timestep, rainfall_per_timestep_cor

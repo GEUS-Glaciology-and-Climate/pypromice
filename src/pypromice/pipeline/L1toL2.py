@@ -141,19 +141,23 @@ def toL2(
         precip_flag=True
     if ~ds["precip_u"].isnull().all() and precip_flag:
         ds["precip_u"] = precipitation.filter_lufft_errors(ds["precip_u"], ds["t_u"], ds["p_u"], ds["rh_u"])
-        ds["precip_rate_u"] = precipitation.convert_to_rate_and_correct_undercatch(ds["precip_u"], ds["wspd_u"], ds["t_u"])
+        ds["rainfall_u"], ds["rainfall_cor_u"] = \
+            precipitation.convert_to_rainfall_per_timestep_and_correct_undercatch(
+                                    ds["precip_u"], ds["wspd_u"], ds["t_u"])
 
     if ds.attrs["number_of_booms"]==2:
         if ~ds["precip_l"].isnull().all() and precip_flag:
                 ds["precip_l"] = precipitation.filter_lufft_errors(ds["precip_l"], ds["t_l"], ds["p_l"], ds["rh_l"])
-                ds["precip_rate_l"] = precipitation.convert_to_rate_and_correct_undercatch(ds["precip_l"], ds["wspd_l"], ds["t_l"])
+                ds["rainfall_l"], ds["rainfall_cor_l"] = \
+                    precipitation.convert_to_rainfall_per_timestep_and_correct_undercatch(
+                                    ds["precip_l"], ds["wspd_l"], ds["t_l"])
 
     # Calculate directional wind speed for upper boom
     ds['wdir_u'] = wind.filter_wind_direction(ds['wdir_u'],
                                               ds['wspd_u'])
     ds['wspd_x_u'], ds['wspd_y_u'] = wind.calculate_directional_wind_speed(ds['wspd_u'],
                                                                            ds['wdir_u'])
-    
+
     # Calculate directional wind speed for lower boom
     if ds.attrs['number_of_booms'] == 2:
         ds['wdir_l'] = wind.filter_wind_direction(ds['wdir_l'],
