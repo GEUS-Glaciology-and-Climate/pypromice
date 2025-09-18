@@ -69,7 +69,7 @@ def convert_to_rainfall_per_timestep_and_correct_undercatch(
     rainfall_cor : xr.DataArray
         Corrected rainfall per timestep
     """
-    rainfall_per_timestep = precip.diff("time").reindex_like(precip)
+    rainfall_per_timestep = get_rainfall_per_timestep(precip, t)
 
     # Calculate undercatch correction factor
     corr = 100 / (100.00 - 4.37 * wspd + 0.35 * wspd * wspd)
@@ -80,14 +80,35 @@ def convert_to_rainfall_per_timestep_and_correct_undercatch(
     # Apply correction to rate
     rainfall_per_timestep_cor = rainfall_per_timestep * corr
 
+    return rainfall_per_timestep, rainfall_per_timestep_cor
+
+def get_rainfall_per_timestep(
+    precip: xr.DataArray,
+    t: xr.DataArray
+) -> xr.DataArray:
+    """
+    Derive rainfall per timestep from cumulative precipitation data.
+
+    Parameters
+    ----------
+    precip : xr.DataArray
+        Cumulative precipitation measurements.
+    t : xr.DataArray
+        Air temperature measurements.
+
+    Returns
+    -------
+    xr.DataArray
+        Rainfall per timestep with negative values removed and
+        cold-season precipitation (T < -2 °C) filtered out.
+    """
+    rainfall_per_timestep = precip.diff("time").reindex_like(precip)
+
     # Removing all negative precipitation, both corrected and uncorrected
-    rainfall_per_timestep = rainfall_per_timestep.where(rainfall_per_timestep > 0)
-    rainfall_per_timestep_cor = rainfall_per_timestep_cor.where(rainfall_per_timestep_cor > 0)
+    rainfall_per_timestep = rainfall_per_timestep.where(rainfall_per_timestep >= 0)
 
     # Filtering cold season precipitation, both corrected and uncorrected
     rain_in_cold = (rainfall_per_timestep > 0) & (t < -2)
     rainfall_per_timestep = rainfall_per_timestep.where(~rain_in_cold)
-    rain_in_cold = (rainfall_per_timestep_cor > 0) & (t < -2)
-    rainfall_per_timestep_cor = rainfall_per_timestep_cor.where(~rain_in_cold)
 
-    return rainfall_per_timestep, rainfall_per_timestep_cor
+    return rainfall_per_timestep

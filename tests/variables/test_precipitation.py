@@ -48,7 +48,7 @@ class TestPrecipConvert(unittest.TestCase):
                               coords={"time": time})
 
     def test_convert_output(self):
-        result = precipitation.convert_to_rate_and_correct_undercatch(self.precip, self.wspd, self.t)
+        _, result = precipitation.convert_to_rainfall_per_timestep_and_correct_undercatch(self.precip, self.wspd, self.t)
 
         expected_result = np.array([
             np.nan, 1.15074799, 3.28587076, 6.90448792, 5.75373993,
@@ -65,7 +65,7 @@ class TestPrecipConvert(unittest.TestCase):
         )
 
     def test_convert_applies_correction_factor(self):
-        result = precipitation.convert_to_rate_and_correct_undercatch(self.precip, self.wspd, self.t)
+        _, result = precipitation.convert_to_rainfall_per_timestep_and_correct_undercatch(self.precip, self.wspd, self.t)
         # Ensure precipitation rates are scaled by factor >= 1.02
         self.assertTrue(((result.dropna(dim="time") >= 0).all()).item())
 
@@ -73,7 +73,7 @@ class TestPrecipConvert(unittest.TestCase):
         t_allneg = xr.DataArray([-3.0, -5.0, -4.0, -6.0, -4.0, -4.0, -5.0, -8.0],
                                 dims="time",
                                 coords=self.t.coords)
-        result = precipitation.convert_to_rate_and_correct_undercatch(self.precip, self.wspd, t_allneg)
+        _, result = precipitation.convert_to_rainfall_per_timestep_and_correct_undercatch(self.precip, self.wspd, t_allneg)
         # When t < -2 and precip_rate > 0, it should become NaN
         self.assertTrue(np.isnan(result).all())
 
@@ -82,74 +82,74 @@ class TestPrecipConvert(unittest.TestCase):
         precip_desc = xr.DataArray([100.0, 90.0, 87.0, 84.0, 72.0, 60.0, 38.0, 26.0],
                                   dims="time",
                                   coords=self.precip.coords)
-        result = precipitation.convert_to_rate_and_correct_undercatch(precip_desc, self.wspd, self.t)
+        _, result = precipitation.convert_to_rainfall_per_timestep_and_correct_undercatch(precip_desc, self.wspd, self.t)
+
         self.assertTrue(np.isnan(result.values).all())
 
     def test_precipitation_counter_reset(self):
         # The expected precipitation rate should have the same dimension and coordinates as the input
         precip_accumulated_values =   [0.0,    1.0,  1.0, 3.0,  6.0,  np.nan,    0.0,  1.0, np.nan, 2.0]
-        expected_precip_rate_values = [np.nan, 1.0,  0.0, 2.0,  3.0,  np.nan, np.nan, 1.0,  np.nan, np.nan]
+        expected_rainfall_values =    [np.nan, 1.0,  0.0, 2.0,  3.0,  np.nan, np.nan, 1.0,  np.nan, np.nan]
+        t_vals = np.full(len(expected_rainfall_values), 5)
 
         time = pd.date_range("2025-06-01", periods=len(precip_accumulated_values), freq="h")
         precip_accumulated = xr.DataArray(precip_accumulated_values, dims="time", coords={"time": time})
-        expected_precip_rate = xr.DataArray(expected_precip_rate_values, dims="time", coords={"time": time})
+        t = xr.DataArray(t_vals, dims="time", coords={"time": time})
+        expected_rainfall = xr.DataArray(expected_rainfall_values, dims="time", coords={"time": time})
 
-        result = precipitation.get_rate(precip_accumulated)
+        result = precipitation.get_rainfall_per_timestep(precip_accumulated, t)
 
-        xr.testing.assert_equal(result, expected_precip_rate)
+        xr.testing.assert_equal(result, expected_rainfall)
 
     def test_irregular_sample_rates(self):
         """
         There can be occasions where the sample rate is not regular.
         E.g., on day 300 or after merging multiple datasets.
-
-        # TODO: Should we allow this?
-        # TODO: It is unclear if the rate should be calculated per hour or for the sample window. Should the last value be 7mm or 7/24 mm/h
         """
         precip_accumulated_values =   [0.0,    1.0,  1.0,  3.0, 10.0]
-        expected_precip_rate_values = [np.nan, 1.0,  0.0,  2.0,  0.291666666666]
-        time = pd.to_datetime('2023-10-26') + pd.to_timedelta(['21:00:00', '22:00:00', '23:00:00', '24:00:00', '48:00:00'])
-        expected_precip_rate = xr.DataArray(
-            expected_precip_rate_values, dims="time", coords={"time": time}
-        )
-        precip_accumulated = xr.DataArray(
-            precip_accumulated_values, dims="time", coords={"time": time}
-        )
+        expected_rainfall_values =    [np.nan, 1.0,  0.0,  2.0,  7.0]
+        t_vals = np.full(len(expected_rainfall_values), 5)
 
-        result = precipitation.get_rate(precip_accumulated)
-        np.testing.assert_allclose(
-            result.values,
-            expected_precip_rate,
-            rtol=1e-6,
-            atol=1e-8,
-            err_msg="Precipitation rate values differ from expected output"
+        time = pd.to_datetime('2023-10-26') + pd.to_timedelta(['21:00:00', '22:00:00', '23:00:00', '24:00:00', '48:00:00'])
+        expected_rainfall = xr.DataArray(
+            expected_rainfall_values, dims="time", coords={"time": time}
         )
+        ds = xr.Dataset(
+                            data_vars={
+                                "precip": (("time",), precip_accumulated_values),
+                                "t": (("time",), t_vals),
+                            },
+                            coords={"time": time},
+                        )
+
+        result = precipitation.get_rainfall_per_timestep(ds['precip'], ds['t'])
+        xr.testing.assert_equal(result, expected_rainfall)
 
     def test_sub_hourly_rates(self):
         """
         This is an example where the sample rate higher than h^-1
-        It is unclear if the rate should be calculated per hour or for the sample window
+        The result should be an amount of rainfall per time stamp
         """
         n_samples = 100
         precip_accumulated_values = np.cumsum(np.random.rand(n_samples))
-        expected_precip_rate_values = np.diff(precip_accumulated_values)/0.16666666666666666 # in mm/hr
-        expected_precip_rate_values = np.insert(expected_precip_rate_values, 0, np.nan)
+        expected_rainfall_values = np.diff(precip_accumulated_values)
+        expected_rainfall_values = np.insert(expected_rainfall_values, 0, np.nan)
+        t_vals = np.full(n_samples, n_samples)
         time = pd.date_range("2025-06-01", periods=n_samples, freq="600s")
-        precip_accumulated = xr.DataArray(
-            precip_accumulated_values, dims="time", coords={"time": time}
-        )
-        expected_precip_rate = xr.DataArray(
-            expected_precip_rate_values, dims="time", coords={"time": time}
+        ds = xr.Dataset(
+                            data_vars={
+                                "precip": (("time",), precip_accumulated_values),
+                                "t": (("time",), t_vals),
+                            },
+                            coords={"time": time},
+                        )
+
+        expected_rainfall = xr.DataArray(
+            expected_rainfall_values, dims="time", coords={"time": time}
         )
 
-        result = precipitation.get_rate(precip_accumulated)
-        np.testing.assert_allclose(
-            result.values,
-            expected_precip_rate,
-            rtol=1e-6,
-            atol=1e-8,
-            err_msg="Precipitation rate values differ from expected output"
-        )
+        result = precipitation.get_rainfall_per_timestep(ds['precip'], ds['t'])
+        xr.testing.assert_equal(result, expected_rainfall)
 
 if __name__ == "__main__":
     unittest.main()
