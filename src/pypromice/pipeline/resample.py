@@ -12,7 +12,7 @@ import xarray as xr
 from pypromice.core.variables.wind import calculate_directional_wind_speed
 logger = logging.getLogger(__name__)
 
-def resample_dataset(ds_h, t):
+def resample_dataset(ds_h, t, completeness_threshold=0.8):
     '''Resample L2 AWS data, e.g. hourly to daily average. This uses pandas
     DataFrame resampling at the moment as a work-around to the xarray Dataset
     resampling. As stated, xarray resampling is a lengthy process that takes
@@ -27,6 +27,10 @@ def resample_dataset(ds_h, t):
     t : str
         Resample factor( "60min", "1D" or "MS"), same variable definition as in
         pandas.DataFrame.resample()
+    completeness_threshold : float
+        Lower limit of completness of an hourly/daily/monthly aggregate (nr of
+        samples in aggregate / expected nr of samples). Aggregates below that
+        limit are replaced by NaNs.
 
     Returns
     -------
@@ -61,6 +65,12 @@ def resample_dataset(ds_h, t):
     for var in ['rainfall_u', 'rainfall_cor_u', 'rainfall_l', 'rainfall_cor_l']:
         if var in df_h.columns:
             df_resampled[var] = df_h[var].resample(t).sum()
+
+    # First attempt of completness filter
+    df_resampled, completeness = apply_completeness_filter(df_h,
+                                                           df_resampled,
+                                                           t=t,
+                                                           completeness_threshold=completeness_threshold)
 
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
@@ -128,6 +138,63 @@ def resample_dataset(ds_h, t):
     ds_resampled = xr.Dataset(dict(zip(df_resampled.columns,vals)), attrs=ds_h.attrs)
 
     return ds_resampled
+
+def apply_completeness_filter(df_h: pd.DataFrame, df_resampled: pd.DataFrame, t: str, completeness_threshold: float = 0.8):
+    """
+    Apply a completeness filter to resampled time series data.
+
+    Parameters
+    ----------
+    df_h : pd.DataFrame
+        Original high-resolution time series with a DateTimeIndex.
+    df_resampled : pd.DataFrame
+        Resampled time series aligned to frequency `t`.
+    t : str
+        Resampling frequency (e.g. "60min", "1D", "MS").
+    completeness_threshold : float, optional
+        Minimum completeness threshold between 0 and 1, by default 0.8.
+
+    Returns
+    -------
+    tuple of (pd.DataFrame, pd.Series)
+        Filtered DataFrame where intervals with completeness < `thresh`
+        are set to NaN, and a Series with completeness values per interval.
+    """
+    # infer sampling interval in seconds (to previous sample)
+    # In the future, this should come from the time_bounds information
+    # which should be defined at L0, when reading either raw, STM or tx files
+    dt = df_h.index.to_series().diff().dt.total_seconds().round()
+
+    # weight of each sample in completness
+    w = pd.Series(0.0, index=df_h.index)
+
+    if t == "60min":
+        w[dt == 600] = 1/6      # 10-min
+        w[dt == 3600] = 1       # hourly
+        w[dt == 86400] = 0      # daily not counted toward hourly
+    elif t == "1D":
+        w[dt == 600] = 1/(6*24) # 10-min
+        w[dt == 3600] = 1/24    # hourly
+        w[dt == 86400] = 1      # daily
+    elif t == "MS":
+        # use 30-day month as in your original
+        w[dt == 600] = 1/(6*24*30)
+        w[dt == 3600] = 1/(24*30)
+        w[dt == 86400] = 1/30
+    else:
+        # unknown target → accept all
+        comp = pd.Series(1.0, index=df_resampled.index)
+        out = df_resampled.copy()
+        out[comp < completeness_threshold] = np.nan
+        return out, comp
+
+    # completeness per target bin (aligned to resampled index)
+    comp = w.resample(t).sum().reindex(df_resampled.index).fillna(0.0)
+
+    out = df_resampled.copy()
+    out[comp < completeness_threshold] = np.nan
+    return out, comp
+
 
 
 def calculateSaturationVaporPressure(t, T_0=273.15, T_100=373.15, es_0=6.1071,
