@@ -44,10 +44,12 @@ z_pt_cor,depth_of_pressure_transducer_in_ice_corrected,Depth of pressure transdu
 z_surf_combined,height_of_surface_combined,"Surface height combined from multiple sensors, relative to ice surface height at installation",m,modelResult,time,FALSE,L3,,,,all,0,0,1,4
 z_ice_surf,height_of_ice_surface,"Ice surface height, relative to ice surface height at installation and calculated from pt_cor and z_stake",m,modelResult,time,FALSE,L3,,,,one-boom,0,0,1,4
 snow_height,height_of_snow,"Snow surface height, relative to ice surface",m,modelResult,time,FALSE,L3,0,,,one-boom,0,0,1,4
-precip_u,precipitation_raw_upper,Semi-accumulated uncorrected liquid precipitation (upper boom),mm,physicalMeasurement,time,TRUE,,0,,"",all,1,1,1,4
-precip_rate_u,precipitation_rate_corrected_upper,Rate of liquid precipitation corrected for undercatch (upper boom),mm/h,modelResult,time,TRUE,L2 or later,0,,,all,0,1,1,4
-precip_l,precipitation_raw_lower,Semi-accumulated uncorrected liquid precipitation (lower boom),mm,physicalMeasurement,time,TRUE,,0,,"",two-boom,1,1,1,4
-precip_rate_l,precipitation_rate_corrected_lower,Rate of liquid precipitation corrected for undercatch (lower boom),mm/h,modelResult,time,TRUE,L2 or later,0,,,two-boom,0,1,1,4
+precip_u,precipitation_raw_upper,Semi-accumulated uncorrected liquid precipitation (upper boom),mm,physicalMeasurement,time,TRUE,L0 or L2,0,,"",all,1,1,0,4
+rainfall_u,rainfall_per_timestep_uncorrected_upper,Rainfall within timestep uncorrected for undercatch (upper boom),mm,modelResult,time,TRUE,L2 or later,0,,,all,0,1,1,4
+rainfall_cor_u,rainfall_per_timestep_corrected_upper,Rainfall within timestep corrected for undercatch (upper boom),mm,modelResult,time,TRUE,L2 or later,0,,,all,0,1,1,4
+precip_l,precipitation_raw_lower,Semi-accumulated uncorrected liquid precipitation (lower boom),mm,physicalMeasurement,time,TRUE,,0,L0 or L2,"",two-boom,1,1,0,4
+rainfall_l,rainfall_per_timestep_uncorrected_lower,Rainfall within timestep uncorrected for undercatch (lower boom),mm,modelResult,time,TRUE,L2 or later,0,,,all,0,1,1,4
+rainfall_cor_l,rainfall_per_timestep_corrected_lower,Rainfall within timestep corrected for undercatch (lower boom),mm,modelResult,time,TRUE,L2 or later,0,,,all,0,1,1,4
 t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,degrees_C,physicalMeasurement,time,FALSE,,-80,1,,all,1,1,1,4
 t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,degrees_C,physicalMeasurement,time,FALSE,,-80,1,,all,1,1,1,4
 t_i_3,ice_temperature_at_t3,Ice temperature at sensor 3,degrees_C,physicalMeasurement,time,FALSE,,-80,1,,all,1,1,1,4
