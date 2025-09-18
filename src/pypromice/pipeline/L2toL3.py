@@ -8,6 +8,7 @@ import xarray as xr
 from sklearn.linear_model import LinearRegression
 from scipy.interpolate import interp1d
 from pathlib import Path
+from pypromice.core.qc.github_data_issues import adjustData
 import logging
 
 from pypromice.core.qc.github_data_issues import adjustData
@@ -1010,7 +1011,7 @@ def piecewise_smoothing_and_interpolation(data_series, breaks):
 
     Parameters
     ----------
-    data_series : pandas.Series
+    data_series : pd.Series
         Series of observed latitude, longitude or elevation with datetime index.
     breaks: list
         List of timestamps of station relocation. First and last item should be
