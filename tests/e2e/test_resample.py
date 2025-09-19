@@ -14,7 +14,7 @@ def _resample_and_filter(df_h, t, time_thresh=0.8, value_thresh=0.8):
         time_thresh=time_thresh,
         value_thresh=value_thresh,
     )
-    return df_resampled, filtered, tc, vc
+    return df_resampled, filtered
 
 
 class TestCompletenessFilters(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestCompletenessFilters(unittest.TestCase):
         x[8:10] = np.nan  # two NaNs in second hour (4/6 present -> 0.666 < 0.8)
         df_h = pd.DataFrame({"x": x}, index=idx)
 
-        df_res, filtered, tc, vc = _resample_and_filter(df_h, t="60min")
+        df_res, filtered = _resample_and_filter(df_h, t="60min")
 
         self.assertIn(pd.infer_freq(df_res.index), {"h", "H"})  # resample result index
         # hour bins: 00:00 and 01:00
@@ -42,7 +42,7 @@ class TestCompletenessFilters(unittest.TestCase):
         x[day1_bad + day2_bad] = np.nan
         df_h = pd.DataFrame({"x": x}, index=idx)
 
-        df_res, filtered, tc, vc = _resample_and_filter(df_h, t="1D")
+        df_res, filtered = _resample_and_filter(df_h, t="1D")
 
         self.assertFalse(pd.isna(filtered.loc["2025-02-01", "x"]))  # pass
         self.assertTrue(pd.isna(filtered.loc["2025-02-02", "x"]))   # fail
@@ -58,7 +58,7 @@ class TestCompletenessFilters(unittest.TestCase):
         x[[july_start + i for i in [0, 1, 2, 3, 5, 7, 9, 11, 13, 15, 17]]] = np.nan
         df_h = pd.DataFrame({"x": x}, index=idx)
 
-        df_res, filtered, tc, vc = _resample_and_filter(df_h, t="MS")
+        df_res, filtered = _resample_and_filter(df_h, t="MS")
 
         # MS bins at month starts
         self.assertFalse(pd.isna(filtered.loc["2025-06-01", "x"]))  # June kept
@@ -72,7 +72,7 @@ class TestCompletenessFilters(unittest.TestCase):
         x = np.arange(len(idx), dtype=float)
         df_h = pd.DataFrame({"x": x}, index=idx)
 
-        df_res, filtered, tc, vc = _resample_and_filter(df_h, t="60min")
+        df_res, filtered = _resample_and_filter(df_h, t="60min")
 
         self.assertFalse(pd.isna(filtered.loc["2025-03-01 00:00", "x"]))  # 5/6 -> pass
         self.assertTrue(pd.isna(filtered.loc["2025-03-01 01:00", "x"]))   # 0 hourly -> failed
@@ -87,7 +87,7 @@ class TestCompletenessFilters(unittest.TestCase):
         x = np.arange(len(idx), dtype=float)
         df_h = pd.DataFrame({"x": x}, index=idx)
 
-        df_res, filtered, tc, vc = _resample_and_filter(df_h, t="1D")
+        df_res, filtered = _resample_and_filter(df_h, t="1D")
 
         self.assertFalse(pd.isna(filtered.loc["2025-04-01", "x"]))  # 20/24 -> pass
         self.assertTrue(pd.isna(filtered.loc["2025-04-02", "x"]))   # 6/24  -> failed
