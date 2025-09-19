@@ -26,6 +26,12 @@ class TestSolarCalculations(unittest.TestCase):
         # horizontal case: tilt_x=0, tilt_y=0 should yield theta=0
         self.assertAlmostEqual(theta[0].item(), 0.0, places=8)
 
+    def test_invalid_inputs_shape_mismatch(self):
+        tilt_x = xr.DataArray([0, 1])
+        tilt_y = xr.DataArray([0, 1, 2])  # mismatch
+        with self.assertRaises(ValueError):
+            calculate_spherical_tilt(tilt_x, tilt_y)
+
     def test_calculate_declination_range(self):
         doy = xr.DataArray([1, 80, 172, 355])
         hour = xr.DataArray([12, 0, 6, 18])
@@ -104,6 +110,52 @@ class TestSolarCalculations(unittest.TestCase):
         self.assertAlmostEqual(zen_rad.item(), 0.0, places=8)
         self.assertAlmostEqual(zen_deg.item(), 0.0, places=8)
 
+    def test_zenith_regression_known_cases(self):
+        # Case 1: Equator, equinox, noon -> Sun directly overhead
+        lat = 0.0
+        decl = xr.DataArray([0.0])  # declination = 0 rad
+        ha = xr.DataArray([0.0])  # hour angle = 0 rad
+        zen_rad, zen_deg = calculate_zenith(lat, decl, ha)
+
+        self.assertAlmostEqual(zen_rad.item(), 0.0, places=6)
+        self.assertAlmostEqual(zen_deg.item(), 0.0, places=6)
+
+        # Case 2: 45°N latitude, equinox, noon -> zenith = 45°
+        lat = 45.0
+        decl = xr.DataArray([0.0])
+        ha = xr.DataArray([0.0])
+        zen_rad, zen_deg = calculate_zenith(lat, decl, ha)
+
+        expected_rad = np.deg2rad(45.0)
+        expected_deg = 45.0
+        self.assertAlmostEqual(zen_rad.item(), expected_rad, places=6)
+        self.assertAlmostEqual(zen_deg.item(), expected_deg, places=6)
+
+        # Case 3: North Pole, equinox, noon -> Sun at horizon -> zenith = 90°
+        lat = 90.0
+        decl = xr.DataArray([0.0])
+        ha = xr.DataArray([0.0])
+        zen_rad, zen_deg = calculate_zenith(lat, decl, ha)
+
+        expected_rad = np.deg2rad(90.0)
+        expected_deg = 90.0
+        self.assertAlmostEqual(zen_rad.item(), expected_rad, places=6)
+        self.assertAlmostEqual(zen_deg.item(), expected_deg, places=6)
+
+        # 45°N, equinox, midnight (hour angle = 180°) -> Sun below horizon
+        lat = 45.0
+        decl = xr.DataArray([0.0])
+        ha = xr.DataArray([np.pi])  # hour angle = 180° = midnight
+
+        zen_rad, zen_deg = calculate_zenith(lat, decl, ha)
+
+        # Zenith should be 180° - 45° = 135° from overhead
+        expected_rad = np.deg2rad(135.0)
+        expected_deg = 135.0
+
+        self.assertAlmostEqual(zen_rad.item(), expected_rad, places=6)
+        self.assertAlmostEqual(zen_deg.item(), expected_deg, places=6)
+
     def test_calculate_angle_difference_alignment(self):
         # Setup: sun directly overhead, sensor horizontal -> difference ~0
         zenith = xr.DataArray([0.0])
@@ -114,13 +166,6 @@ class TestSolarCalculations(unittest.TestCase):
         angle = calculate_angle_difference(zenith, hour_angle, phi_sensor, theta_sensor)
         self.assertIsInstance(angle, xr.DataArray)
         self.assertAlmostEqual(angle.item(), 0.0, places=8)
-
-    def test_invalid_inputs_shape_mismatch(self):
-        tilt_x = xr.DataArray([0, 1])
-        tilt_y = xr.DataArray([0, 1, 2])  # mismatch
-        with self.assertRaises(ValueError):
-            calculate_spherical_tilt(tilt_x, tilt_y)
-
 
 if __name__ == "__main__":
     unittest.main()

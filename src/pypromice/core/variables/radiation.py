@@ -1,6 +1,6 @@
 __all__ = ["convert_sr", "convert_lr", "filter_lr", "filter_sr",
            "correct_sr", "calculate_albedo", "calculate_surface_temperature",
-           "calculate_cloud_coverage"]
+           "calculate_cloud_coverage", "calculate_TOA"]
 
 import xarray as xr
 import numpy as np
