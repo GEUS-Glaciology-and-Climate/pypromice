@@ -14,13 +14,13 @@ def parse_arguments_l2():
 
     parser.add_argument('-c', '--config_file', type=str, required=True,
                         help='Path to config (TOML) file')
-    parser.add_argument('-i', '--inpath', type=str, required=True, 
+    parser.add_argument('-i', '--inpath', type=str, required=True,
                         help='Path to input data')
-    parser.add_argument('-o', '--outpath', default=None, type=str, required=False, 
+    parser.add_argument('-o', '--outpath', default=None, type=str, required=False,
                         help='Path where to write output')
-    parser.add_argument('-v', '--variables', default=None, type=str, 
+    parser.add_argument('-v', '--variables', default=None, type=str,
                         required=False, help='File path to variables look-up table')
-    parser.add_argument('-m', '--metadata', default=None, type=str, 
+    parser.add_argument('-m', '--metadata', default=None, type=str,
                         required=False, help='File path to metadata')
     parser.add_argument('--data_issues_path', '--issues', default=None, help="Path to data issues repository")
     args = parser.parse_args()
@@ -29,9 +29,9 @@ def parse_arguments_l2():
 
 def get_l2(config_file, inpath, outpath, variables, metadata, data_issues_path: Path) -> AWS:
     # Define input path
-    station_name = config_file.split('/')[-1].split('.')[0] 
+    station_name = config_file.split('/')[-1].split('.')[0]
     station_path = os.path.join(inpath, station_name)
-    
+
     # checking that data_issues_path is valid
     if data_issues_path is None:
         data_issues_path = Path("../PROMICE-AWS-data-issues")
@@ -41,16 +41,16 @@ def get_l2(config_file, inpath, outpath, variables, metadata, data_issues_path: 
             raise ValueError("data_issues_path is missing. Please provide a valid path to the data issues repository")
 
     if os.path.exists(station_path):
-        aws = AWS(config_file, 
+        aws = AWS(config_file,
                   station_path,
-                  data_issues_repository=data_issues_path, 
-                  var_file=variables, 
+                  data_issues_repository=data_issues_path,
+                  var_file=variables,
                   meta_file=metadata)
     else:
-        aws = AWS(config_file, 
-                  inpath, 
-                  data_issues_repository=data_issues_path, 
-                  var_file=variables, 
+        aws = AWS(config_file,
+                  inpath,
+                  data_issues_repository=data_issues_path,
+                  var_file=variables,
                   meta_file=metadata)
 
     # Perform level 1 and 2 processing
@@ -61,7 +61,7 @@ def get_l2(config_file, inpath, outpath, variables, metadata, data_issues_path: 
         if not os.path.isdir(outpath):
             os.mkdir(outpath)
         if aws.L2.attrs['format'] == 'raw':
-            prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '10min')
+            prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '10min', resample=False)
         prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '60min')
     return aws
 
@@ -85,6 +85,5 @@ def main():
     )
 
 
-if __name__ == "__main__":  
+if __name__ == "__main__":
     main()
-        

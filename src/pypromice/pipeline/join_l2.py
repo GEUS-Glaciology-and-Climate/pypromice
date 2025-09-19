@@ -105,8 +105,10 @@ def join_l2(file1,file2,outpath,variables,metadata) -> xr.Dataset:
 
     all_ds.attrs['format'] = 'merged RAW and TX'
 
-    # Resample to hourly, daily and monthly datasets and write to file
-    prepare_and_write(all_ds, outpath, variables, metadata, resample = False)
+    # Writing the 10min file which has mixed temporal resolution
+    prepare_and_write(all_ds, outpath, variables, metadata, '10min', resample = False)
+    # Writing the resampled hourly file for consistency with previous version (could be removed if not used)
+    prepare_and_write(all_ds, outpath, variables, metadata, '60min', resample = True)
 
     logger.info(f'Files saved to {os.path.join(outpath, name)}...')
     return all_ds
