@@ -64,7 +64,7 @@ def calculate_declination(doy: xr.DataArray,
     Returns
     -------
     xr.DataArray
-        Sun declination
+        Sun declination in radians
     """
     d0_rad = 2 * np.pi * (doy + (hour + minute / 60) / 24 -1) / 365
     return np.arcsin(0.006918 - 0.399912
@@ -159,7 +159,7 @@ def calculate_angle_difference(ZenithAngle_rad: xr.DataArray,
                                theta_sensor_rad: xr.DataArray
 ) -> xr.DataArray:
     """Calculate angle between sun and upper sensor (to determine when sun is
-    in sight of upper radiometer sensor
+    in sight of upper radiometer sensor)
 
     Parameters
     ----------
