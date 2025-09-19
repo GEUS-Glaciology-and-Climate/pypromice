@@ -16,12 +16,12 @@ from pypromice.core.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.core.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.core.qc.persistence import persistence_qc
 from pypromice.core.qc.value_clipping import clip_values
-from pypromice.core.variables import (wind, 
-                                      gps, 
-                                      precipitation, 
-                                      humidity, 
-                                      radiation, 
-                                      station_pose, 
+from pypromice.core.variables import (wind,
+                                      gps,
+                                      precipitation,
+                                      humidity,
+                                      radiation,
+                                      station_pose,
                                       air_temperature)
 
 
@@ -159,16 +159,16 @@ def toL2(
                                                            theta_sensor_rad)
 
     # Filter shortwave radiation
-    dsr_filtered, usr_filtered, _ = radiation.filter_sr(ds["dsr"],
-                                                        ds["usr"],
-                                                        ds["cc"],
-                                                        ZenithAngle_rad,
-                                                        ZenithAngle_deg,
-                                                        AngleDif_deg)
+    ds["dsr"], ds["usr"], _ = radiation.filter_sr(ds["dsr"],
+                                                  ds["usr"],
+                                                  ds["cc"],
+                                                  ZenithAngle_rad,
+                                                  ZenithAngle_deg,
+                                                  AngleDif_deg)
 
     # Correct shortwave radiation
-    ds["dsr_cor"], ds["usr_cor"], _ = radiation.correct_sr(dsr_filtered,
-                                                           usr_filtered,
+    ds["dsr_cor"], ds["usr_cor"], _ = radiation.correct_sr(ds["dsr"],
+                                                           ds["usr"],
                                                            ds["cc"],
                                                            phi_sensor_rad,
                                                            theta_sensor_rad,
@@ -179,8 +179,8 @@ def toL2(
                                                            ZenithAngle_deg,
                                                            AngleDif_deg)
 
-    ds['albedo'], _ = radiation.calculate_albedo(dsr_filtered,
-                                                 usr_filtered,
+    ds['albedo'], _ = radiation.calculate_albedo(ds["dsr"],
+                                                 ds["usr"],
                                                  ds["dsr_cor"],
                                                  ds["cc"],
                                                  ZenithAngle_deg,
