@@ -2,9 +2,12 @@
 """
 AWS Level 1 (L1) to Level 2 (L2) data processing
 """
-import logging
-from pathlib import Path
+__all__ = ["toL2"]
 
+import logging
+logger = logging.getLogger(__name__)
+
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -13,13 +16,13 @@ from pypromice.core.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.core.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.core.qc.persistence import persistence_qc
 from pypromice.core.qc.value_clipping import clip_values
-from pypromice.core.variables import wind, precipitation, radiation, station_pose
-
-__all__ = [
-    "toL2",
-]
-
-logger = logging.getLogger(__name__)
+from pypromice.core.variables import (wind, 
+                                      gps, 
+                                      precipitation, 
+                                      humidity, 
+                                      radiation, 
+                                      station_pose, 
+                                      air_temperature)
 
 
 def toL2(
@@ -28,8 +31,6 @@ def toL2(
     data_flags_dir: Path,
     data_adjustments_dir: Path,
     T_0=273.15,
-    ews=1013.246,
-    ei0=6.1071,
     emissivity=0.97,
 ) -> xr.Dataset:
     '''Process one Level 1 (L1) product to Level 2.
@@ -53,12 +54,6 @@ def toL2(
         Metadata dataframe
     T_0 : float
         Ice point temperature in K. The default is 273.15.
-    ews : float
-        Saturation pressure (normal atmosphere) at steam point temperature.
-        The default is 1013.246.
-    ei0 : float
-        Saturation pressure (normal atmosphere) at ice-point temperature. The
-        default is 6.1071.
     eps_overcast : int
         Cloud overcast. The default is 1..
     eps_clear : float
@@ -86,32 +81,25 @@ def toL2(
     #     outlier_detector = ThresholdBasedOutlierDetector.default()
     #     ds = outlier_detector.filter_data(ds)                                 # Flag and remove percentile outliers
 
-    # filtering gps_lat, gps_lon and gps_alt based on the difference to a baseline elevation
-    # right now baseline elevation is gapfilled monthly median elevation
-    baseline_elevation = (ds.gps_alt.to_series().resample('MS').median()
-                          .reindex(ds.time.to_series().index, method='nearest')
-                          .ffill().bfill())
-    mask = (np.abs(ds.gps_alt - baseline_elevation) < 100) | ds.gps_alt.isnull()
-    ds[['gps_alt','gps_lon', 'gps_lat']] = ds[['gps_alt','gps_lon', 'gps_lat']].where(mask)
+    # Filter GPS values based on baseline elevation
+    ds["gps_lat"], ds["gps_lon"], ds["gps_alt"] = gps.filter(ds["gps_lat"],
+                                                             ds["gps_lon"],
+                                                             ds["gps_alt"])
 
     # Removing dlr and ulr that are missing t_rad
     # this is done now because t_rad can be filtered either manually or with persistence
     ds["dlr"] = radiation.filter_lr(ds["dlr"], ds["t_rad"])
     ds["ulr"] = radiation.filter_lr(ds["ulr"], ds["t_rad"])
 
-    # calculating realtive humidity with regard to ice
-    T_100 = _getTempK(T_0)
-    ds['rh_u_wrt_ice_or_water'] = adjustHumidity(ds['rh_u'], ds['t_u'],
-                                     T_0, T_100, ews, ei0)
+    # Calculate relative humidity with regard to ice
+    ds['rh_u_wrt_ice_or_water'] = humidity.adjust(ds['rh_u'], ds['t_u'])
 
     if ds.attrs['number_of_booms']==2:
-        ds['rh_l_wrt_ice_or_water'] = adjustHumidity(ds['rh_l'], ds['t_l'],
-                                         T_0, T_100, ews, ei0)
+        ds['rh_l_wrt_ice_or_water'] = humidity.adjust(ds['rh_l'], ds['t_l'])
 
     if hasattr(ds,'t_i'):
         if ~ds['t_i'].isnull().all():
-            ds['rh_i_wrt_ice_or_water'] = adjustHumidity(ds['rh_i'], ds['t_i'],
-                                             T_0, T_100, ews, ei0)
+            ds['rh_i_wrt_ice_or_water'] = humidity.adjust(ds['rh_i'], ds['t_i'])
 
     # Determine surface temperature
     ds['t_surf'] = radiation.calculate_surface_temperature(ds['dlr'],
@@ -295,52 +283,6 @@ def smoothRot(da: xr.DataArray, threshold=4):
             .rolling(7*2,center=True,min_periods=2).median()
             .reindex(da.time, method='bfill').values
             ))
-
-
-def adjustHumidity(rh, T, T_0, T_100, ews, ei0):
-    '''Adjust relative humidity so that values are given with respect to
-    saturation over ice in subfreezing conditions, and with respect to
-    saturation over water (as given by the instrument) above the melting
-    point temperature. Saturation water vapors are calculated after
-    Groff & Gratch method.
-
-    Parameters
-    ----------
-    rh : xarray.DataArray
-        Relative humidity
-    T : xarray.DataArray
-        Air temperature
-    T_0 : float
-        Ice point temperature in K
-    T_100 : float
-        Steam point temperature in K
-    ews : float
-        Saturation pressure (normal atmosphere) at steam point temperature
-    ei0 : float
-        Saturation pressure (normal atmosphere) at ice-point temperature
-
-    Returns
-    -------
-    rh_wrt_ice_or_water : xarray.DataArray
-        Corrected relative humidity
-    '''
-    # Convert to hPa (Groff & Gratch)
-    e_s_wtr = 10**(-7.90298 * (T_100 / (T + T_0) - 1)
-                   + 5.02808 * np.log10(T_100 / (T + T_0))
-                   - 1.3816E-7 * (10**(11.344 * (1 - (T + T_0) / T_100)) - 1)
-                   + 8.1328E-3 * (10**(-3.49149 * (T_100/(T + T_0) - 1)) -1)
-                   + np.log10(ews))
-    e_s_ice = 10**(-9.09718 * (T_0 / (T + T_0) - 1)
-                   - 3.56654 * np.log10(T_0 / (T + T_0))
-                   + 0.876793 * (1 - (T + T_0) / T_0)
-                   + np.log10(ei0))
-
-    # Define freezing point. Why > -100?
-    freezing = (T < 0) & (T > -100).values
-
-    # Set to Groff & Gratch values when freezing, otherwise just rh
-    rh_wrt_ice_or_water = rh.where(~freezing, other = rh*(e_s_wtr / e_s_ice))
-    return rh_wrt_ice_or_water
 
 
 def _getTempK(T_0):                                                            #TODO same as L2toL3._getTempK()
