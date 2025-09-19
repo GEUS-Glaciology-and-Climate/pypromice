@@ -2,13 +2,19 @@
 """
 AWS Level 0 (L0) to Level 1 (L1) data processing
 """
+__all__ = ["toL1"]
+
 import numpy as np
 import pandas as pd
 import xarray as xr
 import re, logging
-from pypromice.core.qc.value_clipping import clip_values
-from pypromice.core.variables import wind, air_temperature, gps
 logger = logging.getLogger(__name__)
+
+from pypromice.core.qc.value_clipping import clip_values
+from pypromice.core.variables import (wind, 
+                                      air_temperature, 
+                                      gps, 
+                                      radiation)
 
 
 def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
@@ -49,14 +55,22 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     # If we do not want to shift hourly average values back -1 hr, then comment the following line.
     ds = addTimeShift(ds, vars_df)
 
+    # Convert radiation from engineering to physical units
+    # TODO add metadata to indicate whether radiometer values are corrected with calibration values or not
     if hasattr(ds, 'dsr_eng_coef'):
-        ds['dsr'] = (ds['dsr'] * 10) / ds.attrs['dsr_eng_coef']                # Convert radiation from engineering to physical units
-    if hasattr(ds, 'usr_eng_coef'):                                            # TODO add metadata to indicate whether radiometer values are corrected with calibration values or not
-        ds['usr'] = (ds['usr'] * 10) / ds.attrs['usr_eng_coef']
+        ds['dsr'] = radiation.convert_sr(ds['dsr'],
+                                         ds.attrs['dsr_eng_coef'])
+    if hasattr(ds, 'usr_eng_coef'):
+        ds['usr'] = radiation.convert_sr(ds['usr'],
+                                         ds.attrs['usr_eng_coef'])
     if hasattr(ds, 'dlr_eng_coef'):
-        ds['dlr'] = ((ds['dlr'] * 10) / ds.attrs['dlr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
+        ds['dlr'] = radiation.convert_lr(ds['dlr'],
+                                         ds['t_rad'],
+                                         ds.attrs['dlr_eng_coef'])
     if hasattr(ds, 'ulr_eng_coef'):
-        ds['ulr'] = ((ds['ulr'] * 10) / ds.attrs['ulr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
+        ds['ulr'] = radiation.convert_lr(ds['ulr'],
+                                         ds['t_rad'],
+                                         ds.attrs['ulr_eng_coef'])
 
     ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
 
