@@ -67,10 +67,12 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
             df_resampled[var] = df_h[var].resample(t).sum()
 
     # First attempt of completness filter
-    df_resampled, completeness = apply_completeness_filter(df_h,
-                                                           df_resampled,
-                                                           t=t,
-                                                           completeness_threshold=completeness_threshold)
+    df_resampled = apply_completeness_filters(df_resampled,
+                                              df_h,
+                                              t,
+                                              time_thresh=completeness_threshold,
+                                              value_thresh=completeness_threshold,
+                                              )
 
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
@@ -139,54 +141,199 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
 
     return ds_resampled
 
-def apply_completeness_filter(df_h: pd.DataFrame, df_resampled: pd.DataFrame, t: str, completeness_threshold: float = 0.8):
+
+def compute_dt(index: pd.DatetimeIndex) -> pd.Series:
     """
-    Apply a completeness filter to resampled time series data.
+    Compute timestep durations (dt) in seconds between consecutive samples and backfill the first value.
 
     Parameters
     ----------
-    df_h : pd.DataFrame
-        Original high-resolution time series with a DateTimeIndex.
-    df_resampled : pd.DataFrame
-        Resampled time series aligned to frequency `t`.
-    t : str
-        Resampling frequency (e.g. "60min", "1D", "MS").
-    completeness_threshold : float, optional
-        Minimum completeness threshold between 0 and 1, by default 0.8.
+    index : pd.DatetimeIndex
+        High-resolution timestamps.
 
     Returns
     -------
-    tuple of (pd.DataFrame, pd.Series)
-        Filtered DataFrame where intervals with completeness < `thresh`
-        are set to NaN, and a Series with completeness values per interval.
+    pd.Series
+        Timestep durations in seconds aligned to `index` (first value backfilled).
     """
-    # infer sampling interval in seconds (to previous sample)
-    # In the future, this should come from the time_bounds information
-    # which should be defined at L0, when reading either raw, STM or tx files
-    dt = df_h.index.to_series().diff().dt.total_seconds().round()
+    dt = pd.Series(index).to_series().diff().dt.total_seconds().round()
+    return dt.bfill()
 
-    # weight of each sample in completness
-    w = pd.Series(0.0, index=df_h.index)
 
+def compute_time_weights(index: pd.DatetimeIndex, t: str) -> pd.Series:
+    """
+    Compute per-sample time weights (contribution to one target bin) from dt.
+
+    Parameters
+    ----------
+    index : pd.DatetimeIndex
+        High-resolution timestamps.
+    t : str
+        Target resampling frequency ("60min", "1D", "MS").
+
+    Returns
+    -------
+    pd.Series
+        Weights in [0, 1] aligned to `index`.
+    """
+    dt = compute_dt(index)
+    w = pd.Series(0.0, index=index)
     if t == "60min":
-        w[dt == 600] = 1/6      # 10-min
-        w[dt == 3600] = 1       # hourly
-        w[dt == 86400] = 0      # daily not counted toward hourly
+        w[dt == 600] = 1/6
+        w[dt == 3600] = 1
+        w[dt == 86400] = 0
     elif t == "1D":
-        w[dt == 600] = 1/(6*24) # 10-min
-        w[dt == 3600] = 1/24    # hourly
-        w[dt == 86400] = 1      # daily
+        w[dt == 600] = 1/(6*24)
+        w[dt == 3600] = 1/24
+        w[dt == 86400] = 1
     elif t == "MS":
-        # use 30-day month as in your original
         w[dt == 600] = 1/(6*24*30)
         w[dt == 3600] = 1/(24*30)
         w[dt == 86400] = 1/30
     else:
-        # unknown target → accept all
-        comp = pd.Series(1.0, index=df_resampled.index)
-        out = df_resampled.copy()
-        out[comp < completeness_threshold] = np.nan
-        return out, comp
+        w[:] = 1.0
+    return w
+
+
+def compute_time_completeness(index: pd.DatetimeIndex, t: str) -> pd.Series:
+    """
+    Compute time-based completeness per resampled bin from per-sample weights.
+
+    Parameters
+    ----------
+    index : pd.DatetimeIndex
+        High-resolution timestamps.
+    t : str
+        Target resampling frequency.
+
+    Returns
+    -------
+    pd.Series
+        Completeness (0..1) per bin indexed by the resampled DateTimeIndex.
+    """
+    w = compute_time_weights(index, t)
+    return w.resample(t).sum().clip(upper=1.0).fillna(0.0)
+
+
+def compute_value_completeness(df_h: pd.DataFrame, t: str) -> pd.DataFrame:
+    """
+    Compute per-variable value completeness as weighted non-NaN fraction per bin.
+
+    Parameters
+    ----------
+    df_h : pd.DataFrame
+        High-resolution data with DateTimeIndex.
+    t : str
+        Target resampling frequency.
+
+    Returns
+    -------
+    pd.DataFrame
+        Fraction (0..1) of expected weighted samples observed per variable and bin.
+    """
+    w = compute_time_weights(df_h.index, t)
+    expected = w.resample(t).sum().clip(upper=1.0).where(lambda s: s > 0, np.nan)
+    observed_equiv = (~df_h.isna()).astype(float).mul(w, axis=0).resample(t).sum()
+    return observed_equiv.div(expected, axis=0).fillna(0.0).clip(0.0, 1.0)
+
+
+def apply_completeness_filters(
+    df_resampled: pd.DataFrame,
+    df_h: pd.DataFrame,
+    t: str,
+    time_thresh: float = 0.8,
+    value_thresh: float = 0.8,
+) -> tuple[pd.DataFrame]:
+    """
+    Apply time- and value-based completeness filters to resampled data.
+
+    Parameters
+    ----------
+    df_resampled : pd.DataFrame
+        Resampled aggregates to be filtered.
+    df_h : pd.DataFrame
+        High-resolution source data (for completeness computation).
+    t : str
+        Target resampling frequency.
+    time_thresh : float, optional
+        Minimum time completeness threshold, by default 0.8.
+    value_thresh : float, optional
+        Minimum value completeness threshold, by default 0.8.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.Series, pd.DataFrame]
+        (filtered_df, time_completeness, value_completeness).
+    """
+    tc = compute_time_completeness(df_h.index, t)
+    vc = compute_value_completeness(df_h, t)
+    out = df_resampled.copy()
+    out.loc[tc.reindex(out.index, fill_value=0) < time_thresh] = np.nan
+    out[vc.reindex(index=out.index, columns=out.columns, fill_value=0) < value_thresh] = np.nan
+    return out
+
+
+def apply_completeness_filters(
+    df_resampled: pd.DataFrame,
+    df_h: pd.DataFrame,
+    t: str,
+    time_thresh: float = 0.8,
+    value_thresh: float = 0.8,
+) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
+    """
+    Apply time-based and value-based completeness filters.
+
+    Returns
+    -------
+    (filtered, time_completeness, value_completeness)
+    """
+    tc = compute_time_completeness(df_h.index, t)
+    vc = compute_value_completeness(df_h, t)
+
+    out = df_resampled.copy()
+    out.loc[tc.reindex(out.index, fill_value=0) < time_thresh] = np.nan
+    out[vc.reindex(index=out.index, columns=out.columns, fill_value=0) < value_thresh] = np.nan
+    return out, tc, vc
+
+
+
+def apply_completeness_filters(
+    df_resampled: pd.DataFrame,
+    time_completeness: pd.Series,
+    value_completeness: pd.DataFrame,
+    time_thresh: float = 0.8,
+    value_thresh: float = 0.8,
+) -> pd.DataFrame:
+    """
+    Apply time-based and per-variable value-based completeness filters.
+
+    Parameters
+    ----------
+    df_resampled : pd.DataFrame
+        Resampled aggregates to be filtered.
+    time_completeness : pd.Series
+        Output from compute_time_completeness (aligned to df_resampled index).
+    value_completeness : pd.DataFrame
+        Output from compute_value_completeness (aligned to df_resampled index/columns).
+    time_thresh : float, optional
+        Threshold for time completeness, by default 0.8.
+    value_thresh : float, optional
+        Threshold for value completeness, by default 0.8.
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered DataFrame with insufficient bins masked as NaN.
+    """
+    out = df_resampled.copy()
+    # time filter (mask all vars where bin fails time completeness)
+    mask_time_fail = time_completeness.reindex(out.index, fill_value=0.0) < time_thresh
+    out.loc[mask_time_fail] = np.nan
+    # value filter per variable
+    vc = value_completeness.reindex(index=out.index, columns=out.columns, fill_value=0.0)
+    out[vc < value_thresh] = np.nan
+    return out
+
 
     # completeness per target bin (aligned to resampled index)
     comp = w.resample(t).sum().reindex(df_resampled.index).fillna(0.0)
