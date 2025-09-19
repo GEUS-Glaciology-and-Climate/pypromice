@@ -1,11 +1,12 @@
 __all__ = ["convert_sr", "convert_lr", "filter_lr", "filter_sr",
-           "correct_sr", "calculate_albedo", "calculate_surface_temperature"]
+           "correct_sr", "calculate_albedo", "calculate_surface_temperature",
+           "calculate_cloud_coverage"]
 
 import xarray as xr
 import numpy as np
 from pypromice.core.variables import station_pose
 
-# Define air temperature for radiometer adjustments
+# Define coefficients for radiometer adjustments
 T_0=273.15                  # degrees Celsius to Kelvin conversion
 deg2rad = np.pi / 180       # Degrees to radians conversion
 emissivity=0.97
@@ -370,6 +371,34 @@ def calculate_correction_factor(phi_sensor_rad: xr.DataArray,
     CorFac_all = CorFac / (1 - DifFrac + CorFac * DifFrac)
 
     return CorFac_all.where(theta_sensor_rad.notnull())
+
+
+def calculate_cloud_coverage(dlr: xr.DataArray,
+                             LR_overcast: xr.DataArray,
+                             LR_clear: xr.DataArray
+) -> xr.DataArray:
+    """Calculate cloud cover using downwelling longwave radiation and the
+    overcast and clear cloud assumptions from Swinbank (1963) which are
+    derived from air temperature.
+
+    Parameters
+    ----------
+    dlr : xr.DataArray
+        Downwelling longwave radiation, with array of same length as T and T_0
+    LR_overcast : xr.DataArray
+        Cloud overcast assumption, from Swinbank (1963)
+    LR_clear : xr.DataArray
+        Cloud clear assumption, from Swinbank (1963)
+
+    Returns
+    -------
+    cc : xr.DataArray
+        Cloud cover data array
+    """
+    cc = (dlr - LR_clear) / (LR_overcast - LR_clear)
+    cc[cc > 1] = 1
+    cc[cc < 0] = 0
+    return cc
 
 
 def calculate_surface_temperature(dlr: xr.DataArray,

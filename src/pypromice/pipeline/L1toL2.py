@@ -125,11 +125,27 @@ def toL2(
     ds['tilt_y'] = smoothTilt(ds['tilt_y'])
     ds['rot'] = smoothRot(ds['rot'])
 
-    # Determiune cloud cover for on-ice stations
+    # Determine cloud cover for on-ice stations
     if not is_bedrock:
-        ds['cc'] = calcCloudCoverage(ds['t_u'], ds['dlr'], ds.attrs['station_id'], T_0)
+
+        # Selected stations have pre-defined cloud assumption coefficients
+        # TODO Ideally these will be pre-defined for all stations eventually
+        if ds.attrs["station_id"] == "KAN_M":
+            LR_overcast = 315 + 4 * ds["t_u"]
+            LR_clear = 30 + 4.6e-13 * (ds["t_u"] + T_0) ** 6
+        elif ds.attrs["station_id"] == "KAN_U":
+            LR_overcast = 305 + 4 * ds["t_u"]
+            LR_clear = 220 + 3.5 * ds["t_u"]
+
+        # Else, calculate cloud assumption coefficients based on default values
+        else:
+            LR_overcast, LR_clear = air_temperature.get_cloud_coefficients(ds["t_u"])
+
+        ds["cc"] = radiation.calculate_cloud_coverage(ds["dlr"], LR_overcast, LR_clear)
+
+    # Set cloud cover to nans if station is not on ice
     else:
-        ds['cc'] = ds['t_u'].copy() * np.nan
+        ds["cc"] = ds["dlr"].copy() * np.nan
 
     # Determine station pose relative to sun position
     if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
@@ -138,11 +154,6 @@ def toL2(
     else:
         lat = ds['gps_lat'].mean()
         lon = ds['gps_lon'].mean()
-
-        # Determine station position relative to sun
-    #    doy = ds['time'].to_dataframe().index.dayofyear.values
-    #    hour = ds['time'].to_dataframe().index.hour.values
-    #    minute = ds['time'].to_dataframe().index.minute.values
 
     # Determine station position relative to sun
     doy = ds['time'].dt.dayofyear
@@ -160,16 +171,16 @@ def toL2(
                                                            theta_sensor_rad)
 
     # Filter shortwave radiation
-    ds["dsr_filtered"], ds["usr_filtered"], _ = radiation.filter_sr(ds["dsr"],
-                                                                    ds["usr"],
-                                                                    ds["cc"],
-                                                                    ZenithAngle_rad,
-                                                                    ZenithAngle_deg,
-                                                                    AngleDif_deg)
+    dsr_filtered, usr_filtered, _ = radiation.filter_sr(ds["dsr"],
+                                                        ds["usr"],
+                                                        ds["cc"],
+                                                        ZenithAngle_rad,
+                                                        ZenithAngle_deg,
+                                                        AngleDif_deg)
 
     # Correct shortwave radiation
-    ds["dsr_cor"], ds["usr_cor"], _ = radiation.correct_sr(ds["dsr_filtered"],
-                                                           ds["usr_filtered"],
+    ds["dsr_cor"], ds["usr_cor"], _ = radiation.correct_sr(dsr_filtered,
+                                                           usr_filtered,
                                                            ds["cc"],
                                                            phi_sensor_rad,
                                                            theta_sensor_rad,
@@ -180,8 +191,8 @@ def toL2(
                                                            ZenithAngle_deg,
                                                            AngleDif_deg)
 
-    ds['albedo'], _ = radiation.calculate_albedo(ds["usr_filtered"],
-                                                 ds["dsr_filtered"],
+    ds['albedo'], _ = radiation.calculate_albedo(dsr_filtered,
+                                                 usr_filtered,
                                                  ds["dsr_cor"],
                                                  ds["cc"],
                                                  ZenithAngle_deg,
@@ -192,6 +203,7 @@ def toL2(
         precip_flag = ds.attrs["correct_precip"]
     else:
         precip_flag=True
+
     if ~ds["precip_u"].isnull().all() and precip_flag:
         ds["precip_u"] = precipitation.filter(ds["precip_u"], ds["t_u"], ds["p_u"], ds["rh_u"])
         ds["precip_rate_u"] = precipitation.convert_to_rate(ds["precip_u"], ds["wspd_u"], ds["t_u"])
@@ -225,49 +237,6 @@ def toL2(
 
     ds = clip_values(ds, vars_df)
     return ds
-
-def calcCloudCoverage(T, dlr, station_id,T_0, eps_overcast=1.0,
-    eps_clear=9.36508e-6):
-    '''Calculate cloud cover from T and T_0
-
-    Parameters
-    ----------
-    T : xarray.DataArray
-        Air temperature 1
-    T_0 : xarray.DataArray
-        Air temperature 0
-    eps_overcast : int
-        Cloud overcast assumption, from Swinbank (1963)
-    eps_clear : int
-        Cloud clear assumption, from Swinbank (1963)
-    dlr : xarray.DataArray
-        Downwelling longwave radiation, with array of same length as T and T_0
-    station_id : str
-        Station ID string, for special cases at selected stations where cloud
-        overcast and cloud clear assumptions are pre-defined. Currently
-        KAN_M and KAN_U are special cases, but this will need to be done for
-        all stations eventually
-
-    Returns
-    -------
-    cc : xarray.DataArray
-        Cloud cover data array
-    '''
-    if station_id == 'KAN_M':
-       LR_overcast = 315 + 4*T
-       LR_clear = 30 + 4.6e-13 * (T + T_0)**6
-    elif station_id == 'KAN_U':
-       LR_overcast = 305 + 4*T
-       LR_clear = 220 + 3.5*T
-    else:
-       LR_overcast = eps_overcast * 5.67e-8 *(T + T_0)**4
-       LR_clear = eps_clear * 5.67e-8 * (T + T_0)**6
-    cc = (dlr - LR_clear) / (LR_overcast - LR_clear)
-    cc[cc > 1] = 1
-    cc[cc < 0] = 0
-
-    return cc
-
 
 def smoothTilt(da: xr.DataArray, threshold=0.2):
     '''Smooth the station tilt
