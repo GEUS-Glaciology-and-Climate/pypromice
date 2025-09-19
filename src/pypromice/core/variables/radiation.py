@@ -4,7 +4,6 @@ __all__ = ["convert_sr", "convert_lr", "filter_lr", "filter_sr",
 
 import xarray as xr
 import numpy as np
-from pypromice.core.variables import station_pose
 
 # Define coefficients for radiometer adjustments
 T_0=273.15                  # degrees Celsius to Kelvin conversion

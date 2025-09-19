@@ -44,7 +44,7 @@ def clip_and_interpolate(temp : xr.DataArray,
 
 def get_cloud_coefficients(temp: xr.DataArray
 ) -> tuple[xr.DataArray, xr.DataArray]:
-    """Get overcast and clear cloud coefficients using
+    """Get overcast and clear cloud longwave coefficients using
     air temperature, based on assumptions from Swinbank (1963)
 
     Parameters
