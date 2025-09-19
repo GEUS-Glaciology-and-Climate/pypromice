@@ -7,11 +7,12 @@ Created on Mon Jun 10 10:58:39 2024
 """
 import logging
 import numpy as np
+import pandas as pd
 import xarray as xr
 from pypromice.core.variables.wind import calculate_directional_wind_speed
 logger = logging.getLogger(__name__)
 
-def resample_dataset(ds_h, t):
+def resample_dataset(ds_h, t, completeness_threshold=0.8):
     '''Resample L2 AWS data, e.g. hourly to daily average. This uses pandas
     DataFrame resampling at the moment as a work-around to the xarray Dataset
     resampling. As stated, xarray resampling is a lengthy process that takes
@@ -24,8 +25,12 @@ def resample_dataset(ds_h, t):
     ds_h : xarray.Dataset
         L3 AWS dataset either at 10 min (for raw data) or hourly (for tx data)
     t : str
-        Resample factor, same variable definition as in
+        Resample factor( "60min", "1D" or "MS"), same variable definition as in
         pandas.DataFrame.resample()
+    completeness_threshold : float
+        Lower limit of completness of an hourly/daily/monthly aggregate (nr of
+        samples in aggregate / expected nr of samples). Aggregates below that
+        limit are replaced by NaNs.
 
     Returns
     -------
@@ -48,9 +53,6 @@ def resample_dataset(ds_h, t):
     # Resample the DataFrame
     df_resampled = df_h.resample(t).mean()
 
-    # calculating the completeness of resampled time intervals
-    df_resampled_count = df_h.resample(t).count()
-
     # exception for precip_u and precip_l which are accumulated with some reset
     # we therefore take the positive increments in the higher resolution data (like 10 min)
     # and sum them into the aggregated data (hourly/daily/monthly).
@@ -59,7 +61,11 @@ def resample_dataset(ds_h, t):
         if var in df_h.columns:
             df_resampled[var] = df_h[var].diff().clip(lower=0).resample(t).sum()
 
-    # There is currently not completeness threshold!
+    # exception for rainfall which should be summed when aggregated into
+    # hourly/daily/monthly values. This ignores missing data.
+    for var in ['rainfall_u', 'rainfall_cor_u', 'rainfall_l', 'rainfall_cor_l']:
+        if var in df_h.columns:
+            df_resampled[var] = df_h[var].resample(t).sum()
 
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
