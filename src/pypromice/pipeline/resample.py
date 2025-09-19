@@ -268,7 +268,7 @@ def apply_completeness_filters(
     out = df_resampled.copy()
     out.loc[tc.reindex(out.index, fill_value=0) < time_thresh] = np.nan
     out[vc.reindex(index=out.index, columns=out.columns, fill_value=0) < value_thresh] = np.nan
-    return out, tc, vc
+    return out
 
 
 def calculateSaturationVaporPressure(t, T_0=273.15, T_100=373.15, es_0=6.1071,

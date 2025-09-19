@@ -7,7 +7,7 @@ from pypromice.pipeline.resample import apply_completeness_filters
 
 def _resample_and_filter(df_h, t, time_thresh=0.8, value_thresh=0.8):
     df_resampled = df_h.resample(t).mean()
-    filtered, tc, vc = apply_completeness_filters(
+    filtered = apply_completeness_filters(
         df_resampled,
         df_h,
         t,
