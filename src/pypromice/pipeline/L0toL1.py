@@ -79,7 +79,7 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     tu_lo = vars_df.loc["t_u","lo"]
     tu_hi = vars_df.loc["t_u","hi"]
     ds["t_u_interp"] = air_temperature.clip_and_interpolate(ds["t_u"], tu_lo, tu_hi)
-    ds["z_boom_u"] = station_boom_height.adjust(ds["z_boom_u"], ds["t_u_interp"])
+    ds["z_boom_cor_u"] = station_boom_height.adjust(ds["z_boom_u"], ds["t_u_interp"])
 
     # Decode and convert GPS positions
     ds["gps_lat"], ds["gps_lon"], ds["gps_time"] = gps.decode_and_convert(ds["gps_lat"],
@@ -154,7 +154,7 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
 
         # Adjust sonic ranger readings for sensitivity to air temperature
         ds['z_stake'] = _reformatArray(ds['z_stake'])
-        ds["z_stake"] = station_boom_height.adjust(ds["z_stake"], ds["t_u_interp"])
+        ds["z_stake_cor"] = station_boom_height.adjust(ds["z_stake"], ds["t_u_interp"])
 
     elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
         ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height
@@ -163,7 +163,7 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
         tl_lo = vars_df.loc["t_l","lo"]
         tl_hi = vars_df.loc["t_l","hi"]
         ds["t_l_interp"] = air_temperature.clip_and_interpolate(ds["t_l"], tl_lo, tl_hi)
-        ds["z_boom_l"] = station_boom_height.adjust(ds["z_boom_l"], ds["t_l_interp"])
+        ds["z_boom_cor_l"] = station_boom_height.adjust(ds["z_boom_l"], ds["t_l_interp"])
 
     ds = clip_values(ds, vars_df)
     for key in ['hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
