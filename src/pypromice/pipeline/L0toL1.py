@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import re, logging
+
+from pypromice.core.variables.pressure_transducer_depth import correct_and_calculate_depth
+
 logger = logging.getLogger(__name__)
 
 from pypromice.core.qc.value_clipping import clip_values
@@ -15,7 +18,8 @@ from pypromice.core.variables import (wind,
                                       air_temperature, 
                                       gps, 
                                       radiation,
-                                      station_boom_height)
+                                      station_boom_height,
+                                      pressure_transducer_depth)
 
 
 def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
@@ -142,15 +146,20 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
             ds['z_pt'] = (('time'), np.full(ds['time'].size, np.nan))
             logger.info('Warning: Non-null data for z_pt at a bedrock site')
 
-    if ds.attrs['number_of_booms']==1:                                         # 1-boom processing
-        if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density
-            if hasattr(ds, 'pt_z_offset'):                                     # Apply SR50 stake offset
-                ds['z_pt'] = ds['z_pt'] + int(ds.attrs['pt_z_offset'])
-            ds['z_pt_cor'],ds['z_pt']=getPressDepth(ds['z_pt'], ds['p_u'],
-                                                    ds.attrs['pt_antifreeze'],
-                                                    ds.attrs['pt_z_factor'],
-                                                    ds.attrs['pt_z_coef'],
-                                                    ds.attrs['pt_z_p_coef'])
+    if ds.attrs["number_of_booms"]==1:                                         # 1-boom processing
+        if ~ds["z_pt"].isnull().all():
+
+            # Adjust PTA fluid density and calculate depth
+            if hasattr(ds, "pt_z_offset"):
+                ds["z_pt"] = pressure_transducer_depth.apply_offset(ds["z_pt"],
+                                                                    int(ds.attrs["pt_z_offset"]))
+
+            ds["z_pt_cor"],ds["z_pt"]=pressure_transducer_depth.correct_and_calculate_depth(ds["z_pt"],
+                                                                                            ds["p_u"],
+                                                                                            ds.attrs["pt_antifreeze"],
+                                                                                            ds.attrs["pt_z_factor"],
+                                                                                            ds.attrs["pt_z_coef"],
+                                                                                            ds.attrs["pt_z_p_coef"])
 
         # Adjust sonic ranger readings for sensitivity to air temperature
         ds['z_stake'] = _reformatArray(ds['z_stake'])
@@ -259,53 +268,6 @@ def addTimeShift(ds, vars_df):
     # vals = [xr.DataArray(data=df_out[c], dims=['time'], coords={'time':df_out.index}, attrs=ds[c].attrs) for c in df_out.columns]
     # ds_out = xr.Dataset(dict(zip(df_out.columns, vals)), attrs=ds.attrs)
     return ds_out
-
-def getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef):
-    '''Adjust pressure depth and calculate pressure transducer depth based on
-    pressure transducer fluid density
-
-    Parameters
-    ----------
-    z_pt : xr.Dataarray
-        Pressure transducer height (corrected for offset)
-    p : xr.Dataarray
-        Air pressure
-    pt_antifreeze : float
-        Pressure transducer anti-freeze percentage for fluid density
-        correction
-    pt_z_factor : float
-        Pressure transducer factor
-    pt_z_coef : float
-        Pressure transducer coefficient
-    pt_z_p_coef : float
-        Pressure transducer coefficient
-
-    Returns
-    -------
-    z_pt_cor : xr.Dataarray
-        Pressure transducer height corrected
-    z_pt : xr.Dataarray
-        Pressure transducer depth
-    '''
-    # Calculate pressure transducer fluid density
-    if pt_antifreeze == 50:                                                    #TODO: Implement function w/ reference (analytical or from LUT)
-        rho_af = 1092                                                          #TODO: Track uncertainty
-    elif pt_antifreeze == 100:
-        rho_af = 1145
-    else:
-        rho_af = np.nan
-        logger.info('ERROR: Incorrect metadata: "pt_antifreeze" = ' +
-              f'{pt_antifreeze}. Antifreeze mix only supported at 50% or 100%')
-        # assert(False)
-
-    # Correct pressure depth
-    z_pt_cor = z_pt * pt_z_coef * pt_z_factor * 998.0 / rho_af + 100 * (pt_z_p_coef - p) / (rho_af * 9.81)
-
-    # Calculate pressure transducer depth
-    z_pt = z_pt * pt_z_coef * pt_z_factor * 998.0 / rho_af
-
-    return z_pt_cor, z_pt
-
 
 def smoothTilt(tilt, win_size):
     '''Smooth tilt values using a rolling window. This is translated from the
