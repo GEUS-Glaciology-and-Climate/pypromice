@@ -107,6 +107,7 @@ def toL1(L0: xr.DataArray,
     # Note that this should be OK for CR1000 tx (data only every 6 hrs),
     # since we interpolate above in station_pose.convert_and_filter_tilt(). PJW
     # TODO smoothing should be changed to a fixed time window rather than based on sample steps. PHO
+    # TODO a smoothing is performed here and at L1toL2 also. Is this needed? PHO
     ds["tilt_x"] = station_pose.smooth_tilt(ds["tilt_x"])
     ds["tilt_y"] = station_pose.smooth_tilt(ds["tilt_y"])
 

@@ -9,6 +9,8 @@ import xarray as xr
 import pandas as pd
 
 tilt_smoothing_win_size = 7 # Station tilt smoothing window size
+tilt_stddev_threshold = 0.2 # Station tilt interpolation standard deviation threshold
+rot_stddev_threshold = 4    # Station rotation interpolation standard deviation threshold
 tilt_threshold = -100       # Station tilt threshold
 deg2rad = np.pi / 180       # Degrees to radians conversion
 rad2deg = 1 / deg2rad       # Radians to degrees conversion
@@ -84,7 +86,7 @@ def convert_and_filter_tilt(tilt: xr.DataArray
     return dst.interpolate_na(dim='time', use_coordinate=False)
 
 
-def smooth_tilt(tilt: xr.DataArray
+def smooth_tilt_by_moving_window(tilt: xr.DataArray
 ) -> tuple[str, np.ndarray]:
     """Smooth tilt values using the pandas 'rolling' window method
     e.g. a value of 7 spans 70 minutes using 10-minute data.
@@ -112,12 +114,76 @@ def smooth_tilt(tilt: xr.DataArray
     mirrored_tdf = pd.concat([mirror_start, tdf, mirror_end])
 
     tdf_rolling = (
-        ('time'),
+        ("time"),
         mirrored_tdf.rolling(
-            tilt_smoothing_win_size, win_type='boxcar', min_periods=1, center=True
+            tilt_smoothing_win_size, win_type="boxcar", min_periods=1, center=True
             ).mean()[s:-s].values.flatten()
         )
     return tdf_rolling
+
+
+def interpolate_tilt(tilt: xr.DataArray,
+) -> xr.DataArray:
+    """Interpolate (fill data gaps) and smooth station tilt
+    using a moving standard deviation over a 3-day sliding
+    window.
+
+    Parameters
+    ----------
+    tilt : xr.DataArray
+        Either X or Y tilt inclinometer measurements
+
+    Returns
+    -------
+    xr.DataArray
+        Either X or Y smoothed tilt inclinometer measurements
+    """
+    # We calculate the moving standard deviation over a 3-day sliding window
+    # hourly resampling is necessary to make sure the same threshold can be used
+    # for 10 min and hourly data
+    moving_std_gap_filled = tilt.to_series().resample("h").median().rolling(
+                    3*24, center=True, min_periods=2
+                    ).std().reindex(tilt.time, method="bfill").values
+
+    # We select the good timestamps and gapfill assuming that
+    # - when tilt goes missing the last available value is used
+    # - when tilt is not available for the very first time steps, the first
+    #   good value is used for backfill
+    return tilt.where(
+                moving_std_gap_filled < tilt_stddev_threshold
+                ).ffill(dim="time").bfill(dim="time")
+
+
+def interpolate_rotation(rot: xr.DataArray,
+                         threshold=4):
+    """Interpolate and smooth station rotation
+
+    Parameters
+    ----------
+    rot : xr.DataArray
+        Rotation measurements from inclinometer
+    threshold : float
+        threshold used in a standard deviation based filter
+
+    Returns
+    -------
+    xr.DataArray
+        smoothed rotation measurements from inclinometer
+    """
+    moving_std_gap_filled = rot.to_series().resample("h").median().rolling(
+                    3*24, center=True, min_periods=2
+                    ).std().reindex(rot.time, method="bfill").values
+
+    # Same as for interpolate_tilt() with, in addition:
+    #     - a resampling to daily values
+    #     - a two-week median smoothing
+    #     - a resampling from these daily values to the original temporal resolution
+    return ("time", (rot.where(moving_std_gap_filled < rot_stddev_threshold)
+            .ffill(dim="time")
+            .to_series().resample("D").median()
+            .rolling(7*2,center=True,min_periods=2).median()
+            .reindex(rot.time, method="bfill").values
+            ))
 
 
 def calculate_spherical_tilt(
