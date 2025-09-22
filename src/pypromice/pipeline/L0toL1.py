@@ -164,7 +164,7 @@ def toL1(L0: xr.DataArray,
                                                                                             ds.attrs["pt_z_p_coef"])
 
         # Adjust sonic ranger readings on stake for sensitivity to air temperature
-        ds['z_stake'] = _reformatArray(ds['z_stake'])
+        ds['z_stake'] = _reformat_array(ds['z_stake'])
         ds["z_stake_cor"] = station_boom_height.adjust(ds["z_stake"], ds["t_u_interp"])
 
     # Perform two-boom variable processing
