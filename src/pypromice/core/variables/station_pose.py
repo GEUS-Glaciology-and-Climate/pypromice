@@ -1,5 +1,6 @@
 __all__ = ["convert_and_filter_tilt", "apply_tilt_factor",
-           "smooth_tilt", "calculate_spherical_tilt",
+           "smooth_tilt_with_moving_window", "interpolate_tilt",
+           "interpolate_rotation", "calculate_spherical_tilt",
            "calculate_declination", "calculate_hour_angle",
            "calculate_sun_direction_degrees", "calculate_zenith",
            "calculate_angle_difference"]
