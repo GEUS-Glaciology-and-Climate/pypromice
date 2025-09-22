@@ -25,47 +25,40 @@ from pypromice.core.variables import (wind,
                                       air_temperature)
 
 
-def toL2(
-    L1: xr.Dataset,
-    vars_df: pd.DataFrame,
-    data_flags_dir: Path,
-    data_adjustments_dir: Path,
-    T_0=273.15,
-    emissivity=0.97,
+def toL2(L1: xr.Dataset,
+         vars_df: pd.DataFrame,
+         data_flags_dir: Path,
+         data_adjustments_dir: Path
 ) -> xr.Dataset:
-    '''Process one Level 1 (L1) product to Level 2.
+    """Process one Level 1 (L1) product to Level 2.
     In this step we do:
         - manual flagging and adjustments
         - automated QC: persistence, percentile
         - custom filter: gps_alt filter, NaN t_rad removed from dlr & ulr
         - smoothing of tilt and rot
-        - calculation of rh with regards to ice in subfreezin conditions
+        - calculation of rh with regard to ice in subfreezing conditions
         - calculation of cloud coverage
         - correction of dsr and usr for tilt
-        - filtering of dsr based on a theoritical TOA irradiance and grazing light
+        - filtering of dsr based on a theoretical TOA irradiance and grazing light
         - calculation of albedo
         - calculation of directional wind speed
 
     Parameters
     ----------
-    L1 : xarray.Dataset
+    L1 : xr.Dataset
         Level 1 dataset
     vars_df : pd.DataFrame
         Metadata dataframe
-    T_0 : float
-        Ice point temperature in K. The default is 273.15.
-    eps_overcast : int
-        Cloud overcast. The default is 1..
-    eps_clear : float
-        Cloud clear. The default is 9.36508e-6.
-    emissivity : float
-        Emissivity. The default is 0.97.
+    data_flags_dir : pathlib.Path
+        Directory path to data flags file
+    data_adjustments_dir : pathlib.Path
+        Directory path to data adjustments file
 
     Returns
     -------
-    ds : xarray.Dataset
+    ds : xr.Dataset
         Level 2 dataset
-    '''
+    """
     ds = L1.copy()
 
     try:
@@ -77,6 +70,7 @@ def toL2(
 
         # Adjust data after a user-defined csv files
         ds = adjustData(ds, adj_dir=data_adjustments_dir.as_posix())
+
     except Exception:
         logger.exception("Flagging and fixing failed:")
 
@@ -128,7 +122,7 @@ def toL2(
         # TODO Ideally these will be pre-defined for all stations eventually
         if ds.attrs["station_id"] == "KAN_M":
             LR_overcast = 315 + 4 * ds["t_u"]
-            LR_clear = 30 + 4.6e-13 * (ds["t_u"] + T_0) ** 6
+            LR_clear = 30 + 4.6e-13 * (ds["t_u"] + air_temperature.T_0) ** 6
         elif ds.attrs["station_id"] == "KAN_U":
             LR_overcast = 305 + 4 * ds["t_u"]
             LR_clear = 220 + 3.5 * ds["t_u"]
@@ -222,7 +216,7 @@ def toL2(
     if ds.attrs['number_of_booms'] == 2:
         ds['wdir_l'] = wind.filter_wind_direction(ds['wdir_l'], ds['wspd_l'])
         ds['wspd_x_l'], ds['wspd_y_l'] = wind.calculate_directional_wind_speed(ds['wspd_l'], ds['wdir_l'])
-        
+
     # Calculate directional wind speed for instantaneous measurements
     if hasattr(ds, 'wdir_i'):
         if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():
