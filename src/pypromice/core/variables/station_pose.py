@@ -1,10 +1,124 @@
-__all__ = ["calculate_spherical_tilt", "calculate_declination", "calculate_hour_angle",
-           "calculate_sun_direction_degrees", "calculate_zenith", "calculate_angle_difference"]
+__all__ = ["convert_and_filter_tilt", "apply_tilt_factor",
+           "smooth_tilt", "calculate_spherical_tilt",
+           "calculate_declination", "calculate_hour_angle",
+           "calculate_sun_direction_degrees", "calculate_zenith",
+           "calculate_angle_difference"]
+
 import numpy as np
 import xarray as xr
+import pandas as pd
 
+tilt_smoothing_win_size = 7 # Station tilt smoothing window size
+tilt_threshold = -100       # Station tilt threshold
 deg2rad = np.pi / 180       # Degrees to radians conversion
 rad2deg = 1 / deg2rad       # Radians to degrees conversion
+
+
+def apply_tilt_factor(tilt: xr.DataArray,
+                      tilt_correction_factor: float
+) -> xr.DataArray:
+    """Apply tilt correction factor to station tilt values
+
+    Parameters
+    ----------
+    tilt : xr.DataArray
+        Tilt array (either 'tilt_x' or 'tilt_y')
+    tilt_correction_factor : float
+        Correction factor to apply to tilt measurements
+
+    Returns
+    -------
+    xr.DataArray
+        Corrected tilt measurements
+    """
+    return tilt * tilt_correction_factor
+
+
+def convert_and_filter_tilt(tilt: xr.DataArray
+) -> xr.DataArray:
+    """Convert station tilt from voltage to degrees,
+    and filter tilt with given threshold. Voltage-to-degrees
+    conversion is based on the equation in 3.2.9 in Fausto
+    et al. (2021) https://doi.org/10.5194/essd-13-3819-2021
+
+    Parameters
+    ----------
+    tilt : xr.DataArray
+        Array (either 'tilt_x' or 'tilt_y'), tilt values (voltage)
+
+    Returns
+    -------
+    xr.DataArray
+        Array (either 'tilt_x' or 'tilt_y'), tilt values (degrees)
+    """
+    # IDL version:
+    # notOKtiltX = where(tiltX lt -100, complement=OKtiltX) & notOKtiltY = where(tiltY lt -100, complement=OKtiltY)
+    # tiltX = tiltX/10.
+    # tiltnonzero = where(tiltX ne 0 and tiltX gt -40 and tiltX lt 40)
+    # if n_elements(tiltnonzero) ne 1 then tiltX[tiltnonzero] = tiltX[tiltnonzero]/abs(tiltX[tiltnonzero])*(-0.49*(abs(tiltX[tiltnonzero]))^4 + 3.6*(abs(tiltX[tiltnonzero]))^3 - 10.4*(abs(tiltX[tiltnonzero]))^2 +21.1*(abs(tiltX[tiltnonzero])))
+    # tiltY = tiltY/10.
+    # tiltnonzero = where(tiltY ne 0 and tiltY gt -40 and tiltY lt 40)
+    # if n_elements(tiltnonzero) ne 1 then tiltY[tiltnonzero] = tiltY[tiltnonzero]/abs(tiltY[tiltnonzero])*(-0.49*(abs(tiltY[tiltnonzero]))^4 + 3.6*(abs(tiltY[tiltnonzero]))^3 - 10.4*(abs(tiltY[tiltnonzero]))^2 +21.1*(abs(tiltY[tiltnonzero])))
+
+    # if n_elements(OKtiltX) gt 1 then tiltX[notOKtiltX] = interpol(tiltX[OKtiltX],OKtiltX,notOKtiltX) ; Interpolate over gaps for radiation correction; set to -999 again below.
+
+    # Define valid tilt values and create mask
+    notOKtilt = (tilt < tilt_threshold)
+    OKtilt = (tilt >= tilt_threshold)
+
+    # Convert tilt values
+    dst = tilt / 10
+    nz = (dst != 0) & (np.abs(dst) < 40)
+    dst = dst.where(~nz, other = dst / np.abs(dst)
+                      * (-0.49
+                         * (np.abs(dst))**4 + 3.6
+                         * (np.abs(dst))**3 - 10.4
+                         * (np.abs(dst))**2 + 21.1
+                         * (np.abs(dst))))
+
+    # Apply filtering mask
+    dst = dst.where(~notOKtilt)
+
+    # TODO: Filling w/o considering time gaps to re-create IDL/GDL outputs.
+    #  Should fill with coordinate not False. Also consider 'max_gap' option?
+    return dst.interpolate_na(dim='time', use_coordinate=False)
+
+
+def smooth_tilt(tilt: xr.DataArray
+) -> tuple[str, np.ndarray]:
+    """Smooth tilt values using the pandas 'rolling' window method
+    e.g. a value of 7 spans 70 minutes using 10-minute data.
+    This is translated from the previous IDL/GDL smoothing algorithm:
+    tiltX = smooth(tiltX,7,/EDGE_MIRROR,MISSING=-999) & tiltY = smooth(tiltY,7,/EDGE_MIRROR, MISSING=-999)
+    endif
+    In Python, this should be
+    dstxy = dstxy.rolling(time=7, win_type='boxcar', center=True).mean()
+    But the EDGE_MIRROR makes it a bit more complicated
+
+    Parameters
+    ----------
+    tilt : xr.DataArray
+        Array (either 'tilt_x' or 'tilt_y'), tilt values (can be in degrees or voltage)
+
+    Returns
+    -------
+    tdf_rolling : tuple, as: (str, numpy.ndarray)
+        The numpy array is the tilt values, smoothed with a rolling mean
+    """
+    s = int(tilt_smoothing_win_size/2)
+    tdf = tilt.to_dataframe()
+    mirror_start = tdf.iloc[:s][::-1]
+    mirror_end = tdf.iloc[-s:][::-1]
+    mirrored_tdf = pd.concat([mirror_start, tdf, mirror_end])
+
+    tdf_rolling = (
+        ('time'),
+        mirrored_tdf.rolling(
+            tilt_smoothing_win_size, win_type='boxcar', min_periods=1, center=True
+            ).mean()[s:-s].values.flatten()
+        )
+    return tdf_rolling
+
 
 def calculate_spherical_tilt(
     tilt_x: xr.DataArray,
@@ -46,6 +160,7 @@ def calculate_spherical_tilt(
     theta_sensor_rad = np.arccos(Z / (X**2 + Y**2 + Z**2)**0.5)
     return phi_sensor_rad, theta_sensor_rad
 
+
 def calculate_declination(doy: xr.DataArray,
                           hour: xr.DataArray,
                           minute: xr.DataArray
@@ -75,6 +190,7 @@ def calculate_declination(doy: xr.DataArray,
                      * np.cos(3 * d0_rad) + 0.00148
                      * np.sin(3 * d0_rad))
 
+
 def calculate_hour_angle(hour: xr.DataArray,
                          minute: xr.DataArray,
                          lon: float
@@ -100,6 +216,7 @@ def calculate_hour_angle(hour: xr.DataArray,
     return 2 * np.pi * (((hour + minute / 60) / 24 - 0.5) - lon/360)
      # ; - 15.*timezone/360.)
 
+
 def calculate_sun_direction_degrees(HourAngle_rad: xr.DataArray
 ) -> xr.DataArray:
     """Calculate sun direction as degrees. This is an alternative to
@@ -121,6 +238,7 @@ def calculate_sun_direction_degrees(HourAngle_rad: xr.DataArray
     DirectionSun_deg[DirectionSun_deg < 0] += 360
     DirectionSun_deg[DirectionSun_deg < 0] += 360
     return DirectionSun_deg
+
 
 def calculate_zenith(lat: float,
                      Declination_rad: xr.DataArray,
@@ -152,6 +270,7 @@ def calculate_zenith(lat: float,
 
     ZenithAngle_deg = ZenithAngle_rad * rad2deg
     return ZenithAngle_rad, ZenithAngle_deg
+
 
 def calculate_angle_difference(ZenithAngle_rad: xr.DataArray,
                                HourAngle_rad: xr.DataArray,
