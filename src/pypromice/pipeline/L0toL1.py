@@ -108,8 +108,8 @@ def toL1(L0: xr.DataArray,
     # since we interpolate above in station_pose.convert_and_filter_tilt(). PJW
     # TODO smoothing should be changed to a fixed time window rather than based on sample steps. PHO
     # TODO a smoothing is performed here and at L1toL2 also. Is this needed? PHO
-    ds["tilt_x"] = station_pose.smooth_tilt(ds["tilt_x"])
-    ds["tilt_y"] = station_pose.smooth_tilt(ds["tilt_y"])
+    ds["tilt_x"] = station_pose.smooth_tilt_with_moving_window(ds["tilt_x"])
+    ds["tilt_y"] = station_pose.smooth_tilt_with_moving_window(ds["tilt_y"])
 
     # Apply wind factor if provided
     # This is in the case of an anemometer rotations improperly translated to wind speed by the logger program

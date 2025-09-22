@@ -86,7 +86,7 @@ def convert_and_filter_tilt(tilt: xr.DataArray
     return dst.interpolate_na(dim='time', use_coordinate=False)
 
 
-def smooth_tilt_by_moving_window(tilt: xr.DataArray
+def smooth_tilt_with_moving_window(tilt: xr.DataArray
 ) -> tuple[str, np.ndarray]:
     """Smooth tilt values using the pandas 'rolling' window method
     e.g. a value of 7 spans 70 minutes using 10-minute data.
