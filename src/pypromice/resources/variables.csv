@@ -34,10 +34,10 @@ dlhf_l,surface_downward_latent_heat_flux,Latent heat flux (lower boom),W m-2,mod
 dshf_u,surface_downward_sensible_heat_flux,Sensible heat flux (upper boom),W m-2,modelResult,time,FALSE,L3 or later,,,,all,0,0,1,4
 dshf_l,surface_downward_sensible_heat_flux,Sensible heat flux (lower boom),W m-2,modelResult,time,FALSE,L3 or later,,,,two-boom,0,0,1,4
 z_boom_u,distance_to_surface_from_boom,Upper boom height,m,physicalMeasurement,time,TRUE,,0.3,10,"",all,1,1,1,4
-z_boom_cor_u,distance_to_surface_from_boom_corrected,Upper boom height – corrected,m,modelResult,time,TRUE,,0.3,10,"",all,1,1,1,4
+z_boom_cor_u,distance_to_surface_from_boom_corrected,Upper boom height - corrected,m,modelResult,time,TRUE,,0.3,10,"",all,1,1,1,4
 z_boom_q_u,distance_to_surface_from_boom_quality,Upper boom height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,all,1,1,0,4
-z_boom_l,distance_to_surface_from_boom,Lower boom height,m,physicalMeasurement,time,TRUE,,0.3,5,,two-boom,1,1,1,4
-z_boom_cor_l,distance_to_surface_from_boom_corrected,Lower boom height – corrected,m,modelResult,time,TRUE,,0.3,5,,two-boom,1,1,1,4
+z_boom_l,distance_to_surface_from_boom,Lower boom height,m,physicalMeasurement,time,TRUE,,0.3,5,"",two-boom,1,1,1,4
+z_boom_cor_l,distance_to_surface_from_boom_corrected,Lower boom height - corrected,m,modelResult,time,TRUE,,0.3,5,"",two-boom,1,1,1,4
 z_boom_q_l,distance_to_surface_from_boom_quality,Lower boom height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,two-boom,1,1,0,4
 z_stake,distance_to_surface_from_stake_assembly,Stake height,m,physicalMeasurement,time,TRUE,,0.3,8,,one-boom,1,1,1,4
 z_stake_cor,distance_to_surface_from_stake_assembly_corrected,Stake height - corrected,m,physicalMeasurement,time,TRUE,,0.3,8,,one-boom,1,1,1,4
@@ -99,9 +99,9 @@ t_log,temperature_of_logger,Logger temperature,degrees_C,physicalMeasurement,tim
 t_rad,temperature_of_radiation_sensor,Radiation sensor temperature,degrees_C,physicalMeasurement,time,FALSE,,-80,40,"",all,1,1,1,4
 p_i,air_pressure,Air pressure (instantaneous) minus 1000,hPa,physicalMeasurement,time,TRUE,,-350,100,,all,1,1,1,4
 t_i,air_temperature,Air temperature (instantaneous),degrees_C,physicalMeasurement,time,TRUE,,-80,40,,all,1,1,1,4
-rh_i,relative_humidity,Relative humidity (instantaneous),%,physicalMeasurement,time,TRUE,,0,150,,all,1,1,1,4
+rh_i,relative_humidity,Relative humidity (instantaneous),%,physicalMeasurement,time,TRUE,,0,150,"",all,1,1,1,4
 rh_i_wrt_ice_or_water,relative_humidity_with_respect_to_ice_or_water,Relative humidity (instantaneous) with respect to saturation over ice in subfreezing conditions and over water otherwise,%,modelResult,time,TRUE,L2 or later,0,100,,all,0,1,1,4
 wspd_i,wind_speed,Wind speed (instantaneous),m s-1,physicalMeasurement,time,TRUE,,0,100,wdir_i wspd_x_i wspd_y_i,all,1,1,1,4
 wdir_i,wind_from_direction,Wind from direction (instantaneous),degrees,physicalMeasurement,time,TRUE,,1,360,wspd_x_i wspd_y_i,all,1,1,1,4
-wspd_x_i,wind_speed_from_x_direction,Wind speed from x direction (instantaneous),m s-1,modelResult,time,TRUE,L2 or later,-100,100,,all,0,1,1,4
-wspd_y_i,wind_speed_from_y_direction,Wind speed from y direction (instantaneous),m s-1,modelResult,time,TRUE,L2 or later,-100,100,,all,0,1,1,4
+wspd_x_i,wind_speed_from_x_direction,Wind speed from x direction (instantaneous),m s-1,modelResult,time,TRUE,L2 or later,-100,100,"",all,0,1,1,4
+wspd_y_i,wind_speed_from_y_direction,Wind speed from y direction (instantaneous),m s-1,modelResult,time,TRUE,L2 or later,-100,100,"",all,0,1,1,4
