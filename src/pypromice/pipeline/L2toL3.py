@@ -74,7 +74,7 @@ def toL3(L2,
                 ds['dshf_u'] = (('time'), SHF_h_u.data)
                 ds['dlhf_u'] = (('time'), LHF_h_u.data)
         else:
-            logger.info('wspd_u, t_surf or z_boom_u missing, cannot calculate turbulent heat fluxes')
+            logger.info('wspd_u, t_surf or z_boom_cor_u missing, cannot calculate turbulent heat fluxes')
 
         # Convert specific humidity from kg/kg to g/kg
         ds['qh_u'] = humidity.convert(q_h_u)
@@ -110,7 +110,7 @@ def toL3(L2,
                     ds['dshf_l'] = (('time'), SHF_h_l.data)
                     ds['dlhf_l'] = (('time'), LHF_h_l.data)
             else:
-                logger.info('wspd_l, t_surf or z_boom_l missing, cannot calculate turbulent heat fluxes')
+                logger.info('wspd_l, t_surf or z_boom_cor_l missing, cannot calculate turbulent heat fluxes')
 
             # Convert specific humidity from kg/kg to g/kg
             ds['qh_l'] = humidity.convert(q_h_l)
@@ -182,7 +182,7 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
             # Calculate stake boom height correction with uncorrected values where needed
             z_stake_best = station_boom_height.adjust_and_include_uncorrected_values(ds["z_stake"], ds["t_u"])
 
-            first_valid_index = ds.time.where((z_stake_best + ds.z_boom_cor_u).notnull(), drop=True).data[0]
+            first_valid_index = ds.time.where((z_stake_best + ds.z_boom_best_u).notnull(), drop=True).data[0]
             ds['z_surf_2'] = ds.z_surf_1.sel(time=first_valid_index) + z_stake_best.sel(time=first_valid_index) - z_stake_best
 
         # Use corrected point data if available
