@@ -1,12 +1,11 @@
-__all__ = ["convert_to_rate", "filter"]
+__all__ = ["correct_rainfall_undercatch", "get_rainfall_per_timestep", "filter_lufft_errors"]
 
 import numpy as np
 import xarray as xr
 
-def filter(precip: xr.DataArray,
-           t: xr.DataArray,
-           p: xr.DataArray,
-           rh: xr.DataArray
+
+def filter_lufft_errors(
+    precip: xr.DataArray, t: xr.DataArray, p: xr.DataArray, rh: xr.DataArray
 ) -> xr.DataArray:
     """Filter precipitation measurements where air temperature, pressure, or
     relative humidity measurements are null values. This assumes that
@@ -34,11 +33,10 @@ def filter(precip: xr.DataArray,
     return precip.where(~mask)
 
 
-def convert_to_rate(precip: xr.DataArray,
-                    wspd: xr.DataArray,
-                    t: xr.DataArray
+def correct_rainfall_undercatch(
+    rainfall_per_timestep: xr.DataArray, wspd: xr.DataArray
 ) -> xr.DataArray:
-    """Correct precipitation with the undercatch correction method used in
+    """Corrects rainfall amount per timestep for undercatch as in
     Yang et al. (1999) and Box et al. (2022), based on Goodison et al. (1998).
 
     Yang, D., Ishida, S., Goodison, B. E., and Gunther, T.: Bias correction of
@@ -56,47 +54,55 @@ def convert_to_rate(precip: xr.DataArray,
 
     Parameters
     ----------
-    precip : xr.DataArray
-        Cumulative precipitation measurements
+    rainfall : xr.DataArray
+        Uncorrected rainfall per timestep
     wspd : xr.DataArray
         Wind speed measurements
-    t : xr.DataArray
-        Air temperature measurements
 
     Returns
     -------
-    precip_rate : xr.DataArray
-        Corrected precipitation rate
+    rainfall_cor : xr.DataArray
+        Corrected rainfall per timestep
     """
-    nan_mask = precip.isnull()
 
     # Calculate undercatch correction factor
-    corr=100/(100.00-4.37*wspd+0.35*wspd*wspd)
+    corr = 100 / (100.00 - 4.37 * wspd + 0.35 * wspd * wspd)
 
     # Fix all values below 1.02 to 1.02
-    corr = corr.where(corr>1.02, other=1.02)
-
-    # Fill nan values in precip with preceding value
-    precip = precip.ffill(dim='time')
-
-    # Calculate precipitation rate and makes sure it remains of the same size
-    # and taking into account the time step size to ensure mm/hr
-    dt_hours = precip['time'].diff('time') / np.timedelta64(1, 'h')
-    dt_hours = dt_hours.reindex_like(precip)
-    precip_rate = precip.diff('time') / dt_hours
+    corr = corr.where(corr > 1.02, other=1.02)
 
     # Apply correction to rate
-    precip_rate = precip_rate*corr
+    rainfall_per_timestep_cor = rainfall_per_timestep * corr
 
-    # Removing all negative precipitation rates
-    precip_rate = precip_rate.where(precip_rate>0)
+    return rainfall_per_timestep_cor
 
-    # Filtering cold season precipitation measurements
-    rain_in_cold = (precip_rate>0) & (t<-2)
-    precip_rate = precip_rate.where(~rain_in_cold)
+def get_rainfall_per_timestep(
+    precip: xr.DataArray,
+    t: xr.DataArray
+) -> xr.DataArray:
+    """
+    Derive rainfall per timestep from cumulative precipitation data.
 
-    # Removing timestamps where precipitation rates have been calculated over
-    # interpolated values
-    precip_rate = precip_rate.where(~nan_mask)
+    Parameters
+    ----------
+    precip : xr.DataArray
+        Cumulative precipitation measurements.
+    t : xr.DataArray
+        Air temperature measurements.
 
-    return precip_rate
+    Returns
+    -------
+    xr.DataArray
+        Rainfall per timestep with negative values removed and
+        cold-season precipitation (T < -2 °C) filtered out.
+    """
+    rainfall_per_timestep = precip.diff("time").reindex_like(precip)
+
+    # Removing all negative precipitation, both corrected and uncorrected
+    rainfall_per_timestep = rainfall_per_timestep.where(rainfall_per_timestep >= 0)
+
+    # Filtering cold season precipitation, both corrected and uncorrected
+    rain_in_cold = (rainfall_per_timestep > 0) & (t < -2)
+    rainfall_per_timestep = rainfall_per_timestep.where(~rain_in_cold)
+
+    return rainfall_per_timestep
