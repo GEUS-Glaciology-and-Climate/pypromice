@@ -1,4 +1,4 @@
-__all__ = ["convert_to_rate_and_correct_undercatch", "filter_lufft_errors", "get_rate"]
+__all__ = ["correct_rainfall_undercatch", "get_rainfall_per_timestep", "filter_lufft_errors"]
 
 import numpy as np
 import xarray as xr
@@ -33,11 +33,10 @@ def filter_lufft_errors(
     return precip.where(~mask)
 
 
-def convert_to_rainfall_per_timestep_and_correct_undercatch(
-    precip: xr.DataArray, wspd: xr.DataArray, t: xr.DataArray
+def correct_rainfall_undercatch(
+    rainfall_per_timestep: xr.DataArray, wspd: xr.DataArray, t: xr.DataArray
 ) -> xr.DataArray:
-    """Converts accumulated precipitation to rainfall amount per timestep,
-    then corrects precipitation with the undercatch correction method used in
+    """Corrects rainfall amount per timestep for undercatch as in
     Yang et al. (1999) and Box et al. (2022), based on Goodison et al. (1998).
 
     Yang, D., Ishida, S., Goodison, B. E., and Gunther, T.: Bias correction of
@@ -55,8 +54,8 @@ def convert_to_rainfall_per_timestep_and_correct_undercatch(
 
     Parameters
     ----------
-    precip : xr.DataArray
-        Cumulative precipitation measurements
+    rainfall : xr.DataArray
+        Uncorrected rainfall per timestep
     wspd : xr.DataArray
         Wind speed measurements
     t : xr.DataArray
@@ -64,12 +63,9 @@ def convert_to_rainfall_per_timestep_and_correct_undercatch(
 
     Returns
     -------
-    rainfall : xr.DataArray
-        Uncorrected rainfall per timestep
     rainfall_cor : xr.DataArray
         Corrected rainfall per timestep
     """
-    rainfall_per_timestep = get_rainfall_per_timestep(precip, t)
 
     # Calculate undercatch correction factor
     corr = 100 / (100.00 - 4.37 * wspd + 0.35 * wspd * wspd)
@@ -80,7 +76,7 @@ def convert_to_rainfall_per_timestep_and_correct_undercatch(
     # Apply correction to rate
     rainfall_per_timestep_cor = rainfall_per_timestep * corr
 
-    return rainfall_per_timestep, rainfall_per_timestep_cor
+    return rainfall_per_timestep_cor
 
 def get_rainfall_per_timestep(
     precip: xr.DataArray,

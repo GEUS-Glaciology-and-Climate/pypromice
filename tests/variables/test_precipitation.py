@@ -48,7 +48,8 @@ class TestPrecipConvert(unittest.TestCase):
                               coords={"time": time})
 
     def test_convert_output(self):
-        _, result = precipitation.convert_to_rainfall_per_timestep_and_correct_undercatch(self.precip, self.wspd, self.t)
+        rainfall = precipitation.get_rainfall_per_timestep(self.precip, self.t)
+        result = precipitation.correct_rainfall_undercatch(rainfall, self.wspd)
 
         expected_result = np.array([
             np.nan, 1.15074799, 3.28587076, 6.90448792, 5.75373993,
@@ -65,7 +66,8 @@ class TestPrecipConvert(unittest.TestCase):
         )
 
     def test_convert_applies_correction_factor(self):
-        _, result = precipitation.convert_to_rainfall_per_timestep_and_correct_undercatch(self.precip, self.wspd, self.t)
+        rainfall = precipitation.get_rainfall_per_timestep(self.precip, self.t)
+        result = precipitation.correct_rainfall_undercatch(rainfall, self.wspd)
         # Ensure precipitation rates are scaled by factor >= 1.02
         self.assertTrue(((result.dropna(dim="time") >= 0).all()).item())
 
@@ -73,7 +75,9 @@ class TestPrecipConvert(unittest.TestCase):
         t_allneg = xr.DataArray([-3.0, -5.0, -4.0, -6.0, -4.0, -4.0, -5.0, -8.0],
                                 dims="time",
                                 coords=self.t.coords)
-        _, result = precipitation.convert_to_rainfall_per_timestep_and_correct_undercatch(self.precip, self.wspd, t_allneg)
+
+        rainfall = precipitation.get_rainfall_per_timestep(self.precip, t_allneg)
+        result = precipitation.correct_rainfall_undercatch(rainfall, self.wspd)
         # When t < -2 and precip_rate > 0, it should become NaN
         self.assertTrue(np.isnan(result).all())
 
@@ -82,7 +86,9 @@ class TestPrecipConvert(unittest.TestCase):
         precip_desc = xr.DataArray([100.0, 90.0, 87.0, 84.0, 72.0, 60.0, 38.0, 26.0],
                                   dims="time",
                                   coords=self.precip.coords)
-        _, result = precipitation.convert_to_rainfall_per_timestep_and_correct_undercatch(precip_desc, self.wspd, self.t)
+
+        rainfall = precipitation.get_rainfall_per_timestep(precip_desc, self.t)
+        result = precipitation.correct_rainfall_undercatch(rainfall, self.wspd)
 
         self.assertTrue(np.isnan(result.values).all())
 

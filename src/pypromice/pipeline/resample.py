@@ -12,7 +12,7 @@ import xarray as xr
 from pypromice.core.variables.wind import calculate_directional_wind_speed
 logger = logging.getLogger(__name__)
 
-def resample_dataset(ds_h, t, completeness_threshold=0.8):
+def resample_dataset(ds_h, t):
     '''Resample L2 AWS data, e.g. hourly to daily average. This uses pandas
     DataFrame resampling at the moment as a work-around to the xarray Dataset
     resampling. As stated, xarray resampling is a lengthy process that takes
@@ -27,10 +27,6 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
     t : str
         Resample factor( "60min", "1D" or "MS"), same variable definition as in
         pandas.DataFrame.resample()
-    completeness_threshold : float
-        Lower limit of completness of an hourly/daily/monthly aggregate (nr of
-        samples in aggregate / expected nr of samples). Aggregates below that
-        limit are replaced by NaNs.
 
     Returns
     -------
