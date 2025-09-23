@@ -12,7 +12,7 @@ from pypromice.core.qc.github_data_issues import adjustData
 import logging
 
 from pypromice.core.qc.github_data_issues import adjustData
-from pypromice.core.variables import humidity
+from pypromice.core.variables import humidity, station_boom_height
 
 logger = logging.getLogger(__name__)
 
@@ -60,11 +60,12 @@ def toL3(L2,
 
         if ('wspd_u' in ds.keys()) and \
             ('t_surf' in ds.keys()) and \
-                ('z_boom_u' in ds.keys()):
+                ('z_boom_cor_u' in ds.keys()):
             WS_h_u = ds['wspd_u'].copy()
             Tsurf_h = ds['t_surf'].copy()                                              # T surf from derived upper boom product. TODO is this okay to use with lower boom parameters?
-            z_WS_u = ds['z_boom_u'].copy() + 0.4                                       # Get height of Anemometer
-            z_T_u = ds['z_boom_u'].copy() - 0.1                                        # Get height of thermometer
+
+            z_WS_u = ds['z_boom_cor_u'].copy() + 0.4  # Get height of Anemometer
+            z_T_u = ds['z_boom_cor_u'].copy() - 0.1  # Get height of thermometer
 
             if not is_bedrock:
                 SHF_h_u, LHF_h_u= calculate_tubulent_heat_fluxes(T_0, T_h_u, Tsurf_h, WS_h_u,            # Calculate latent and sensible heat fluxes
@@ -73,12 +74,12 @@ def toL3(L2,
                 ds['dshf_u'] = (('time'), SHF_h_u.data)
                 ds['dlhf_u'] = (('time'), LHF_h_u.data)
         else:
-            logger.info('wspd_u, t_surf or z_boom_u missing, cannot calulate tubrulent heat fluxes')
+            logger.info('wspd_u, t_surf or z_boom_cor_u missing, cannot calculate turbulent heat fluxes')
 
         # Convert specific humidity from kg/kg to g/kg
         ds['qh_u'] = humidity.convert(q_h_u)
     else:
-        logger.info('t_u, p_u or rh_u_wrt_ice_or_water missing, cannot calulate tubrulent heat fluxes')
+        logger.info('t_u, p_u or rh_u_wrt_ice_or_water missing, cannot calculate turbulent heat fluxes')
 
     # Lower boom bulk calculation
     if ds.attrs['number_of_booms']==2:
@@ -95,9 +96,11 @@ def toL3(L2,
 
             if ('wspd_l' in ds.keys()) and \
                 ('t_surf' in ds.keys()) and \
-                    ('z_boom_l' in ds.keys()):
-                z_WS_l = ds['z_boom_l'].copy() + 0.4                                   # Get height of W
-                z_T_l = ds['z_boom_l'].copy() - 0.1                                    # Get height of thermometer
+                    ('z_boom_cor_l' in ds.keys()):
+                z_WS_l = ds['z_boom_cor_l'].copy() + 0.4  # Get height of radiometer
+                z_T_l = ds['z_boom_cor_l'].copy() - 0.1  # Get height of thermometer
+
+                # Get wind speed lower boom measurements
                 WS_h_l = ds['wspd_l'].copy()
 
                 if not is_bedrock:
@@ -107,13 +110,13 @@ def toL3(L2,
                     ds['dshf_l'] = (('time'), SHF_h_l.data)
                     ds['dlhf_l'] = (('time'), LHF_h_l.data)
             else:
-                logger.info('wspd_l, t_surf or z_boom_l missing, cannot calulate tubrulent heat fluxes')
+                logger.info('wspd_l, t_surf or z_boom_cor_l missing, cannot calculate turbulent heat fluxes')
 
             # Convert specific humidity from kg/kg to g/kg
             ds['qh_l'] = humidity.convert(q_h_l)
 
         else:
-            logger.info('t_l, p_l or rh_l_wrt_ice_or_water missing, cannot calulate tubrulent heat fluxes')
+            logger.info('t_l, p_l or rh_l_wrt_ice_or_water missing, cannot calculate turbulent heat fluxes')
 
     if len(station_config)==0:
         logger.warning('\n***\nThe station configuration file is missing or improperly passed to pypromice. Some processing steps might fail.\n***\n')
@@ -169,12 +172,18 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
     ds['z_surf_1'] = ('time', ds['z_boom_u'].data * np.nan)
     ds['z_surf_2'] = ('time', ds['z_boom_u'].data * np.nan)
 
+    z_boom_best_u = station_boom_height.adjust_and_include_uncorrected_values(ds["z_boom_u"], ds["t_u"])
+
     if ds.attrs['site_type'] == 'ablation':
         # Calculate surface heights for ablation sites
-        ds['z_surf_1'] = 2.6 - ds['z_boom_u']
+        ds['z_surf_1'] = 2.6 - z_boom_best_u
         if ds.z_stake.notnull().any():
-            first_valid_index = ds.time.where((ds.z_stake + ds.z_boom_u).notnull(), drop=True).data[0]
-            ds['z_surf_2'] = ds.z_surf_1.sel(time=first_valid_index) + ds.z_stake.sel(time=first_valid_index) - ds['z_stake']
+
+            # Calculate stake boom height correction with uncorrected values where needed
+            z_stake_best = station_boom_height.adjust_and_include_uncorrected_values(ds["z_stake"], ds["t_u"])
+
+            first_valid_index = ds.time.where((z_stake_best + z_boom_best_u).notnull(), drop=True).data[0]
+            ds['z_surf_2'] = ds.z_surf_1.sel(time=first_valid_index) + z_stake_best.sel(time=first_valid_index) - z_stake_best
 
         # Use corrected point data if available
         if 'z_pt_cor' in ds.data_vars:
@@ -182,17 +191,24 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
 
     else:
         # Calculate surface heights for other site types
-        first_valid_index = ds.time.where(ds.z_boom_u.notnull(), drop=True).data[0]
-        ds['z_surf_1'] = ds.z_boom_u.sel(time=first_valid_index) - ds['z_boom_u']
+        first_valid_index = ds.time.where(z_boom_best_u.notnull(), drop=True).data[0]
+        ds['z_surf_1'] = z_boom_best_u.sel(time=first_valid_index) - z_boom_best_u
+
         if 'z_stake' in ds.data_vars and ds.z_stake.notnull().any():
-            first_valid_index = ds.time.where(ds.z_stake.notnull(), drop=True).data[0]
-            ds['z_surf_2'] = ds.z_stake.sel(time=first_valid_index) - ds['z_stake']
+            z_stake_best = station_boom_height.adjust_and_include_uncorrected_values(ds["z_stake"], ds["t_u"])
+            first_valid_index = ds.time.where(z_stake_best.notnull(), drop=True).data[0]
+            ds['z_surf_2'] = z_stake_best.sel(time=first_valid_index) - z_stake_best
+
         if 'z_boom_l' in ds.data_vars:
-            # need a combine first because KAN_U switches from having a z_stake
-            # to having a z_boom_l
-            first_valid_index = ds.time.where(ds.z_boom_l.notnull(), drop=True).data[0]
+
+            # Calculate lower boom height correction with uncorrected values where needed
+            z_boom_best_l = station_boom_height.adjust_and_include_uncorrected_values(ds["z_boom_l"], ds["t_l"])
+
+            # need a combine first because KAN_U switches from having a z_stake_best
+            # to having a z_boom_best_l
+            first_valid_index = ds.time.where(z_boom_best_l.notnull(), drop=True).data[0]
             ds['z_surf_2'] = ds['z_surf_2'].combine_first(
-                ds.z_boom_l.sel(time=first_valid_index) - ds['z_boom_l'])
+                z_boom_best_l.sel(time=first_valid_index) - z_boom_best_l)
 
     # Adjust data for the created surface height variables
     ds = adjustData(ds, data_adjustments_dir, var_list=['z_surf_1', 'z_surf_2', 'z_ice_surf'])
@@ -232,7 +248,7 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
         z_ice_surf = z_ice_surf.reindex(ds.time,
                                         method=None).interpolate(method='time')
 
-        # here we make sure that the periods where both z_stake and z_pt are
+        # here we make sure that the periods where both z_stake_best and z_pt are
         # missing are also missing in z_ice_surf
         msk = ds['z_ice_surf'].notnull() | ds['z_surf_2_adj'].notnull()
         z_ice_surf = z_ice_surf.where(msk)
@@ -300,7 +316,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
     period is estimated each year (either the period when z_pt_cor decreases
     or JJA if no better estimate) then different adjustmnents are conducted
     to stitch the three time series together: z_ice_surface (adjusted from
-    z_pt_cor) or if unvailable, z_surf_2 (adjusted from z_stake)
+    z_pt_cor) or if unavailable, z_surf_2 (adjusted from z_stake)
     are used in the ablation period while an average of z_surf_1 and z_surf_2
     are used otherwise, after they are being adjusted to z_ice_surf at the end
     of the ablation season.

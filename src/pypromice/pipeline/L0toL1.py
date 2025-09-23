@@ -79,7 +79,7 @@ def toL1(L0: xr.DataArray,
     tu_lo = vars_df.loc["t_u","lo"]
     tu_hi = vars_df.loc["t_u","hi"]
     ds["t_u_interp"] = air_temperature.clip_and_interpolate(ds["t_u"], tu_lo, tu_hi)
-    ds["z_boom_u"] = station_boom_height.adjust(ds["z_boom_u"], ds["t_u_interp"])
+    ds["z_boom_cor_u"] = station_boom_height.adjust(ds["z_boom_u"], ds["t_u_interp"])
 
     # Decode and convert GPS positions
     ds["gps_lat"], ds["gps_lon"], ds["gps_time"] = gps.decode_and_convert(ds["gps_lat"],
@@ -163,9 +163,9 @@ def toL1(L0: xr.DataArray,
                                                                                             ds.attrs["pt_z_coef"],
                                                                                             ds.attrs["pt_z_p_coef"])
 
-        # Adjust sonic ranger readings for sensitivity to air temperature
+        # Adjust sonic ranger readings on stake for sensitivity to air temperature
         ds['z_stake'] = _reformat_array(ds['z_stake'])
-        ds["z_stake"] = station_boom_height.adjust(ds["z_stake"], ds["t_u_interp"])
+        ds["z_stake_cor"] = station_boom_height.adjust(ds["z_stake"], ds["t_u_interp"])
 
     # Perform two-boom variable processing
     elif ds.attrs['number_of_booms']==2:
@@ -177,7 +177,7 @@ def toL1(L0: xr.DataArray,
         tl_lo = vars_df.loc["t_l","lo"]
         tl_hi = vars_df.loc["t_l","hi"]
         ds["t_l_interp"] = air_temperature.clip_and_interpolate(ds["t_l"], tl_lo, tl_hi)
-        ds["z_boom_l"] = station_boom_height.adjust(ds["z_boom_l"], ds["t_l_interp"])
+        ds["z_boom_cor_l"] = station_boom_height.adjust(ds["z_boom_l"], ds["t_l_interp"])
 
     # Clip values and remove redundant attribute information
     ds = clip_values(ds, vars_df)
