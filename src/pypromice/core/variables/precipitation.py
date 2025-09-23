@@ -34,7 +34,7 @@ def filter_lufft_errors(
 
 
 def correct_rainfall_undercatch(
-    rainfall_per_timestep: xr.DataArray, wspd: xr.DataArray, t: xr.DataArray
+    rainfall_per_timestep: xr.DataArray, wspd: xr.DataArray
 ) -> xr.DataArray:
     """Corrects rainfall amount per timestep for undercatch as in
     Yang et al. (1999) and Box et al. (2022), based on Goodison et al. (1998).
@@ -58,8 +58,6 @@ def correct_rainfall_undercatch(
         Uncorrected rainfall per timestep
     wspd : xr.DataArray
         Wind speed measurements
-    t : xr.DataArray
-        Air temperature measurements
 
     Returns
     -------
