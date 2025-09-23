@@ -2,17 +2,30 @@
 """
 AWS Level 0 (L0) to Level 1 (L1) data processing
 """
+__all__ = ["toL1"]
+
 import numpy as np
 import pandas as pd
 import xarray as xr
 import re, logging
-from pypromice.core.qc.value_clipping import clip_values
-from pypromice.core.variables import wind, air_temperature
 logger = logging.getLogger(__name__)
 
+from pypromice.core.variables.pressure_transducer_depth import correct_and_calculate_depth
+from pypromice.core.qc.value_clipping import clip_values
+from pypromice.core.variables import (wind, 
+                                      air_temperature, 
+                                      gps, 
+                                      radiation,
+                                      station_boom_height,
+                                      station_pose,
+                                      pressure_transducer_depth)
 
-def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
-    '''Process one Level 0 (L0) product to Level 1
+
+def toL1(L0: xr.DataArray,
+         vars_df: pd.DataFrame
+) -> xr.DataArray:
+    """Process one Level 0 (L0) dataset to a
+    Level 1 (L1) dataset
 
     Parameters
     ----------
@@ -20,25 +33,18 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
         Level 0 dataset
     vars_df : pd.DataFrame
         Metadata dataframe
-    T_0 : int
-        Air temperature for sonic ranger adjustment
-    tilt_threshold : int
-        Tilt-o-meter threshold for valid measurements
 
     Returns
     -------
     ds : xarray.Dataset
         Level 1 dataset
-    '''
+    """
     assert(type(L0) == xr.Dataset)
     ds = L0
-    ds.attrs['level'] = 'L1'
 
     for l in list(ds.keys()):
         if l not in ['time', 'msg_i', 'gps_lat', 'gps_lon', 'gps_alt', 'gps_time']:
-            ds[l] = _reformatArray(ds[l])
-
-    # ds['time_orig'] = ds['time'] # Not used
+            ds[l] = _reformat_array(ds[l])
 
     # The following drops duplicate datetime indices. Needs to run before _addTimeShift!
     # We can optionally also drop duplicates within _addTimeShift using pandas duplicated,
@@ -47,61 +53,63 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     ds = ds.isel(time=index)
 
     # If we do not want to shift hourly average values back -1 hr, then comment the following line.
-    ds = addTimeShift(ds, vars_df)
+    ds = add_time_shift(ds, vars_df)
 
+    # Convert radiation from engineering to physical units
+    # TODO add metadata to indicate whether radiometer values are corrected with calibration values or not
     if hasattr(ds, 'dsr_eng_coef'):
-        ds['dsr'] = (ds['dsr'] * 10) / ds.attrs['dsr_eng_coef']                # Convert radiation from engineering to physical units
-    if hasattr(ds, 'usr_eng_coef'):                                            # TODO add metadata to indicate whether radiometer values are corrected with calibration values or not
-        ds['usr'] = (ds['usr'] * 10) / ds.attrs['usr_eng_coef']
+        ds['dsr'] = radiation.convert_sr(ds['dsr'],
+                                         ds.attrs['dsr_eng_coef'])
+    if hasattr(ds, 'usr_eng_coef'):
+        ds['usr'] = radiation.convert_sr(ds['usr'],
+                                         ds.attrs['usr_eng_coef'])
     if hasattr(ds, 'dlr_eng_coef'):
-        ds['dlr'] = ((ds['dlr'] * 10) / ds.attrs['dlr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
+        ds['dlr'] = radiation.convert_lr(ds['dlr'],
+                                         ds['t_rad'],
+                                         ds.attrs['dlr_eng_coef'])
     if hasattr(ds, 'ulr_eng_coef'):
-        ds['ulr'] = ((ds['ulr'] * 10) / ds.attrs['ulr_eng_coef']) + 5.67E-8*(ds['t_rad'] + T_0)**4
+        ds['ulr'] = radiation.convert_lr(ds['ulr'],
+                                         ds['t_rad'],
+                                         ds.attrs['ulr_eng_coef'])
 
-    ds['z_boom_u'] = _reformatArray(ds['z_boom_u'])                            # Reformat boom height
+    # Reformat boom height
+    ds['z_boom_u'] = _reformat_array(ds['z_boom_u'])
 
-    # Find range threshold and use it to clip and interpolate temperature measurements
+    # Adjust sonic ranger readings for sensitivity to air temperature (interpolated)
     tu_lo = vars_df.loc["t_u","lo"]
     tu_hi = vars_df.loc["t_u","hi"]
     ds["t_u_interp"] = air_temperature.clip_and_interpolate(ds["t_u"], tu_lo, tu_hi)
+    ds["z_boom_u"] = station_boom_height.adjust(ds["z_boom_u"], ds["t_u_interp"])
 
-    ds['z_boom_u'] = ds['z_boom_u'] * ((ds['t_u_interp'] + T_0)/T_0)**0.5      # Adjust sonic ranger readings for sensitivity to air temperature
+    # Decode and convert GPS positions
+    ds["gps_lat"], ds["gps_lon"], ds["gps_time"] = gps.decode_and_convert(ds["gps_lat"],
+                                                                          ds["gps_lon"],
+                                                                          ds["gps_time"],
+                                                                          ds.attrs["latitude"],
+                                                                          ds.attrs["longitude"])
 
-    if ds['gps_lat'].dtype.kind == 'O':                                        # Decode and reformat GPS information
-        if 'NH' in ds['gps_lat'].dropna(dim='time').values[1]:
-            ds = decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
-        elif 'L' in ds['gps_lat'].dropna(dim='time').values[1]:
-            logger.info('Found L in GPS string')
-            ds = decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])
-            for l in ['gps_lat', 'gps_lon']:
-                ds[l] = ds[l]/100000
-        else:
-            try:
-                ds = decodeGPS(ds, ['gps_lat','gps_lon','gps_time'])          # TODO this is a work around specifically for L0 RAW processing for THU_U. Find a way to make this slicker
-
-            except:
-                print('Invalid GPS type {ds["gps_lat"].dtype} for decoding')
-
+    # Reformat GPS information
     for l in ['gps_lat', 'gps_lon', 'gps_alt','gps_time']:
-        ds[l] = _reformatArray(ds[l])
+        ds[l] = _reformat_array(ds[l])
 
-    if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
-        ds['gps_lat'] = reformatGPS(ds['gps_lat'], ds.attrs['latitude'])
-        ds['gps_lon'] = reformatGPS(ds['gps_lon'], ds.attrs['longitude'])
+    # Convert tilt voltage to degrees
+    if hasattr(ds, "logger_type"):
+        if ds.attrs["logger_type"].upper() == "CR1000":
+            ds["tilt_x"] = station_pose.convert_and_filter_tilt(ds["tilt_x"])
+            ds["tilt_y"] = station_pose.convert_and_filter_tilt(ds["tilt_y"])
 
-    if hasattr(ds, 'logger_type'):                                             # Convert tilt voltage to degrees
-        if ds.attrs['logger_type'].upper() == 'CR1000':
-            ds['tilt_x']  = getTiltDegrees(ds['tilt_x'], tilt_threshold)
-            ds['tilt_y'] = getTiltDegrees(ds['tilt_y'], tilt_threshold)
+    # Apply tilt factor (e.g. -1 will invert tilt angle)
+    if hasattr(ds, "tilt_y_factor"):
+        ds["tilt_y"] = station_pose.apply_tilt_factor(ds["tilt_y"],
+                                                      ds.attrs["tilt_y_factor"])
 
-    if hasattr(ds, 'tilt_y_factor'):                                           # Apply tilt factor (e.g. -1 will invert tilt angle)
-        ds['tilt_y'] = ds['tilt_y']*ds.attrs['tilt_y_factor']
-
-    # Smooth everything
+    # Smooth station tilt
     # Note that this should be OK for CR1000 tx (data only every 6 hrs),
-    # since we interpolate above in _getTiltDegrees. PJW
-    ds['tilt_x']  = smoothTilt(ds['tilt_x'], 7)                                # Smooth tilt
-    ds['tilt_y']  = smoothTilt(ds['tilt_y'], 7)                               
+    # since we interpolate above in station_pose.convert_and_filter_tilt(). PJW
+    # TODO smoothing should be changed to a fixed time window rather than based on sample steps. PHO
+    # TODO a smoothing is performed here and at L1toL2 also. Is this needed? PHO
+    ds["tilt_x"] = station_pose.smooth_tilt_with_moving_window(ds["tilt_x"])
+    ds["tilt_y"] = station_pose.smooth_tilt_with_moving_window(ds["tilt_y"])
 
     # Apply wind factor if provided
     # This is in the case of an anemometer rotations improperly translated to wind speed by the logger program
@@ -125,43 +133,53 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
     elif not isinstance(ds.attrs['bedrock'], bool):
         logger.warning(f'bedrock attribute is not boolean: {ds.attrs["bedrock"]}')
         ds.attrs['bedrock'] =  str(ds.attrs['bedrock']).lower() == 'true'
-
     is_bedrock = ds.attrs['bedrock']
 
+    # Some bedrock stations (e.g. KAN_B) do not have tilt in L0 files
+    # so we need to create them manually
     if is_bedrock:
-        # some bedrock stations (e.g. KAN_B) do not have tilt in L0 files
-        # we need to create them manually
         for var in ['tilt_x','tilt_y']:
             if var not in ds.data_vars:
                 ds[var] = (('time'), np.full(ds['time'].size, np.nan))
 
-        # WEG_B has a non-null z_pt even though it is a berock station
-        if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density
+        # WEG_B has a non-null z_pt even though it is a bedrock station
+        if ~ds['z_pt'].isnull().all():
             ds['z_pt'] = (('time'), np.full(ds['time'].size, np.nan))
             logger.info('Warning: Non-null data for z_pt at a bedrock site')
 
-    if ds.attrs['number_of_booms']==1:                                         # 1-boom processing
-        if ~ds['z_pt'].isnull().all():                                         # Calculate pressure transducer fluid density
-            if hasattr(ds, 'pt_z_offset'):                                     # Apply SR50 stake offset
-                ds['z_pt'] = ds['z_pt'] + int(ds.attrs['pt_z_offset'])
-            ds['z_pt_cor'],ds['z_pt']=getPressDepth(ds['z_pt'], ds['p_u'],
-                                                    ds.attrs['pt_antifreeze'],
-                                                    ds.attrs['pt_z_factor'],
-                                                    ds.attrs['pt_z_coef'],
-                                                    ds.attrs['pt_z_p_coef'])
-        ds['z_stake'] = _reformatArray(ds['z_stake'])                          # Reformat boom height
-        ds['z_stake'] = ds['z_stake'] * ((ds['t_u'] + T_0)/T_0)**0.5           # Adjust sonic ranger readings for sensitivity to air temperature
+    # Perform one-boom variable processing
+    if ds.attrs["number_of_booms"]==1:
+        if ~ds["z_pt"].isnull().all():
 
-    elif ds.attrs['number_of_booms']==2:                                       # 2-boom processing
-        ds['z_boom_l'] = _reformatArray(ds['z_boom_l'])                        # Reformat boom height
+            # Adjust PTA fluid density and calculate depth
+            if hasattr(ds, "pt_z_offset"):
+                ds["z_pt"] = pressure_transducer_depth.apply_offset(ds["z_pt"],
+                                                                    int(ds.attrs["pt_z_offset"]))
 
-        # Find range threshold and use it to clip and interpolate temperature measurements
-        tl_lo = vars_df.loc["t_l", "lo"]
-        tl_hi = vars_df.loc["t_l", "hi"]
+            ds["z_pt_cor"],ds["z_pt"]=pressure_transducer_depth.correct_and_calculate_depth(ds["z_pt"],
+                                                                                            ds["p_u"],
+                                                                                            ds.attrs["pt_antifreeze"],
+                                                                                            ds.attrs["pt_z_factor"],
+                                                                                            ds.attrs["pt_z_coef"],
+                                                                                            ds.attrs["pt_z_p_coef"])
+
+        # Adjust sonic ranger readings for sensitivity to air temperature
+        ds['z_stake'] = _reformat_array(ds['z_stake'])
+        ds["z_stake"] = station_boom_height.adjust(ds["z_stake"], ds["t_u_interp"])
+
+    # Perform two-boom variable processing
+    elif ds.attrs['number_of_booms']==2:
+
+        # Reformat boom height
+        ds['z_boom_l'] = _reformat_array(ds['z_boom_l'])
+
+        # Adjust sonic ranger readings for sensitivity to air temperature (interpolated)
+        tl_lo = vars_df.loc["t_l","lo"]
+        tl_hi = vars_df.loc["t_l","hi"]
         ds["t_l_interp"] = air_temperature.clip_and_interpolate(ds["t_l"], tl_lo, tl_hi)
+        ds["z_boom_l"] = station_boom_height.adjust(ds["z_boom_l"], ds["t_l_interp"])
 
-        ds['z_boom_l'] = ds['z_boom_l'] * ((ds['t_l_interp']+ T_0)/T_0)**0.5   # Adjust sonic ranger readings for sensitivity to air temperature
-
+    # Clip values and remove redundant attribute information
     ds = clip_values(ds, vars_df)
     for key in ['hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
           'dlr_eng_coef', 'ulr_eng_coef', 'wind_u_coef','wind_l_coef',
@@ -169,9 +187,11 @@ def toL1(L0, vars_df, T_0=273.15, tilt_threshold=-100):
           'pt_antifreeze', 'boom_azimuth', 'nodata', 'conf', 'file']:
         ds.attrs.pop(key, None)
 
+    # Return Level 1 dataset
+    ds.attrs['level'] = 'L1'
     return ds
 
-def addTimeShift(ds, vars_df):
+def add_time_shift(ds, vars_df):
     '''Shift times based on file format and logger type (shifting only hourly averaged values,
     and not instantaneous variables). For raw (10 min), all values are sampled instantaneously
     so do not shift. For STM (1 hour), values are averaged and assigned to end-of-hour by the
@@ -257,286 +277,15 @@ def addTimeShift(ds, vars_df):
     # ds_out = xr.Dataset(dict(zip(df_out.columns, vals)), attrs=ds.attrs)
     return ds_out
 
-def getPressDepth(z_pt, p, pt_antifreeze, pt_z_factor, pt_z_coef, pt_z_p_coef):
-    '''Adjust pressure depth and calculate pressure transducer depth based on
-    pressure transducer fluid density
 
-    Parameters
-    ----------
-    z_pt : xr.Dataarray
-        Pressure transducer height (corrected for offset)
-    p : xr.Dataarray
-        Air pressure
-    pt_antifreeze : float
-        Pressure transducer anti-freeze percentage for fluid density
-        correction
-    pt_z_factor : float
-        Pressure transducer factor
-    pt_z_coef : float
-        Pressure transducer coefficient
-    pt_z_p_coef : float
-        Pressure transducer coefficient
-
-    Returns
-    -------
-    z_pt_cor : xr.Dataarray
-        Pressure transducer height corrected
-    z_pt : xr.Dataarray
-        Pressure transducer depth
-    '''
-    # Calculate pressure transducer fluid density
-    if pt_antifreeze == 50:                                                    #TODO: Implement function w/ reference (analytical or from LUT)
-        rho_af = 1092                                                          #TODO: Track uncertainty
-    elif pt_antifreeze == 100:
-        rho_af = 1145
-    else:
-        rho_af = np.nan
-        logger.info('ERROR: Incorrect metadata: "pt_antifreeze" = ' +
-              f'{pt_antifreeze}. Antifreeze mix only supported at 50% or 100%')
-        # assert(False)
-
-    # Correct pressure depth
-    z_pt_cor = z_pt * pt_z_coef * pt_z_factor * 998.0 / rho_af + 100 * (pt_z_p_coef - p) / (rho_af * 9.81)
-
-    # Calculate pressure transducer depth
-    z_pt = z_pt * pt_z_coef * pt_z_factor * 998.0 / rho_af
-
-    return z_pt_cor, z_pt
-
-
-
-
-
-def smoothTilt(tilt, win_size):
-    '''Smooth tilt values using a rolling window. This is translated from the
-    previous IDL/GDL smoothing algorithm:
-    tiltX = smooth(tiltX,7,/EDGE_MIRROR,MISSING=-999) & tiltY = smooth(tiltY,7,/EDGE_MIRROR, MISSING=-999)
-    endif
-    In Python, this should be
-    dstxy = dstxy.rolling(time=7, win_type='boxcar', center=True).mean()
-    But the EDGE_MIRROR makes it a bit more complicated
-
-    Parameters
-    ----------
-    tilt : xarray.DataArray
-        Array (either 'tilt_x' or 'tilt_y'), tilt values (can be in degrees or voltage)
-    win_size : int
-        Window size to use in pandas 'rolling' method.
-        e.g. a value of 7 spans 70 minutes using 10 minute data.
-
-    Returns
-    -------
-    tdf_rolling : tuple, as: (str, numpy.ndarray)
-        The numpy array is the tilt values, smoothed with a rolling mean
-    '''
-    s = int(win_size/2)
-    tdf = tilt.to_dataframe()
-    mirror_start = tdf.iloc[:s][::-1]
-    mirror_end = tdf.iloc[-s:][::-1]
-    mirrored_tdf = pd.concat([mirror_start, tdf, mirror_end])
-
-    tdf_rolling = (
-        ('time'),
-        mirrored_tdf.rolling(
-            win_size, win_type='boxcar', min_periods=1, center=True
-            ).mean()[s:-s].values.flatten()
-        )
-    return tdf_rolling
-
-def getTiltDegrees(tilt, threshold):
-    '''Filter tilt with given threshold, and convert from voltage to degrees.
-    Voltage-to-degrees converseion is based on the equation in 3.2.9 at
-    https://essd.copernicus.org/articles/13/3819/2021/#section3
-
-    Parameters
-    ----------
-    tilt : xarray.DataArray
-        Array (either 'tilt_x' or 'tilt_y'), tilt values (voltage)
-    threshold : int
-        Values below this threshold (-100) will not be retained.
-
-    Returns
-    -------
-    dst.interpolate_na() : xarray.DataArray
-        Array (either 'tilt_x' or 'tilt_y'), tilt values (degrees)
-    '''
-    # notOKtiltX = where(tiltX lt -100, complement=OKtiltX) & notOKtiltY = where(tiltY lt -100, complement=OKtiltY)
-    notOKtilt = (tilt < threshold)
-    OKtilt = (tilt >= threshold)
-    tilt = tilt / 10
-
-    # IDL version:
-    # tiltX = tiltX/10.
-    # tiltnonzero = where(tiltX ne 0 and tiltX gt -40 and tiltX lt 40)
-    # if n_elements(tiltnonzero) ne 1 then tiltX[tiltnonzero] = tiltX[tiltnonzero]/abs(tiltX[tiltnonzero])*(-0.49*(abs(tiltX[tiltnonzero]))^4 + 3.6*(abs(tiltX[tiltnonzero]))^3 - 10.4*(abs(tiltX[tiltnonzero]))^2 +21.1*(abs(tiltX[tiltnonzero])))
-    # tiltY = tiltY/10.
-    # tiltnonzero = where(tiltY ne 0 and tiltY gt -40 and tiltY lt 40)
-    # if n_elements(tiltnonzero) ne 1 then tiltY[tiltnonzero] = tiltY[tiltnonzero]/abs(tiltY[tiltnonzero])*(-0.49*(abs(tiltY[tiltnonzero]))^4 + 3.6*(abs(tiltY[tiltnonzero]))^3 - 10.4*(abs(tiltY[tiltnonzero]))^2 +21.1*(abs(tiltY[tiltnonzero])))
-
-    dst = tilt
-    nz = (dst != 0) & (np.abs(dst) < 40)
-
-    dst = dst.where(~nz, other = dst / np.abs(dst)
-                      * (-0.49
-                         * (np.abs(dst))**4 + 3.6
-                         * (np.abs(dst))**3 - 10.4
-                         * (np.abs(dst))**2 + 21.1
-                         * (np.abs(dst))))
-
-    # if n_elements(OKtiltX) gt 1 then tiltX[notOKtiltX] = interpol(tiltX[OKtiltX],OKtiltX,notOKtiltX) ; Interpolate over gaps for radiation correction; set to -999 again below.
-    dst = dst.where(~notOKtilt)
-    return dst.interpolate_na(dim='time', use_coordinate=False)                #TODO: Filling w/o considering time gaps to re-create IDL/GDL outputs. Should fill with coordinate not False. Also consider 'max_gap' option?
-
-
-def decodeGPS(ds, gps_names):
-    '''Decode GPS information based on names of GPS attributes. This should be
-    applied if gps information does not consist of float values
-
-    Parameters
-    ----------
-    ds : xr.Dataset
-        Data set
-    gps_names : list
-        Variable names for GPS information, such as "gps_lat", "gps_lon" and
-        "gps_alt"
-
-    Returns
-    -------
-    ds : xr.Dataset
-        Data set with decoded GPS information
-    '''
-    for v in gps_names:
-        a = ds[v].attrs
-        str2nums = [re.findall(r"[-+]?\d*\.\d+|\d+", _) if isinstance(_, str) else [np.nan] for _ in ds[v].values]
-        ds[v][:] = pd.DataFrame(str2nums).astype(float).T.values[0]
-        ds[v] = ds[v].astype(float)
-        ds[v].attrs = a
-    return ds
-
-def reformatGPS(pos_arr, attrs):
-    '''Correct latitude and longitude from native format to decimal degrees.
-
-    v2 stations should send  "NH6429.01544","WH04932.86061" (NUK_L 2022)
-    v3 stations should send coordinates as "6628.93936","04617.59187" (DY2) or 6430,4916 (NUK_Uv3)
-    decodeGPS should have decoded these strings to floats in ddmm.mmmm format
-    v1 stations however only saved decimal minutes (mm.mmmmm) as float<=60. '
-    In this case, we use the integer part of the latitude given in the config
-    file and append the gps value after it.
-
-    Parameters
-    ----------
-    pos_arr : xr.Dataarray
-        Array of latitude or longitude measured by the GPS
-    attrs : dict
-        The global attribute 'latitude' or 'longitude' associated with the
-        file being processed. It is the standard latitude/longitude given in the
-        config file for that station.
-
-    Returns
-    -------
-    pos_arr : xr.Dataarray
-        Formatted GPS position array in decimal degree
-    '''
-    if np.any((pos_arr <= 90) & (pos_arr > 0)):
-        # then pos_arr is in decimal minutes, so we add to it the integer
-        # part of the latitude given in the config file x100
-        # so that it reads ddmm.mmmmmm like for v2 and v3 files
-        # Note that np.sign and np.attrs handles negative longitudes.
-        pos_arr = np.sign(attrs) * (pos_arr + 100*np.floor(np.abs(attrs)))
-    a = pos_arr.attrs
-    pos_arr = np.floor(pos_arr / 100) + (pos_arr / 100 - np.floor(pos_arr / 100)) * 100 / 60
-    pos_arr.attrs = a
-    return pos_arr
-
-def _reformatArray(ds_arr):
-    '''Reformat DataArray values and attributes
-
-    Parameters
-    ----------
-    ds_arr : xr.Dataarray
-        Data array
-
-    Returns
-    -------
-    ds_arr : xr.Dataarray
-        Formatted data array
-    '''
-    a = ds_arr.attrs                                                           # Store
+def _reformat_array(ds_arr):
+    """Reformat DataArray values and attributes"""
+    a = ds_arr.attrs
     ds_arr.values = pd.to_numeric(ds_arr, errors='coerce')
-    ds_arr.attrs = a                                                           # Reformat
+    ds_arr.attrs = a
     return ds_arr
-
-def _removeVars(ds, v_names):
-    '''Remove redundant variables if present in dataset
-
-    Parameters
-    ----------
-    ds : xr.Dataset
-        Data set
-    v_names : list
-        List of column names to drop
-
-    Returns
-    -------
-    ds : xr.Dataset
-        Data set with removed variables
-    '''
-    for v in v_names:
-        if v in list(ds.variables): ds = ds.drop_vars(v)
-    return ds
-
-def _popCols(ds, booms, data_type, vars_df, cols):
-    '''Populate data array columns with given variable names from look-up table
-
-    Parameters
-    ----------
-    ds : xr.Dataset
-        Data set
-    booms : int
-        Number of booms (1 or 2)
-    data_type : str
-        Type of data ("tx", "raw")
-    vars_df : pd.DataFrame
-        Variables lookup table
-    cols : list
-        Names of columns to populate
-
-    Returns
-    -------
-    ds : xr.Dataset
-        Data with populated columns
-    '''
-    if booms==1:
-        names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
-
-    elif booms==2:
-        names = vars_df.loc[(vars_df[cols[0]]!='one-boom')]
-
-    for v in list(names.index):
-        if v not in list(ds.variables):
-            ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)
-    return ds
-
-# def _popCols(ds, booms, data_type, vars_df, cols):
-#     if booms==1:
-#         if data_type !='TX':
-#             names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
-#         else:
-#             names = vars_df.loc[(vars_df[cols[0]] != 'two-boom') & vars_df[cols[1]] != 'tx']
-
-#     elif booms==2:
-#         if data_type !='TX':
-#             names = vars_df.loc[(vars_df[cols[0]]!='two-boom')]
-#         else:
-#             names = vars_df.loc[(vars_df[cols[0]] != 'two-boom') & vars_df[cols[1]] != 'tx']
-
-#     for v in list(names.index):
-#         if v not in list(ds.variables):
-#             ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)
-#     return ds
 
 #------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    # unittest.main()
     pass

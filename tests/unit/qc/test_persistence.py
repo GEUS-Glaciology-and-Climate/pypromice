@@ -59,7 +59,7 @@ class PersistenceQATestCase(unittest.TestCase):
         index_start = 23
         index_end = 33
         min_repeats = 4
-        expected_filter_start = 27
+        expected_filter_start = 24
         expected_filter_end = 33
         input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
         input_series.iloc[index_start:index_end] = input_series.iloc[index_start]
@@ -99,7 +99,7 @@ class PersistenceQATestCase(unittest.TestCase):
         )
         index_start = 23
         min_repeats = 4
-        expected_filter_start = 27
+        expected_filter_start = 24
         input_series = pd.Series(index=time_range, data=np.arange(0, len(time_range)))
         input_series.iloc[index_start:] = input_series.iloc[index_start]
         expected_output = input_series.map(lambda _: False)
