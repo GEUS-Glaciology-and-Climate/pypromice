@@ -182,7 +182,7 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
             # Calculate stake boom height correction with uncorrected values where needed
             z_stake_best = station_boom_height.adjust_and_include_uncorrected_values(ds["z_stake"], ds["t_u"])
 
-            first_valid_index = ds.time.where((z_stake_best + ds.z_boom_best_u).notnull(), drop=True).data[0]
+            first_valid_index = ds.time.where((z_stake_best + z_boom_best_u).notnull(), drop=True).data[0]
             ds['z_surf_2'] = ds.z_surf_1.sel(time=first_valid_index) + z_stake_best.sel(time=first_valid_index) - z_stake_best
 
         # Use corrected point data if available
