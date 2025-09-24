@@ -387,7 +387,6 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         ind_ablation = np.logical_and(smoothed_PT.diff().values < threshold_ablation,
                                       np.isin(smoothed_PT.diff().index.month, [6, 7, 8, 9]))
 
-
         # finding the beginning and end of each period with True
         idx = np.argwhere(np.diff(np.r_[False,ind_ablation, False])).reshape(-1, 2)
         idx[:, 1] -= 1
@@ -405,13 +404,12 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         # finding the beginning and end of each period with True
         idx = np.argwhere(np.diff(np.r_[False,ind_ablation, False])).reshape(-1, 2)
         idx[:, 1] -= 1
-
         # because the smooth_PT sees 7 days ahead, it starts showing a decline
-        # 7 days in advance, we therefore need to exclude the first 7 days of
+        # 7 days in advance, we therefore need to exclude the first few days of
         # each ablation period
         for start, end in idx:
             period_start = df.index[start]
-            period_end = period_start + pd.Timedelta(days=7)
+            period_end = period_start + pd.Timedelta(days=3)
             exclusion_period = (df.index >= period_start) & (df.index < period_end)
             ind_ablation[exclusion_period] = False
 
@@ -420,8 +418,6 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         z=df["z_ice_surf_adj"].interpolate(limit=24*2).copy()
 
         # the surface heights are adjusted so that they start at 0
-
-
         if any(~np.isnan(hs2.iloc[:24*7])):
             hs2 = hs2 - hs2.iloc[:24*7].mean()
 
@@ -497,9 +493,8 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         # to hs1 and hs2 the year after.
 
         for i, y in enumerate(years):
-            # if y == 2014:
-            #     import pdb; pdb.set_trace()
-            logger.debug(str(y))
+            logger.debug(f'{y}: Ablation from {z.index[ind_start[i]]} to {z.index[ind_end[i]]}')
+
             # defining subsets of hs1, hs2, z
             hs1_jja =  hs1[str(y)+'-06-01':str(y)+'-09-01']
             hs2_jja =  hs2[str(y)+'-06-01':str(y)+'-09-01']
@@ -615,7 +610,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                 #     import pdb; pdb.set_trace()
                 # if there's ablation and
                 # if there are PT data available at the end of the melt season
-                if z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*7)].notnull().any():
+                if z.iloc[(ind_end[i]-24*7):ind_end[i]].notnull().any():
                     logger.debug('adjusting hs2 to z')
                     # then we adjust hs2 to the end-of-ablation z
                     # first trying at the end of melt season
@@ -632,7 +627,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                                 np.nanmean(hs2.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])  + \
                                     np.nanmean(z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])
             else:
-                logger.debug('no ablation')
+                logger.debug('no ablation data')
                 hs1_following_winter = hs1[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
                 hs2_following_winter = hs2[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
                 if all(np.isnan(hs2_following_winter)):
@@ -919,7 +914,7 @@ def get_thermistor_depth(df_in, site, station_config):
         ).set_index('date').values
         df_in['t_i_10m'] = df_in_h['t_i_10m'].reindex(df_in.index,
                                         method=None).interpolate(method='time')
-        
+
         # filtering
         ind_pos = df_in["t_i_10m"] > 0.1
         ind_low = df_in["t_i_10m"] < -70
