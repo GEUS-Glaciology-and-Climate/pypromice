@@ -397,35 +397,11 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
             exclusion_period = (df.index >= period_start) & (df.index < period_end)
             ind_ablation[exclusion_period] = False
 
-        # %% illustration plot
-        # import pdb; pdb.set_trace()
-        # import matplotlib.pyplot as plt
-
-        # ablation_times = smoothed_PT.index[ind_ablation]
-
-        # plt.figure(figsize=(10, 6))
-        # plt.plot(hourly_interp.index, hourly_interp, 'x', linewidth=1, label="Hourly + interp (≤72h)")
-        # plt.scatter(df.index, df["z_ice_surf"], s=10, label="Original (irregular)")
-        # plt.plot(once_smoothed.index, once_smoothed, linewidth=1.5, label="Smoothed (14D)")
-        # plt.plot(smoothed_PT.index, smoothed_PT, linewidth=2, label="Smoothed x2 (14D) → reindexed")
-        # plt.scatter(ablation_times, smoothed_PT.loc[ablation_times], s=30, marker="v", label="Ablation detected")
-        # plt.scatter(smoothed_PT.index, (ind_ablation)*1+14, s=30, marker="v", label="Ablation detected")
-
-        # plt.title("Gradual processing of z_ice_surf → smoothed_PT and ablation detection")
-        # plt.xlabel("Time")
-        # plt.ylabel("z_ice_surf")
-        # plt.legend()
-        # plt.tight_layout()
-        # plt.show()
-        # %%
-
         hs1=df["z_surf_1_adj"].interpolate(limit=24*2).copy()
         hs2=df["z_surf_2_adj"].interpolate(limit=24*2).copy()
         z=df["z_ice_surf_adj"].interpolate(limit=24*2).copy()
 
         # the surface heights are adjusted so that they start at 0
-
-
         if any(~np.isnan(hs2.iloc[:24*7])):
             hs2 = hs2 - hs2.iloc[:24*7].mean()
 
@@ -502,10 +478,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
         for i, y in enumerate(years):
             logger.debug(f'{y}: Ablation from {z.index[ind_start[i]]} to {z.index[ind_end[i]]}')
-
-            # if y == 2025:
-            #     import pdb; pdb.set_trace()
-
+            
             # defining subsets of hs1, hs2, z
             hs1_jja =  hs1[str(y)+'-06-01':str(y)+'-09-01']
             hs2_jja =  hs2[str(y)+'-06-01':str(y)+'-09-01']
