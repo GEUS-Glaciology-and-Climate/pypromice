@@ -146,7 +146,7 @@ class TestGetBufrVariablesTestCase(TestCase):
                 "rh_i": 0.5,
                 "wspd_i": 2.5,
                 "wdir_i": 182.1,
-                "z_boom_u_smooth": 1.6,
+                "z_boom_cor_u_smooth": 1.6,
                 "gps_lat_fit": 78.52901,
                 "gps_lon_fit": -56.8450358,
                 "gps_alt_fit": 1968.561,
@@ -165,9 +165,9 @@ class TestGetBufrVariablesTestCase(TestCase):
             longitude=data.gps_lon_fit,
             heightOfStationGroundAboveMeanSeaLevel=data.gps_alt_fit
             - config.height_of_gps_from_station_ground,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=data.z_boom_u_smooth
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH=data.z_boom_cor_u_smooth
             + config.temperature_from_sonic_ranger,
-            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=data.z_boom_u_smooth
+            heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD=data.z_boom_cor_u_smooth
             + config.anemometer_from_sonic_ranger,
             heightOfBarometerAboveMeanSeaLevel=data.gps_alt_fit
             + config.barometer_from_gps,
@@ -197,7 +197,7 @@ class TestGetBufrVariablesTestCase(TestCase):
                 gps_lat_fit=66.0,
                 # This is a erroneous value that should be overridden by the static value
                 gps_alt_fit=142.1,
-                z_boom_u_smooth=2.1,
+                z_boom_cor_u_smooth=2.1,
             ),
             name=timestamp,
         )
@@ -260,7 +260,7 @@ class TestGetBufrVariablesTestCase(TestCase):
                 gps_lat_fit=66.0,
                 gps_lon_fit=-46.0,
                 gps_alt_fit=1094,
-                z_boom_u_smooth=2.1,
+                z_boom_cor_u_smooth=2.1,
             ),
             name=timestamp,
         )
@@ -287,7 +287,7 @@ class TestGetBufrVariablesTestCase(TestCase):
                 "rh_i": 0.5,
                 "wspd_i": 2.5,
                 "wdir_i": 182.1,
-                "z_boom_u_smooth": 1.6,
+                "z_boom_cor_u_smooth": 1.6,
                 "gps_lat_fit": 78.52901,
                 "gps_lon_fit": float("nan"),
                 "gps_alt_fit": 1968.561,
@@ -311,7 +311,7 @@ class TestGetBufrVariablesTestCase(TestCase):
                 "rh_i": 0.5,
                 "wspd_i": 2.5,
                 "wdir_i": 182.1,
-                "z_boom_u_smooth": 1.6,
+                "z_boom_cor_u_smooth": 1.6,
                 "gps_lat_fit": 78.52901,
                 "gps_lon_fit": -56.8450358,
                 "gps_alt_fit": 1968.561,
@@ -336,7 +336,7 @@ class TestGetBufrVariablesTestCase(TestCase):
                     "rh_i": 0.5,
                     "wspd_i": 2.5,
                     "wdir_i": 182.1,
-                    "z_boom_u_smooth": 1.6,
+                    "z_boom_cor_u_smooth": 1.6,
                     "gps_lat_fit": 78.52901,
                     "gps_lon_fit": -56.8450358,
                     "gps_alt_fit": 1968.561,
