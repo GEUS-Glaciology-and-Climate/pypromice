@@ -33,25 +33,25 @@ dlhf_u,surface_downward_latent_heat_flux,Latent heat flux (upper boom),W m-2,mod
 dlhf_l,surface_downward_latent_heat_flux,Latent heat flux (lower boom),W m-2,modelResult,time,FALSE,L3 or later,,,,two-boom,0,0,1,4
 dshf_u,surface_downward_sensible_heat_flux,Sensible heat flux (upper boom),W m-2,modelResult,time,FALSE,L3 or later,,,,all,0,0,1,4
 dshf_l,surface_downward_sensible_heat_flux,Sensible heat flux (lower boom),W m-2,modelResult,time,FALSE,L3 or later,,,,two-boom,0,0,1,4
-z_boom_u,distance_to_surface_from_boom,Upper boom height,m,physicalMeasurement,time,TRUE,,0.3,10,"",all,1,1,1,4
+z_boom_u,distance_to_surface_from_boom,Upper boom height,m,physicalMeasurement,time,TRUE,,0.3,10,z_boom_cor_u,all,1,1,1,4
 z_boom_cor_u,distance_to_surface_from_boom_corrected,Upper boom height - corrected,m,modelResult,time,TRUE,,0.3,10,"",all,1,1,1,4
 z_boom_q_u,distance_to_surface_from_boom_quality,Upper boom height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,all,1,1,0,4
-z_boom_l,distance_to_surface_from_boom,Lower boom height,m,physicalMeasurement,time,TRUE,,0.3,5,"",two-boom,1,1,1,4
+z_boom_l,distance_to_surface_from_boom,Lower boom height,m,physicalMeasurement,time,TRUE,,0.3,5,z_boom_cor_l,two-boom,1,1,1,4
 z_boom_cor_l,distance_to_surface_from_boom_corrected,Lower boom height - corrected,m,modelResult,time,TRUE,,0.3,5,"",two-boom,1,1,1,4
 z_boom_q_l,distance_to_surface_from_boom_quality,Lower boom height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,two-boom,1,1,0,4
-z_stake,distance_to_surface_from_stake_assembly,Stake height,m,physicalMeasurement,time,TRUE,,0.3,8,,one-boom,1,1,1,4
+z_stake,distance_to_surface_from_stake_assembly,Stake height,m,physicalMeasurement,time,TRUE,,0.3,8,z_stake_cor,one-boom,1,1,1,4
 z_stake_cor,distance_to_surface_from_stake_assembly_corrected,Stake height - corrected,m,physicalMeasurement,time,TRUE,,0.3,8,,one-boom,1,1,1,4
 z_stake_q,distance_to_surface_from_stake_assembly_quality,Stake height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,one-boom,1,1,0,4
-z_pt,depth_of_pressure_transducer_in_ice,Depth of pressure transducer in ice,m,physicalMeasurement,time,FALSE,,0,30,"",one-boom,1,1,1,4
+z_pt,depth_of_pressure_transducer_in_ice,Depth of pressure transducer in ice,m,physicalMeasurement,time,FALSE,,0,30,z_pt_cor,one-boom,1,1,1,4
 z_pt_cor,depth_of_pressure_transducer_in_ice_corrected,Depth of pressure transducer in ice - corrected,m,modelResult,time,FALSE,L2 or later,0,30,,one-boom,0,1,1,4
 z_surf_combined,height_of_surface_combined,"Surface height combined from multiple sensors, relative to ice surface height at installation",m,modelResult,time,FALSE,L3,,,,all,0,0,1,4
 z_ice_surf,height_of_ice_surface,"Ice surface height, relative to ice surface height at installation and calculated from pt_cor and z_stake",m,modelResult,time,FALSE,L3,,,,one-boom,0,0,1,4
 snow_height,height_of_snow,"Snow surface height, relative to ice surface",m,modelResult,time,FALSE,L3,0,,,one-boom,0,0,1,4
 precip_u,precipitation_raw_upper,Semi-accumulated uncorrected liquid precipitation (upper boom),mm,physicalMeasurement,time,TRUE,L0 or L2,0,,rainfall_u,all,1,1,0,4
-rainfall_u,rainfall_per_timestep_uncorrected_upper,Rainfall within timestep uncorrected for undercatch (upper boom),mm,modelResult,time,FALSE,L2 or later,0,,,all,0,1,1,4
+rainfall_u,rainfall_per_timestep_uncorrected_upper,Rainfall within timestep uncorrected for undercatch (upper boom),mm,modelResult,time,FALSE,L2 or later,0,,rainfall_cor_u,all,0,1,1,4
 rainfall_cor_u,rainfall_per_timestep_corrected_upper,Rainfall within timestep corrected for undercatch (upper boom),mm,modelResult,time,FALSE,L2 or later,0,,,all,0,1,1,4
 precip_l,precipitation_raw_lower,Semi-accumulated uncorrected liquid precipitation (lower boom),mm,physicalMeasurement,time,TRUE,L0 or L2,0,,rainfall_l,two-boom,1,1,0,4
-rainfall_l,rainfall_per_timestep_uncorrected_lower,Rainfall within timestep uncorrected for undercatch (lower boom),mm,modelResult,time,FALSE,L2 or later,0,,,all,0,1,1,4
+rainfall_l,rainfall_per_timestep_uncorrected_lower,Rainfall within timestep uncorrected for undercatch (lower boom),mm,modelResult,time,FALSE,L2 or later,0,,rainfall_cor_l,all,0,1,1,4
 rainfall_cor_l,rainfall_per_timestep_corrected_lower,Rainfall within timestep corrected for undercatch (lower boom),mm,modelResult,time,FALSE,L2 or later,0,,,all,0,1,1,4
 t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,degrees_C,physicalMeasurement,time,FALSE,,-80,1,,all,1,1,1,4
 t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,degrees_C,physicalMeasurement,time,FALSE,,-80,1,,all,1,1,1,4
