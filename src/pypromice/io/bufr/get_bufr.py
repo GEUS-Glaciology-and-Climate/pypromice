@@ -45,7 +45,7 @@ REQUIRED_KEYS = (
     "gps_lat_fit",
     "gps_lon_fit",
     "gps_alt_fit",
-    "z_boom_u_smooth",
+    "z_boom_cor_u_smooth",
 )
 
 
@@ -335,7 +335,7 @@ def get_bufr_variables(
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = np.nan
     else:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformTempRH = (
-            data["z_boom_u_smooth"]
+            data["z_boom_cor_u_smooth"]
             + station_configuration.temperature_from_sonic_ranger
         )
 
@@ -343,7 +343,7 @@ def get_bufr_variables(
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = np.nan
     else:
         heightOfSensorAboveLocalGroundOrDeckOfMarinePlatformWSPD = (
-            data["z_boom_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
+            data["z_boom_cor_u_smooth"] + station_configuration.anemometer_from_sonic_ranger
         )
 
     output_row = BUFRVariables(
