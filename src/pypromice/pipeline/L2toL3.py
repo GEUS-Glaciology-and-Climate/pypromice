@@ -371,21 +371,24 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
         # defining ice ablation period from the decrease of a smoothed version of z_pt
         # meaning when smoothed_z_pt.diff() < threshold_ablation
-        # first smoothing
-        smoothed_PT =  (df['z_ice_surf']
-                        .resample('h')
-                        .interpolate(limit=72)
-                        .rolling('14D',center=True, min_periods=1)
-                        .mean())
-        # second smoothing
-        smoothed_PT = smoothed_PT.rolling('14D', center=True, min_periods=1).mean()
+        hourly_interp = (df["z_ice_surf"]
+                         .resample("h")
+                         .interpolate(limit=72))
+        once_smoothed = hourly_interp.rolling("14D", center=True, min_periods=1).mean()
+        smoothed_PT = once_smoothed.rolling("14D", center=True, min_periods=1).mean()
 
-        smoothed_PT = smoothed_PT.reindex(df.index,method='ffill')
-        # smoothed_PT.loc[df.z_ice_surf.isnull()] = np.nan
+        # ablation detection
+        diff_series = smoothed_PT.diff()
+        ind_ablation = np.full_like(diff_series, False, dtype=bool)
+        ind_ablation = np.logical_and(diff_series.values < threshold_ablation,
+                                      np.isin(diff_series.index.month, [6, 7, 8, 9]))
+        # making sure that we only qualify as ablation timestamps where we actually have ablation data
+        msk = np.isnan(smoothed_PT.values)
+        ind_ablation[msk] = False
 
-        # logical index where ablation is detected
-        ind_ablation = np.logical_and(smoothed_PT.diff().values < threshold_ablation,
-                                      np.isin(smoothed_PT.diff().index.month, [6, 7, 8, 9]))
+        # reindex back to df
+        smoothed_PT = smoothed_PT.reindex(df.index, method="ffill")
+        ind_ablation = pd.Series(ind_ablation, index=diff_series.index).reindex(df.index, fill_value=False).values
 
         # finding the beginning and end of each period with True
         idx = np.argwhere(np.diff(np.r_[False,ind_ablation, False])).reshape(-1, 2)
