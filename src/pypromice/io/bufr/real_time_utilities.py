@@ -29,14 +29,14 @@ def get_latest_data(
 
     * A valid timestamp is a timestamp with relevant instantaneous variables. See source code.
     * Location smoothing: Fit a linear regression model on gps coordinate over the period lin_reg_time_limit to determine latest values.
-    * z_boom: Apply rolling window median filter smooth data
+    * z_boom_cor_u: Apply rolling window median filter smooth data
 
     The output series contains the same variables as the input dataframe plus smoothed variables:
 
     * gps_lat_fit
     * gps_lon_fit
     * gps_alt_fit
-    * z_boom_u_smooth
+    * z_boom_cor_u_smooth
 
     Parameters
     ----------
@@ -73,7 +73,7 @@ def get_latest_data(
 
     # Apply smoothing to z_boom_u
     # require at least 2 hourly obs? Sometimes seeing once/day data for z_boom_u
-    df_limited = rolling_window(df_limited, "z_boom_u", "72h", 2, 3)
+    df_limited = rolling_window(df_limited, "z_boom_cor_u", "72h", 2, 3)
     
     # limit to single most recent valid row (convert to series)
     s_current = df_limited.loc[last_valid_index]
