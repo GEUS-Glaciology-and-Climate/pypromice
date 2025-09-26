@@ -495,20 +495,6 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
                         ),
                     )
 
-            # adjusting accumulated precipitation when merging
-            for var in ['precip_u_cor', 'precip_l_cor']:
-                if hasattr(l3_merged, var):
-                    if l3_merged[var].notnull().any() and l3[var].notnull().any():
-                        t0 = l3_merged[var].to_series().first_valid_index()
-                        l3_merged[var] = l3_merged[var] \
-                            - l3_merged[var].sel(time=t0) + l3[var].sel(time=t0, method ='nearest')
-
-                        # we now remove the negative step in accumulated precipitation
-                        # that appears at the transition between raw and transmitted data
-                        neg_diff = l3_merged[var].diff(dim='time')
-                        neg_diff = neg_diff.where(neg_diff<0, other=0)
-                        l3_merged[var] = l3_merged[var] - neg_diff.cumsum()
-
             # saves attributes
             attrs = l3_merged.attrs
             # merging by time block
