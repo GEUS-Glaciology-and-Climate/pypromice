@@ -24,11 +24,11 @@ def clip_values(
     ds : `xarray.Dataset`
         Dataset with clipped data
     """
-    cols = ["lo", "hi", "OOL"]
+    cols = ["lo", "hi", "dependent_variables"]
     assert set(cols) <= set(var_configurations.columns)
 
     variable_limits = var_configurations[cols].assign(
-        dependents=lambda df: df.OOL.fillna("").str.split(),
+        dependents=lambda df: df.dependent_variables.fillna("").str.split(),
         # Find the closure of dependents using the DependencyGraph class
         dependents_closure=lambda df: DependencyGraph.from_child_mapping(
             df.dependents

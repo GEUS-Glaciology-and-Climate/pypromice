@@ -130,7 +130,7 @@ class ClipValuesTestCase(unittest.TestCase):
     def test_recursive_flagging(self):
         fields = ["a", "b", "c"]
         variable_config = pd.DataFrame(
-            columns=["field", "lo", "hi", "OOL"],
+            columns=["field", "lo", "hi", "dependent_variables"],
             data=[
                 ["a", 0, 10, "b"],
                 ["b", 100, 110, ""],
@@ -176,7 +176,7 @@ class ClipValuesTestCase(unittest.TestCase):
     def test_circular_dependencies(self):
         fields = ["a", "b", "c"]
         variable_config = pd.DataFrame(
-            columns=["field", "lo", "hi", "OOL"],
+            columns=["field", "lo", "hi", "dependent_variables"],
             data=[
                 ["a", 0, 10, "b"],
                 ["b", 100, 110, "c"],
@@ -222,7 +222,7 @@ class ClipValuesTestCase(unittest.TestCase):
 
     def test_rh_adjusted(self):
         variable_config = pd.DataFrame(
-            columns=["field", "lo", "hi", "OOL"],
+            columns=["field", "lo", "hi", "dependent_variables"],
             data=[
                 ["rh_u", 0, 150, "rh_u_wrt_ice_or_water"],
                 ["rh_u_wrt_ice_or_water", 0, 150, ""],
@@ -234,13 +234,13 @@ class ClipValuesTestCase(unittest.TestCase):
         # All values are within the expected range
         rows_input.append(dict(rh_u=42, rh_u_wrt_ice_or_water=43))
         rows_expected.append(dict(rh_u=42, rh_u_wrt_ice_or_water=43))
-        # rh_u is below range, but rh_u_wrt_ice_or_water is within range. Both should be flagged due to the OOL relationship
+        # rh_u is below range, but rh_u_wrt_ice_or_water is within range. Both should be flagged due to the variable dependency.
         rows_input.append(dict(rh_u=-10, rh_u_wrt_ice_or_water=3))
         rows_expected.append(dict(rh_u=np.nan, rh_u_wrt_ice_or_water=np.nan))
         # rh_u is within range, but rh_u_wrt_ice_or_water is below range; rh_u_wrt_ice_or_water should be flagged
         rows_input.append(dict(rh_u=54, rh_u_wrt_ice_or_water=-4))
         rows_expected.append(dict(rh_u=54, rh_u_wrt_ice_or_water=np.nan))
-        # rh_u is above range, but rh_u_wrt_ice_or_water is within range. Both should be flagged due to the OOL relationship
+        # rh_u is above range, but rh_u_wrt_ice_or_water is within range. Both should be flagged due to the variable dependency.
         rows_input.append(dict(rh_u=160, rh_u_wrt_ice_or_water=120))
         rows_expected.append(dict(rh_u=np.nan, rh_u_wrt_ice_or_water=np.nan))
         # rh_u is within range, but rh_u_wrt_ice_or_water is above range; rh_u_wrt_ice_or_water should be flagged
@@ -269,7 +269,7 @@ class ClipValuesTestCase(unittest.TestCase):
         """
         fields = ["a", "b"]
         variable_config = pd.DataFrame(
-            columns=["field", "lo", "hi", "OOL"],
+            columns=["field", "lo", "hi", "dependent_variables"],
             data=[
                 ["a", 0, 10, "b"],
                 ["b", 100, 110, ""],
