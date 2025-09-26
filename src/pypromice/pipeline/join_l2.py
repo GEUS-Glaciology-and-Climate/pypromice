@@ -67,7 +67,7 @@ def join_l2(file1,file2,outpath,variables,metadata) -> xr.Dataset:
             all_ds = ds1.combine_first(ds2)
 
             # Re-calculate corrected precipitation
-            for var in ['precip_u_cor', 'precip_l_cor']:
+            for var in ['precip_u', 'precip_l']:
                 if hasattr(all_ds, var):
                     if all_ds[var].notnull().any():
                         # combine_first works terrible for accumulated values
