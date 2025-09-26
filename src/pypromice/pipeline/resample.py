@@ -49,13 +49,12 @@ def resample_dataset(ds_h, t):
     # Resample the DataFrame
     df_resampled = df_h.resample(t).mean()
 
-    # exception for precip_u and precip_l which are accumulated with some reset
-    # we therefore take the positive increments in the higher resolution data (like 10 min)
-    # and sum them into the aggregated data (hourly/daily/monthly).
-    # This makes the assumption of 0 precipitation during data gaps.
+    # exception for precip_u and precip_l which are semi-accumulated with some resets
+    # Taking the max value within the resampled time step will preserve the
+    #  general shape of the curve
     for var in ['precip_u', 'precip_l']:
         if var in df_h.columns:
-            df_resampled[var] = df_h[var].diff().clip(lower=0).resample(t).sum()
+            df_resampled[var] = df_h[var].resample(t).max()
 
     # exception for rainfall which should be summed when aggregated into
     # hourly/daily/monthly values. This ignores missing data.
