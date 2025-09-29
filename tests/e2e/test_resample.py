@@ -30,14 +30,18 @@ class TestCompletenessFilters(unittest.TestCase):
 
         self.assertIn(pd.infer_freq(df_res.index), {"h", "H"})  # resample result index
         # hour bins: 00:00 and 01:00
-        self.assertFalse(pd.isna(filtered.loc["2025-01-01 00:00", "x"]))  # complete -> kept
-        self.assertTrue(pd.isna(filtered.loc["2025-01-01 01:00", "x"]))   # incomplete -> masked
+        self.assertFalse(
+            pd.isna(filtered.loc["2025-01-01 00:00", "x"])
+        )  # complete -> kept
+        self.assertTrue(
+            pd.isna(filtered.loc["2025-01-01 01:00", "x"])
+        )  # incomplete -> masked
 
     def test_hourly_to_daily_with_nans(self):
         # 2 days @hourly; day1 has 20/24 good (pass), day2 has 15/24 good (fail)
         idx = pd.date_range("2025-02-01", periods=96, freq="60min")
         x = np.ones(96)
-        day1_bad = [1, 5, 9, 13]             # 4 NaNs -> 20/24 present
+        day1_bad = [1, 5, 9, 13]  # 4 NaNs -> 20/24 present
         day2_bad = [24 + i for i in range(9)]  # 9 NaNs -> 15/24 present
         x[day1_bad + day2_bad] = np.nan
         df_h = pd.DataFrame({"x": x}, index=idx)
@@ -45,7 +49,7 @@ class TestCompletenessFilters(unittest.TestCase):
         df_res, filtered = _resample_and_filter(df_h, t="1D")
 
         self.assertFalse(pd.isna(filtered.loc["2025-02-01", "x"]))  # pass
-        self.assertTrue(pd.isna(filtered.loc["2025-02-02", "x"]))   # fail
+        self.assertTrue(pd.isna(filtered.loc["2025-02-02", "x"]))  # fail
 
     def test_daily_to_monthly_ms_with_nans(self):
         # Two months daily; Jun has 28/30 present (pass), Jul has 20/31 present (fail)
@@ -62,7 +66,7 @@ class TestCompletenessFilters(unittest.TestCase):
 
         # MS bins at month starts
         self.assertFalse(pd.isna(filtered.loc["2025-06-01", "x"]))  # June kept
-        self.assertTrue(pd.isna(filtered.loc["2025-07-01", "x"]))   # July masked
+        self.assertTrue(pd.isna(filtered.loc["2025-07-01", "x"]))  # July masked
 
     def test_mixed_10min_then_hourly_to_hourly(self):
         # First hour: 5 samples @10min (5/6=0.833 pass), second hour: 1 hourly sample (pass)
@@ -75,8 +79,12 @@ class TestCompletenessFilters(unittest.TestCase):
         df_res, filtered = _resample_and_filter(df_h, t="60min")
 
         self.assertFalse(pd.isna(filtered.loc["2025-03-01 00:00", "x"]))  # 5/6 -> pass
-        self.assertTrue(pd.isna(filtered.loc["2025-03-01 01:00", "x"]))   # 0 hourly -> failed
-        self.assertFalse(pd.isna(filtered.loc["2025-03-01 02:00", "x"]))  # 1 hourly -> pass
+        self.assertTrue(
+            pd.isna(filtered.loc["2025-03-01 01:00", "x"])
+        )  # 0 hourly -> failed
+        self.assertFalse(
+            pd.isna(filtered.loc["2025-03-01 02:00", "x"])
+        )  # 1 hourly -> pass
 
     def test_mixed_hourly_then_daily_to_daily(self):
         # Day1: 20 hourly samples (20/24=0.833 pass)
@@ -90,8 +98,23 @@ class TestCompletenessFilters(unittest.TestCase):
         df_res, filtered = _resample_and_filter(df_h, t="1D")
 
         self.assertFalse(pd.isna(filtered.loc["2025-04-01", "x"]))  # 20/24 -> pass
-        self.assertTrue(pd.isna(filtered.loc["2025-04-02", "x"]))   # 6/24  -> failed
-        self.assertFalse(pd.isna(filtered.loc["2025-04-03", "x"]))  # daily sample -> pass
+        self.assertTrue(pd.isna(filtered.loc["2025-04-02", "x"]))  # 6/24  -> failed
+        self.assertFalse(
+            pd.isna(filtered.loc["2025-04-03", "x"])
+        )  # daily sample -> pass
+
+    def test_monthly_resampling(self):
+        # Monthly resampling is a special case where period lengths are uneven.
+        # 2023 is chosen a non-leap year to include February with 28 days.
+        index = pd.date_range("2023-01-01", "2023-12-31", freq="10min")
+        df = pd.DataFrame({"x": np.random.random(len(index))}, index=index)
+
+        df_res, filtered = _resample_and_filter(df, t="MS")
+
+        pd.testing.assert_frame_equal(
+            df_res,
+            filtered,
+        )
 
 
 if __name__ == "__main__":
