@@ -9,6 +9,8 @@ import logging
 import numpy as np
 import pandas as pd
 import xarray as xr
+
+from pypromice.core.resampling import get_completeness_mask
 from pypromice.core.variables.wind import calculate_directional_wind_speed
 logger = logging.getLogger(__name__)
 
@@ -66,7 +68,7 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
         if var in df_h.columns:
             df_resampled[var] = df_h[var].resample(t).sum()
 
-    # First attempt of completness filter
+    # First attempt of completeness filter
     df_resampled = apply_completeness_filters(df_resampled,
                                               df_h,
                                               t,
@@ -142,109 +144,13 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
     return ds_resampled
 
 
-def compute_dt(index: pd.DatetimeIndex) -> pd.Series:
-    """
-    Compute timestep durations (dt) in seconds between consecutive samples.
-    Only {600, 3600, 86400} are allowed; others set to NaN and backfilled.
-
-    Parameters
-    ----------
-    index : pd.DatetimeIndex
-
-    Returns
-    -------
-    pd.Series
-        dt in seconds aligned to `index` (first value backfilled).
-    """
-    dt = index.to_series().diff().dt.total_seconds().round()
-    allowed = {600.0, 3600.0, 86400.0}
-    dt = dt.where(dt.isin(allowed), np.nan)
-    return dt.bfill()
-
-
-def compute_time_weights(dt: pd.Series, t: str) -> pd.Series:
-    """
-    Compute per-sample time weights (contribution to one target bin) from dt.
-
-    Parameters
-    ----------
-    dt : pd.DatetimeIndex
-        Timestep durations in seconds
-    t : str
-        Target resampling frequency ("60min", "1D", "MS").
-
-    Returns
-    -------
-    pd.Series
-        Weights in [0, 1] aligned to `index`.
-    """
-    w = pd.Series(0.0, index=dt.index)
-    if t == "60min":
-        w[dt == 600] = 1/6
-        w[dt == 3600] = 1
-        w[dt == 86400] = 0
-    elif t == "1D":
-        w[dt == 600] = 1/(6*24)
-        w[dt == 3600] = 1/24
-        w[dt == 86400] = 1
-    elif t == "MS":
-        w[dt == 600] = 1/(6*24*30)
-        w[dt == 3600] = 1/(24*30)
-        w[dt == 86400] = 1/30
-    else:
-        w[:] = 1.0
-    return w
-
-
-def compute_time_completeness(w: pd.Series, t: str) -> pd.Series:
-    """
-    Compute time-based completeness per resampled bin from per-sample weights.
-
-    Parameters
-    ----------
-    w : pd.DatetimeIndex
-        Weights in [0, 1] aligned to `index`.
-    t : str
-        Target resampling frequency.
-
-    Returns
-    -------
-    pd.Series
-        Completeness (0..1) per bin indexed by the resampled DateTimeIndex.
-    """
-    return w.resample(t).sum().clip(upper=1.0).fillna(0.0)
-
-
-def compute_value_completeness(df_h: pd.DataFrame, w: pd.Series, t: str) -> pd.DataFrame:
-    """
-    Compute per-variable value completeness as weighted non-NaN fraction per bin.
-
-    Parameters
-    ----------
-    df_h : pd.DataFrame
-        High-resolution data with DateTimeIndex.
-    w : pd.DatetimeIndex
-        Weights in [0, 1] aligned to `index`.
-    t : str
-        Target resampling frequency.
-
-    Returns
-    -------
-    pd.DataFrame
-        Fraction (0..1) of expected weighted samples observed per variable and bin.
-    """
-    expected = w.resample(t).sum().clip(upper=1.0).where(lambda s: s > 0, np.nan)
-    observed_equiv = (~df_h.isna()).astype(float).mul(w, axis=0).resample(t).sum()
-    return observed_equiv.div(expected, axis=0).fillna(0.0).clip(0.0, 1.0)
-
-
 def apply_completeness_filters(
     df_resampled: pd.DataFrame,
     df_h: pd.DataFrame,
     t: str,
     time_thresh: float = 0.8,
     value_thresh: float = 0.8,
-) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
+) -> pd.DataFrame:
     """
     Apply time- and value-based completeness filters to resampled data.
 
@@ -263,17 +169,19 @@ def apply_completeness_filters(
 
     Returns
     -------
-    tuple[pd.DataFrame, pd.Series, pd.DataFrame]
-        (filtered_df, time_completeness, value_completeness).
+    pd.DataFrame
     """
-    dt = compute_dt(df_h.index)
-    w = compute_time_weights(dt, t)
-    tc = compute_time_completeness(w, t)
-    vc = compute_value_completeness(df_h, w, t)
+
+    completeness_mask = get_completeness_mask(
+        data_frame=df_h,
+        resample_offset=t,
+        completeness_threshold=time_thresh,
+    )
+
     out = df_resampled.copy()
-    out.loc[tc.reindex(out.index, fill_value=0) < time_thresh] = np.nan
-    out[vc.reindex(index=out.index, columns=out.columns, fill_value=0) < value_thresh] = np.nan
+    out[~completeness_mask] = np.nan
     return out
+
 
 
 def calculateSaturationVaporPressure(t, T_0=273.15, T_100=373.15, es_0=6.1071,
