@@ -65,26 +65,18 @@ def join_l2(file1,file2,outpath,variables,metadata) -> xr.Dataset:
             logger.info(f'Combining {file1} with {file2}...')
             name = n1
             all_ds = ds1.combine_first(ds2)
-
-            # Re-calculate corrected precipitation
-            for var in ['precip_u_cor', 'precip_l_cor']:
+            
+            # combine_first works terrible for accumulated values
+            # we rather combine semi-accumulated precipitation in block
+            for var in ['precip_u', 'precip_l']:
                 if hasattr(all_ds, var):
                     if all_ds[var].notnull().any():
-                        # combine_first works terrible for accumulated values
-                        # we rather combine accumulated precipitation in block
                         tx_data_no_overlap =(ds2[var]
                                              .sel(time=slice(ds1.time.values[-1], ds2.time.values[-1]))
                                              .isel(time=slice(1, None))) # this line prevents redundant timestamps
                         all_ds[var] = xr.concat(
                                         [ds1[var], tx_data_no_overlap], dim='time'
                                     ).sortby('time')
-
-                        # we now remove the negative step in accumulated precipitation
-                        # that appears at the transition between raw and transmitted data
-                        neg_diff = all_ds[var].diff(dim='time')
-                        neg_diff = neg_diff.where(neg_diff<0, other=0)
-                        all_ds[var] = all_ds[var] - neg_diff.cumsum()
-
         else:
             logger.info(f'Mismatched station names {n1}, {n2}')
             exit()
