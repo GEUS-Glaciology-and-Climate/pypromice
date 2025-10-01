@@ -63,13 +63,13 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
         if var in df_h.columns:
             df_resampled[var] = df_h[var].diff().clip(lower=0).resample(t).sum()
 
-    # First attempt of completeness filter
-    df_resampled = apply_completeness_filters(df_resampled,
-                                              df_h,
-                                              t,
-                                              time_thresh=completeness_threshold,
-                                              value_thresh=completeness_threshold,
-                                              )
+    # Apply completeness filter based on the the data frame time index
+    completeness_mask = get_completeness_mask(
+        data_frame=df_h,
+        resample_offset=t,
+        completeness_threshold=completeness_threshold,
+    )
+    df_resampled[~completeness_mask] = np.nan
 
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
@@ -137,46 +137,6 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
     ds_resampled = xr.Dataset(dict(zip(df_resampled.columns,vals)), attrs=ds_h.attrs)
 
     return ds_resampled
-
-
-def apply_completeness_filters(
-    df_resampled: pd.DataFrame,
-    df_h: pd.DataFrame,
-    t: str,
-    time_thresh: float = 0.8,
-    value_thresh: float = 0.8,
-) -> pd.DataFrame:
-    """
-    Apply time- and value-based completeness filters to resampled data.
-
-    Parameters
-    ----------
-    df_resampled : pd.DataFrame
-        Resampled aggregates to be filtered.
-    df_h : pd.DataFrame
-        High-resolution source data (for completeness computation).
-    t : str
-        Target resampling frequency.
-    time_thresh : float, optional
-        Minimum time completeness threshold, by default 0.8.
-    value_thresh : float, optional
-        Minimum value completeness threshold, by default 0.8.
-
-    Returns
-    -------
-    pd.DataFrame
-    """
-
-    completeness_mask = get_completeness_mask(
-        data_frame=df_h,
-        resample_offset=t,
-        completeness_threshold=time_thresh,
-    )
-
-    out = df_resampled.copy()
-    out[~completeness_mask] = np.nan
-    return out
-
 
 
 def calculateSaturationVaporPressure(t, T_0=273.15, T_100=373.15, es_0=6.1071,
