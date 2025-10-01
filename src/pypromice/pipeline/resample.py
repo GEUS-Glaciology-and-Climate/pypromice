@@ -9,10 +9,12 @@ import logging
 import numpy as np
 import pandas as pd
 import xarray as xr
+
+from pypromice.core.resampling import get_completeness_mask
 from pypromice.core.variables.wind import calculate_directional_wind_speed
 logger = logging.getLogger(__name__)
 
-def resample_dataset(ds_h, t):
+def resample_dataset(ds_h, t, completeness_threshold=0.8):
     '''Resample L2 AWS data, e.g. hourly to daily average. This uses pandas
     DataFrame resampling at the moment as a work-around to the xarray Dataset
     resampling. As stated, xarray resampling is a lengthy process that takes
@@ -27,6 +29,10 @@ def resample_dataset(ds_h, t):
     t : str
         Resample factor( "60min", "1D" or "MS"), same variable definition as in
         pandas.DataFrame.resample()
+    completeness_threshold : float
+        Lower limit of completness of an hourly/daily/monthly aggregate (nr of
+        samples in aggregate / expected nr of samples). Aggregates below that
+        limit are replaced by NaNs.
 
     Returns
     -------
@@ -61,6 +67,14 @@ def resample_dataset(ds_h, t):
     for var in ['rainfall_u', 'rainfall_cor_u', 'rainfall_l', 'rainfall_cor_l']:
         if var in df_h.columns:
             df_resampled[var] = df_h[var].resample(t).sum()
+
+    # Apply completeness filter based on the the data frame time index
+    completeness_mask = get_completeness_mask(
+        data_frame=df_h,
+        resample_offset=t,
+        completeness_threshold=completeness_threshold,
+    )
+    df_resampled[~completeness_mask] = np.nan
 
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
