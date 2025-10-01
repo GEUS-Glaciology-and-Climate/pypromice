@@ -80,7 +80,7 @@ def get_completeness_mask(
         for the corresponding time period satisfies the completeness constraints,
         while False indicates the data is either under-complete or over-complete.
     """
-    if resample_offset == 'MS':
+    if resample_offset in ['MS', 'ME']:
         offset_timedelta = datetime.timedelta(days=30)
         # Increase tolerance for overcomplete values in monthly resampling
         # to handle months with 31 days.
