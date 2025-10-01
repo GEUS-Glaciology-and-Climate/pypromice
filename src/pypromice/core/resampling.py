@@ -5,6 +5,7 @@ import pandas as pd
 DEFAULT_COMPLETENESS_THRESHOLD = 0.8
 ALLOWED_TIME_STAMP_DURATIONS = (
     datetime.timedelta(minutes=10),
+    datetime.timedelta(minutes=30),
     datetime.timedelta(hours=1),
     datetime.timedelta(hours=6),
     datetime.timedelta(days=1),
