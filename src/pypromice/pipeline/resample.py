@@ -58,6 +58,7 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
     # exception for precip_u and precip_l which are semi-accumulated with some resets
     # Taking the max value within the resampled time step will preserve the
     #  general shape of the curve
+
     for var in ['precip_u', 'precip_l']:
         if var in df_h.columns:
             df_resampled[var] = df_h[var].resample(t).max()
@@ -67,6 +68,7 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
     for var in ['rainfall_u', 'rainfall_cor_u', 'rainfall_l', 'rainfall_cor_l']:
         if var in df_h.columns:
             df_resampled[var] = df_h[var].resample(t).sum()
+
 
     # Apply completeness filter based on the the data frame time index
     completeness_mask = get_completeness_mask(
