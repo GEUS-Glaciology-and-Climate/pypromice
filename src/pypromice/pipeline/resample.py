@@ -10,11 +10,11 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypromice.core.resampling import get_completeness_mask
+from pypromice.core.resampling import get_completeness_mask, DEFAULT_COMPLETENESS_THRESHOLDS
 from pypromice.core.variables.wind import calculate_directional_wind_speed
 logger = logging.getLogger(__name__)
 
-def resample_dataset(ds_h, t, completeness_threshold=0.8):
+def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRESHOLDS):
     '''Resample L2 AWS data, e.g. hourly to daily average. This uses pandas
     DataFrame resampling at the moment as a work-around to the xarray Dataset
     resampling. As stated, xarray resampling is a lengthy process that takes
@@ -29,10 +29,11 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
     t : str
         Resample factor( "60min", "1D" or "MS"), same variable definition as in
         pandas.DataFrame.resample()
-    completeness_threshold : float
-        Lower limit of completness of an hourly/daily/monthly aggregate (nr of
-        samples in aggregate / expected nr of samples). Aggregates below that
-        limit are replaced by NaNs.
+    completeness_thresholds : Dict
+        A dict with, for each variable, the lower limit of completness of an 
+        hourly/daily/monthly aggregate (nr of samples in aggregate / expected 
+        nr of samples). Aggregates below that limit are replaced by NaNs.
+        Must include a "default" value used for variables not listed explicitly.
 
     Returns
     -------
@@ -72,7 +73,7 @@ def resample_dataset(ds_h, t, completeness_threshold=0.8):
     completeness_mask = get_completeness_mask(
         data_frame=df_h,
         resample_offset=t,
-        completeness_threshold=completeness_threshold,
+        completeness_thresholds=completeness_thresholds,
     )
     df_resampled[~completeness_mask] = np.nan
 

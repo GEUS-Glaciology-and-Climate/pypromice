@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import unittest
 
-from pypromice.core.resampling import get_completeness_mask
+from pypromice.core.resampling import get_completeness_mask, DEFAULT_COMPLETENESS_THRESHOLDS
 
 
 class TestCompletenessFilters(unittest.TestCase):
@@ -17,7 +17,7 @@ class TestCompletenessFilters(unittest.TestCase):
         # df_res, filtered = _resample_and_filter(df_h, t="60min")
         completeness_mask = get_completeness_mask(
             data_frame=df_h,
-            completeness_threshold=0.8,
+            completeness_thresholds=DEFAULT_COMPLETENESS_THRESHOLDS,
             resample_offset="60min",
         )
 
@@ -41,7 +41,7 @@ class TestCompletenessFilters(unittest.TestCase):
         # df_res, filtered = _resample_and_filter(df_h, t="1D")
         completeness_mask = get_completeness_mask(
             data_frame=df_h,
-            completeness_threshold=0.8,
+            completeness_thresholds=DEFAULT_COMPLETENESS_THRESHOLDS,
             resample_offset="1D",
         )
 
@@ -62,7 +62,7 @@ class TestCompletenessFilters(unittest.TestCase):
         # df_res, filtered = _resample_and_filter(df_h, t="MS")
         completeness_mask = get_completeness_mask(
             data_frame=df_h,
-            completeness_threshold=0.8,
+            completeness_thresholds=DEFAULT_COMPLETENESS_THRESHOLDS,
             resample_offset="MS",
         )
 
@@ -81,7 +81,7 @@ class TestCompletenessFilters(unittest.TestCase):
         # df_res, filtered = _resample_and_filter(df_h, t="60min")
         completeness_mask = get_completeness_mask(
             data_frame=df_h,
-            completeness_threshold=0.8,
+            completeness_thresholds=DEFAULT_COMPLETENESS_THRESHOLDS,
             resample_offset="60min",
         )
 
@@ -105,7 +105,7 @@ class TestCompletenessFilters(unittest.TestCase):
         # df_res, filtered = _resample_and_filter(df_h, t="1D")
         completeness_mask = get_completeness_mask(
             data_frame=df_h,
-            completeness_threshold=0.8,
+            completeness_thresholds=DEFAULT_COMPLETENESS_THRESHOLDS,
             resample_offset="1D",
         )
 
@@ -130,7 +130,7 @@ class TestCompletenessFilters(unittest.TestCase):
         # df_res, filtered = _resample_and_filter(df, t="MS")
         completeness_mask = get_completeness_mask(
             data_frame=df,
-            completeness_threshold=0.8,
+            completeness_thresholds=DEFAULT_COMPLETENESS_THRESHOLDS,
             resample_offset="MS",
         )
 

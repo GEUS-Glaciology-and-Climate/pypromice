@@ -2,7 +2,11 @@ import datetime
 import numpy as np
 import pandas as pd
 
-DEFAULT_COMPLETENESS_THRESHOLD = 0.8
+DEFAULT_COMPLETENESS_THRESHOLDS = {
+    "default": 0.8,
+    "albedo": 0.2,
+}
+
 ALLOWED_TIME_STAMP_DURATIONS = (
     datetime.timedelta(minutes=10),
     datetime.timedelta(minutes=30),
@@ -44,7 +48,7 @@ def classify_timestamp_durations(
 def get_completeness_mask(
     data_frame: pd.DataFrame,
     resample_offset: str,
-    completeness_threshold: float = DEFAULT_COMPLETENESS_THRESHOLD,
+    completeness_thresholds: dict[str, float] = DEFAULT_COMPLETENESS_THRESHOLDS,
     *,
     atol: float = 1e-9,
 ) -> pd.DataFrame:
@@ -67,8 +71,10 @@ def get_completeness_mask(
         Offset string defining resampling frequency. Examples include 'MS' (month
         start) or other Pandas-compatible offset strings.
     completeness_threshold : float, optional
-        The minimum completeness ratio required to consider a time period as valid.
-        Defaults to the constant `DEFAULT_COMPLETENESS_THRESHOLD`.
+        Dictionary containing the variable-specific minimum completeness ratio
+        required to consider a time period as valid. Must contain a key 'default'
+        used for variables not explicitly listed.
+        Defaults to the dictionary `DEFAULT_COMPLETENESS_THRESHOLD`.
     atol : float, optional
         Absolute tolerance for over-completeness. Specifies an allowable margin by
         which completeness can exceed 1. Defaults to 1e-9.
@@ -101,7 +107,12 @@ def get_completeness_mask(
         .resample(resample_offset).sum()
     )
 
-    is_under_complete = completeness < completeness_threshold
-    is_over_complete = completeness > 1 + atol
-    completeness_mask =  ~(is_under_complete | is_over_complete)
+    thresholds = pd.Series(
+        {col: completeness_thresholds.get(col, completeness_thresholds["default"])
+         for col in data_frame.columns}
+    )
+
+    is_under_complete = completeness.lt(thresholds, axis=1)
+    is_over_complete = completeness.gt(1 + atol)
+    completeness_mask = ~(is_under_complete | is_over_complete)
     return completeness_mask
