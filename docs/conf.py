@@ -22,7 +22,7 @@ copyright = '2025, GEUS Glaciology and Climate'
 author = 'GEUS Glaciology and Climate'
 
 # The full version, including alpha/beta/rc tags
-release = '1.5.3'
+release = '1.6.0'
 
 
 # -- General configuration ---------------------------------------------------
