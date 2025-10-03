@@ -27,8 +27,8 @@ dlhf_u,LHF
 dlhf_l,
 dshf_u,SHF
 dshf_l,
-z_boom_u,HW2
-z_boom_l,HW1
+z_boom_cor_u,HW2
+z_boom_cor_l,HW1
 precip_u,
 precip_u_cor,
 precip_l,

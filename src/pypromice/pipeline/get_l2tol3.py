@@ -92,7 +92,7 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
     if outpath is not None:
         prepare_and_write(l3, outpath, v, m, '60min')
         prepare_and_write(l3, outpath, v, m, '1D')
-        prepare_and_write(l3, outpath, v, m, 'ME')
+        prepare_and_write(l3, outpath, v, m, 'MS')
     return l3
 
 def main():

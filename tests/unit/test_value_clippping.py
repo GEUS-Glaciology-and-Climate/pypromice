@@ -17,7 +17,7 @@ class ClipValuesTestCase(unittest.TestCase):
                 "wspd_u": n_entries * [np.nan],
                 "wdir_u": np.random.rand(n_entries) * 360,
             },
-            index=pd.date_range("2021-01-01", periods=n_entries, freq="H"),
+            index=pd.date_range("2021-01-01", periods=n_entries, freq="h"),
         )
         ds = xr.Dataset(df_in)
         ds_out = ds.copy()
@@ -44,7 +44,7 @@ class ClipValuesTestCase(unittest.TestCase):
                 "wspd_u": n_entries * [0],
                 "wdir_u": np.random.rand(n_entries) * 360,
             },
-            index=pd.date_range("2021-01-01", periods=n_entries, freq="H"),
+            index=pd.date_range("2021-01-01", periods=n_entries, freq="h"),
         )
         ds = xr.Dataset(df_in)
         ds_out = ds.copy()
@@ -74,7 +74,7 @@ class ClipValuesTestCase(unittest.TestCase):
                 "wspd_u": [np.nan, 0, 10, -3],
                 "wdir_u": [0, 180, 90, 270],
             },
-            index=pd.date_range("2021-01-01", periods=n_entries, freq="H"),
+            index=pd.date_range("2021-01-01", periods=n_entries, freq="h"),
         )
         ds = xr.Dataset(df_in)
         ds.attrs["number_of_booms"] = 1

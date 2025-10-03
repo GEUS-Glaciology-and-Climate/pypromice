@@ -21,7 +21,7 @@ from pypromice.core.variables.station_pose import (
 class TestTiltConversions(unittest.TestCase):
     def setUp(self):
         # Make a simple time coordinate
-        time = pd.date_range("2025-06-01", periods=5, freq="H")
+        time = pd.date_range("2025-06-01", periods=5, freq="h")
         self.tilt = xr.DataArray(
             np.array([-150.0, -50.0, 0.0, 10.0, 50.0]),
             dims="time",
@@ -61,7 +61,7 @@ class TestTiltConversions(unittest.TestCase):
         tilt_with_gap = xr.DataArray(
             np.array([0.0, np.nan, 20.0]),
             dims="time",
-            coords={"time": pd.date_range("2023-01-01", periods=3, freq="H")},
+            coords={"time": pd.date_range("2023-01-01", periods=3, freq="h")},
         )
         result = convert_and_filter_tilt(tilt_with_gap)
         self.assertFalse(np.isnan(result[1].values))  # should be interpolated
@@ -112,7 +112,7 @@ class TestTiltSmoothingInterpolation(unittest.TestCase):
     def test_smooth_tilt_with_moving_window_short_array(self):
         short_tilt = xr.DataArray([1.0, 2.0, 3.0],
                                   dims="time",
-                                  coords={"time": pd.date_range("2023-01-01", periods=3, freq="H")},
+                                  coords={"time": pd.date_range("2023-01-01", periods=3, freq="h")},
                                   name="tilt")
         dim, smoothed = smooth_tilt_with_moving_window(short_tilt)
         self.assertEqual(len(smoothed), len(short_tilt))
@@ -120,7 +120,7 @@ class TestTiltSmoothingInterpolation(unittest.TestCase):
     def test_smooth_tilt_with_moving_window_all_nan(self):
         nan_tilt = xr.DataArray([np.nan, np.nan, np.nan],
                                 dims="time",
-                                coords={"time": pd.date_range("2023-01-01", periods=3, freq="H")},
+                                coords={"time": pd.date_range("2023-01-01", periods=3, freq="h")},
                                 name="tilt")
         dim, smoothed = smooth_tilt_with_moving_window(nan_tilt)
         self.assertTrue(np.all(np.isnan(smoothed)))
@@ -128,7 +128,7 @@ class TestTiltSmoothingInterpolation(unittest.TestCase):
     def test_smooth_tilt_with_moving_window_constant(self):
         const_tilt = xr.DataArray(np.ones(20),
                                   dims="time",
-                                  coords={"time": pd.date_range("2023-01-01", periods=20, freq="H")},
+                                  coords={"time": pd.date_range("2023-01-01", periods=20, freq="h")},
                                   name="tilt")
         dim, smoothed = smooth_tilt_with_moving_window(const_tilt)
         np.testing.assert_allclose(smoothed, np.ones(20), rtol=self.rtol, atol=self.atol)
@@ -154,13 +154,13 @@ class TestTiltSmoothingInterpolation(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(non_nan_values.values)))
 
     def test_interpolate_tilt_all_nan(self):
-        nan_tilt = xr.DataArray([np.nan, np.nan, np.nan], dims="time", coords={"time": pd.date_range("2023-01-01", periods=3, freq="H")})
+        nan_tilt = xr.DataArray([np.nan, np.nan, np.nan], dims="time", coords={"time": pd.date_range("2023-01-01", periods=3, freq="h")})
         result = interpolate_tilt(nan_tilt)
         self.assertTrue(np.all(np.isnan(result.values)))
 
     def test_interpolate_tilt_boundary_fill(self):
         # Leading NaN should be backfilled, trailing NaN should be forward filled
-        tilt_with_edges = xr.DataArray([np.nan, 1.0, 2.0, np.nan], dims="time", coords={"time": pd.date_range("2023-01-01", periods=4, freq="H")})
+        tilt_with_edges = xr.DataArray([np.nan, 1.0, 2.0, np.nan], dims="time", coords={"time": pd.date_range("2023-01-01", periods=4, freq="h")})
         result = interpolate_tilt(tilt_with_edges)
 
         # Test all non-NaN values are finite
@@ -181,12 +181,12 @@ class TestTiltSmoothingInterpolation(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(non_nan_values)))
 
     def test_interpolate_rotation_all_nan(self):
-        nan_rot = xr.DataArray([np.nan, np.nan, np.nan], dims="time", coords={"time": pd.date_range("2023-01-01", periods=3, freq="H")})
+        nan_rot = xr.DataArray([np.nan, np.nan, np.nan], dims="time", coords={"time": pd.date_range("2023-01-01", periods=3, freq="h")})
         result = interpolate_rotation(nan_rot)
         self.assertTrue(np.all(np.isnan(result[1])))
 
     def test_interpolate_rotation_short_series(self):
-        short_rot = xr.DataArray([1.0, 2.0], dims="time", coords={"time": pd.date_range("2023-01-01", periods=2, freq="H")})
+        short_rot = xr.DataArray([1.0, 2.0], dims="time", coords={"time": pd.date_range("2023-01-01", periods=2, freq="h")})
         result = interpolate_rotation(short_rot)
         self.assertEqual(len(result[1]), 2)
 

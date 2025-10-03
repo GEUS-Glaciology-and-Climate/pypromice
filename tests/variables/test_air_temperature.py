@@ -11,7 +11,7 @@ from pypromice.core.variables.air_temperature import (
 
 class TestClipAndInterpolate(unittest.TestCase):
     def setUp(self):
-        self.time = pd.date_range("2025-08-01", periods=6, freq="1H")
+        self.time = pd.date_range("2025-08-01", periods=6, freq="h")
         values = [1.0, 10.0, np.nan, np.nan, 7.0, 15.0]
         self.temp = xr.DataArray(values, coords=[("time", self.time)])
 
@@ -37,7 +37,7 @@ class TestClipAndInterpolate(unittest.TestCase):
 
     def test_interpolation_exceeds_max_gap(self):
         # Use larger freq so interpolation exceeds max_interp
-        time = pd.date_range("2023-01-01", periods=24, freq="1H")
+        time = pd.date_range("2023-01-01", periods=24, freq="h")
         values = [1, 1, np.nan, 3, 6, 8, 9, 10,
                   50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
                   1, 1, 5]
@@ -53,7 +53,7 @@ class TestClipAndInterpolate(unittest.TestCase):
 class TestCloudCoefficients(unittest.TestCase):
 
     def setUp(self):
-        self.time = pd.date_range("2025-08-01", periods=5, freq="1H")
+        self.time = pd.date_range("2025-08-01", periods=5, freq="h")
         self.temp = xr.DataArray([0.0, 10.0, 20.0, -5.0, np.nan],
                                  coords=[("time", self.time)])
 
