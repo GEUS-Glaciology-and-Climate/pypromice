@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Jun 10 10:58:39 2024
-
-@author: pho
-"""
 import logging
 import numpy as np
 import pandas as pd
@@ -30,8 +25,8 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
         Resample factor( "60min", "1D" or "MS"), same variable definition as in
         pandas.DataFrame.resample()
     completeness_thresholds : Dict
-        A dict with, for each variable, the lower limit of completness of an 
-        hourly/daily/monthly aggregate (nr of samples in aggregate / expected 
+        A dict with, for each variable, the lower limit of completness of an
+        hourly/daily/monthly aggregate (nr of samples in aggregate / expected
         nr of samples). Aggregates below that limit are replaced by NaNs.
         Must include a "default" value used for variables not listed explicitly.
 
@@ -75,6 +70,7 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
         resample_offset=t,
         completeness_thresholds=completeness_thresholds,
     )
+
     df_resampled[~completeness_mask] = np.nan
 
     # taking the 10 min data and using it as instantaneous values:

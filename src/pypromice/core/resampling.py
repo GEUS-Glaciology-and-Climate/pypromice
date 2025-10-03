@@ -13,7 +13,7 @@ DEFAULT_COMPLETENESS_THRESHOLDS = {
     "z_boom_cor_l": 0.5,
     "z_stake": 0.5,
     "z_stake_cor": 0.5,
-    "z_surf_combined": 0.5,
+    "z_surf_combined": 0.1,
 }
 
 ALLOWED_TIME_STAMP_DURATIONS = (
