@@ -172,16 +172,28 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
     ds['z_surf_1'] = ('time', ds['z_boom_u'].data * np.nan)
     ds['z_surf_2'] = ('time', ds['z_boom_u'].data * np.nan)
 
-    z_boom_best_u = station_boom_height.adjust_and_include_uncorrected_values(ds["z_boom_u"], ds["t_u"])
+    z_boom_best_u = station_boom_height.include_uncorrected_values(
+                                ds["z_boom_u"],
+                                ds["z_boom_cor_u"],
+                                ds["t_u"],
+                                ds["t_l"] if "t_l" in ds.data_vars else None,
+                                ds["t_rad"] if "t_rad" in ds.data_vars else None)
+
+
+
+    if 'z_stake' in ds.data_vars and ds.z_stake.notnull().any():
+        # Calculate stake boom height correction with uncorrected values where needed
+        z_stake_best = station_boom_height.include_uncorrected_values(
+                                    ds["z_stake"],
+                                    ds["z_stake_cor"],
+                                    ds["t_u"],
+                                    ds["t_l"] if "t_l" in ds.data_vars else None,
+                                    ds["t_rad"] if "t_rad" in ds.data_vars else None)
 
     if ds.attrs['site_type'] == 'ablation':
         # Calculate surface heights for ablation sites
         ds['z_surf_1'] = 2.6 - z_boom_best_u
         if ds.z_stake.notnull().any():
-
-            # Calculate stake boom height correction with uncorrected values where needed
-            z_stake_best = station_boom_height.adjust_and_include_uncorrected_values(ds["z_stake"], ds["t_u"])
-
             first_valid_index = ds.time.where((z_stake_best + z_boom_best_u).notnull(), drop=True).data[0]
             ds['z_surf_2'] = ds.z_surf_1.sel(time=first_valid_index) + z_stake_best.sel(time=first_valid_index) - z_stake_best
 
@@ -195,14 +207,18 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
         ds['z_surf_1'] = z_boom_best_u.sel(time=first_valid_index) - z_boom_best_u
 
         if 'z_stake' in ds.data_vars and ds.z_stake.notnull().any():
-            z_stake_best = station_boom_height.adjust_and_include_uncorrected_values(ds["z_stake"], ds["t_u"])
             first_valid_index = ds.time.where(z_stake_best.notnull(), drop=True).data[0]
             ds['z_surf_2'] = z_stake_best.sel(time=first_valid_index) - z_stake_best
 
         if 'z_boom_l' in ds.data_vars:
 
             # Calculate lower boom height correction with uncorrected values where needed
-            z_boom_best_l = station_boom_height.adjust_and_include_uncorrected_values(ds["z_boom_l"], ds["t_l"])
+            z_boom_best_l = station_boom_height.include_uncorrected_values(
+                                        ds["z_boom_l"],
+                                        ds["z_boom_cor_l"],
+                                        ds["t_u"],
+                                        ds["t_l"] if "t_l" in ds.data_vars else None,
+                                        ds["t_rad"] if "t_rad" in ds.data_vars else None)
 
             # need a combine first because KAN_U switches from having a z_stake_best
             # to having a z_boom_best_l
