@@ -159,7 +159,7 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
         adj_info.loc[adj_info.t0.isnull()|(adj_info.t0==''), "t0"] = None
 		
         # if "*" is in the variable name then we interpret it as regex
-        selec =  adj_info['variable'].str.contains('\*') & (adj_info['variable'] != "*")
+        selec = adj_info['variable'].str.contains(r'\*') & (adj_info['variable'] != "*")
         for ind in adj_info.loc[selec, :].index:
             line_template = adj_info.loc[ind, :].copy()
             regex = adj_info.loc[ind, 'variable']
@@ -209,23 +209,11 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
 
                 if func == "add":
                     ds_out[var].loc[index_slice] = ds_out[var].loc[index_slice].values + val
-                    # flagging adjusted values
-                    # if var + "_adj_flag" not in ds_out.columns:
-                    #     ds_out[var + "_adj_flag"] = 0
-                    # msk = ds_out[var].loc[index_slice])].notnull()
-                    # ind = ds_out[var].loc[index_slice])].loc[msk].time
-                    # ds_out.loc[ind, var + "_adj_flag"] = 1
 
                 if func == "multiply":
                     ds_out[var].loc[index_slice] = ds_out[var].loc[index_slice].values * val
                     if "DW" in var:
                         ds_out[var].loc[index_slice] = ds_out[var].loc[index_slice] % 360
-                    # flagging adjusted values
-                    # if var + "_adj_flag" not in ds_out.columns:
-                    #     ds_out[var + "_adj_flag"] = 0
-                    # msk = ds_out[var].loc[index_slice].notnull()
-                    # ind = ds_out[var].loc[index_slice].loc[msk].time
-                    # ds_out.loc[ind, var + "_adj_flag"] = 1
 
                 if func == "min_filter":
                     tmp = ds_out[var].loc[index_slice].values
@@ -276,6 +264,27 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
                     val_var2 = ds_out[var2].loc[index_slice].values.copy()
                     ds_out[var2].loc[index_slice] = val_var
                     ds_out[var].loc[index_slice] = val_var2
+
+                if "delete_when_same_as_" in func:
+                    var2 = func.replace('delete_when_same_as_','')
+                    tmp = ds_out[var].loc[index_slice]
+                    msk = np.abs(tmp - ds_out[var2].loc[index_slice]) < val
+                    tmp = tmp.where(~msk)
+                    # remove isolated singletons and pairs surrounded by NaNs
+                    m1 = tmp.notnull() & tmp.shift(time=1).isnull() & tmp.shift(time=-1).isnull()
+                    
+                    m2_first  = (tmp.notnull()
+                                 & tmp.shift(time=1).isnull()     # left is NaN
+                                 & tmp.shift(time=-1).notnull()   # right is value
+                                 & tmp.shift(time=-2).isnull())   # right+1 is NaN
+                    
+                    m2_second = (tmp.notnull()
+                                 & tmp.shift(time=-1).isnull()    # right is NaN
+                                 & tmp.shift(time=1).notnull()    # left is value
+                                 & tmp.shift(time=2).isnull())    # left-1 is NaN
+                    
+                    tmp = tmp.where(~(m1 | m2_first | m2_second))
+                    ds_out[var].loc[index_slice] = tmp.values
 
                 if func == "rotate":
                     ds_out[var].loc[index_slice] = (ds_out[var].loc[index_slice].values + val) % 360
