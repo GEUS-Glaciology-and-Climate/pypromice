@@ -7,12 +7,12 @@ DEFAULT_COMPLETENESS_THRESHOLDS = {
     "albedo": 0.2,
     "p_u": 0.5,
     "p_l": 0.5,
-    "z_boom_u": 0.5,
-    "z_boom_l": 0.5,
-    "z_boom_cor_u": 0.5,
-    "z_boom_cor_l": 0.5,
-    "z_stake": 0.5,
-    "z_stake_cor": 0.5,
+    "z_boom_u": 0.1,
+    "z_boom_l": 0.1,
+    "z_boom_cor_u": 0.1,
+    "z_boom_cor_l": 0.1,
+    "z_stake": 0.1,
+    "z_stake_cor": 0.1,
     "z_surf_combined": 0.1,
 }
 
