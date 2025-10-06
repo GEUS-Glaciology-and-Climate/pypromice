@@ -34,13 +34,13 @@ dlhf_l,surface_downward_latent_heat_flux,Latent heat flux (lower boom),W m-2,mod
 dshf_u,surface_downward_sensible_heat_flux,Sensible heat flux (upper boom),W m-2,modelResult,time,FALSE,L3 or later,,,,all,0,0,1,4
 dshf_l,surface_downward_sensible_heat_flux,Sensible heat flux (lower boom),W m-2,modelResult,time,FALSE,L3 or later,,,,two-boom,0,0,1,4
 z_boom_u,distance_to_surface_from_boom,Upper boom height,m,physicalMeasurement,time,TRUE,,0.3,10,z_boom_cor_u,all,1,1,1,4
-z_boom_cor_u,distance_to_surface_from_boom_corrected,Upper boom height - corrected,m,modelResult,time,TRUE,,0.3,10,"",all,1,1,1,4
+z_boom_cor_u,distance_to_surface_from_boom_corrected,Upper boom height - corrected,m,modelResult,time,TRUE,,0.3,10,z_boom_u,all,1,1,1,4
 z_boom_q_u,distance_to_surface_from_boom_quality,Upper boom height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,all,1,1,0,4
 z_boom_l,distance_to_surface_from_boom,Lower boom height,m,physicalMeasurement,time,TRUE,,0.3,5,z_boom_cor_l,two-boom,1,1,1,4
-z_boom_cor_l,distance_to_surface_from_boom_corrected,Lower boom height - corrected,m,modelResult,time,TRUE,,0.3,5,"",two-boom,1,1,1,4
+z_boom_cor_l,distance_to_surface_from_boom_corrected,Lower boom height - corrected,m,modelResult,time,TRUE,,0.3,5,z_boom_l,two-boom,1,1,1,4
 z_boom_q_l,distance_to_surface_from_boom_quality,Lower boom height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,two-boom,1,1,0,4
 z_stake,distance_to_surface_from_stake_assembly,Stake height,m,physicalMeasurement,time,TRUE,,0.3,8,z_stake_cor,one-boom,1,1,1,4
-z_stake_cor,distance_to_surface_from_stake_assembly_corrected,Stake height - corrected,m,physicalMeasurement,time,TRUE,,0.3,8,,one-boom,1,1,1,4
+z_stake_cor,distance_to_surface_from_stake_assembly_corrected,Stake height - corrected,m,physicalMeasurement,time,TRUE,,0.3,8,z_stake,one-boom,1,1,1,4
 z_stake_q,distance_to_surface_from_stake_assembly_quality,Stake height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,one-boom,1,1,0,4
 z_pt,depth_of_pressure_transducer_in_ice,Depth of pressure transducer in ice,m,physicalMeasurement,time,FALSE,,0,30,z_pt_cor,one-boom,1,1,1,4
 z_pt_cor,depth_of_pressure_transducer_in_ice_corrected,Depth of pressure transducer in ice - corrected,m,modelResult,time,FALSE,L2 or later,0,30,,one-boom,0,1,1,4
