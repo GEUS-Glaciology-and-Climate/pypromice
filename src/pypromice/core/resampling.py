@@ -14,6 +14,21 @@ DEFAULT_COMPLETENESS_THRESHOLDS = {
     "z_stake": 0.1,
     "z_stake_cor": 0.1,
     "z_surf_combined": 0.1,
+    "t_i_1": 0.1,
+    "t_i_2": 0.1,
+    "t_i_3": 0.1,
+    "t_i_4": 0.1,
+    "t_i_5": 0.1,
+    "t_i_6": 0.1,
+    "t_i_7": 0.1,
+    "t_i_8": 0.1,
+    "t_i_9": 0.1,
+    "t_i_10": 0.1,
+    "t_i_11": 0.1,
+    "gps_lat": 0.1,
+    "gps_lon": 0.1,
+    "gps_alt": 0.1,
+    "batt_v": 0.1,
 }
 
 ALLOWED_TIME_STAMP_DURATIONS = (
