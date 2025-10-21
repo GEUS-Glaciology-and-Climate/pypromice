@@ -94,7 +94,7 @@ jobs:
       # Step 8: Run reporter
       - name: Run reporter
         run: |
-          python .github/workflows/data_output_reporter.py \
+          python src/pypromice/utilities/compare.py \
             -o out/original/TEST1/TEST1_hour.nc \
             -n out/new/TEST1/TEST1_hour.nc
 
