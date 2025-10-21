@@ -165,6 +165,26 @@ def format_report_md(report: Dict[str, Any]) -> str:
     """Generate Markdown report from report dict with double line breaks and safe stats handling."""
     lines = ["# Dataset Comparison Report", ""]
 
+    if not any(report.values()):
+        lines.append("## ✅ Datasets match perfectly!")
+        lines.append("No differences have been found between " +
+                     "the datasets produced using the PR " +
+                     "branch and the main branch.")
+        lines.append("⚠️ This report is generated from a small " +
+                     "subset of test data that does not reflect " +
+                     "all scenarios. Please check using more " +
+                     "input data if you suspect changes to the " +
+                     "output data have occurred.")
+        return "\n".join(lines)
+
+    lines.append("Differences have been found between " +
+                 "the datasets produced using the PR " +
+                 "branch and the main branch.")
+    lines.append("If you did not expect changes to be "+
+                 "made to the dataset from your PR " +
+                 "then please check this report and " +
+                 "update your branch accordingly.")
+
     # Missing variables
     lines.append("## Variables missing in ds1\n")
     if report["missing_in_ds1"]:
