@@ -2,7 +2,6 @@ import os, json
 import numpy as np
 import xarray as xr
 from typing import Dict, Any
-import matplotlib.pyplot as plt
 from argparse import ArgumentParser
 
 def compare_datasets(ds1: xr.Dataset,
@@ -164,6 +163,7 @@ def compare_datasets(ds1: xr.Dataset,
 
 def format_report_md(report: Dict[str, Any]) -> str:
     """Generate Markdown report from report dict."""
+    import matplotlib.pyplot as plt
     lines = ["# Dataset Comparison Report"]
 
     # Missing variables
