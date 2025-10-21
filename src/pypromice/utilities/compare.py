@@ -162,48 +162,50 @@ def compare_datasets(ds1: xr.Dataset,
 
 
 def format_report_md(report: Dict[str, Any]) -> str:
-    """Generate Markdown report from report dict."""
-    import matplotlib.pyplot as plt
-    lines = ["# Dataset Comparison Report"]
+    """Generate Markdown report from report dict with double line breaks and safe stats handling."""
+    lines = ["# Dataset Comparison Report", ""]
 
     # Missing variables
-    lines.append("## Variables missing in ds1")
+    lines.append("## Variables missing in ds1\n")
     if report["missing_in_ds1"]:
         lines.append("| Variable |")
         lines.append("|----------|")
         for v in report["missing_in_ds1"]:
             lines.append(f"| {v} |")
+        lines.append("")  # extra line break after table
     else:
-        lines.append("None")
+        lines.append("None\n")
 
-    lines.append("## Variables missing in ds2")
+    lines.append("## Variables missing in ds2\n")
     if report["missing_in_ds2"]:
         lines.append("| Variable |")
         lines.append("|----------|")
         for v in report["missing_in_ds2"]:
             lines.append(f"| {v} |")
+        lines.append("")  # extra line break after table
     else:
-        lines.append("None")
+        lines.append("None\n")
 
     # Variable differences
-    lines.append("## Variable differences")
+    lines.append("## Variable differences\n")
     if report["variable_diffs"]:
         lines.append("| Variable | Issue | mean_abs_err | max_abs_err | std_abs_err | mean_pct_err |")
         lines.append("|----------|-------|--------------|------------|------------|--------------|")
         for var in sorted(report["variable_diffs"].keys()):
             diffinfo = report["variable_diffs"][var]
-            stats = diffinfo.get("stats", {})
+            stats = diffinfo.get("stats") or {}  # <-- ensure stats is always a dict
             mean_abs = stats.get("mean_abs_err", "")
             max_abs = stats.get("max_abs_err", "")
             std_abs = stats.get("std_abs_err", "")
             mean_pct = stats.get("mean_pct_err", "")
             for d in diffinfo["diffs"]:
                 lines.append(f"| {var} | {d} | {mean_abs} | {max_abs} | {std_abs} | {mean_pct} |")
+        lines.append("")  # extra line break after table
     else:
-        lines.append("None")
+        lines.append("None\n")
 
     # Dataset attributes
-    lines.append("## Dataset attribute differences")
+    lines.append("## Dataset attribute differences\n")
     if report["attr_diffs"]:
         lines.append("ds1 attributes:")
         lines.append("```")
@@ -213,20 +215,23 @@ def format_report_md(report: Dict[str, Any]) -> str:
         lines.append("```")
         lines.append(str(report["attr_diffs"]["ds2"]))
         lines.append("```")
+        lines.append("")  # extra line break
     else:
-        lines.append("None")
+        lines.append("None\n")
 
     # Coordinate differences
-    lines.append("## Coordinate differences")
+    lines.append("## Coordinate differences\n")
     if report["coord_diffs"]:
         lines.append("| Coordinate | Issue |")
         lines.append("|------------|-------|")
         for c, d in report["coord_diffs"].items():
             lines.append(f"| {c} | {d} |")
+        lines.append("")  # extra line break
     else:
-        lines.append("None")
+        lines.append("None\n")
 
     return "\n".join(lines)
+
 
 def plot_variable_differences(ds1: xr.Dataset,
                               ds2: xr.Dataset,
@@ -240,6 +245,7 @@ def plot_variable_differences(ds1: xr.Dataset,
         report: comparison report from compare_datasets()
         outdir: directory to save plots
     """
+    import matplotlib.pyplot as plt
     # Parse version from dataset attributes
     try:
         v1 = json.loads(ds1.attrs.get("source", '{}')).get("pypromice", "unknown")
