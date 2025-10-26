@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypromice.core.resampling import get_completeness_mask, DEFAULT_COMPLETENESS_THRESHOLDS
+from pypromice.core.resampling import get_completeness_mask, DEFAULT_COMPLETENESS_THRESHOLDS, classify_timestamp_durations
 from pypromice.core.variables.wind import calculate_directional_wind_speed
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,33 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
     )
 
     df_resampled[~completeness_mask] = np.nan
+
+
+    # Exception for z_boom: if at least one value exists in period, backfill to fill gaps
+    if t == '60min':
+        timestamp_durations = classify_timestamp_durations(ds_h.time)
+
+        # Keep only 24h duration entries
+        is_daily = timestamp_durations == pd.Timedelta('24h')
+        daily_timestamps = ds_h.time[is_daily]
+        start_times = pd.to_datetime((daily_timestamps - pd.Timedelta('24h')).values)
+        stop_times = pd.to_datetime(daily_timestamps.values)
+
+        hourly_index = df_resampled.index
+        hourly_index_to_backfill = pd.Series(False, index=hourly_index)
+
+        # Efficiently mark all 24h windows at once
+        # Stack all intervals into a single boolean mask
+        for start, stop in zip(start_times, stop_times):
+            hourly_index_to_backfill[start:stop] = True
+
+        for var in ['z_boom_u', 'z_boom_l', 'z_boom_cor_u', 'z_boom_cor_l', 'z_pt', 'z_pt_cor']:
+            if var in df_h.columns:
+                # Resample and backfill the original series
+                filled = df_h[var].resample(t).bfill()
+
+                # Apply only to identified time steps
+                df_resampled.loc[hourly_index_to_backfill, var] = filled.loc[hourly_index_to_backfill]
 
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
