@@ -92,7 +92,9 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
         for start, stop in zip(start_times, stop_times):
             hourly_index_to_backfill[start:stop] = True
 
-        for var in ['z_boom_u', 'z_boom_l', 'z_boom_cor_u', 'z_boom_cor_l', 'z_pt', 'z_pt_cor']:
+        for var in ['z_boom_u', 'z_boom_l', 'z_stake',
+                    'z_boom_cor_u', 'z_boom_cor_l',  'z_stake_cor',
+                    'z_pt', 'z_pt_cor']:
             if var in df_h.columns:
                 # Resample and backfill the original series
                 filled = df_h[var].resample(t).bfill()
