@@ -4,7 +4,7 @@ alt.axis,Z
 alt.coverage_content_type,coordinate
 gps_alt.positive,up
 cdm_data_type,Station
-comment,https://doi.org/10.22008/promice/data/aws
+comment,https://dataverse.geus.dk/dataverse/AWS
 contributor_name,
 contributor_role,
 conventions,ACDD-1.3; CF-1.7
@@ -40,7 +40,7 @@ metadata_link,
 naming_authority,dk.geus.promice
 platform,
 platform_vocabulary,GCMD:GCMD Keywords
-product_status,beta
+product_status,stable release
 product_version,4
 program,PROMICE
 publisher_email,info@promice.dk
@@ -48,7 +48,7 @@ publisher_institution,GEUS
 publisher_name,GEUS
 publisher_type,institution
 publisher_url,https://promice.dk
-references,"How, P.; Abermann, J.; Ahlstrøm, A.P.; Andersen, S.B.; Box, J. E.; Citterio, M.; Colgan, W.T.; Fausto. R.S.; Karlsson, N.B.; Jakobsen, J.; Langley, K.; Larsen, S.H.; Mankoff, K.D.; Pedersen, A.Ø.; Rutishauser, A.; Shield, C.L.; Solgaard, A.M.; van As, D.; Vandecrux, B.; Wright, P.J., 2022, ""PROMICE and GC-Net automated weather station data in Greenland"", https://doi.org/10.22008/FK2/IW73UU, GEUS Dataverse"
-references_bib,@article{How2022; doi = {10.22008/FK2/IW73UU}; url = {https://doi.org/10.22008/FK2/IW73UU}; year = {2022}; month=10; publisher= {GEUS Dataverse}; author = {Penelope How and Jakob Abermann and Andreas P. Ahlstr{\o}m and  Signe B. Andersen and Jason E. Box and Michele Citterio and  William Colgan and Robert S. Fausto and Nanna B. Karlsson and Jakob Jakobsen and Kirsty Langley and Signe Hillerup Larsen and Kenneth D. Mankoff and Allan {\O}. Pedersen and Anja Rutishauser and Christopher L. Shields and Anne M. Solgaard and Dirk van As and Baptiste Vandecrux}; title = {PROMICE and GC-Net automated weather station data in Greenland}; journal = {GEUS Dataverse}}
+references,"How, P.; Lund, M.C.; Ahlstrøm, A.P.; Andersen, S.B.; Box, J. E.; Citterio, M.; Colgan, W.T.; Fausto. R.S.; Karlsson, N.B.; Jakobsen, J.; Jakobsgaard, H.T.; Larsen, S.H.; Mankoff, K.D.; Nielsen, R.B.; Rutishauser, A.; Shield, C.L.; Solgaard, A.M.; Stevens, I.T.; van As, D.; Vandecrux, B.; Abermann, J.; Bjørk, A.A.; Langley, K.; Lea, J.; Messerli, A.; Prinz, R. 2022 ""PROMICE and GC-Net automated weather station data in Greenland"", https://doi.org/10.22008/FK2/IW73UU, GEUS Dataverse"
+references_bib,@article{PROMICE_2022,author={How, P. and Lund, M.C. and Ahlstr{\o}m, A.P. and Andersen, S.B. and Box, J.E. and Citterio, M. and Colgan, W.T. and Fausto, R.S. and Karlsson, N.B. and Jakobsen, J. and Jakobsgaard, H.T. and Larsen, S.H. and Mankoff, K.D. and Nielsen, R.B. and Rutishauser, A. and Shield, C.L. and Solgaard, A.M. and Stevens, I.T. and van As, D. and Vandecrux, B. and Abermann, J. and Bj\{o}rk, A.A. and Langley, K. and Lea, J. and Messerli, A. and Prinz, R.},publisher={GEUS Dataverse},title={{PROMICE and GC-Net automated weather station data in Greenland}},year={2022},doi={10.22008/FK2/IW73UU},url={https://doi.org/10.22008/FK2/IW73UU}}}
 standard_name_vocabulary,CF Standard Name Table (v77; 19 January 2021)
 summary,"The Programme for Monitoring of the Greenland Ice Sheet (PROMICE) and Greenland Climate Network (GC-Net) have been measuring climate and ice sheet properties since 2007 and 1995, respectively. The PROMICE weather station network monitors glacier mass balance in the melt zone of the Greenland Ice Sheet, providing ground truth data to calibrate mass budget models. GC-Net weather stations measure snowfall and surface properties in the accumulation zone, providing valuable knowledge on the Greenland Ice Sheet’s mass gain and climatology.Accurate measurements of the surface and near-surface atmospheric conditions in a changing climate is important for reliable present and future assessment of changes to the Greenland Ice Sheet. All measurements are handled and processed with pypromice, which is a peer-reviewed and freely available Python package with source code available at https://github.com/GEUS-Glaciology-and-Climate/pypromice. A user-contributable dynamic web-based database of known data quality issues is associated with the data products at https://github.com/GEUS-PROMICE/ PROMICE-AWS-data-issues/."
