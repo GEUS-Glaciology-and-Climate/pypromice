@@ -77,30 +77,45 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
     # Exception for z_boom: if at least one value exists in period, backfill to fill gaps
     if t == '60min':
         timestamp_durations = classify_timestamp_durations(ds_h.time)
-
-        # Keep only 24h duration entries
-        is_daily = timestamp_durations == pd.Timedelta('24h')
-        daily_timestamps = ds_h.time[is_daily]
-        start_times = pd.to_datetime((daily_timestamps - pd.Timedelta('24h')).values)
-        stop_times = pd.to_datetime(daily_timestamps.values)
-
         hourly_index = df_resampled.index
-        hourly_index_to_backfill = pd.Series(False, index=hourly_index)
 
-        # Efficiently mark all 24h windows at once
-        # Stack all intervals into a single boolean mask
-        for start, stop in zip(start_times, stop_times):
-            hourly_index_to_backfill[start:stop] = True
+        # Masks to mark which hours to fill
+        hourly_index_24h = pd.Series(False, index=hourly_index)
+        hourly_index_6h = pd.Series(False, index=hourly_index)
+
+        # --- 24h backfill logic ---
+        is_24h = timestamp_durations == pd.Timedelta('24h')
+        ts_24h = pd.to_datetime(ds_h.time[is_24h].values)
+        for ts in ts_24h:
+            hourly_index_24h[ts - pd.Timedelta('24h'): ts] = True
 
         for var in ['z_boom_u', 'z_boom_l', 'z_stake',
-                    'z_boom_cor_u', 'z_boom_cor_l',  'z_stake_cor',
+                    'z_boom_cor_u', 'z_boom_cor_l', 'z_stake_cor',
                     'z_pt', 'z_pt_cor']:
-            if var in df_h.columns:
-                # Resample and backfill the original series
-                filled = df_h[var].resample(t).bfill()
+            if var not in df_h.columns:
+                continue
 
-                # Apply only to identified time steps
-                df_resampled.loc[hourly_index_to_backfill, var] = filled.loc[hourly_index_to_backfill]
+            # --- 6h sparse data logic ---
+            sparse_series = df_h[var]
+            timestamps_with_values = sparse_series[sparse_series.notna()].index
+            timestamp_durations = classify_timestamp_durations(timestamps_with_values)
+            is_6h = timestamp_durations == pd.Timedelta('6h')
+            ts_6h = timestamps_with_values[is_6h]
+            for ts in ts_6h:
+                hourly_index_6h[ts - pd.Timedelta('6h'):ts] = True
+
+            # Resample to hourly mean
+            filled = df_h[var].resample(t).mean()
+
+            # Apply bfill with appropriate limits
+            filled_24h = filled.bfill(limit=24)
+            filled_6h = filled.bfill(limit=6)
+
+            # Combine into output
+            df_resampled.loc[hourly_index_24h, var] = filled_24h.loc[hourly_index_24h]
+            df_resampled.loc[hourly_index_6h, var] = filled_6h.loc[hourly_index_6h]
+
+
 
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
