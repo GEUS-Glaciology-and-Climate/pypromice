@@ -201,12 +201,15 @@ def getColNames(vars_df, ds, remove_nan_fields=False):
 
     var_list = list(vars_df.index)
     if remove_nan_fields:
+        cleaned = []
         for v in var_list:
-            if v not in ds.keys():
-                var_list.remove(v)
+            if v not in ds:
                 continue
             if ds[v].isnull().all():
-                var_list.remove(v)
+                continue
+            cleaned.append(v)  # keep only valid variables
+
+        var_list = cleaned  # replace with filtered list
     return var_list
 
 
