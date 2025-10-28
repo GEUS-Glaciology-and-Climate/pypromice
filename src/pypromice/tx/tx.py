@@ -7,6 +7,10 @@ AWS Level 0 (L0) data transmission fetching module
 from collections import deque
 import email, re, os, os.path, time, unittest, calendar, imaplib, pkg_resources
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Set maximum number of email lines to read
 imaplib._MAXLINE = 5000000
     
@@ -189,7 +193,7 @@ class SbdMessage(object):
     def checkAttachment(self, attach):
         '''Check if attachment is present in email.message.Message object'''
         if attach == 0:
-            print('No file attached to email')
+            logger.info('No file attached to email')
             return False
         else:
             return True
@@ -200,7 +204,7 @@ class SbdMessage(object):
         if ext == '.sbd' or ext == '.dat':
             return True
         else:
-            print(f'Unrecognised attachment file type: {attach_file}')
+            logger.info(f'Unrecognised attachment file type: {attach_file}')
             return False
     
     def getPayloadFromEmail(self, attach, message_size):
@@ -225,7 +229,7 @@ class SbdMessage(object):
             try:
                 value = int(value)
             except:
-                print(f'Value in line could not be passed as integer: "{line}"')
+                logger.info(f'Value in line could not be passed as integer: "{line}"')
                 value = None
         return value
     
@@ -236,7 +240,7 @@ class SbdMessage(object):
             value = parseValue(line, seps1).split(seps2)
             return [int(value[0]), value[2]]
         except:
-            print(f'Session status not parsed from line "{line}"')
+            logger.info(f'Session status not parsed from line "{line}"')
             return None
                 
     def getLocation(self, content, seps=' ', key='Unit Location'):
@@ -251,7 +255,7 @@ class SbdMessage(object):
                 lon = float(l[7])
             return [lat, lon]
         except:
-            print(f'Unit location not parsed from line "{line}"')
+            logger.info(f'Unit location not parsed from line "{line}"')
             return None
 
 #------------------------------------------------------------------------------
@@ -283,19 +287,19 @@ class EmailMessage(SbdMessage):                                                #
                 content, attachment = self.getEmailBody()  
                 SbdMessage.__init__(self, content, attachment, self.getIMEI())
             else:
-                print('Email from unrecognised sender ' + 
+                logger.info('Email from unrecognised sender ' +
                       f'"f{self.email_data["from"]}", no Sbd message read')
                 SbdMessage.__init__(self, None, None, None)
             
         else:
-            print('Empty email message')
+            logger.info('Empty email message')
             self._email_msg = None
             self.email_data = None
         
     def checkEmail(self, email_msg):
         '''Check if email is Message object'''
         if not isinstance(email_msg, email.message.Message):
-            print(f'Email object not valid {type(email_msg)}. ' +
+            logger.info(f'Email object not valid {type(email_msg)}. ' +
                   'Expecting email.message.Message object')
             return False
         else:
@@ -427,7 +431,7 @@ class L0tx(EmailMessage, PayloadFormat):
     def checkPayload(self):
         '''Check message payload'''
         if self.payload == None:
-           print('No .sbd file attached to this message')
+           logger.info('No .sbd file attached to this message')
            return False
         else:
             return True
@@ -470,11 +474,11 @@ class L0tx(EmailMessage, PayloadFormat):
                 bval, bfor, bname, blength = self.payload_format[bidx]
                 
                 # if bidx==80:                                                   # TODO. This is a temporary workaround for QAS_Lv3 formatting being different. Needs a more permanent fix!
-                #     print('Checking version 3...')
+                #     logger.info('Checking version 3...')
                 #     if len(self.payload) != blength:
-                #         print('Mismatched lengths found...')
+                #         logger.info('Mismatched lengths found...')
                 #         if len(self.payload) == 83:
-                #             print('Fetching QAS_Lv3 specific formatting...')
+                #             logger.info('Fetching QAS_Lv3 specific formatting...')
                 #             bval, bfor, bname, blength = self.payload_format[70]
                 
                 return bval, bfor, bname, blength, bidx, True
@@ -484,14 +488,14 @@ class L0tx(EmailMessage, PayloadFormat):
     def checkByte(self, b):
         '''Check byte format against payload formatter object'''
         if ord(b) not in self.payload_format:
-            print('Unrecognized first byte %s' %hex(ord(b)))
+            logger.info('Unrecognized first byte %s' %hex(ord(b)))
             return False      
         else:    
             return True
     
     def checkLength(self):                                                   
         if len(self.payload) != self.bin_len:
-            print(f'Message malformed: expected {self.bin_len} bytes, ' + 
+            logger.info(f'Message malformed: expected {self.bin_len} bytes, ' +
                   f'found {len(self.payload)}. Missing values to be replaced by '+
                   '"?" and extra values dropped')
             return True
@@ -541,7 +545,7 @@ class L0tx(EmailMessage, PayloadFormat):
             try:
                 ValueBytes.append(ord(BinaryMessage[idx+i: idx+i+1]))
             except:
-                print('No byte found')
+                logger.info('No byte found')
         return ValueBytes
     
     def updateByteCounter(self, value):
@@ -565,7 +569,7 @@ class L0tx(EmailMessage, PayloadFormat):
         # Retrieve payload and prime object if valid binary message        
         bin_msg = self.payload[1:]
         if self.bin_valid and bin_msg:
-            print('%s-%s (binary)' %(self.imei, self.momsn) , self.bin_name)
+            logger.info('%s-%s (binary)' %(self.imei, self.momsn) , self.bin_name)
 
             dataline = ''
             self.bytecounter = 0
@@ -656,10 +660,10 @@ class L0tx(EmailMessage, PayloadFormat):
             if desc:
                 if self.isWithInstance(bin_msg):
                     desc = desc + '(+ instant.)'
-                print(desc)
+                logger.info(desc)
                 return bin_msg
             else:
-                print('Unrecognized message format')
+                logger.info('Unrecognized message format')
                 return None
                    
 #------------------------------------------------------------------------------
@@ -677,7 +681,7 @@ def GFP2toDEC(Bytes):
     float
         Decoded value
     '''
-    # print('ValueBytes received ' + str(Bytes))
+    # logger.info('ValueBytes received ' + str(Bytes))
     msb = Bytes[0]
     lsb = Bytes[1]    
     Csign = -2*(msb & 128)/128 + 1
@@ -762,7 +766,7 @@ def parseValue(line, seps):
     try:
         value = line.split(seps)[-1]
     except:
-        print(f'Value not read from line "{line}"')
+        logger.info(f'Value not read from line "{line}"')
         value = None
     return value
 
@@ -790,8 +794,8 @@ def getMail(mail_server, last_uid=1):
     new_uids = data[0].decode()
     # drop the last_uid (it has already been processed)
     new_uids = new_uids.replace(str(last_uid), '')
-    print('Newest UID: %s' % new_uids.split(' ')[-1])
-    # print('new UIDs: %s' % new_uids)
+    logger.info('Newest UID: %s' % new_uids.split(' ')[-1])
+    # logger.info('new UIDs: %s' % new_uids)
 
     # Yield mails
     for message_uid in messages:
@@ -799,7 +803,7 @@ def getMail(mail_server, last_uid=1):
         # SEARCH command *always* returns at least the most
         # recent message, even if it has already been synced
         if int(message_uid) > last_uid:
-            print(f'\nFetching mail {message_uid.decode()}')
+            logger.info(f'\nFetching mail {message_uid.decode()}')
             result, data = mail_server.uid('fetch', message_uid, '(RFC822)')
             
             # Yield raw mail body
@@ -868,7 +872,7 @@ def findDuplicates(lines):
     '''
     unique_lines = list(set(lines))
     duplicates_count = len(lines) - len(unique_lines)
-    print(f'{duplicates_count} duplicates found')   
+    logger.info(f'{duplicates_count} duplicates found')
     return unique_lines
 
 def sortLines(in_file, out_file, replace_unsorted=True):                       #Formerly called sorter.py
@@ -883,7 +887,7 @@ def sortLines(in_file, out_file, replace_unsorted=True):                       #
     replace_unsorted : bool, optional
         Flag to replace unsorted files with sorted files. The default is True.
     '''
-    print(f'\nSorting {in_file}')
+    logger.info(f'\nSorting {in_file}')
     
     # Open input file and read lines
     with open(in_file) as in_f:
@@ -932,7 +936,7 @@ def addTail(in_file, out_dir, aws_name, header_names='', lines_limit=100):
     with open(out_pn, 'w') as out_f:
         #out_f.write(headers)
         out_f.writelines(tail) 
-        print(f'Tails file written to {out_pn}')
+        logger.info(f'Tails file written to {out_pn}')
 
 def isModified(filename, time_threshold=1):
     '''Return flag denoting if file is modified within a certain timeframe
