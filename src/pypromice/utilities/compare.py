@@ -184,6 +184,7 @@ def format_report_md(report: Dict[str, Any]) -> str:
                  "made to the dataset from your PR " +
                  "then please check this report and " +
                  "update your branch accordingly.")
+    lines.append("")
 
     # Missing variables
     lines.append("## Variables missing in ds1\n")
