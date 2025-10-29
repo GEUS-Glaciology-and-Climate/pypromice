@@ -40,7 +40,7 @@ setuptools.setup(
 #    extras_require={'postprocess': ['eccodes','scikit-learn>=1.1.0']},
     entry_points={
     'console_scripts': [
-        'get_l0tx = pypromice.tx.get_l0tx:get_l0tx',
+        'get_l0tx = pypromice.tx.get_l0tx:main',
         'join_l2 = pypromice.pipeline.join_l2:main',
         'join_l3 = pypromice.pipeline.join_l3:main',
         'get_l2 = pypromice.pipeline.get_l2:main',
