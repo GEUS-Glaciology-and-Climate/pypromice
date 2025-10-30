@@ -36,7 +36,21 @@ setuptools.setup(
         "pypromice.io.bufr": ["positions_seed.csv"],
         "pypromice.resources": ["file_attributes.csv", "variable_aliases_GC-Net.csv", "variables.csv"]
     },
-    install_requires=['numpy~=1.23', 'pandas>=1.5.0', 'xarray>=2022.6.0', 'toml', 'scipy>=1.9.0', 'Bottleneck', 'netcdf4', 'eccodes', 'scikit-learn>=1.1.0'],
+    install_requires=["Bottleneck",
+                      "eccodes",
+                      "google-api-python-client",
+                      "google-auth",
+                      "google-auth-oauthlib",
+                      "google-auth-httplib2",
+                      "netcdf4",
+                      "numpy~=1.23",
+                      "pandas>=1.5.0",
+                      "scikit-learn>=1.1.0",
+                      "scipy>=1.9.0",
+                      "toml",
+                      "xarray>=2022.6.0",
+                      ],
+
 #    extras_require={'postprocess': ['eccodes','scikit-learn>=1.1.0']},
     entry_points={
     'console_scripts': [
