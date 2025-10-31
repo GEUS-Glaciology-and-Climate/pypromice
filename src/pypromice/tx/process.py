@@ -1,56 +1,48 @@
 """
-This is a draft of a script to decode Iridium messages received via email.
-It is not fully functional and need more functionality to be added and logging.
+Script to decode Iridium messages received via email using IMAP or Gmail REST API.
+Supports fetching by date and caching emails locally.
 """
 from email.message import Message
 from pathlib import Path
-
-from pypromice.tx.email_client.gmail_client import GmailClient
-from pypromice.tx.email_parsing import iridium
-from pypromice.tx.payload_decoding.payload_decoder import decode_payload
-from datetime import datetime
 import email.parser
 import logging
+from datetime import datetime
 
+from pypromice.tx.email_client.base_gmail_client import BaseGmailClient
+from pypromice.tx.email_client.imap_client import IMAPClient
+from pypromice.tx.email_client.rest_api_client import RestAPIClient
+from pypromice.tx.email_parsing import iridium
+from pypromice.tx.payload_decoding.payload_decoder import decode_payload
+
+from pypromice.tx.email_client.uid_handler import (
+    read_uid_from_file,
+    write_uid_to_file
+)
 
 logger = logging.getLogger(__name__)
 
-def process_mail(email: Message) -> None:
-        # %%
-        # TODO: Consider a wsay to store and cache the emails. It might be relevant to integrate this function to GmailClient
-        iridium_message = iridium.parse_mail(email)
 
-        # %%
-        if "watson" in iridium_message.subject.lower():
-            # Watson payload
-            print("Watson payload is not yet implemented")
-            return
-        elif "gios" in iridium_message.subject.lower():
-            # GIOS payload
-            print("GIOS payload is not yet implemented")
-            return
-        elif iridium_message.payload_bytes[:1].isdigit():
-            # The values representing 0-9 (utf-8) are handled as a special case
-            # where the payload is encoded as ascii
-            print("ASCII payload is not yet implemented")
-            return
-        else:
-            # Binary payload
-            # TODO: Use the time_of_session and imei number to determine the station id and column names
-            decoded_data = decode_payload(iridium_message.payload_bytes)
+def process_mail(email_msg: Message) -> None:
+    """Parse and decode Iridium email message."""
+    iridium_message = iridium.parse_mail(email_msg)
 
-            print(decoded_data)
+    subject = iridium_message.subject.lower()
+    if "watson" in subject:
+        print("Watson payload is not yet implemented")
+        return
+    elif "gios" in subject:
+        print("GIOS payload is not yet implemented")
+        return
+    elif iridium_message.payload_bytes[:1].isdigit():
+        print("ASCII payload is not yet implemented")
+        return
+    else:
+        decoded_data = decode_payload(iridium_message.payload_bytes)
+        print(decoded_data)
 
-def main(mail_client: GmailClient):
-    for mail in mail_client.fetch_new_mails():
-        try:
-            process_mail(mail)
-        except Exception as e:
-            print(f"Failed to process mail: {e}")
-            continue
 
-# %%
 class MailBucket:
+    """Simple cache for storing fetched emails on disk."""
 
     def __init__(self, root_dir: Path):
         self.root_dir = root_dir
@@ -58,11 +50,10 @@ class MailBucket:
         self.parser = email.parser.Parser()
 
     def _get_path(self, uid: str) -> Path:
-        return self.root_dir.joinpath(f"{uid}.msg")
+        return self.root_dir / f"{uid}.msg"
 
     def __contains__(self, uid: str):
         return self._get_path(uid).exists()
-
 
     def get(self, uid: str) -> Message:
         if uid not in self:
@@ -72,7 +63,7 @@ class MailBucket:
 
     def set(self, uid: str, value: Message):
         if not isinstance(value, Message):
-            raise ValueError(f"Value must be an instance of email.message.Message, got {type(value)}")
+            raise ValueError(f"Value must be an email.message.Message, got {type(value)}")
         with self._get_path(uid).open("w") as fp:
             fp.write(value.as_string())
 
@@ -82,61 +73,62 @@ class MailBucket:
     def __setitem__(self, uid: str, value: Message):
         self.set(uid, value)
 
-# %%
+
+def fetch_and_cache_messages(mail_client: BaseGmailClient, mail_bucket: MailBucket, date: datetime) -> list[Message]:
+    """Fetch new messages from client since the given date and store in bucket."""
+    messages = []
+    message_ids = mail_client.uids_by_date(date)
+
+    for message_id in message_ids:
+        if message_id not in mail_bucket:
+            msg = mail_client.fetch_message(message_id)
+            mail_bucket[message_id] = msg
+        else:
+            msg = mail_bucket[message_id]
+        messages.append(msg)
+    return messages
 
 
 if __name__ == "__main__":
-    # %%
-    # Example usage
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    # %%
-
-    credentials_dir = Path("/Users/maclu/work/aws-operational-processing/credentials")
-    accounts_path = credentials_dir.joinpath("accounts.ini")
-    credentials_path = credentials_dir.joinpath("credentials.ini")
-
-    last_uid_path = Path("/Users/maclu/data/aws-l0/tx/last_aws_uid.ini")
-    with last_uid_path.open("r") as last_uid_f:
-        last_uid = int(last_uid_f.readline())
-
-    mail_client = GmailClient.from_config(accounts_path, credentials_path)
-
-    # %%
-    email_cache_root = Path("/Users/maclu/data/aws-cache/mails")
+    # User configuration
+    client_type = "imap"  # or "rest"
+    email_cache_root = Path("/data/aws-cache/mails")
     email_cache_root.mkdir(parents=True, exist_ok=True)
+    last_uid_path = Path("last_aws_uid.ini")
+    start_date = datetime(2025, 1, 1)  # fetch messages since this date
+
+    # ----------------- Initialize mail client -----------------
+    if client_type == "imap":
+        mail_client = IMAPClient(server="imap.gmail.com",
+                                 port=993,
+                                 account="your_email@gmail.com",
+                                 password="your_password"
+                                 )
+    elif client_type == "rest":
+        mail_client = RestAPIClient(token_file="/path/to/token.json")
+    else:
+        raise RuntimeError(f"Unknown client type: {client_type}")
+
     mail_bucket = MailBucket(email_cache_root)
+    # ----------------------------------------------------------
 
-    # %%
-    self = mail_client
-    last_uid = 1
+    # Fetch messages
+    messages = fetch_and_cache_messages(mail_client, mail_bucket, start_date)
+    logger.info(f"Fetched {len(messages)} messages since {start_date.date()}")
 
-    message_ids = self.uids_by_date(date=datetime(2025, 1, 1))
+    # Process messages
+    for msg in messages:
+        try:
+            process_mail(msg)
+        except Exception as e:
+            logger.error(f"Failed to process mail: {e}")
+            continue
 
-    message_ids_missing = [uid for uid in message_ids if uid not in mail_bucket]
-    for message in mail_client.fetch_mails(message_ids_missing):
-        mail_bucket[message.uid] = message
+    # Update last UID
+    if messages:
+        new_last_uid = max(getattr(m, "uid", getattr(m, "message_id", 0)) for m in messages)
+        write_uid_to_file(new_last_uid, last_uid_path)
 
-
-    messages = list(self.fetch_mails(message_ids))
-
-    message_id_mapping = dict(zip(message_ids, messages))
-
-    for id, message in message_id_mapping.items():
-        with email_cache_root.joinpath(f"{id}.msg").open("w") as fp:
-            fp.write(message.as_string())
-
-
-
-    uid = message_ids[312]
-    m0 = message_id_mapping[uid]
-    m1 = mail_bucket[uid]
-
-
-    iridium.parse_mail(m0) == iridium.parse_mail(m1)
-
-    # %%
-    # mail_client.last_uid = last_uid
-    # main(mail_client)
-
-    # logger.info("Processing completed.")
+    logger.info("Processing completed.")

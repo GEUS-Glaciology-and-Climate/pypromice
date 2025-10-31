@@ -7,17 +7,14 @@ class BaseGmailClient(ABC):
 
     @abstractmethod
     def iter_messages_since(self, last_uid: int) -> Iterator[email.message.Message]:
-        """Yield messages since the given UID/historyId."""
         pass
 
     @abstractmethod
     def fetch_message(self, uid: int | str) -> email.message.Message:
-        """Fetch a single message by UID/historyId."""
         pass
 
     @abstractmethod
     def get_latest_uid(self) -> int:
-        """Return the latest UID/historyId in the mailbox."""
         pass
 
     @abstractmethod
@@ -26,4 +23,9 @@ class BaseGmailClient(ABC):
 
     @abstractmethod
     def write_uid_to_file(self, uid: int, uid_file: str):
+        pass
+
+    @abstractmethod
+    def uids_by_date(self, date) -> list[str]:
+        """Return list of message UIDs (or IDs) for emails on or after the given date."""
         pass
