@@ -1,4 +1,5 @@
 import email.parser
+from datetime import datetime
 import imaplib
 import logging
 from mailbox import Message
@@ -70,13 +71,8 @@ class IMAPClient(BaseGmailClient):
     def new_uids(self, last_uid: str) -> List[str]:
         return self._imap_search_uids(f"(UID {int(last_uid)+1}:*)")
 
-    def read_uid_from_file(self, uid_file: str) -> int:
-        if not os.path.exists(uid_file):
-            raise RuntimeError(f"UID file {uid_file} not found.")
-        with open(uid_file) as f:
-            uid = f.readline().strip()
-        return int(uid)
+    def uids_by_date(self, date: datetime) -> list[str]:
+        """Return UIDs for messages since the given date."""
+        date_str = date.strftime("%d-%b-%Y")  # e.g., "01-Jan-2025"
+        return self._imap_search_uids(f'(SINCE "{date_str}")')
 
-    def write_uid_to_file(self, uid: int, uid_file: str):
-        with open(uid_file, 'w') as f:
-            f.write(str(uid))

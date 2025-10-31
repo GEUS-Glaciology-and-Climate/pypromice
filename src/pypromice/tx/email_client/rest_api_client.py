@@ -3,6 +3,7 @@ import base64
 import email
 import logging
 from typing import Iterator, List
+from datetime import datetime
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -76,6 +77,13 @@ class RestAPIClient(BaseGmailClient):
         ).execute()
         raw_bytes = base64.urlsafe_b64decode(raw_msg['raw'])
         return email.message_from_bytes(raw_bytes)
+
+    def uids_by_date(self, date: datetime) -> list[str]:
+        """Return message IDs for emails since the given date."""
+        query = f"after:{int(date.timestamp())}"  # Gmail API uses UNIX timestamps in seconds
+        results = self.service.users().messages().list(userId='me', q=query).execute()
+        messages = results.get('messages', [])
+        return [msg['id'] for msg in messages]
 
     def get_latest_history_id(self) -> int:
         results = self.service.users().messages().list(userId='me', maxResults=1).execute()
