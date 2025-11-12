@@ -404,15 +404,25 @@ def build_station_list(config_folder: str, target_station_site: str, folder_l3: 
         if not os.path.isfile(filepath):
             continue
 
+        # list of the variables that are used to say that a station is active
+        tested_vars = ["t_u", "dsr"]
+        valid_times = []
+
         with xr.open_dataset(filepath) as ds:
             ds.load()
-            first_valid_tu = ds["t_u"].dropna("time").time.min().values
-            last_valid_tu = ds["t_u"].dropna("time").time.max().values
-            first_valid_dsr = ds["dsr"].dropna("time").time.min().values
-            last_valid_dsr = ds["dsr"].dropna("time").time.max().values
+            for var in tested_vars:
+                if var in ds:
+                    da = ds[var].dropna("time")
+                    if da.time.size > 0:
+                        valid_times.append((da.time.min().values, da.time.max().values))
 
-        first_valid = min(first_valid_tu, first_valid_dsr)
-        last_valid = max(last_valid_tu, last_valid_dsr)
+        if valid_times:
+            first_valid = np.nanmin([t[0] for t in valid_times])
+            last_valid = np.nanmax([t[1] for t in valid_times])
+        else:
+            first_valid = np.datetime64("NaT")
+            last_valid = np.datetime64("NaT")
+
 
         merged_blocks.append({
             "stid": stid,
@@ -479,7 +489,6 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
                     filepath = os.path.join(folder_glaciobasis, stid.replace('_hist','') + ".csv")
                     isNead = False
 
-        # import pdb; pdb.set_trace()
         if not os.path.isfile(filepath):
             logger.error(
                 f"\n***\n{stid} listed as a station but not found in {folder_l3}, {folder_gcnet} nor {folder_glaciobasis}\n***"
@@ -606,7 +615,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
             attrs = l3_merged.attrs
             # merging by time block
             t_start = l3.time.values[0]
-            t_stop = l3_merged.time.isel(time=0) - pd.Timedelta(minutes=5),
+            t_stop = l3_merged.time.isel(time=0) - pd.Timedelta(minutes=5)
             # subtracting 5 minutes to make sure timestamps are not added once
             # from l3 and once from l3_merge
 
