@@ -1,0 +1,6 @@
+GEUS_name,old_name
+wspd_u,wspd
+rh_u_wrt_ice_or_water,rh_u_cor
+cc,cloud_cover
+z_boom_u,z_boom
+z_ice_surf,ice_ablation

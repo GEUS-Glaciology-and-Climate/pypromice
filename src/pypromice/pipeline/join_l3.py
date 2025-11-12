@@ -50,6 +50,13 @@ def parse_arguments_joinl3(debug_args=None):
         required=False,
         help="Path to GC-Net historical L1 folder",
     )
+    parser.add_argument(
+        "-gb",
+        "--folder_glaciobasis",
+        type=str,
+        required=False,
+        help="Path to GlacioBasis historical data folder",
+    )
 
     parser.add_argument(
         "-o",
@@ -148,7 +155,7 @@ def readNead(infile):
         ds = df.to_xarray()
         ds.attrs = meta
 
-        # renaming variables
+        # renaming variables if GC-Net
         file_path = pypromice.resources.DEFAULT_VARIABLES_ALIASES_GCNET_PATH
         var_name = pd.read_csv(file_path)
         var_name = var_name.set_index("old_name").GEUS_name
@@ -202,6 +209,28 @@ def loadArr(infile, isNead):
             df = pd.read_csv(infile)
             df["time"] = pd.to_datetime(df["time"]).dt.tz_localize(None)
             df = df.set_index("time")
+
+            # renaming variables if GlacioBasis
+            file_path = pypromice.resources.DEFAULT_VARIABLES_ALIASES_GLACIOBASIS_PATH
+            var_name = pd.read_csv(file_path)
+            var_name = var_name.set_index("old_name").GEUS_name
+            msk = [v for v in var_name.index if v in df.columns]
+            var_name = var_name.loc[msk].to_dict()
+
+            # postprocessing for glaciobasis
+            if 'ice_ablation' in df.columns:
+                df['ice_ablation'] = (-df['ice_ablation'].diff()).cumsum()
+                df['z_surf_combined'] = df['ice_ablation'].values
+
+            # renaming variables to the GEUS names
+            df = df.rename(columns=var_name)
+
+            # variables always dropped from the historical GC-Net files
+            # could be move to the config files at some point
+            standard_vars_to_drop = ["I"]
+
+            # Drop the variables if they are present in the dataset
+            df = df.drop(columns=[var for var in standard_vars_to_drop if var in df.columns])
             ds = xr.Dataset.from_dataframe(df)
 
     elif infile.split(".")[-1].lower() in "nc":
@@ -367,7 +396,8 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
     return station_info_list
 
 
-def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, metadata):
+def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, metadata,
+            folder_glaciobasis="undefined_folder_glaciobasis"):
     # Get the list of station information dictionaries associated with the given site
     list_station_info = build_station_list(config_folder, site)
 
@@ -376,20 +406,23 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, me
     for station_info in list_station_info:
         stid = station_info["stid"]
 
+
         filepath = os.path.join(folder_l3, stid, stid + "_hour.nc")
         isNead = False
-        if station_info["project"].lower() in ["historical gc-net"]:
-            filepath = os.path.join(folder_gcnet, stid + ".csv")
-            isNead = True
+
+        if not os.path.isfile(filepath):
+            if station_info["project"].lower() in ["historical gc-net"]:
+                filepath = os.path.join(folder_gcnet, stid + ".csv")
+                isNead = True
+            if folder_glaciobasis is not None:
+                if station_info["project"].lower() in ["glaciobasis"]:
+                    filepath = os.path.join(folder_glaciobasis, stid.replace('_hist','') + ".csv")
+                    isNead = False
+
+        # import pdb; pdb.set_trace()
         if not os.path.isfile(filepath):
             logger.error(
-                "\n***\n"
-                + stid
-                + " was listed as station but could not be found in "
-                + folder_l3
-                + " nor "
-                + folder_gcnet
-                + "\n***"
+                f"\n***\n{stid} listed as a station but not found in {folder_l3}, {folder_gcnet} nor {folder_glaciobasis}\n***"
             )
             continue
 
@@ -553,6 +586,7 @@ def main():
         args.site,
         args.folder_l3,
         args.folder_gcnet,
+        args.folder_glaciobasis,
         args.outpath,
         args.variables,
         args.metadata,
