@@ -91,7 +91,7 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
 
         for var in ['z_boom_u', 'z_boom_l', 'z_stake',
                     'z_boom_cor_u', 'z_boom_cor_l', 'z_stake_cor',
-                    'z_pt', 'z_pt_cor']+['t_i_'+i for i in range(1,12)]:
+                    'z_pt', 'z_pt_cor']+[f't_i_{i}' for i in range(1,12)]:
             if var not in df_h.columns:
                 continue
 
