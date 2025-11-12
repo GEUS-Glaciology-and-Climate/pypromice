@@ -295,7 +295,9 @@ def process_surface_height(ds, data_adjustments_dir, station_config={}):
         z_ice_surf.loc[gaps_to_fill] = df_filled.loc[gaps_to_fill]
 
         # bringing the variable into the dataset
-        ds['z_ice_surf'] = ('time', z_ice_surf.values)
+        ds['z_ice_surf'] = post_processing_z_ice_surf(ds.z_ice_surf,
+                                              ds.z_surf_combined,
+                                              ds.z_surf_2_adj)
 
         ds['z_surf_combined'] = np.maximum(ds['z_surf_combined'], ds['z_ice_surf'])
         ds['snow_height'] = np.maximum(0, ds['z_surf_combined'] - ds['z_ice_surf'])
@@ -942,6 +944,65 @@ def get_thermistor_depth(df_in, site, station_config):
 
     return df_in[depth_cols_name + ['t_i_10m']]
 
+
+def post_processing_z_ice_surf(z_ice_surf, z_surf_combined, z_surf_2_adj):
+    # here we make sure that the periods where both z_stake and z_pt are
+    # missing are also missing in z_ice_surf
+    msk = z_ice_surf.notnull() | z_surf_2_adj.notnull()
+
+    # Calculate rolling minimum for ice surface height and snow height
+    ts_interpolated = np.minimum(
+        xr.where(z_ice_surf.notnull(),  z_ice_surf, z_surf_combined),
+        z_surf_combined).to_series().resample('h').interpolate(limit=72)
+
+    if len(ts_interpolated)>24*7:
+        # Apply the rolling window with median calculation
+        z_ice_surf = (ts_interpolated
+                      .rolling('14D', center=True, min_periods=1)
+                      .median())
+        # Overprint the first and last 7 days with interpolated values
+        # because of edge effect of rolling windows
+        z_ice_surf.iloc[:24*7] = (ts_interpolated.iloc[:24*7]
+                                  .rolling('1D', center=True, min_periods=1)
+                                  .median().values)
+        z_ice_surf.iloc[-24*7:] = (ts_interpolated.iloc[-24*7:]
+                                   .rolling('1D', center=True, min_periods=1)
+                                   .median().values)
+    else:
+        z_ice_surf = (ts_interpolated
+                                   .rolling('1D', center=True, min_periods=1)
+                                   .median())
+
+    z_ice_surf = z_ice_surf.loc[z_surf_combined.time]
+    # here we make sure that the periods where both z_stake and z_pt are
+    # missing are also missing in z_ice_surf
+    z_ice_surf = z_ice_surf.where(msk)
+
+    # taking running minimum to get ice
+    z_ice_surf = z_ice_surf.cummin()
+
+    # filling gaps only if they are less than a year long and if values on both
+    # sides are less than 0.01 m appart
+
+    # Forward and backward fill to identify bounds of gaps
+    df_filled = z_ice_surf.fillna(method='ffill').fillna(method='bfill')
+
+    # Identify gaps and their start and end dates
+    gaps = pd.DataFrame(index=z_ice_surf[z_ice_surf.isna()].index)
+    gaps['prev_value'] = df_filled.shift(1)
+    gaps['next_value'] = df_filled.shift(-1)
+    gaps['gap_start'] = gaps.index.to_series().shift(1)
+    gaps['gap_end'] = gaps.index.to_series().shift(-1)
+    gaps['gap_duration'] = (gaps['gap_end'] - gaps['gap_start']).dt.days
+    gaps['value_diff'] = (gaps['next_value'] - gaps['prev_value']).abs()
+
+    # Determine which gaps to fill
+    mask = (gaps['gap_duration'] < 365) & (gaps['value_diff'] < 0.01)
+    gaps_to_fill = gaps[mask].index
+
+    # Fill gaps in the original Series
+    z_ice_surf.loc[gaps_to_fill] = df_filled.loc[gaps_to_fill]
+    return z_ice_surf
 
 def interpolate_temperature(dates, depth_cor, temp, depth=10, min_diff_to_depth=2,
     kind="quadratic"):
