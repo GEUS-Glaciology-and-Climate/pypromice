@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from configparser import ConfigParser
 from glob import glob
 
-from pypromice.tx import getMail
+from pypromice.tx.tx import getMail
 
 
 def parse_arguments_msg():

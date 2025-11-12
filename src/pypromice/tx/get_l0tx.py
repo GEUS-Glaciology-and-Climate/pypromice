@@ -13,13 +13,13 @@ from datetime import datetime, timedelta
 from glob import glob
 
 from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
-from pypromice.tx import getMail, L0tx, sortLines, isModified
+from pypromice.tx.tx import getMail, L0tx, sortLines, isModified
 
 logger = logging.getLogger(__name__)
 
 
 def parse_arguments_l0tx():
-    parser = ArgumentParser(description="AWS L0 transmission fetcher")       
+    parser = ArgumentParser(description="AWS L0 transmission fetcher")
     parser.add_argument('-a', '--account', type=str, required=True, help='Email account .ini file')
     parser.add_argument('-p', '--password', type=str, required=True, help='Email credentials .ini file')
     parser.add_argument('-c', '--config', type=str, required=True, help='Directory to config .toml files')
