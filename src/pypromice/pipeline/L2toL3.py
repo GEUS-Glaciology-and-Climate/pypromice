@@ -68,7 +68,7 @@ def toL3(L2,
             z_T_u = ds['z_boom_cor_u'].copy() - 0.1  # Get height of thermometer
 
             if not is_bedrock:
-                SHF_h_u, LHF_h_u= calculate_tubulent_heat_fluxes(T_0, T_h_u, Tsurf_h, WS_h_u,            # Calculate latent and sensible heat fluxes
+                SHF_h_u, LHF_h_u= calculate_turbulent_heat_fluxes(T_0, T_h_u, Tsurf_h, WS_h_u,            # Calculate latent and sensible heat fluxes
                                                 z_WS_u, z_T_u, q_h_u, p_h_u)
 
                 ds['dshf_u'] = (('time'), SHF_h_u.data)
@@ -104,7 +104,7 @@ def toL3(L2,
                 WS_h_l = ds['wspd_l'].copy()
 
                 if not is_bedrock:
-                    SHF_h_l, LHF_h_l= calculate_tubulent_heat_fluxes(T_0, T_h_l, Tsurf_h, WS_h_l, # Calculate latent and sensible heat fluxes
+                    SHF_h_l, LHF_h_l= calculate_turbulent_heat_fluxes(T_0, T_h_l, Tsurf_h, WS_h_l, # Calculate latent and sensible heat fluxes
                                                     z_WS_l, z_T_l, q_h_l, p_h_l)
 
                     ds['dshf_l'] = (('time'), SHF_h_l.data)
@@ -1085,7 +1085,7 @@ def piecewise_smoothing_and_interpolation(data_series, breaks):
     df_all = df_all[~df_all.index.duplicated(keep='last')]
     return df_all.values
 
-def calculate_tubulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h,
+def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h,
                 kappa=0.4, WS_lim=1., z_0=0.001, g=9.82, es_0=6.1071, eps=0.622,
                 gamma=16., L_sub=2.83e6, L_dif_max=0.01, c_pd=1005., aa=0.7,
                 bb=0.75, cc=5., dd=0.35, R_d=287.05):
