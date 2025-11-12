@@ -168,7 +168,7 @@ def readNead(infile):
 
         # renaming variables to the GEUS names
         ds = ds.rename(var_name)
-                
+
         # variables always dropped from the historical GC-Net files
         # could be move to the config files at some point
         standard_vars_to_drop = [
@@ -216,19 +216,19 @@ def loadArr(infile, isNead):
             var_name = var_name.set_index("old_name").GEUS_name
             msk = [v for v in var_name.index if v in df.columns]
             var_name = var_name.loc[msk].to_dict()
-            
+
             # postprocessing for glaciobasis
             if 'ice_ablation' in df.columns:
                 df['ice_ablation'] = (-df['ice_ablation'].diff()).cumsum()
                 df['z_surf_combined'] = df['ice_ablation'].values
-                
+
             # renaming variables to the GEUS names
             df = df.rename(columns=var_name)
 
             # variables always dropped from the historical GC-Net files
             # could be move to the config files at some point
             standard_vars_to_drop = ["I"]
-    
+
             # Drop the variables if they are present in the dataset
             df = df.drop(columns=[var for var in standard_vars_to_drop if var in df.columns])
             ds = xr.Dataset.from_dataframe(df)
@@ -407,26 +407,20 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, folder_glaciobasis, ou
 
         filepath = os.path.join(folder_l3, stid, stid + "_hour.nc")
         isNead = False
-        
+
         if not os.path.isfile(filepath):
             if station_info["project"].lower() in ["historical gc-net"]:
                 filepath = os.path.join(folder_gcnet, stid + ".csv")
                 isNead = True
-            
+
             if station_info["project"].lower() in ["glaciobasis"]:
-                filepath = os.path.join(folder_glaciobasis, stid + ".csv")
+                filepath = os.path.join(folder_glaciobasis, stid.replace('_hist','') + ".csv")
                 isNead = False
 
         # import pdb; pdb.set_trace()
         if not os.path.isfile(filepath):
             logger.error(
-                "\n***\n"
-                + stid
-                + " was listed as station but could not be found in "
-                + folder_l3
-                + " nor "
-                + folder_gcnet
-                + "\n***"
+                f"\n***\n{stid} listed as a station but not found in {folder_l3} nor {folder_gcnet}\n***"
             )
             continue
 
