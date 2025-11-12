@@ -396,7 +396,8 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
     return station_info_list
 
 
-def join_l3(config_folder, site, folder_l3, folder_gcnet, folder_glaciobasis, outpath, variables, metadata):
+def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, metadata,
+            folder_glaciobasis="undefined_folder_glaciobasis"):
     # Get the list of station information dictionaries associated with the given site
     list_station_info = build_station_list(config_folder, site)
 
@@ -405,6 +406,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, folder_glaciobasis, ou
     for station_info in list_station_info:
         stid = station_info["stid"]
 
+
         filepath = os.path.join(folder_l3, stid, stid + "_hour.nc")
         isNead = False
 
@@ -412,15 +414,15 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet, folder_glaciobasis, ou
             if station_info["project"].lower() in ["historical gc-net"]:
                 filepath = os.path.join(folder_gcnet, stid + ".csv")
                 isNead = True
-
-            if station_info["project"].lower() in ["glaciobasis"]:
-                filepath = os.path.join(folder_glaciobasis, stid.replace('_hist','') + ".csv")
-                isNead = False
+            if folder_glaciobasis is not None:
+                if station_info["project"].lower() in ["glaciobasis"]:
+                    filepath = os.path.join(folder_glaciobasis, stid.replace('_hist','') + ".csv")
+                    isNead = False
 
         # import pdb; pdb.set_trace()
         if not os.path.isfile(filepath):
             logger.error(
-                f"\n***\n{stid} listed as a station but not found in {folder_l3} nor {folder_gcnet}\n***"
+                f"\n***\n{stid} listed as a station but not found in {folder_l3}, {folder_gcnet} nor {folder_glaciobasis}\n***"
             )
             continue
 
