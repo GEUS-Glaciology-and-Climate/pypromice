@@ -7,6 +7,7 @@ import numpy as np
 import xarray as xr
 from sklearn.linear_model import LinearRegression
 from scipy.interpolate import interp1d
+from scipy import stats
 from pathlib import Path
 from pypromice.core.qc.github_data_issues import adjustData
 import logging
@@ -1061,22 +1062,22 @@ def piecewise_smoothing_and_interpolation(data_series, breaks):
     _inferred_series = []
     for i in range(len(breaks) - 1):
         df = data_series.loc[slice(breaks[i], breaks[i+1])]
-
-        # Drop NaN values and calculate the number of segments based on valid data
         df_valid = df.dropna()
+
         if df_valid.shape[0] > 2:
-            # Fit linear regression model to the valid data range
-            x = pd.to_numeric(df_valid.index).values.reshape(-1, 1)
-            y = df_valid.values.reshape(-1, 1)
+            x = pd.to_numeric(df_valid.index).values
+            y = df_valid.values
 
-            model = LinearRegression()
-            model.fit(x, y)
+            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
 
-            # Predict using the model for the entire segment range
-            x_pred = pd.to_numeric(df.index).values.reshape(-1, 1)
+            if p_value < 0.05:
+                y_pred = intercept + slope * pd.to_numeric(df.index).values
+            else:
+                y_pred = np.full(len(df), np.mean(y))
 
-            y_pred = model.predict(x_pred)
-            df =  pd.Series(y_pred.flatten(), index=df.index)
+            df = pd.Series(y_pred, index=df.index)
+
+        _inferred_series.append(df)
         # adds to list the predicted values for the current segment
         _inferred_series.append(df)
 
