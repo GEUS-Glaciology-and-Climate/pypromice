@@ -125,6 +125,12 @@ def toL1(L0: xr.DataArray,
         logger.info(f'Wind speed correction applied to wspd_i based on factor of {ds.attrs["wind_i_coef"]}')
         ds['wspd_i'] = wind.correct_wind_speed(ds['wspd_i'],
                                                ds.attrs['wind_i_coef'])
+                                               
+    # FRE has a special encoding/calibration for pressure, it is the only station that has attribute FRE_pressure_decoding = 1
+    if hasattr(ds, 'FRE_pressure_decoding'):
+        logger.info('Special decoding of air pressure')
+        ds['p_u'] = (ds['p_u']+1000)*0.2 + 600
+
 
     # Handle cases where the bedrock attribute is incorrectly set
     if not 'bedrock' in ds.attrs:
