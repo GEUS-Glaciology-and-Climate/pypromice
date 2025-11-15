@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 from pypromice.core.variables.pressure_transducer_depth import correct_and_calculate_depth
 from pypromice.core.qc.value_clipping import clip_values
-from pypromice.core.variables import (wind, 
-                                      air_temperature, 
-                                      gps, 
+from pypromice.core.variables import (wind,
+                                      air_temperature,
+                                      gps,
                                       radiation,
                                       station_boom_height,
                                       station_pose,
@@ -131,6 +131,10 @@ def toL1(L0: xr.DataArray,
         logger.info('Special decoding of air pressure')
         ds['p_u'] = (ds['p_u']+1000)*0.2 + 600
 
+
+    if hasattr(ds, 'FRE_pressure_decoding'):
+        logger.info('Special decoding of air pressure')
+        ds['p_u'] = (ds['p_u']+1000)*0.2 + 600
 
     # Handle cases where the bedrock attribute is incorrectly set
     if not 'bedrock' in ds.attrs:
