@@ -396,8 +396,9 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
     return station_info_list
 
 
-def join_l3(config_folder, site, folder_l3, folder_gcnet, outpath, variables, metadata,
-            folder_glaciobasis="undefined_folder_glaciobasis"):
+def join_l3(config_folder, site, folder_l3, folder_gcnet, 
+            folder_glaciobasis, outpath, variables, metadata
+            ):
     # Get the list of station information dictionaries associated with the given site
     list_station_info = build_station_list(config_folder, site)
 
