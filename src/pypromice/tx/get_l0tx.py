@@ -91,6 +91,10 @@ def get_l0tx():
 
  	# Grab new emails
     result, data = mail_server.select(mailbox='"[Gmail]/All Mail"', readonly=True)
+    if result.upper() != "OK":
+        print("[Gmail]/All Mail box not available. Switching to INBOX")
+        result, data = mail_server.select(mailbox='"INBOX"', readonly=True)
+        
     print('mailbox contains %s messages' %data[0])
 
  	#----------------------------------
