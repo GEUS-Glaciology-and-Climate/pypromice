@@ -13,8 +13,10 @@ def parse_arguments_l0tx():
     parser = ArgumentParser(description="AWS L0 transmission fetcher")       
     parser.add_argument('-a', '--account', default=None, type=str, required=True, help='Email account .ini file')
     parser.add_argument('-p', '--password', default=None, type=str, required=True, help='Email credentials .ini file')                      
-    parser.add_argument('-o', '--outpath', default=None, type=str, required=False, help='Path where to write output (if given)')   
-    parser.add_argument('-c', '--config', default=None, type=str, required=True, help='Directory to config .toml files')         
+    parser.add_argument('-c', '--config', default=None, type=str, required=True, help='Directory to config .toml files')  
+    
+    parser.add_argument('-o', '--outpath', default=None, type=str, required=False, help='Path where to write output (if given)')          
+    parser.add_argument('-i', '--inbox', default='"[Gmail]/All Mail"', type=str, required=False, help='Mail inbox folder name')  
     parser.add_argument('-n', '--name', default='*', type=str, required=False, help='name of the AWS to be fetched')         
     parser.add_argument('-f', '--formats', default=None, type=str, required=False, help='Path to Payload format .csv file')
     parser.add_argument('-t', '--types', default=None, type=str, required=False, help='Path to Payload type .csv file')  	
@@ -90,12 +92,12 @@ def get_l0tx():
         raise Exception('Not able to sign in!')
 
  	# Grab new emails
-    result, data = mail_server.select(mailbox='"[Gmail]/All Mail"', readonly=True)
+    result, data = mail_server.select(mailbox=args.inbox, readonly=True)
     if result.upper() != "OK":
-        print("[Gmail]/All Mail box not available. Switching to INBOX")
-        result, data = mail_server.select(mailbox='"INBOX"', readonly=True)
+        print(f"{args.inbox} mailbox not available")
+        raise Exception('Unrecognised mailbox name!')
         
-    print('mailbox contains %s messages' %data[0])
+    print(f'{args.inbox} mailbox contains {data[0]} messages')
 
  	#----------------------------------
 
