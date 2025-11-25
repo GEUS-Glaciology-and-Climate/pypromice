@@ -35,6 +35,9 @@ dependencies = [
     "scikit-learn>=1.1.0",
 ]
 
+#[project.optional-dependencies]
+#bufr = ["eccodes"]
+
 [project.urls]
 Homepage = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
 Documentation = "https://pypromice.readthedocs.io"
