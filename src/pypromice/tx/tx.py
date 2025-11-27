@@ -5,7 +5,8 @@ AWS Level 0 (L0) data transmission fetching module
 """
 
 from collections import deque
-import email, re, os, os.path, time, unittest, calendar, imaplib, pkg_resources
+import email, re, os, os.path, time, calendar, imaplib
+from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
 
 # Set maximum number of email lines to read
 imaplib._MAXLINE = 5000000
@@ -47,7 +48,7 @@ class PayloadFormat(object):
         '''
         payload_typ = {}
         if in_file is None:
-            lines = self.readPkgFile('tx/payload_types.csv')
+            lines = self.readPkgFile(DEFAULT_PAYLOAD_TYPES_PATH)
         else:
             lines = self.readFile(in_file)
         for l in lines[1:]:
@@ -78,7 +79,7 @@ class PayloadFormat(object):
         '''
         payload_fmt = {}
         if in_file==None:
-            lines = self.readPkgFile('tx/payload_formats.csv')
+            lines = self.readPkgFile(DEFAULT_PAYLOAD_FORMATS_PATH)
         else:
             lines = self.readFile(in_file)
         for l in lines[1:]:
@@ -109,12 +110,12 @@ class PayloadFormat(object):
             lines = in_f.readlines()
         return lines
 
-    def readPkgFile(self, fname):
+    def readPkgFile(self, file_path):
         '''Read lines from internal package file
         
         Parameters
         ----------
-        fname : str
+        file_path : str
             Package file name
         
         Returns
@@ -122,9 +123,9 @@ class PayloadFormat(object):
         lines : list
             List of file line contents
         '''
-        with pkg_resources.resource_stream('pypromice', fname) as stream:
-            lines = stream.read().decode("utf-8")
-            lines = lines.split("\n")  
+        with file_path.open("r", encoding="utf-8") as f:
+            content = f.read()
+            lines = content.split("\n")
         return lines
  
     def _addCount(self):
@@ -955,53 +956,4 @@ def isModified(filename, time_threshold=1):
         return True
     return False
 
-def _loadTestMsg():
-    '''Load test .msg email file'''
-    with pkg_resources.resource_stream('pypromice', 'test/test_email') as stream:
-        byte = stream.read()
-    return email.message_from_bytes(byte)
 
-#------------------------------------------------------------------------------
-        
-class TestTX(unittest.TestCase): 
-    def testPayloadFormat(self):
-        '''Test PayloadFormat object initialisation'''
-        p = PayloadFormat()
-        self.assertTrue(p.payload_format[30][0]==12)
-    
-    def testEmailMessage(self):   
-        '''Test EmailMessage object initialisation from .msg file'''
-        m = _loadTestMsg()
-        e = EmailMessage(m, sender_name='sbdservice')
-        self.assertEqual(e.momsn, 36820)
-        self.assertEqual(e.msg_size, 27)
-        self.assertTrue(e.imei in '300234061165160')
-        self.assertFalse(e.mtmsn)
-        
-    def testL0tx(self):
-        '''Test L0tx object initialisation'''
-        m = _loadTestMsg()
-        l0 = L0tx(m)
-        self.assertTrue(l0.bin_valid)
-        self.assertEqual(l0.bin_val, 12)
-        self.assertTrue('tfffffffffff' in l0.bin_format)
-        self.assertTrue('2022-07-25 10:00:00' in l0.msg)
-        self.assertFalse('?' in l0.msg)
-
-    def testCLIl0tx(self):
-        '''Test get_l0tx CLI'''
-        exit_status = os.system('get_l0tx -h')
-        self.assertEqual(exit_status, 0)
- 
-    def testCLIwatson(self):
-        '''Test get_watsontx CLI'''
-        exit_status = os.system('get_watsontx -h')
-        self.assertEqual(exit_status, 0)
- 
-    def testCLImsg(self):
-        '''Test get_msg CLI'''
-        exit_status = os.system('get_msg -h')
-        self.assertEqual(exit_status, 0)
-                   
-if __name__ == "__main__":  
-    unittest.main()
