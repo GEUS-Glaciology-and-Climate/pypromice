@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pypromice"
-version = "1.8.2"
-description = "PROMICE/GC-Net data processing toolbox"
+version = "1.8.3"
+description = "PROMICE/GC-Net toolbox for processing data from automatic weather stations"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
@@ -45,16 +45,15 @@ Documentation = "https://pypromice.readthedocs.io"
 "Source Code" = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
 
 [project.scripts]
-get_l0tx = "pypromice.tx.get_l0tx:get_l0tx"
 join_l2 = "pypromice.pipeline.join_l2:main"
 join_l3 = "pypromice.pipeline.join_l3:main"
 get_l2 = "pypromice.pipeline.get_l2:main"
 get_l2tol3 = "pypromice.pipeline.get_l2tol3:main"
 make_metadata_csv = "pypromice.io.make_metadata_csv:main"
-get_watsontx = "pypromice.tx.get_watsontx:get_watsontx"
 get_bufr = "pypromice.io.bufr.get_bufr:main"
 create_bufr_files = "pypromice.io.bufr.create_bufr_files:main"
 bufr_to_csv = "pypromice.pio.bufr.bufr_to_csv:main"
+get_l0tx = "pypromice.tx.get_l0tx:get_l0tx"
 get_msg = "pypromice.tx.get_msg:get_msg"
 
 [tool.setuptools]
@@ -64,8 +63,11 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-"pypromice.tx" = ["payload_formats.csv", "payload_types.csv"]
 "pypromice.core.qc.percentiles" = ["thresholds.csv"]
 "pypromice.io.bufr" = ["positions_seed.csv"]
-"pypromice.resources" = ["file_attributes.csv", "variable_aliases_GC-Net.csv", "variables.csv"]
+"pypromice.resources" = ["file_attributes.csv",
+                        "payload_formats.csv",
+                        "payload_types.csv",
+                        "variable_aliases_GC-Net.csv",
+                        "variables.csv"]
 
