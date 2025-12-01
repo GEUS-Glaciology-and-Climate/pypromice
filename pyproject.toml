@@ -65,9 +65,5 @@ where = ["src"]
 [tool.setuptools.package-data]
 "pypromice.core.qc.percentiles" = ["thresholds.csv"]
 "pypromice.io.bufr" = ["positions_seed.csv"]
-"pypromice.resources" = ["file_attributes.csv",
-                        "payload_formats.csv",
-                        "payload_types.csv",
-                        "variable_aliases_GC-Net.csv",
-                        "variables.csv"]
+"pypromice.resources" = ["*.csv"]
 
