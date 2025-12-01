@@ -16,7 +16,7 @@ imaplib._MAXLINE = 5000000
 class PayloadFormat(object):
     '''Payload formatter object'''
     
-    def __init__(self, format_file=DEFAULT_PAYLOAD_FORMATS_PATH, type_file=DEFAULT_PAYLOAD_TYPES_PATH):
+    def __init__(self, format_file, type_file):
         '''Payload formatter initialisation
         
         Parameters
@@ -341,7 +341,10 @@ class EmailMessage(SbdMessage):                                                #
 class L0tx(EmailMessage, PayloadFormat):
     '''L0 tranmission data object'''
 
-    def __init__(self, email_msg, format_file=None, type_file=None, 
+    def __init__(self, 
+                 email_msg, 
+                 format_file=DEFAULT_PAYLOAD_FORMATS_PATH, 
+                 type_file=DEFAULT_PAYLOAD_TYPES_PATH
                  sender_name=['sbdservice', 'ice@geus.dk','emailrelay@konectgds.com'],    #TODO don't hardcode sender names?
                  UnixEpochOffset=calendar.timegm((1970,1,1,0,0,0,0,1,0)),
                  CRbasicEpochOffset = calendar.timegm((1990,1,1,0,0,0,0,1,0))):
