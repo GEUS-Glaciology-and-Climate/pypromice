@@ -7,6 +7,7 @@ from glob import glob
 from datetime import datetime, timedelta
 
 from pypromice.tx import getMail, L0tx, sortLines, isModified
+from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
 
 
 def parse_arguments_l0tx():
@@ -16,10 +17,10 @@ def parse_arguments_l0tx():
     parser.add_argument('-c', '--config', default=None, type=str, required=True, help='Directory to config .toml files')  
     
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, help='Path where to write output (if given)')          
-    parser.add_argument('-i', '--inbox', default='"[Gmail]/All Mail"', type=str, required=False, help='Mail inbox folder name')  
+    parser.add_argument('-i', '--inbox', default="[Gmail]/All Mail", type=str, required=False, help='Mail inbox folder name')  
     parser.add_argument('-n', '--name', default='*', type=str, required=False, help='name of the AWS to be fetched')         
-    parser.add_argument('-f', '--formats', default=None, type=str, required=False, help='Path to Payload format .csv file')
-    parser.add_argument('-t', '--types', default=None, type=str, required=False, help='Path to Payload type .csv file')  	
+    parser.add_argument('-f', '--formats', default=DEFAULT_PAYLOAD_FORMATS_PATH, type=str, required=False, help='Path to Payload format .csv file')
+    parser.add_argument('-t', '--types', default=DEFAULT_PAYLOAD_TYPES_PATH, type=str, required=False, help='Path to Payload type .csv file')  	
     parser.add_argument('-u', '--uid', default=None, type=str, required=True, help='Last AWS uid .ini file')	        
     args = parser.parse_args()
     return args
@@ -45,7 +46,7 @@ def get_l0tx():
  	#----------------------------------
 
  	# Set payload formatter paths
-    formatter_file = args.formats
+    formatter_file = args.formats        
     type_file = args.types
 
  	# Set credential paths

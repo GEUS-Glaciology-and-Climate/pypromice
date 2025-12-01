@@ -16,7 +16,7 @@ imaplib._MAXLINE = 5000000
 class PayloadFormat(object):
     '''Payload formatter object'''
     
-    def __init__(self, format_file=None, type_file=None):
+    def __init__(self, format_file, type_file):
         '''Payload formatter initialisation
         
         Parameters
@@ -47,10 +47,7 @@ class PayloadFormat(object):
             Payload type information
         '''
         payload_typ = {}
-        if in_file is None:
-            lines = self.readPkgFile(DEFAULT_PAYLOAD_TYPES_PATH)
-        else:
-            lines = self.readFile(in_file)
+        lines = self.readFile(in_file)
         for l in lines[1:]:
             info = l.split(delimiter)
             try:
@@ -78,10 +75,7 @@ class PayloadFormat(object):
             Payload format information
         '''
         payload_fmt = {}
-        if in_file==None:
-            lines = self.readPkgFile(DEFAULT_PAYLOAD_FORMATS_PATH)
-        else:
-            lines = self.readFile(in_file)
+        lines = self.readFile(in_file)
         for l in lines[1:]:
             info = l.split(delimiter)  
             try:                     
@@ -108,24 +102,6 @@ class PayloadFormat(object):
         '''
         with open(in_file, 'r') as in_f:
             lines = in_f.readlines()
-        return lines
-
-    def readPkgFile(self, file_path):
-        '''Read lines from internal package file
-        
-        Parameters
-        ----------
-        file_path : str
-            Package file name
-        
-        Returns
-        -------
-        lines : list
-            List of file line contents
-        '''
-        with file_path.open("r", encoding="utf-8") as f:
-            content = f.read()
-            lines = content.split("\n")
         return lines
  
     def _addCount(self):
@@ -365,7 +341,10 @@ class EmailMessage(SbdMessage):                                                #
 class L0tx(EmailMessage, PayloadFormat):
     '''L0 tranmission data object'''
 
-    def __init__(self, email_msg, format_file=None, type_file=None, 
+    def __init__(self, 
+                 email_msg, 
+                 format_file=DEFAULT_PAYLOAD_FORMATS_PATH, 
+                 type_file=DEFAULT_PAYLOAD_TYPES_PATH,
                  sender_name=['sbdservice', 'ice@geus.dk','emailrelay@konectgds.com'],    #TODO don't hardcode sender names?
                  UnixEpochOffset=calendar.timegm((1970,1,1,0,0,0,0,1,0)),
                  CRbasicEpochOffset = calendar.timegm((1990,1,1,0,0,0,0,1,0))):
