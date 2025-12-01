@@ -16,7 +16,7 @@ def parse_arguments_msg():
                         required=False, help='Path where to write output')    	
     parser.add_argument('-u', '--uid', default=None, type=str, 
                         required=False, help='Last uid, defined from files if not given')	
-    parser.add_argument('-m', '--mailbox', default='"[Gmail]/All Mail"', 
+    parser.add_argument('-m', '--mailbox', default="[Gmail]/All Mail", 
                         type=str, required=False, help='Mailbox folder to collect messages from')        
     args = parser.parse_args()
     return args
@@ -76,7 +76,7 @@ def get_msg():
         raise
 
     # Grab new emails
-    result, data = mail_server.select(mailbox='"[Gmail]/All Mail"', readonly=True)
+    result, data = mail_server.select(mailbox=args.mailbox, readonly=True)
     print('mailbox contains %s messages' %data[0])
 
 
