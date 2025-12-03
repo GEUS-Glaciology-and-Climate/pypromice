@@ -5,7 +5,6 @@ import os, imaplib, email, toml, re, unittest
 from glob import glob
 from datetime import datetime, timedelta
 import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
