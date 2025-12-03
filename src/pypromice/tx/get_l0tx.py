@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 from argparse import ArgumentParser
-
 from configparser import ConfigParser
 import os, imaplib, email, toml, re, unittest
 from glob import glob
 from datetime import datetime, timedelta
+import logging
+logger = logging.getLogger(__name__)
+
 
 from pypromice.tx import getMail, L0tx, sortLines, isModified
 from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
@@ -12,16 +14,15 @@ from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TY
 
 def parse_arguments_l0tx():
     parser = ArgumentParser(description="AWS L0 transmission fetcher")       
-    parser.add_argument('-a', '--account', default=None, type=str, required=True, help='Email account .ini file')
-    parser.add_argument('-p', '--password', default=None, type=str, required=True, help='Email credentials .ini file')                      
-    parser.add_argument('-c', '--config', default=None, type=str, required=True, help='Directory to config .toml files')  
+    parser.add_argument('-a', '--account', type=str, required=True, help='Email account .ini file')
+    parser.add_argument('-p', '--password', type=str, required=True, help='Email credentials .ini file')                      
+    parser.add_argument('-c', '--config', type=str, required=True, help='Directory to config .toml files')  
+    parser.add_argument('-u', '--uid', type=str, required=True, help='Last AWS uid .ini file')
     
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False, help='Path where to write output (if given)')          
-    parser.add_argument('-i', '--inbox', default="[Gmail]/All Mail", type=str, required=False, help='Mail inbox folder name')  
     parser.add_argument('-n', '--name', default='*', type=str, required=False, help='name of the AWS to be fetched')         
     parser.add_argument('-f', '--formats', default=DEFAULT_PAYLOAD_FORMATS_PATH, type=str, required=False, help='Path to Payload format .csv file')
-    parser.add_argument('-t', '--types', default=DEFAULT_PAYLOAD_TYPES_PATH, type=str, required=False, help='Path to Payload type .csv file')  	
-    parser.add_argument('-u', '--uid', default=None, type=str, required=True, help='Last AWS uid .ini file')	        
+    parser.add_argument('-t', '--types', default=DEFAULT_PAYLOAD_TYPES_PATH, type=str, required=False, help='Path to Payload type .csv file')  		        
     args = parser.parse_args()
     return args
 
@@ -77,28 +78,37 @@ def get_l0tx():
  	# Get credentials
     account = accounts_ini.get('aws', 'account')
     server = accounts_ini.get('aws', 'server')
+    try:
+        inbox = accounts_ini.get('aws', 'mailbox')
+    except:
+        logger.info("Mailbox folder input not provided")
+        if "gmail" in server.lower():
+            inbox='"[Gmail]/All Mail"'
+        else:
+            inbox="INBOX"
+        logger.info("Defaulting to %s" %(inbox))
     port = accounts_ini.getint('aws', 'port')    
     password = accounts_ini.get('aws', 'password')
     if not password:
         password = input('password for AWS email account: ')
-    print('AWS data from server %s, account %s' %(server, account))
+    logger.info('AWS data from server %s, account %s' %(server, account))
 
  	#----------------------------------
 
  	# Log in to email server
     mail_server = imaplib.IMAP4_SSL(server, port)
     typ, accountDetails = mail_server.login(account, password) 	
-    if typ != 'OK':
-        print('Not able to sign in!')
+    if typ.upper() != 'OK':
+        logger.error('Not able to sign in!')
         raise Exception('Not able to sign in!')
 
  	# Grab new emails
-    result, data = mail_server.select(mailbox=args.inbox, readonly=True)
+    result, data = mail_server.select(mailbox=inbox, readonly=True)
     if result.upper() != "OK":
-        print(f"{args.inbox} mailbox not available")
+        logger.error(f"{inbox} mailbox not available")
         raise Exception('Unrecognised mailbox name!')
         
-    print(f'{args.inbox} mailbox contains {data[0]} messages')
+    logger.info(f'{inbox} mailbox contains {data[0]} messages')
 
  	#----------------------------------
 
@@ -116,7 +126,7 @@ def get_l0tx():
         for k,v in aws.items():
             if str(imei) in k:
                 if v[0] < d < v[1]:
-                    print(f'AWS message for {k}.txt, {d.strftime("%Y-%m-%d %H:%M:%S")}')
+                    logger.info(f'AWS message for {k}.txt, {d.strftime("%Y-%m-%d %H:%M:%S")}')
                     l0 = L0tx(message, formatter_file, type_file)
 
                     if l0.msg:
@@ -128,12 +138,12 @@ def get_l0tx():
                             lon = body[0].split()[lon_idx]
                             # append lat and lon to end of message
                             l0.msg = l0.msg + ',{},{}'.format(lat,lon)
-                        print(l0.msg)
+                        logger.info(l0.msg)
 
                         if out_dir is not None:
                             out_fn = str(k) + str(l0.flag) + '.txt'
                             out_path = os.sep.join((out_dir, out_fn))
-                            print(f'Writing to {out_fn}')
+                            logger.info(f'Writing to {out_fn}')
                         		
                             with open(out_path, mode='a') as out_f:
                                 out_f.write(l0.msg + '\n')    
@@ -166,7 +176,7 @@ def get_l0tx():
 
  	# Close mail server if open
     if 'mail_server' in locals():
-        print(f'\nClosing {account}')
+        logger.info(f'\nClosing {account}')
         mail_server.close()
         resp = mail_server.logout()
         assert resp[0].upper() == 'BYE'
@@ -178,9 +188,9 @@ def get_l0tx():
         with open(uid_file, 'w') as last_uid_f:
             last_uid_f.write(str(uid))
     except:
-        print(f'Could not write last uid {uid} to {uid_file}')
+        logger.warning(f'Could not write last uid {uid} to {uid_file}')
     
-    print('Finished')
+    logger.info('Finished')
 
 if __name__ == "__main__":  
     get_l0tx()
