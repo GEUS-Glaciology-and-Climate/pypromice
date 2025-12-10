@@ -1,8 +1,10 @@
 import email.parser
+from configparser import ConfigParser
 from datetime import datetime
 import imaplib
 import logging
 from mailbox import Message
+from pathlib import Path
 from typing import Iterator, List, Tuple
 
 from base_gmail_client import BaseGmailClient
@@ -12,7 +14,16 @@ logger = logging.getLogger(__name__)
 class IMAPClient(BaseGmailClient):
     """Gmail IMAP client implementing BaseGmailClient interface."""
 
-    def __init__(self, server: str, port: int, account: str, password: str, chunk_size: int = 50):
+    def __init__(
+            self,
+            server: str,
+            port: int,
+            account: str,
+            mailbox: str,
+            password: str,
+            chunk_size: int = 50,
+    ):
+        logger.info("AWS data from server %s, account %s" % (server, account))
         self.chunk_size = chunk_size
         self.parser = email.parser.Parser()
         logger.info("Logging in to IMAP server...")
@@ -22,13 +33,39 @@ class IMAPClient(BaseGmailClient):
             raise RuntimeError("Unable to sign in!")
         logger.info("Logged in to IMAP server.")
 
-        self.mail_server.select(mailbox='"[Gmail]/All Mail"', readonly=True)
+        result, data = self.mail_server.select(mailbox=mailbox, readonly=True)
+        if result.upper() != "OK":
+            logger.error(f"{mailbox} mailbox not available")
+            raise Exception("Unrecognised mailbox name!")
+
+        logger.info(f"{mailbox} mailbox contains {data[0]} messages")
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.mail_server.logout()
+        logger.info("Logging out of IMAP server...")
+        self.mail_server.close()
+        resp = self.mail_server.logout()
+        assert resp[0].upper() == "BYE"
+
+    @classmethod
+    def from_config_files(cls, *config_files: Path|str) -> 'IMAPClient':
+        """
+        Initialize IMAPClient from a list of config file paths.
+        Expects config files with [imap] section and keys: server, port, account, mailbox, password.
+        The config files are parsed in order, with later values overriding earlier ones.
+        """
+        parser = ConfigParser()
+        parser.read([str(p) for p in config_files])
+
+        return cls(
+            server=parser.get("aws", "server"),
+            port=parser.getint("aws", "port"),
+            account=parser.get("aws", "account"),
+            mailbox=parser.get("aws", "mailbox"),
+            password=parser.get("aws", "password"),
+        )
 
     # ---------------- BaseGmailClient methods ----------------
     def iter_messages_since(self, last_uid: int) -> Iterator[Tuple[int, email.message.Message]]:

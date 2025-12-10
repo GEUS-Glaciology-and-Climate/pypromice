@@ -1,44 +1,44 @@
 #!/usr/bin/env python
 
-import email
-import imaplib
 import logging
 import os
 import re
 import sys
-import toml
 from argparse import ArgumentParser
-from configparser import ConfigParser
 from datetime import datetime, timedelta
 from glob import glob
 
+import toml
+
 from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
-from pypromice.tx.tx import getMail, L0tx, sortLines, isModified
+from pypromice.tx.email_client.base_gmail_client import BaseGmailClient
+from pypromice.tx.email_client.imap_client import IMAPClient
+from pypromice.tx.tx import L0tx, sortLines, isModified
 
 logger = logging.getLogger(__name__)
 
 
 def parse_arguments_l0tx():
     parser = ArgumentParser(description="AWS L0 transmission fetcher")
-    parser.add_argument('-a', '--account', type=str, required=True, help='Email account .ini file')
-    parser.add_argument('-p', '--password', type=str, required=True, help='Email credentials .ini file')
-    parser.add_argument('-c', '--config', type=str, required=True, help='Directory to config .toml files')
-    parser.add_argument('-u', '--uid', type=str, required=True, help='Last AWS uid .ini file')
+    parser.add_argument('--account', '-a', type=str, required=True, help='Email account .ini file')
+    parser.add_argument('--password', '-p', type=str, required=True, help='Email credentials .ini file')
+    parser.add_argument('--config', '-c', type=str, required=True, help='Directory to config .toml files')
+    parser.add_argument('--uid', '-u', type=str, required=True, help='Last AWS uid .ini file')
 
-    parser.add_argument('-o', '--outpath', default=None, type=str, required=False, help='Path where to write output (if given)')
-    parser.add_argument('-n', '--name', default='*', type=str, required=False, help='name of the AWS to be fetched')
-    parser.add_argument('-f', '--formats', default=DEFAULT_PAYLOAD_FORMATS_PATH, type=str, required=False, help='Path to Payload format .csv file')
-    parser.add_argument('-t', '--types', default=DEFAULT_PAYLOAD_TYPES_PATH, type=str, required=False, help='Path to Payload type .csv file')
+    parser.add_argument('--outpath', '-o', default=None, type=str, required=False, help='Path where to write output (if given)')
+    parser.add_argument('--awsname','--name', '-n', default='*', type=str, required=False, help='name of the AWS to be fetched')
+    parser.add_argument('--formats', '-f',default=DEFAULT_PAYLOAD_FORMATS_PATH, type=str, required=False, help='Path to Payload format .csv file')
+    parser.add_argument('--types', '-t',default=DEFAULT_PAYLOAD_TYPES_PATH, type=str, required=False, help='Path to Payload type .csv file')
     args = parser.parse_args()
     return args
 
 
 def get_l0tx():
     args = parse_arguments_l0tx()
-    toml_path = os.path.join(args.config, args.name + ".toml")
+    toml_path = os.path.join(args.config, args.awsname + ".toml")
     toml_list = glob(toml_path)
 
-    aws = {}
+    aws_modem_configurations = {}
     for t in toml_list:
         conf = toml.load(t)
         count = 1
@@ -46,29 +46,25 @@ def get_l0tx():
             name = str(conf["station_id"]) + "_" + m[0] + "_" + str(count)
 
             if len(m[1:]) == 1:
-                aws[name] = [
+                aws_modem_configurations[name] = [
                     datetime.strptime(m[1], "%Y-%m-%d %H:%M:%S"),
                     datetime.now() + timedelta(hours=3),
                 ]
             elif len(m[1:]) == 2:
-                aws[name] = [
+                aws_modem_configurations[name] = [
                     datetime.strptime(m[1], "%Y-%m-%d %H:%M:%S"),
                     datetime.strptime(m[2], "%Y-%m-%d %H:%M:%S"),
                 ]
             count += 1
 
     # ----------------------------------
-
     # Set payload formatter paths
     formatter_file = args.formats
     type_file = args.types
-
     # Set credential paths
     accounts_file = args.account
     credentials_file = args.password
-
     # Set last aws uid path
-    # last_uid = 1000000
     uid_file = args.uid
 
     # Set output file directory
@@ -78,50 +74,50 @@ def get_l0tx():
             os.mkdir(out_dir)
 
     # ----------------------------------
-
-    # Define accounts and credentials ini file paths
-    accounts_ini = ConfigParser()
-    accounts_ini.read_file(open(accounts_file))
-    accounts_ini.read(credentials_file)
-
     # Get last email uid
     with open(uid_file, "r") as last_uid_f:
         last_uid = int(last_uid_f.readline())
 
-    # Get credentials
-    account = accounts_ini.get("aws", "account")
-    server = accounts_ini.get("aws", "server")
-    inbox = accounts_ini.get("aws", "mailbox")
-    port = accounts_ini.getint("aws", "port")
-    password = accounts_ini.get("aws", "password")
-    if not password:
-        password = input("password for AWS email account: ")
-    logger.info("AWS data from server %s, account %s" % (server, account))
-
     # ----------------------------------
+    with IMAPClient.from_config_files(
+        accounts_file,
+        credentials_file,
+    ) as mail_client:
+        uid = fetch(
+            uid=last_uid,
+            mail_client=mail_client,
+            out_dir=out_dir,
+            formatter_file=formatter_file,
+            type_file=type_file,
+            aws_modem_configurations=aws_modem_configurations,
+            aws_name=args.awsname,
+        )
 
-    # Log in to email server
-    mail_server = imaplib.IMAP4_SSL(server, port)
-    logger.info(f'\nLogging in to {account}')
-    typ, accountDetails = mail_server.login(account, password)
-    if typ.upper() != 'OK':
-        logger.error('Not able to sign in!')
-        raise Exception('Not able to sign in!')
-
-    # Grab new emails
-    result, data = mail_server.select(mailbox=inbox, readonly=True)
-    if result.upper() != "OK":
-        logger.error(f"{inbox} mailbox not available")
-        raise Exception('Unrecognised mailbox name!')
-
-    logger.info(f'{inbox} mailbox contains {data[0]} messages')
-
+    # Write last aws uid to ini file
     # ----------------------------------
+    try:
+        with open(uid_file, "w") as last_uid_f:
+            last_uid_f.write(str(uid))
+    except:
+        logger.warning(f'Could not write last uid {uid} to {uid_file}')
 
+    logger.info("Finished")
+
+
+def fetch(
+        uid,
+        mail_client: BaseGmailClient,
+        out_dir,
+        formatter_file,
+        type_file,
+        aws_modem_configurations,
+        aws_name='*',
+):
     # Get L0tx datalines from email transmissions
-    uid = last_uid  # initialize using last_uid. If no messages, this will be written back to ini file.
-    for uid, mail in getMail(mail_server, last_uid=last_uid):
-        message = email.message_from_string(mail)
+    #for uid, mail in getMail(mail_server, last_uid=last_uid):
+    #    message = email.message_from_string(mail)
+
+    for uid, message in mail_client.iter_messages_since(uid):
 
         try:
             (imei,) = re.findall(r"[0-9]+", message.get_all("subject")[0])
@@ -131,14 +127,14 @@ def get_l0tx():
         except:
             imei = None
             d = None
-        for k, v in aws.items():
+        for k, v in aws_modem_configurations.items():
             if str(imei) in k:
                 if v[0] < d < v[1]:
                     logger.info(
                         f'AWS message for {k}.txt, {d.strftime("%Y-%m-%d %H:%M:%S")}'
                     )
                     l0 = L0tx(message, formatter_file, type_file)
-
+                    
                     if l0.msg:
                         body = l0.getEmailBody()
                         if "Lat" in body[0] and "Long" in body[0]:
@@ -165,7 +161,7 @@ def get_l0tx():
         # Find modified files (within the last hour)
         mfiles = [
             mfile
-            for mfile in glob(out_dir + "/" + args.name + "*.txt")
+            for mfile in glob(out_dir + "/" + aws_name + "*.txt")
             if isModified(mfile, 1)
         ]
 
@@ -178,33 +174,8 @@ def get_l0tx():
             out_pn = os.sep.join((in_dirn, out_fn))
             sortLines(f, out_pn)
 
-        ## Generate tail files
-        # out_dir = os.sep.join((in_dirn, 'tails'))
-        # if not os.path.exists(out_dir):
-        #     os.mkdir(out_dir)
-        # imei = in_fn.split('.txt')[0].split('_')[1].split('-')[0]
-        # name = imei_names.get(imei, 'UNKNOWN')
-        # addTail(f, out_dir, name)
-
     # ---------------------------------
-
-    # Close mail server if open
-    if "mail_server" in locals():
-        logger.info(f"\nClosing {account}")
-        mail_server.close()
-        resp = mail_server.logout()
-        assert resp[0].upper() == "BYE"
-
-    # ---------------------------------
-
-    # Write last aws uid to ini file
-    try:
-        with open(uid_file, "w") as last_uid_f:
-            last_uid_f.write(str(uid))
-    except:
-        logger.warning(f'Could not write last uid {uid} to {uid_file}')
-
-    logger.info("Finished")
+    return uid
 
 
 if __name__ == "__main__":
