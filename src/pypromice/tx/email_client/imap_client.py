@@ -3,7 +3,7 @@ from datetime import datetime
 import imaplib
 import logging
 from mailbox import Message
-from typing import Iterator, List
+from typing import Iterator, List, Tuple
 
 from base_gmail_client import BaseGmailClient
 
@@ -31,16 +31,16 @@ class IMAPClient(BaseGmailClient):
         self.mail_server.logout()
 
     # ---------------- BaseGmailClient methods ----------------
-    def iter_messages_since(self, last_uid: int) -> Iterator[Message]:
+    def iter_messages_since(self, last_uid: int) -> Iterator[Tuple[int, email.message.Message]]:
         """Yield messages whose UID is greater than last_uid."""
-        uids = self.new_uids(str(last_uid))
+        uids = self.new_uids(last_uid)
         if not uids:
             return
         yield from self.fetch_mails(uids)
 
-    def fetch_message(self, uid: str) -> Message:
+    def fetch_message(self, uid: int) -> Message:
         """Fetch a single email by UID."""
-        return self.fetch_mails([uid]).__next__()
+        return self.fetch_mails([uid]).__next__()[1]
 
     def get_latest_uid(self) -> int:
         """Return the highest UID currently in mailbox."""
@@ -51,16 +51,16 @@ class IMAPClient(BaseGmailClient):
         return max(uids) if uids else 0
 
     # ---------------- IMAP utilities ----------------
-    def fetch_mails(self, uids: list[str]) -> Iterator[Message]:
+    def fetch_mails(self, uids: list[int]) -> Iterator[Tuple[int, email.message.Message]]:
         for i in range(0, len(uids), self.chunk_size):
             chunk = uids[i:i + self.chunk_size]
-            uid_string = ','.join(chunk)
+            uid_string = ','.join(map(str, chunk))
             status, data = self.mail_server.uid("fetch", uid_string, "(RFC822)")
             if status != "OK":
                 raise RuntimeError("Failed to fetch mail chunk")
-            for part in data:
+            for uid, part in zip(chunk, data):
                 if isinstance(part, tuple):
-                    yield self.parser.parsestr(part[1].decode())
+                    yield uid, self.parser.parsestr(part[1].decode())
 
     def _imap_search_uids(self, search_string: str) -> List[str]:
         status, data = self.mail_server.uid("search", None, search_string)
@@ -68,11 +68,10 @@ class IMAPClient(BaseGmailClient):
             return []
         return data[0].decode().split()
 
-    def new_uids(self, last_uid: str) -> List[str]:
-        return self._imap_search_uids(f"(UID {int(last_uid)+1}:*)")
+    def new_uids(self, last_uid: int) -> List[int]:
+        return list(map(int, self._imap_search_uids(f"(UID {last_uid+1}:*)")))
 
     def uids_by_date(self, date: datetime) -> list[str]:
         """Return UIDs for messages since the given date."""
         date_str = date.strftime("%d-%b-%Y")  # e.g., "01-Jan-2025"
         return self._imap_search_uids(f'(SINCE "{date_str}")')
-
