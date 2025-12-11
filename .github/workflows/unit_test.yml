@@ -29,7 +29,7 @@ jobs:
           python3 -m pip install Bottleneck 
           python3 -m pip install --upgrade setuptools
           cd $GITHUB_WORKSPACE
-          pip install . 
+          pip install ".[all]"
       - name: Run unit tests
         shell: bash
         run: |

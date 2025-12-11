@@ -24,7 +24,7 @@ jobs:
           pip install wheel
           python3 -m pip install --upgrade setuptools
           cd $GITHUB_WORKSPACE/main
-          pip install .  
+          pip install ".[all]"
       - name: Clone AWS Level 0 data repo for testing
         env:
           GITLAB_TOKEN : ${{ secrets.GITLAB_TOKEN }}
