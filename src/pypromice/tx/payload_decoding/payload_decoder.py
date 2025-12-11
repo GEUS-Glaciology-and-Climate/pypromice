@@ -25,6 +25,7 @@ CR_BASIC_EPOCH_OFFSET = datetime(1990, 1, 1, 0, 0, 0, 0).timestamp()
 
 
 class DecodeError(Exception):
+    """Decoding error exception object"""
 
     def __init__(
         self,
@@ -62,7 +63,18 @@ class DecodeError(Exception):
 
 
 def parse_gfp2(buffer: bytes) -> float:
-    """Two-byte floating point decoder"""
+    """Two-byte floating point decoder
+
+    Parameters
+    ----------
+    buffer : bytes
+        List of two values
+
+    Returns
+    -------
+    float
+        Decoded value
+    """
     if len(buffer) < 2:
         raise ValueError("Buffer too short for gfp2 decoding")
 
@@ -90,7 +102,7 @@ def parse_gli4(buffer: bytes) -> int:
     ----------
     buffer : bytes
         List of four values
-
+        
     Returns
     -------
     float
@@ -103,6 +115,21 @@ def parse_gli4(buffer: bytes) -> int:
 
 
 def determine_payload_format(payload: bytes, payload_formats_path: Path) -> str:
+    """Determine payload format from lookup table, based on the first byte in
+    the payload
+
+    Parameters
+    ----------
+    payload : bytes
+        Payload message
+    payload_formats_path : Path
+        File path to payload formats lookup table
+
+    Returns
+    -------
+    bin_format : str
+        Binary format of payload
+    """
     payload_formats = pd.read_csv(payload_formats_path, index_col=0)
     payload_formats = payload_formats[payload_formats["flags"].values != "don’t use"]
 
@@ -125,6 +152,20 @@ def determine_payload_format(payload: bytes, payload_formats_path: Path) -> str:
 
 
 def decode(bin_format: str, payload: bytes) -> list:
+    """Decode a payload, based on a pre-defined format identifier
+
+    Parameters
+    ----------
+    bin_format : str
+        Binary payload format identifier
+    payload : bytes
+        Payload message
+
+    Returns
+    -------
+    dataline : list
+        Decoded payload
+    """
     payload_length = len(payload)
     logger.info(f"Decoding payload with format: {bin_format!r}. Payload length: {payload_length}")
     logger.debug(f"Payload: {payload!r}")
