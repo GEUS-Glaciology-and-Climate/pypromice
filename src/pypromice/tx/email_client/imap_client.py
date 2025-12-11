@@ -7,7 +7,7 @@ from mailbox import Message
 from pathlib import Path
 from typing import Iterator, List, Tuple
 
-from base_gmail_client import BaseGmailClient
+from .base_gmail_client import BaseGmailClient
 
 logger = logging.getLogger(__name__)
 
