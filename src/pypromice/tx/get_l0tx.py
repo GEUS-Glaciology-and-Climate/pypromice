@@ -13,7 +13,7 @@ from glob import glob
 import toml
 
 from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
-from pypromice.tx.email_client.base_mail_client import BaseGmailClient
+from pypromice.tx.email_client.base_mail_client import BaseMailClient
 from pypromice.tx.email_client.imap_client import IMAPClient
 from pypromice.tx.tx import L0tx
 
@@ -111,14 +111,14 @@ def get_l0tx():
 
 def fetch_transmission_data(
         uid,
-        mail_client: BaseGmailClient,
+        mail_client: BaseMailClient,
         out_dir,
         formatter_file,
         type_file,
         aws_modem_configurations,
 ):
     """
-    Fetches and processes messages from a Gmail inbox since a given UID, extracts relevant
+    Fetches and processes messages from a mail inbox since a given UID, extracts relevant
     information based on the specified AWS modem configurations, and logs or stores the
     processed data in an output directory.
 
@@ -132,8 +132,8 @@ def fetch_transmission_data(
     ----------
     uid : int
         The unique identifier of the last processed email to start fetching messages from.
-    mail_client : BaseGmailClient
-        An instance of a Gmail client providing access to the inbox and email messages.
+    mail_client : BaseMailClient
+        An instance of a mail client providing access to the inbox and email messages.
     out_dir : str or None
         The path to the directory where processed messages will be written. If None, messages
         are not written to disk.
