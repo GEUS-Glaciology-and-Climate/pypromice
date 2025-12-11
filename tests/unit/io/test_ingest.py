@@ -422,7 +422,7 @@ class L0IngestTestCase(TestCase):
         config["file"] = f.name
         dataset = load_data_file(config)
 
-        self.assertEquals(
+        self.assertEqual(
             dataset.attrs["detected_file_type"],
             "csv_v1",
         )

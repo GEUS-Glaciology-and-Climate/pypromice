@@ -1,2 +1,5 @@
-from importlib.metadata import version
-__version__ = version("pypromice")
+from importlib.metadata import version, PackageNotFoundError
+try:
+    __version__ = version("pypromice")
+except PackageNotFoundError:
+    __version__ = "unknown"
