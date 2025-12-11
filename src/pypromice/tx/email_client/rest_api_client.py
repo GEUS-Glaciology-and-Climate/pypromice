@@ -10,12 +10,12 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.auth.transport.requests import Request
 
-from base_gmail_client import BaseGmailClient
+from base_mail_client import BaseMailClient
 
 logger = logging.getLogger(__name__)
 
-class RestAPIClient(BaseGmailClient):
-    """Gmail REST API client implementing BaseGmailClient interface."""
+class RestAPIClient(BaseMailClient):
+    """Gmail REST API client implementing BaseMailClient interface."""
 
     def __init__(self, token_file: str, scopes: List[str] | None = None):
         self.scopes = scopes or ['https://www.googleapis.com/auth/gmail.readonly']

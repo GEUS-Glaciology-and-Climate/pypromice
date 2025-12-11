@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Iterator, Tuple
 import email
 
-class BaseGmailClient(ABC):
-    """Abstract base class for Gmail clients (IMAP or REST)."""
+class BaseMailClient(ABC):
+    """Abstract base class for Mail clients (IMAP or Gmail REST)."""
 
     @abstractmethod
     def iter_messages_since(self, last_uid: int) -> Iterator[Tuple[int, email.message.Message]]:

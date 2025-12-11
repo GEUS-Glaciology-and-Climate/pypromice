@@ -13,7 +13,7 @@ from glob import glob
 import toml
 
 from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
-from pypromice.tx.email_client.base_gmail_client import BaseGmailClient
+from pypromice.tx.email_client.base_mail_client import BaseGmailClient
 from pypromice.tx.email_client.imap_client import IMAPClient
 from pypromice.tx.tx import L0tx
 

@@ -7,12 +7,12 @@ from mailbox import Message
 from pathlib import Path
 from typing import Iterator, List, Tuple
 
-from .base_gmail_client import BaseGmailClient
+from .base_mail_client import BaseMailClient
 
 logger = logging.getLogger(__name__)
 
-class IMAPClient(BaseGmailClient):
-    """Gmail IMAP client implementing BaseGmailClient interface."""
+class IMAPClient(BaseMailClient):
+    """IMAP client implementing BaseMailClient interface."""
 
     def __init__(
             self,

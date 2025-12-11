@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from unittest.mock import patch, Mock
 
-from pypromice.tx.email_client.base_gmail_client import BaseGmailClient
+from pypromice.tx.email_client.base_mail_client import BaseMailClient
 from pypromice.tx import get_l0tx
 from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
 
@@ -20,7 +20,7 @@ def mock_L0tx():
 def test_fetch_transmission_data(mock_L0tx):
     # Prepare mocks for mail clients and message parsing (L0tx)
     uid = Mock()
-    mail_client = Mock(spec_set=BaseGmailClient)
+    mail_client = Mock(spec_set=BaseMailClient)
     message = Mock()
     message.get_all.side_effect = lambda arg: {
         'subject': ["10042010"],
