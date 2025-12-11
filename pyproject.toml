@@ -33,6 +33,7 @@ dependencies = [
     "netcdf4",
     "eccodes",
     "scikit-learn>=1.1.0",
+    "pytest",
 ]
 
 #[project.optional-dependencies]
