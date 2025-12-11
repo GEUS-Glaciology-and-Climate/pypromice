@@ -4,11 +4,16 @@
 AWS Level 0 (L0) data transmission fetching module
 """
 
-from collections import deque
-import email, re, os, os.path, time, calendar, imaplib
-from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
-
+import calendar
+import email
+import imaplib
 import logging
+import os
+import os.path
+import re
+import time
+
+from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -836,107 +841,5 @@ def readSBD(sbd_file):
     with open(sbd_file, 'rb') as file:
         data = file.readlines()
     return data[0]
-
-def findDuplicates(lines):
-    '''Find duplicates lines in list of strings
-
-    Parameters
-    ---------
-    lines : list
-       List of strings
-
-    Returns
-    -------
-    unique_lines : list
-       List of unique strings
-    '''
-    unique_lines = list(set(lines))
-    duplicates_count = len(lines) - len(unique_lines)
-    logger.info(f'{duplicates_count} duplicates found')
-    return unique_lines
-
-def sortLines(in_file, out_file, replace_unsorted=True):                       #Formerly called sorter.py
-    '''Sort lines in text file
-
-    Parameters
-    ----------
-    in_file : str
-        Input file path
-    out_file : str
-        Output file path
-    replace_unsorted : bool, optional
-        Flag to replace unsorted files with sorted files. The default is True.
-    '''
-    logger.info(f'\nSorting {in_file}')
-
-    # Open input file and read lines
-    with open(in_file) as in_f:
-        lines = in_f.readlines()
-
-    # Remove duplicate lines and sort
-    unique_lines = findDuplicates(lines.copy())
-    unique_lines.sort()
-    if lines != unique_lines:
-        # Write sorted file
-        with open(out_file, 'w') as out_f:
-            # out_f.write(headers)
-            out_f.writelines(unique_lines)
-
-        # Replace input file with new sorted file
-        if replace_unsorted:
-            os.remove(in_file)
-            os.rename(out_file, in_file)
-
-def addTail(in_file, out_dir, aws_name, header_names='', lines_limit=100):
-    '''Generate tails file from L0tx file
-
-    Parameters
-    ----------
-    in_file : str
-        Input L0tx file
-    out_dir : str
-        Output directory for tails file
-    aws_name : str
-        AWS name
-    header_names : str, optional
-        Header names. The default is ''.
-    lines_limit : int, optional
-        Number of lines to append to tails file. The default is 100.
-    '''
-    with open(in_file) as in_f:
-        tail = deque(in_f, lines_limit)
-
-    headers_lines = [l + '\n' for l in header_names.split('\n')]
-    tail = list(set(headers_lines + list(tail)))
-    tail.sort()
-
-    out_fn = '_'.join((aws_name, in_file.split('/')[-1]))
-    out_pn = os.sep.join((out_dir, out_fn))
-
-    with open(out_pn, 'w') as out_f:
-        #out_f.write(headers)
-        out_f.writelines(tail)
-        logger.info(f'Tails file written to {out_pn}')
-
-def isModified(filename, time_threshold=1):
-    '''Return flag denoting if file is modified within a certain timeframe
-
-    Parameters
-    ----------
-    filename : str
-        File path
-    time_threshold : int
-        Time threshold (provided in hours)
-
-    Returns
-    -------
-    bool
-        Flag denoting if modified (True) or not (False)
-    '''
-    delta = time.time() - os.path.getmtime(filename)
-    delta = delta / (60*60)
-    if delta < time_threshold:
-        return True
-    return False
 
 
