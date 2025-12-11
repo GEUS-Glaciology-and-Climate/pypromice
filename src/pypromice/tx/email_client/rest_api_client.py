@@ -5,12 +5,18 @@ import logging
 from typing import Iterator, List
 from datetime import datetime
 
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from google.auth.transport.requests import Request
+try:
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
+    from google.auth.transport.requests import Request
+except ImportError as e:
+    raise ImportError(
+        "The Google API dependencies are missing and required to use this feature.\n\n"
+        "Install them with `pip install pypromice[google]`"
+    ) from e
 
-from base_mail_client import BaseMailClient
+from pypromice.tx.email_client.base_mail_client import BaseMailClient
 
 logger = logging.getLogger(__name__)
 
