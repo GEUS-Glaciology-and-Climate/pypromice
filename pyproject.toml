@@ -31,12 +31,11 @@ dependencies = [
     "scipy>=1.9.0",
     "Bottleneck",
     "netcdf4",
-    "eccodes",
     "scikit-learn>=1.1.0",
 ]
 
-#[project.optional-dependencies]
-#bufr = ["eccodes"]
+[project.optional-dependencies]
+bufr = ["eccodes"]
 
 [project.urls]
 Homepage = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
