@@ -28,7 +28,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install wheel xarray numpy
           python3 -m pip install --upgrade setuptools
-          pip install .
+          pip install .[all]
 
       # Step 4: Run code on test data using PR branch
       - name: Run L0 to L3 processing using PR branch

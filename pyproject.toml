@@ -36,6 +36,9 @@ dependencies = [
 
 [project.optional-dependencies]
 bufr = ["eccodes"]
+all = [
+    "bufr"
+]
 
 [project.urls]
 Homepage = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
