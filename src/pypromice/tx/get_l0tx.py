@@ -230,10 +230,15 @@ def finalize_output_files(aws_name, out_dir):
 
         # Sort L0tx files and add tails
         for f in mfiles:
+            # Sort lines in L0tx file and remove duplicates
+            in_dirn, in_fn = os.path.split(f)
+            out_fn = "sorted_" + in_fn
+            out_pn = os.sep.join((in_dirn, out_fn))
+            sortLines(f, out_pn)
 
 
 def findDuplicates(lines):
-    '''Find duplicates lines in list of strings
+    """Find duplicates lines in list of strings
 
     Parameters
     ---------
@@ -244,7 +249,7 @@ def findDuplicates(lines):
     -------
     unique_lines : list
        List of unique strings
-    '''
+    """
     unique_lines = list(set(lines))
     duplicates_count = len(lines) - len(unique_lines)
     logger.info(f'{duplicates_count} duplicates found')
@@ -252,7 +257,7 @@ def findDuplicates(lines):
 
 
 def sortLines(in_file, out_file, replace_unsorted=True):                       #Formerly called sorter.py
-    '''Sort lines in text file
+    """Sort lines in text file
 
     Parameters
     ----------
@@ -262,7 +267,7 @@ def sortLines(in_file, out_file, replace_unsorted=True):                       #
         Output file path
     replace_unsorted : bool, optional
         Flag to replace unsorted files with sorted files. The default is True.
-    '''
+    """
     logger.info(f'\nSorting {in_file}')
 
     # Open input file and read lines
@@ -285,7 +290,7 @@ def sortLines(in_file, out_file, replace_unsorted=True):                       #
 
 
 def addTail(in_file, out_dir, aws_name, header_names='', lines_limit=100):
-    '''Generate tails file from L0tx file
+    """Generate tails file from L0tx file
 
     Parameters
     ----------
@@ -299,7 +304,7 @@ def addTail(in_file, out_dir, aws_name, header_names='', lines_limit=100):
         Header names. The default is ''.
     lines_limit : int, optional
         Number of lines to append to tails file. The default is 100.
-    '''
+    """
     with open(in_file) as in_f:
         tail = deque(in_f, lines_limit)
 
@@ -317,7 +322,7 @@ def addTail(in_file, out_dir, aws_name, header_names='', lines_limit=100):
 
 
 def isModified(filename, time_threshold=1):
-    '''Return flag denoting if file is modified within a certain timeframe
+    """Return flag denoting if file is modified within a certain timeframe
 
     Parameters
     ----------
@@ -330,7 +335,7 @@ def isModified(filename, time_threshold=1):
     -------
     bool
         Flag denoting if modified (True) or not (False)
-    '''
+    """
     delta = time.time() - os.path.getmtime(filename)
     delta = delta / (60*60)
     if delta < time_threshold:
