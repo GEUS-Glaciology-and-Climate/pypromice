@@ -33,9 +33,16 @@ dependencies = [
     "netcdf4",
     "eccodes",
     "scikit-learn>=1.1.0",
+    "pytest",
 ]
 
-#[project.optional-dependencies]
+[project.optional-dependencies]
+google = [
+    "google-auth",
+    "google-auth-oauthlib",
+    "google-auth-httplib2",
+    "google-api-python-client",
+]
 #bufr = ["eccodes"]
 
 [project.urls]
