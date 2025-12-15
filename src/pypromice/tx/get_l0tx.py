@@ -17,6 +17,7 @@ from pypromice.tx.email_client.base_mail_client import BaseMailClient
 from pypromice.tx.email_client.imap_client import IMAPClient
 from pypromice.tx.tx import L0tx
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,9 +29,10 @@ def parse_arguments_l0tx():
     parser.add_argument('--uid', '-u', type=str, required=True, help='Last AWS uid .ini file')
 
     parser.add_argument('--outpath', '-o', default=None, type=str, required=False, help='Path where to write output (if given)')
-    parser.add_argument('--awsname','--name', '-n', default='*', type=str, required=False, help='name of the AWS to be fetched')
+    parser.add_argument('--awsname', '-n', default='*', type=str, required=False, help='name of the AWS to be fetched')
     parser.add_argument('--formats', '-f',default=DEFAULT_PAYLOAD_FORMATS_PATH, type=str, required=False, help='Path to Payload format .csv file')
     parser.add_argument('--types', '-t',default=DEFAULT_PAYLOAD_TYPES_PATH, type=str, required=False, help='Path to Payload type .csv file')
+    
     args = parser.parse_args()
     return args
 
@@ -41,6 +43,7 @@ def get_l0tx():
     toml_list = glob(toml_path)
 
     aws_modem_configurations = {}
+
     for t in toml_list:
         conf = toml.load(t)
         count = 1
@@ -78,6 +81,7 @@ def get_l0tx():
             os.mkdir(out_dir)
 
     # ----------------------------------
+    
     # Get last email uid
     with open(uid_file, "r") as last_uid_f:
         last_uid = int(last_uid_f.readline())
@@ -160,6 +164,7 @@ def fetch_transmission_data(
         except:
             imei = None
             d = None
+
         for k, v in aws_modem_configurations.items():
             if str(imei) in k:
                 if v[0] < d < v[1]:
@@ -219,16 +224,12 @@ def finalize_output_files(aws_name, out_dir):
         mfiles = [
             mfile
             for mfile in glob(out_dir + "/" + aws_name + "*.txt")
+
             if isModified(mfile, 1)
         ]
 
         # Sort L0tx files and add tails
         for f in mfiles:
-            # Sort lines in L0tx file and remove duplicates
-            in_dirn, in_fn = os.path.split(f)
-            out_fn = "sorted_" + in_fn
-            out_pn = os.sep.join((in_dirn, out_fn))
-            sortLines(f, out_pn)
 
 
 def findDuplicates(lines):

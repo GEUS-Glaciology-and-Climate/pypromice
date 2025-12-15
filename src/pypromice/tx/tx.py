@@ -841,5 +841,3 @@ def readSBD(sbd_file):
     with open(sbd_file, 'rb') as file:
         data = file.readlines()
     return data[0]
-
-
