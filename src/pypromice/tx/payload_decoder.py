@@ -16,7 +16,8 @@ from pathlib import Path
 
 __all__ = [
     "DecodeError",
-    'determine_payload_format'
+    "determine_payload_format",
+    "decode"
 ]
 
 logger = logging.getLogger(__name__)
