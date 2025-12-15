@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pypromice"
-version = "1.8.5"
+version = "1.9.0"
 description = "PROMICE/GC-Net toolbox for processing data from automatic weather stations"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,19 +31,22 @@ dependencies = [
     "scipy>=1.9.0",
     "Bottleneck",
     "netcdf4",
-    "eccodes",
     "scikit-learn>=1.1.0",
     "pytest",
 ]
 
 [project.optional-dependencies]
+bufr = ["eccodes"]
 google = [
     "google-auth",
     "google-auth-oauthlib",
     "google-auth-httplib2",
     "google-api-python-client",
 ]
-#bufr = ["eccodes"]
+all = [
+    "bufr",
+    "google",
+]
 
 [project.urls]
 Homepage = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"

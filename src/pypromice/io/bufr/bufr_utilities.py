@@ -18,16 +18,24 @@ from typing import BinaryIO, Optional
 import attrs
 import numpy as np
 import pandas as pd
-from eccodes import (
-    codes_set,
-    codes_write,
-    codes_release,
-    codes_bufr_new_from_samples,
-    CodesInternalError,
-    codes_is_defined,
-    codes_bufr_new_from_file,
-    codes_get,
-)
+
+try:
+    from eccodes import (
+        codes_set,
+        codes_write,
+        codes_release,
+        codes_bufr_new_from_samples,
+        CodesInternalError,
+        codes_is_defined,
+        codes_bufr_new_from_file,
+        codes_get,
+    )
+except ImportError as e:
+    raise ImportError(
+        "The optional dependency 'eccodes' is required for BUFR functionality.\n\n"
+        "Install it using `pip install pypromice[bufr]`\n\n"
+
+    ) from e
 
 logger = logging.getLogger(__name__)
 
