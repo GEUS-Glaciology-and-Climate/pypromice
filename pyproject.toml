@@ -52,7 +52,7 @@ get_l2tol3 = "pypromice.pipeline.get_l2tol3:main"
 make_metadata_csv = "pypromice.io.make_metadata_csv:main"
 get_bufr = "pypromice.io.bufr.get_bufr:main"
 create_bufr_files = "pypromice.io.bufr.create_bufr_files:main"
-bufr_to_csv = "pypromice.pio.bufr.bufr_to_csv:main"
+bufr_to_csv = "pypromice.io.bufr.bufr_to_csv:main"
 get_l0tx = "pypromice.tx.get_l0tx:get_l0tx"
 get_msg = "pypromice.tx.get_msg:get_msg"
 
