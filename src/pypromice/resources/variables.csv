@@ -3,8 +3,8 @@ time,time,Time,yyyy-mm-dd HH:MM:SS,physicalMeasurement,time,,,,,,all,1,1,1,
 rec,record,Record,-,referenceInformation,time,,L0 or L2,,,,all,1,1,0,0
 p_u,air_pressure,Air pressure (upper boom),hPa,physicalMeasurement,time,FALSE,,650,1100,z_pt_cor dlhf_u dshf_u,all,1,1,1,4
 p_l,air_pressure,Air pressure (lower boom),hPa,physicalMeasurement,time,FALSE,,650,1100,dlhf_l dshf_l,two-boom,1,1,1,4
-t_u,air_temperature,Air temperature (upper boom),degrees_C,physicalMeasurement,time,FALSE,,-80,40,z_boom_cor_l z_boom_cor_u z_stake_cor qh_u rh_u_wrt_ice_or_water dlhf_u dshf_u,all,1,1,1,4
-t_l,air_temperature,Air temperature (lower boom),degrees_C,physicalMeasurement,time,FALSE,,-80,40,dlhf_l dshf_l,two-boom,1,1,1,4
+t_u,air_temperature,Air temperature (upper boom),degrees_C,physicalMeasurement,time,FALSE,,-80,40,z_boom_cor_u z_stake_cor qh_u rh_u_wrt_ice_or_water dlhf_u dshf_u,all,1,1,1,4
+t_l,air_temperature,Air temperature (lower boom),degrees_C,physicalMeasurement,time,FALSE,,-80,40,z_boom_cor_l qh_l rh_l_wrt_ice_or_water dlhf_l dshf_l,two-boom,1,1,1,4
 rh_u,relative_humidity,Relative humidity (upper boom),%,physicalMeasurement,time,FALSE,,0,100,qh_u rh_u_wrt_ice_or_water dlhf_u dshf_u,all,1,1,1,4
 rh_u_wrt_ice_or_water,relative_humidity_with_respect_to_ice_or_water,Relative humidity (upper boom) with respect to saturation over ice in subfreezing conditions and over water otherwise,%,modelResult,time,FALSE,L2 or later,0,150,"",all,0,1,1,4
 qh_u,specific_humidity,Specific humidity (upper boom),kg/kg,modelResult,time,FALSE,L2 or later,0,100,"",all,0,1,1,4
