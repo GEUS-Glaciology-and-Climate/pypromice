@@ -473,10 +473,11 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
             # , then we fill them with nan
             for v in l3_merged.data_vars:
                 if v not in l3.data_vars:
-                    l3[v] = l3.t_u * np.nan
+                    l3[v] = xr.DataArray(np.nan, coords=l3.coords, dims=l3.dims)
+
             for v in l3.data_vars:
                 if v not in l3_merged.data_vars:
-                    l3_merged[v] = l3_merged.t_u * np.nan
+                    l3_merged[v] = xr.DataArray(np.nan, coords=l3_merged.coords, dims=l3_merged.dims)
 
             # saving attributes of station under an attribute called $stid
             st_attrs = l3_merged.attrs.get("stations_attributes", {})
