@@ -396,7 +396,7 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
     return station_info_list
 
 
-def join_l3(config_folder, site, folder_l3, folder_gcnet, 
+def join_l3(config_folder, site, folder_l3, folder_gcnet,
             folder_glaciobasis, outpath, variables, metadata
             ):
     # Get the list of station information dictionaries associated with the given site
@@ -428,12 +428,6 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
             continue
 
         l3, _ = loadArr(filepath, isNead)
-
-        # removing specific variable from a given file
-        specific_vars_to_drop = station_info.get("skipped_variables", [])
-        if len(specific_vars_to_drop) > 0:
-            logger.info("Skipping %s from %s" % (specific_vars_to_drop, stid))
-            l3 = l3.drop_vars([var for var in specific_vars_to_drop if var in l3])
 
         list_station_data.append((l3, station_info))
 
