@@ -396,7 +396,7 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
     return station_info_list
 
 
-def join_l3(config_folder, site, folder_l3, folder_gcnet, 
+def join_l3(config_folder, site, folder_l3, folder_gcnet,
             folder_glaciobasis, outpath, variables, metadata
             ):
     # Get the list of station information dictionaries associated with the given site
@@ -428,12 +428,6 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
             continue
 
         l3, _ = loadArr(filepath, isNead)
-
-        # removing specific variable from a given file
-        specific_vars_to_drop = station_info.get("skipped_variables", [])
-        if len(specific_vars_to_drop) > 0:
-            logger.info("Skipping %s from %s" % (specific_vars_to_drop, stid))
-            l3 = l3.drop_vars([var for var in specific_vars_to_drop if var in l3])
 
         list_station_data.append((l3, station_info))
 
@@ -479,10 +473,11 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
             # , then we fill them with nan
             for v in l3_merged.data_vars:
                 if v not in l3.data_vars:
-                    l3[v] = l3.t_u * np.nan
+                    l3[v] = xr.DataArray(np.nan, coords=l3.coords, dims=l3.dims)
+
             for v in l3.data_vars:
                 if v not in l3_merged.data_vars:
-                    l3_merged[v] = l3_merged.t_u * np.nan
+                    l3_merged[v] = xr.DataArray(np.nan, coords=l3_merged.coords, dims=l3_merged.dims)
 
             # saving attributes of station under an attribute called $stid
             st_attrs = l3_merged.attrs.get("stations_attributes", {})
