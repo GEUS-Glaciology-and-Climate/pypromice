@@ -67,7 +67,7 @@ make_metadata_csv = "pypromice.io.make_metadata_csv:main"
 get_bufr = "pypromice.io.bufr.get_bufr:main"
 create_bufr_files = "pypromice.io.bufr.create_bufr_files:main"
 bufr_to_csv = "pypromice.io.bufr.bufr_to_csv:main"
-get_l0tx = "pypromice.tx.get_l0tx:get_l0tx"
+get_l0tx = "pypromice.tx.get_l0tx:main"
 get_msg = "pypromice.tx.get_msg:get_msg"
 
 [tool.setuptools]
