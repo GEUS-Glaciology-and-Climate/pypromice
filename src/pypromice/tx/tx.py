@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Set maximum number of email lines to read
 imaplib._MAXLINE = 5000000
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class PayloadFormat(object):
     '''Payload formatter object'''
@@ -123,7 +123,7 @@ class PayloadFormat(object):
             for var in var_def:
                 bytes_count += self.payload_type[var.lower()]
             self.payload_format[key].append(bytes_count + 1)
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class SbdMessage(object):
     '''SBD transmission message object'''
@@ -240,7 +240,7 @@ class SbdMessage(object):
             logger.info(f'Unit location not parsed from line "{line}"')
             return None
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class EmailMessage(SbdMessage):                                                #TODO add initialisation from .sbd file
     '''Email message object'''
@@ -345,7 +345,7 @@ class EmailMessage(SbdMessage):                                                #
         else:
             return True
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class L0tx(EmailMessage, PayloadFormat):
     '''L0 tranmission data object'''
@@ -544,37 +544,31 @@ class L0tx(EmailMessage, PayloadFormat):
         else:
             return entry + ','
 
-    def getDataLine(self):                                                     #TODO clean up
-        '''Get data line from transmission message
+    def getDataLine(self):
+        """Get data line from transmission message
 
         Returns
         -------
         str or None
-            Dataline string if found'''
-        # Retrieve payload and prime object if valid binary message
+            Dataline string if found"""
         bin_msg = self.payload[1:]
         if self.bin_valid and bin_msg:
-            logger.info('%s-%s (binary)' %(self.imei, self.momsn) , self.bin_name)
+            # Use f-string to safely log
+            logger.info(f'{self.imei}-{self.momsn} (binary) {self.bin_name}')
 
             dataline = ''
             self.bytecounter = 0
 
-            # Iterate over binary message formatting string
             for i in range(0, self.bin_val):
-
                 type_letter = self.bin_format[i]
                 num_bytes = self.payload_type[type_letter.lower()]
 
-                # Check if 2-bit NaN is present
                 if self.check2BitNAN(bin_msg, type_letter):
-                    dataline = dataline + self.writeEntry('NAN', i)
+                    dataline += self.writeEntry('NAN', i)
                     self.updateByteCounter(2)
                     self.bin_len -= 2
-
-                # Get byte value
                 else:
-                    ValueBytes = self.getByteValue(num_bytes,
-                                                   bin_msg, self.bytecounter)
+                    ValueBytes = self.getByteValue(num_bytes, bin_msg, self.bytecounter)
                     self.updateByteCounter(num_bytes)
 
                     if len(ValueBytes) == 2:
@@ -584,51 +578,43 @@ class L0tx(EmailMessage, PayloadFormat):
                     else:
                         entry = '?'
 
-                    # Decode based on formatting string                        #TODO put this in payload_type file
-                    if type_letter.lower()=='g':
+                    if type_letter.lower() == 'g':
                         entry = str(Value/100.0)
-
-                    elif type_letter.lower()=='n':
+                    elif type_letter.lower() in ('n', 'e'):
                         entry = str(Value/100000.0)
-
-                    elif type_letter.lower() =='e':
-                        entry = str(Value/100000.0)
-
-                    elif type_letter.lower()=='f':
+                    elif type_letter.lower() == 'f':
                         if Value == 8191:
                             entry = 'NAN'
                         elif Value == 8190:
                             entry = 'INF'
-                        elif Value == -8190 or Value == -8191:
+                        elif Value in (-8190, -8191):
                             entry = '-INF'
                         else:
                             entry = str(Value)
-
-                    elif type_letter.lower()=='l':
+                    elif type_letter.lower() == 'l':
                         if Value in (-2147483648, 2147450879):
                             entry = 'NAN'
                         else:
                             entry = str(Value)
-
-                    elif type_letter.lower()=='t':
-                        entry = time.strftime('%Y-%m-%d %H:%M:%S',
-                                              time.gmtime(Value + self.EpochOffset)) + ',' + str(Value)
+                    elif type_letter.lower() == 't':
+                        entry = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(Value + self.EpochOffset)) + ',' + str(Value)
                     else:
                         entry = '?'
 
-                    # Append value outputted dataline
-                    if type_letter.isupper():                                  #TODO test RAWtoSTR
-                        dataline = dataline + RAWtoSTR(ValueBytes)
+                    if type_letter.isupper():
+                        dataline += RAWtoSTR(ValueBytes)
                     else:
-                        dataline = dataline + self.writeEntry(entry, i)
+                        dataline += self.writeEntry(entry, i)
 
             return dataline
 
         else:
             try:
-                bin_msg = '2' + bin_msg.decode('cp850')                        #TODO de-bug so first byte is passed (currently misses of the first "2" of the year e.g. "022" instead of "2022")
+                bin_msg = '2' + bin_msg.decode('cp850')
             except:
                 bin_msg = ''
+
+            desc = None
             if self.isDiagnostics(bin_msg):
                 desc = f'{self.imei}-{self.momsn} ASCII generic diagnostic message'
             elif self.isObservations(bin_msg) and self.isSummer(bin_msg):
@@ -639,19 +625,16 @@ class L0tx(EmailMessage, PayloadFormat):
                 desc = 'Watson River observations message'
                 bin_msg = bin_msg.split('"Smp"')[-1].replace('"', '')
 
-            else:
-                desc=None
-
             if desc:
                 if self.isWithInstance(bin_msg):
-                    desc = desc + '(+ instant.)'
+                    desc += '(+ instant.)'
                 logger.info(desc)
                 return bin_msg
             else:
                 logger.info('Unrecognized message format')
                 return None
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 def GFP2toDEC(Bytes):
     '''Two-bit decoder
