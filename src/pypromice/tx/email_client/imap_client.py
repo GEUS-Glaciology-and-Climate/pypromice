@@ -95,9 +95,15 @@ class IMAPClient(BaseMailClient):
             status, data = self.mail_server.uid("fetch", uid_string, "(RFC822)")
             if status != "OK":
                 raise RuntimeError("Failed to fetch mail chunk")
-            for uid, part in zip(chunk, data):
-                if isinstance(part, tuple):
-                    yield uid, self.parser.parsestr(part[1].decode())
+
+            # Every second value is a separator
+            assert len(data) == len(chunk) * 2
+            assert isinstance(data[0], tuple)
+            for chunk_uid, mail_data in zip(chunk, data[::2]):
+                uid = int(mail_data[0].decode().split()[0])
+                assert uid == chunk_uid
+                yield uid, self.parser.parsestr(mail_data[1].decode())
+
 
     def _imap_search_uids(self, search_string: str) -> List[str]:
         status, data = self.mail_server.uid("search", None, search_string)
