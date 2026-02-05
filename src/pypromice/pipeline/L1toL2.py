@@ -23,7 +23,7 @@ from pypromice.core.variables import (wind,
                                       radiation,
                                       station_pose,
                                       air_temperature)
-
+from pypromice.core.qc.rate_of_change_filter import rate_of_change_filter
 
 def toL2(L1: xr.Dataset,
          vars_df: pd.DataFrame,
@@ -61,6 +61,12 @@ def toL2(L1: xr.Dataset,
     """
     ds = L1.copy()
 
+    # Flag and remove persistence outliers
+    ds = persistence_qc(ds)
+
+    # Flag high-rate-of-change outliers
+    ds = rate_of_change_filter(ds)
+
     try:
         # Adjust time after a user-defined csv files
         ds = adjustTime(ds, adj_dir=data_adjustments_dir.as_posix())
@@ -74,8 +80,7 @@ def toL2(L1: xr.Dataset,
     except Exception:
         logger.exception("Flagging and fixing failed:")
 
-    # Flag and remove persistence outliers
-    ds = persistence_qc(ds)
+
 
     # if ds.attrs['format'] == 'TX':
     #     # TODO: The configuration should be provided explicitly
@@ -209,7 +214,7 @@ def toL2(L1: xr.Dataset,
     # Calculate directional wind speed for upper boom
     ds['wdir_u'] = wind.filter_wind_direction(ds['wdir_u'], ds['wspd_u'])
     ds['wspd_x_u'], ds['wspd_y_u'] = wind.calculate_directional_wind_speed(ds['wspd_u'], ds['wdir_u'])
-    
+
     # Calculate directional wind speed for lower boom
     if ds.attrs['number_of_booms'] == 2:
         ds['wdir_l'] = wind.filter_wind_direction(ds['wdir_l'], ds['wspd_l'])
