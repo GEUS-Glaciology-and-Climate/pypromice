@@ -132,12 +132,14 @@ def toL1(L0: xr.DataArray,
         ds['p_u'] = (ds['p_u']+1000)*0.2 + 600
 
     # Handle cases where the bedrock attribute is incorrectly set
-    if not 'station_type' in ds.attrs:
-        logger.warning('station_type attribute is not set')
+    if not 'site_type' in ds.attrs:
+        logger.warning('site_type attribute is not set')
         ds.attrs['bedrock'] = False
     else:
-        if ds.attrs['station_type'].lower() == "bedrock":
+        if ds.attrs['site_type'].lower() == "bedrock":
             ds.attrs['bedrock'] = True
+        else:
+            ds.attrs['bedrock'] = False
     is_bedrock = ds.attrs['bedrock']
 
     # Some bedrock stations (e.g. KAN_B) do not have tilt in L0 files
