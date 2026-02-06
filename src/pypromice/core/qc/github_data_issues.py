@@ -200,13 +200,17 @@ def adjustData(ds, adj_dir, var_list=None, skip_var=None):
 # here is a list of simple modifying functions
 def _h_add(ds, var, sl, val):
     ds[var].loc[sl] = ds[var].loc[sl].values + val
-    return ds
+    return ds, None
 
 def _h_multiply(ds, var, sl, val):
     ds[var].loc[sl] = ds[var].loc[sl].values * val
     if ("DW" in var) or ("wspd" in var):
         ds[var].loc[sl] = ds[var].loc[sl] % 360
-    return ds
+    return ds, None
+
+def _h_rotate(ds_work, var, sl, val):
+    ds_work[var].loc[sl] = (ds_work[var].loc[sl].values + val) % 360
+    return ds_work, None
 
 def _h_min_filter(ds_work, var, sl, val):
     tmp = ds_work[var].loc[sl]
@@ -233,10 +237,6 @@ def _h_grad_filter(ds_work, var, sl, val):
     bad = xr.DataArray(bad, coords_work=tmp.coords_work, dims=tmp.dims)
     ds_work = set_flag(ds_work, var, index_slice=sl, flag="ADJ_GRAD", mask=bad)
     return ds_work, bad.sum().item()
-
-def _h_rotate(ds_work, var, sl, val):
-    ds_work[var].loc[sl] = (ds_work[var].loc[sl].values + val) % 360
-    return ds_work
 
 # object to link the keyword for the flag DB with the function to be used
 HANDLERS = {
@@ -304,7 +304,11 @@ def dispatch_adjustment(ds_work, var, sl, func, val):
         logger.warning(f"Unknown adjust_function={func} for {var}")
         return ds_work
     ds_work, count = fn(ds_work, var, sl, val)
-    logger.debug(f'---> {sl.get("time").start} {sl.get("time").stop} {var} {func} {val} flagged {count}/{len(ds_work.time)}')
+    if count is None:
+        logger.debug(f'---> {sl.get("time").start} {sl.get("time").stop} {var} {func} {val}')
+    else:
+        logger.debug(f'---> {sl.get("time").start} {sl.get("time").stop} {var} {func} {val} flagged {count}/{len(ds_work.time)}')
+
     return ds_work
 
 

@@ -131,14 +131,13 @@ def toL1(L0: xr.DataArray,
         logger.info('Special decoding of air pressure')
         ds['p_u'] = (ds['p_u']+1000)*0.2 + 600
 
-
     # Handle cases where the bedrock attribute is incorrectly set
-    if not 'bedrock' in ds.attrs:
-        logger.warning('bedrock attribute is not set')
+    if not 'station_type' in ds.attrs:
+        logger.warning('station_type attribute is not set')
         ds.attrs['bedrock'] = False
-    elif not isinstance(ds.attrs['bedrock'], bool):
-        logger.warning(f'bedrock attribute is not boolean: {ds.attrs["bedrock"]}')
-        ds.attrs['bedrock'] =  str(ds.attrs['bedrock']).lower() == 'true'
+    else:
+        if ds.attrs['station_type'].lower() == "bedrock":
+            ds.attrs['bedrock'] = True
     is_bedrock = ds.attrs['bedrock']
 
     # Some bedrock stations (e.g. KAN_B) do not have tilt in L0 files

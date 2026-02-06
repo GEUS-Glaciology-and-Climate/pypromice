@@ -42,10 +42,12 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
     non_numeric_cols = df_h.select_dtypes(exclude=['number']).columns
 
     # Log a warning and drop non-numeric columns
+    logger.warning("Dropping QC columns because they are of type object and cannot be resampled")
     if len(non_numeric_cols) > 0:
         for col in non_numeric_cols:
-            unique_values = df_h[col].unique()
-            logger.warning(f"Dropping column '{col}' because it is of type '{df_h[col].dtype}' and contains unique values: {unique_values}")
+            if not col.endswith('_qc'):
+                unique_values = df_h[col].unique()
+                logger.warning(f"Dropping column '{col}' because it is of type '{df_h[col].dtype}' and contains unique values: {unique_values}")
 
         df_h = df_h.drop(columns=non_numeric_cols)
     # Resample the DataFrame
