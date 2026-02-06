@@ -6,6 +6,7 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
+from pypromice.core.qc.common import remove_flagged_data, set_flag
 
 import logging
 logger = logging.getLogger(__name__)
@@ -75,52 +76,37 @@ def decode_and_convert(gps_lat: xr.DataArray,
     return gps_lat, gps_lon, gps_time
 
 
-def filter(gps_lat: xr.DataArray,
-           gps_lon: xr.DataArray,
-           gps_alt: xr.DataArray
-) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+def filter(ds: xr.Dataset) -> xr.Dataset:
     """ Filter GPS latitude, longitude and altitude based on the difference
     to a baseline elevation. The baseline elevation is a gap-filled monthly
     median elevation based on the inputted GPS altitude.
 
     Parameters
     ----------
-    gps_lat : xr.DataArray
-        GPS latitude
-    gps_lon : xr.DataArray
-        GPS longitude
-    gps_alt : xr.DataArray
-        GPS altitude values with a time dimension
+    ds : xr.Dataset
+        Dataset containing gps_lat, gps_lon, gps_alt
 
     Returns
     ----------
-    gps_lat_filtered : xr.DataArray
-        Filtered latitude values
-    gps_lon_filtered : xr.DataArray
-        Filtered longitude values
-    gps_alt_filtered : xr.DataArray
-        Filtered altitude values
+    ds : xr.Dataset
+        Dataset with quality flags updated
     """
-    # Get altitude monthly median (at month start)
-    # This will serve as baseline elevations for filtering
-    ser = gps_alt.to_series()
+    ds_work = remove_flagged_data(ds)
+    ds_out = ds.copy(deep=True)
+
+    ser = ds_work["gps_alt"].to_series()
     monthly_median = ser.resample("MS").median()
-    baseline_elevation = (
-        monthly_median
-        .reindex(ser.index, method="nearest")
-        .ffill()
-        .bfill()
-    )
 
-    # Produce conditional mask
-    mask = (np.abs(gps_alt - baseline_elevation) < 100) | gps_alt.isnull()
+    baseline = monthly_median.reindex(ser.index, method="ffill").bfill()
+    baseline_da = xr.DataArray(baseline.to_numpy(), coords={"time": ds_work.time}, dims=("time",))
 
-    # Apply mask
-    gps_lat_filtered = gps_lat.where(mask)
-    gps_lon_filtered = gps_lon.where(mask)
-    gps_alt_filtered = gps_alt.where(mask)
+    ok = (np.abs(ds_work["gps_alt"] - baseline_da) < 100) | ds_work["gps_alt"].isnull()
+    bad = ~ok
 
-    return gps_lat_filtered, gps_lon_filtered, gps_alt_filtered
+    for var in ["gps_lat", "gps_lon", "gps_alt"]:
+        ds_out = set_flag(ds_out, var, flag="GPS_FILTER", mask=bad)
+
+    return ds
 
 
 def convert_from_degrees_and_decimal_minutes(gps):

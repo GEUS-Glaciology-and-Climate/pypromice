@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import re
+from pypromice.core.qc.common import set_flag
 
 logger = logging.getLogger(__name__)
 
@@ -327,6 +328,7 @@ def rate_of_change_filter(ds):
     Returns:
         xr.Dataset: Dataset (same object) with the rate-of-change filter applied.
     """
+
     patterns = [re.compile(p) for p in DEFAULT_VARIABLE_THRESHOLDS]
 
     vars_with_thresholds = [
@@ -337,7 +339,7 @@ def rate_of_change_filter(ds):
     for var in vars_with_thresholds:
         _, _, flag_combined, flag_final = flag_high_rate_of_change(ds, var, window="7D")
 
-        tmp = ds.copy()
+        tmp = ds.copy(deep=True)
         tmp[var].loc[{"time": flag_final.time[flag_final]}] = np.nan  # apply first pass to temporary object
 
         if flag_final.any():
@@ -349,6 +351,8 @@ def rate_of_change_filter(ds):
             flag_final = (flag_final | flag2)
         else:
             flag2 = None
+        flag_final = flag_final.reindex_like(ds.time, fill_value=False)
 
-        ds[var].loc[{"time": flag_final.time[flag_final]}] = np.nan  # apply both passes
+        ds = set_flag(ds, var, flag='ROC', mask=flag_final)
+
     return ds
