@@ -31,6 +31,25 @@ def _get_params(var, tol=None, factor=None):
     vf = 2.0 if factor is None else float(factor)
     return vt, vf
 
+# avoid xarray ffill/bfill (slow) -> numpy forward/backward fill
+def _ffill_idx(a):
+    a = a.copy()
+    m = np.isnan(a)
+    idx = np.where(~m, np.arange(a.size), 0)
+    np.maximum.accumulate(idx, out=idx)
+    a[m] = a[idx[m]]
+    return a
+
+def _bfill_idx(a):
+    a = a.copy()
+    m = np.isnan(a)
+    idx = np.where(~m, np.arange(a.size), a.size-1)
+    idx = idx[::-1]
+    np.minimum.accumulate(idx, out=idx)
+    idx = idx[::-1]
+    a[m] = a[idx[m]]
+    return a
+
 def unflag_if_linear_interp(ds, var, flag, tol=0.1, time="time"):
     """
     Remove flags where values follow linear interpolation within tolerance.
@@ -61,19 +80,11 @@ def unflag_if_linear_interp(ds, var, flag, tol=0.1, time="time"):
     idx = np.arange(n, dtype=np.int64)
 
     # Valid (non-flagged and finite) samples
-    ok = (~flag) & np.isfinite(v)
-
-    # Index of previous valid sample
-    prev_idx = xr.DataArray(np.where(ok.values, idx, np.nan),
-                            coords={time: v[time].values}, dims=(time,)).ffill(time)
-
-    # Index of next valid sample
-    next_idx = xr.DataArray(np.where(ok.values, idx, np.nan),
-                            coords={time: v[time].values}, dims=(time,)).bfill(time)
-
-    pi = prev_idx.values
-    ni = next_idx.values
-
+    okv = ((~flag.values) & np.isfinite(v.values))
+    base = np.where(okv, idx.astype("float64"), np.nan)
+    pi = _ffill_idx(base)
+    ni = _bfill_idx(base)
+    # finding points that has two valid neigbors
     has_both = np.isfinite(pi) & np.isfinite(ni) & (pi != ni)
 
     pi_i = np.zeros(n, dtype=np.int64)
@@ -282,15 +293,11 @@ def flag_high_rate_of_change(ds, var, window="7D", time="time",
     dt_next = tt.shift({time: -1}) - tt
     uneven_dt = dt_prev != dt_next
 
-    is_first = xr.DataArray(np.zeros(tt.shape, dtype=bool), coords={time: tt.values}, dims=(time,))
-    is_last  = xr.DataArray(np.zeros(tt.shape, dtype=bool), coords={time: tt.values}, dims=(time,))
-    if (len(is_first)>0) & (len(is_last)>0):
-        is_first[0] = True
-        is_last[-1] = True
-
-        prev_missing = prev_missing | is_first
-        next_missing = next_missing | is_last
-        uneven_dt = uneven_dt | is_first | is_last
+    if da.sizes[time] > 0:
+        prev_missing.values[0] = True
+        next_missing.values[-1] = True
+        uneven_dt.values[0] = True
+        uneven_dt.values[-1] = True
 
     # Combine multiple logical criteria
     flag_combined = (
