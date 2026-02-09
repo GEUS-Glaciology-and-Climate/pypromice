@@ -9,59 +9,95 @@ from pypromice.core.variables.gps import (
     filter
 )
 
-class TestFilter(unittest.TestCase):
 
+def _make_ds(time, gps_lat, gps_lon, gps_alt):
+    ds = xr.Dataset(
+        data_vars={
+            "gps_lat": ("time", gps_lat),
+            "gps_lon": ("time", gps_lon),
+            "gps_alt": ("time", gps_alt),
+        },
+        coords={"time": time},
+    )
+    n = ds.sizes["time"]
+    for v in ["gps_lat", "gps_lon", "gps_alt"]:
+        ds[f"{v}_qc"] = xr.DataArray(np.full(n, "OK", dtype=object), dims=("time",), coords={"time": ds["time"]})
+    return ds
+
+
+class TestFilter(unittest.TestCase):
     def test_outside_threshold(self):
         """Test that values far from the baseline are all masked."""
         time = pd.date_range("2025-01-01", periods=3, freq="D")
-        gps_lat = xr.DataArray([1, 2, 3], dims=["time"], coords={"time": time})
-        gps_lon = xr.DataArray([4, 5, 6], dims=["time"], coords={"time": time})
-        # Third value differ from baseline by >100
-        gps_alt = xr.DataArray([1, 1, 10], dims=["time"], coords={"time": time}) * 200  # baseline = 200 → 3 is outside ±100
-        lat_f, lon_f, alt_f = filter(gps_lat, gps_lon, gps_alt)
-        self.assertTrue(np.isnan(alt_f.values[-1]))
-        self.assertTrue(np.isnan(lat_f.values[-1]))
-        self.assertTrue(np.isnan(lon_f.values[-1]))
+        ds = _make_ds(
+            time,
+            gps_lat=[1, 2, 3],
+            gps_lon=[4, 5, 6],
+            gps_alt=(xr.DataArray([1, 1, 10], coords=[("time", time)]) * 200).values,
+        )
+
+        ds_out = filter(ds)
+
+        assert ds_out["gps_alt_qc"].to_series().tolist() == ["OK", "OK", "GPS_FILTER"]
+        assert ds_out["gps_lat_qc"].to_series().tolist() == ["OK", "OK", "GPS_FILTER"]
+        assert ds_out["gps_lon_qc"].to_series().tolist() == ["OK", "OK", "GPS_FILTER"]
 
     def test_all_within_threshold(self):
         """Test that values close to baseline are preserved."""
         time = pd.date_range("2025-01-01", periods=3, freq="D")
-        gps_lat = xr.DataArray([1, 2, 3], dims=["time"], coords={"time": time})
-        gps_lon = xr.DataArray([4, 5, 6], dims=["time"], coords={"time": time})
-        gps_alt = xr.DataArray([1000, 1005, 995], dims=["time"], coords={"time": time})
+        ds = _make_ds(
+            time,
+            gps_lat=[1, 2, 3],
+            gps_lon=[4, 5, 6],
+            gps_alt=[1000, 1005, 995],
+        )
 
-        lat_f, lon_f, alt_f = filter(gps_lat, gps_lon, gps_alt)
-        self.assertFalse(np.any(np.isnan(alt_f)))
-        self.assertFalse(np.any(np.isnan(lat_f)))
-        self.assertFalse(np.any(np.isnan(lon_f)))
+        ds_out = filter(ds)
+
+        assert (ds_out["gps_alt_qc"].to_series() == "OK").all()
+        assert (ds_out["gps_lat_qc"].to_series() == "OK").all()
+        assert (ds_out["gps_lon_qc"].to_series() == "OK").all()
 
     def test_single_value(self):
         """Test that a single value array is handled correctly."""
-        time = pd.date_range("2025-01-01", periods=1)
-        gps_lat = xr.DataArray([10], dims=["time"], coords={"time": time})
-        gps_lon = xr.DataArray([20], dims=["time"], coords={"time": time})
-        gps_alt = xr.DataArray([1000], dims=["time"], coords={"time": time})
+        time = pd.date_range("2025-01-01", periods=1, freq="D")
+        ds = _make_ds(
+            time,
+            gps_lat=[10],
+            gps_lon=[20],
+            gps_alt=[1000],
+        )
 
-        lat_f, lon_f, alt_f = filter(gps_lat, gps_lon, gps_alt)
-        self.assertFalse(np.isnan(alt_f.sel(time=time[0])))
-        self.assertFalse(np.isnan(lat_f.sel(time=time[0])))
-        self.assertFalse(np.isnan(lon_f.sel(time=time[0])))
+        ds_out = filter(ds)
+
+        assert ds_out["gps_alt_qc"].item() == "OK"
+        assert ds_out["gps_lat_qc"].item() == "OK"
+        assert ds_out["gps_lon_qc"].item() == "OK"
 
     def test_multiple_months_resample(self):
-        """Test that monthly median resampling works correctly across multiple months."""
-        time = pd.date_range("2025-01-01", periods=60, freq="D")  # two months
-        gps_lat = xr.DataArray(np.arange(60), dims=["time"], coords={"time": time})
-        gps_lon = xr.DataArray(np.arange(60, 120), dims=["time"], coords={"time": time})
-        gps_alt = xr.DataArray([1000]*30 + [1200]*30, dims=["time"], coords={"time": time})
+        time = pd.date_range("2025-01-01", periods=60, freq="D")
+        gps_alt = np.array([1000] * 30 + [1200] * 30, dtype=float)
 
-        lat_f, lon_f, alt_f = filter(gps_lat, gps_lon, gps_alt)
+        ds = _make_ds(
+            time,
+            gps_lat=np.arange(60, dtype=float),
+            gps_lon=np.arange(60, 120, dtype=float),
+            gps_alt=gps_alt,
+        )
 
-        # First month should be kept (1000 ±100), second month values outside threshold (1200 vs median 1000) → masked
-        first_month_mask = np.isnan(alt_f.sel(time=slice("2025-01-20","2025-01-30")))
-        second_month_mask = np.isnan(alt_f.sel(time=slice("2025-02-01","2025-02-10")))
+        ds_out = filter(ds)
 
-        self.assertTrue(np.all(first_month_mask))
-        self.assertFalse(np.all(second_month_mask))
+        jan = ds_out.sel(time=slice("2025-01-01", "2025-01-30"))
+        feb = ds_out.sel(time=slice("2025-02-01", "2025-03-01"))
+
+        assert (jan["gps_alt_qc"].to_series() == "OK").all()
+        assert (jan["gps_lat_qc"].to_series() == "OK").all()
+        assert (jan["gps_lon_qc"].to_series() == "OK").all()
+        # in this case both month should be kept because they are both stable
+        assert (feb["gps_alt_qc"].to_series() == "OK").all()
+        assert (feb["gps_lat_qc"].to_series() == "OK").all()
+        assert (feb["gps_lon_qc"].to_series() == "OK").all()
+
 
 class TestDecode(unittest.TestCase):
 
@@ -177,4 +213,3 @@ class TestDecodeAndConvert(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

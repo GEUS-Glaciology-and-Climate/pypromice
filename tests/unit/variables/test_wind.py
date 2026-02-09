@@ -11,9 +11,16 @@ from pypromice.core.variables.wind import (
 
 class TestWindProcessing(unittest.TestCase):
     def setUp(self):
-        self.time = pd.date_range("2025-08-01", periods=4, freq="H")
+        self.time = pd.date_range("2025-08-01", periods=4, freq="h")
         self.wspd = xr.DataArray([0.0, 2.0, 4.0, 6.0], coords=[("time", self.time)])
         self.wdir = xr.DataArray([0.0, 90.0, 180.0, 270.0], coords=[("time", self.time)])
+        self.ds = xr.Dataset(
+                        data_vars={
+                            "wspd": ("time", [0.0, 2.0, 4.0, 6.0]),
+                            "wdir": ("time", [0.0, 90.0, 180.0, 270.0]),
+                        },
+                        coords={"time": pd.date_range("2025-08-01", periods=4, freq="h")},
+                    )
 
     def test_correct_wind_speed(self):
         coefficient = 1.7
@@ -24,13 +31,13 @@ class TestWindProcessing(unittest.TestCase):
         np.testing.assert_array_equal(result.time.values, self.time.values)
 
     def test_filter_wind_direction(self):
-        result = filter_wind_direction(self.wdir, self.wspd)
+        result = filter_wind_direction(self.ds, tag="")
 
-        # Wind direction where wspd=0 should be NaN
-        self.assertTrue(np.isnan(result.values[0]))
+        # Wind direction where wspd=0 should be flagged
+        self.assertTrue(result.wdir_qc.isel(time=0).item() == 'ZERO_WSPD')
 
         # Non-zero wspd should preserve wdir
-        np.testing.assert_allclose(result.values[1:], [90.0, 180.0, 270.0])
+        np.testing.assert_allclose(result.wdir.values[1:], [90.0, 180.0, 270.0])
 
         # Time coordinate preserved
         np.testing.assert_array_equal(result.time.values, self.time.values)
@@ -38,10 +45,17 @@ class TestWindProcessing(unittest.TestCase):
     def test_filter_all_zero_wind_speeds(self):
         wspd = xr.DataArray([0.0, 0.0, 0.0, 0.0], coords=[("time", self.time)])
         wdir = xr.DataArray([10.0, 20.0, 30.0, 40.0], coords=[("time", self.time)])
-        result = filter_wind_direction(wdir, wspd)
+
+        ds = xr.Dataset(
+            data_vars={
+                "wspd": wspd,
+                "wdir": wdir,
+            }
+        )
+        result = filter_wind_direction(ds, tag="")
 
         # All values should be NaN
-        self.assertTrue(np.all(np.isnan(result.values)))
+        self.assertTrue((result.wdir_qc == "ZERO_WSPD").all())
 
     def test_calculate_directional_wind_speed(self):
         wspd_x, wspd_y = calculate_directional_wind_speed(self.wspd, self.wdir)

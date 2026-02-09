@@ -92,7 +92,6 @@ def filter(ds: xr.Dataset) -> xr.Dataset:
         Dataset with quality flags updated
     """
     ds_work = remove_flagged_data(ds)
-    ds_out = ds.copy(deep=True)
 
     ser = ds_work["gps_alt"].to_series()
     monthly_median = ser.resample("MS").median()
@@ -104,7 +103,8 @@ def filter(ds: xr.Dataset) -> xr.Dataset:
     bad = ~ok
 
     for var in ["gps_lat", "gps_lon", "gps_alt"]:
-        ds_out = set_flag(ds_out, var, flag="GPS_FILTER", mask=bad)
+        ds_work = set_flag(ds_work, var, flag="GPS_FILTER", mask=bad)
+        ds[f"{var}_qc"] = ds_work[f"{var}_qc"]
 
     return ds
 
