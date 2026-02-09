@@ -59,8 +59,8 @@ def clip_values(
 
         for dep_var in row.dependents_closure:
             if dep_var not in ds.variables: continue
-
-            dep_bad = ds[var].isnull()
+            var_qc = f"{var}_qc"
+            dep_bad = ds[var].isnull() |  (ds[var_qc] != "OK")
             ds = set_flag(ds, dep_var, index_slice=None, flag="DEPENDENCY", mask=dep_bad)
 
     return ds

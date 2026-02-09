@@ -178,11 +178,6 @@ def adjustData(ds, adj_dir, var_list=None, skip_var=None):
             adj_info.loc[var].adjust_function,
             adj_info.loc[var].adjust_value,
         ):
-            # making all timestamps timezone naive (compatibility with xarray)
-            if isinstance(t0, str):
-                t0 = pd.to_datetime(t0, utc=True).tz_localize(None)
-            if isinstance(t1, str):
-                t1 = pd.to_datetime(t1, utc=True).tz_localize(None)
 
             index_slice = dict(time=slice(t0, t1))
             if len(ds_work[var].loc[index_slice].time.time) == 0:
@@ -341,6 +336,10 @@ def _getDF(flag_file, var_list):
         adj_info[['t0','t1']] = adj_info[['t0','t1']].astype(object)
         adj_info.loc[adj_info.t1.isnull()|(adj_info.t1==''), "t1"] = None
         adj_info.loc[adj_info.t0.isnull()|(adj_info.t0==''), "t0"] = None
+
+        adj_info['t0'] = pd.to_datetime(adj_info['t0'], errors='coerce').dt.tz_localize(None)
+        adj_info['t1'] = pd.to_datetime(adj_info['t1'], errors='coerce').dt.tz_localize(None)
+        adj_info[['t0','t1']] = adj_info[['t0','t1']].where(adj_info[['t0','t1']].notna(), None)
 
         # if "*" is in the variable name then we interpret it as regex
         selec = adj_info['variable'].str.contains(r'\*') & (adj_info['variable'] != "*")

@@ -5,8 +5,69 @@ import pandas as pd
 import xarray as xr
 
 import pypromice.resources
-from pypromice.core.variables.wind import filter_wind_direction, calculate_directional_wind_speed
+from pypromice.core.variables.wind import (
+    filter_wind_direction,
+    calculate_directional_wind_speed,
+)
 from pypromice.core.qc.value_clipping import clip_values
+
+
+def _make_ds(df: pd.DataFrame) -> xr.Dataset:
+    df = df.copy()
+    df.index.name = "time"
+    ds = xr.Dataset.from_dataframe(df)
+
+    n = ds.sizes["time"]
+    for v in list(ds.data_vars):
+        if not v.endswith("_qc"):
+            ds[f"{v}_qc"] = xr.DataArray(
+                np.full(n, "OK", dtype=object),
+                dims=("time",),
+                coords={"time": ds["time"]},
+            )
+    return ds
+
+
+
+def _prep_wind_vars(ds: xr.Dataset) -> xr.Dataset:
+    ds_out = ds.copy()
+
+    # filter_wind_direction now returns Dataset with QC updated
+    ds_out = filter_wind_direction(ds_out, tag="_u")
+    ds_out["wspd_x_u"], ds_out["wspd_y_u"] = calculate_directional_wind_speed(
+        ds_out["wspd_u"], ds_out["wdir_u"]
+    )
+
+    if ds_out.attrs.get("number_of_booms", 1) == 2 and ("wdir_l" in ds_out) and ("wspd_l" in ds_out):
+        ds_out = filter_wind_direction(ds_out, tag="_l")
+        ds_out["wspd_x_l"], ds_out["wspd_y_l"] = calculate_directional_wind_speed(
+            ds_out["wspd_l"], ds_out["wdir_l"]
+        )
+
+    if ("wdir_i" in ds_out) and ("wspd_i" in ds_out):
+        if (~ds_out["wdir_i"].isnull().all()) and (~ds_out["wspd_i"].isnull().all()):
+            ds_out = filter_wind_direction(ds_out, tag="_i")
+            ds_out["wspd_x_i"], ds_out["wspd_y_i"] = calculate_directional_wind_speed(
+                ds_out["wspd_i"], ds_out["wdir_i"]
+            )
+
+    return ds_out
+
+
+
+def _run_clip(ds: xr.Dataset, variable_config: pd.DataFrame | None = None) -> xr.Dataset:
+    vars_cfg = variable_config if variable_config is not None else pypromice.resources.load_variables(None)
+    return clip_values(ds, vars_cfg)
+
+
+def _assert_qc_all(ds: xr.Dataset, var: str, expected: str):
+    qc = ds[f"{var}_qc"].to_series()
+    assert (qc == expected).all()
+
+
+def _assert_qc_equals(ds: xr.Dataset, var: str, expected: list[str]):
+    qc = ds[f"{var}_qc"].to_series().tolist()
+    assert qc == expected
 
 
 class ClipValuesTestCase(unittest.TestCase):
@@ -19,55 +80,26 @@ class ClipValuesTestCase(unittest.TestCase):
             },
             index=pd.date_range("2021-01-01", periods=n_entries, freq="h"),
         )
-        ds = xr.Dataset(df_in)
-        ds_out = ds.copy()
+        ds = _make_ds(df_in)
+        ds_out = _run_clip(_prep_wind_vars(ds))
 
-        # Calculate directional wind speed for upper boom
-        ds_out['wdir_u'] = filter_wind_direction(ds_out['wdir_u'],
-                                                 ds_out['wspd_u'])
-        ds_out['wspd_x_u'], ds_out['wspd_y_u'] = calculate_directional_wind_speed(ds_out['wspd_u'],
-                                                                                  ds_out['wdir_u'])
-        vars = pypromice.resources.load_variables(None)
-        ds_out = clip_values(ds_out, vars)
-
-        # Convert to dataframe for easier comparison
-        df_out = ds_out.to_dataframe()
-
-        # Assert all dir values are set nan
-        self.assertTrue(df_out["wdir_u"].isna().all())
-
+        assert (ds_out["wdir_u_qc"].to_series() == "DEPENDENCY").all()
 
     def test_flag_wdir_zero_wspd(self):
         n_entries = 4
         df_in = pd.DataFrame(
             data={
-                "wspd_u": n_entries * [0],
+                "wspd_u": n_entries * [0.0],
                 "wdir_u": np.random.rand(n_entries) * 360,
             },
             index=pd.date_range("2021-01-01", periods=n_entries, freq="h"),
         )
-        ds = xr.Dataset(df_in)
-        ds_out = ds.copy()
+        ds = _make_ds(df_in)
+        ds_out = _run_clip(_prep_wind_vars(ds))
 
-        # Calculate directional wind speed for upper boom
-        ds_out['wdir_u'] = filter_wind_direction(ds_out['wdir_u'],
-                                                 ds_out['wspd_u'])
-        ds_out['wspd_x_u'], ds_out['wspd_y_u'] = calculate_directional_wind_speed(ds_out['wspd_u'],
-                                                                                  ds_out['wdir_u'])
-
-        vars = pypromice.resources.load_variables(None)
-        ds_out = clip_values(ds_out, vars)
-
-        # Convert to dataframe for easier comparison
-        df_out = ds_out.to_dataframe()
-
-        # Assert all dir values are set nan
-        self.assertTrue(df_out["wdir_u"].isna().all())
-
+        assert (ds_out["wdir_u_qc"].to_series() == "ZERO_WSPD").all()
 
     def test_flagging_depended_on_wspd(self):
-        # This unit test tests variable conditions for flagging wdir values
-        # Nan, 0, and negative values should be flagged while positive values should not
         n_entries = 4
         df_in = pd.DataFrame(
             data={
@@ -76,56 +108,17 @@ class ClipValuesTestCase(unittest.TestCase):
             },
             index=pd.date_range("2021-01-01", periods=n_entries, freq="h"),
         )
-        ds = xr.Dataset(df_in)
+        ds = _make_ds(df_in)
         ds.attrs["number_of_booms"] = 1
-        ds_out = ds.copy()
 
-        # Calculate directional wind speed for upper boom
-        ds_out['wdir_u'] = filter_wind_direction(ds_out['wdir_u'],
-                                                 ds_out['wspd_u'])
-        ds_out['wspd_x_u'], ds_out['wspd_y_u'] = calculate_directional_wind_speed(ds_out['wspd_u'],
-                                                                                  ds_out['wdir_u'])
+        ds_out = _run_clip(_prep_wind_vars(ds))
+        df_out = ds_out[["wspd_u", "wdir_u", "wspd_x_u", "wspd_y_u", "wdir_u_qc", "wspd_x_u_qc", "wspd_y_u_qc"]].to_dataframe()
 
-        # Calculate directional wind speed for lower boom
-        if ds_out.attrs['number_of_booms'] == 2:
-            ds_out['wdir_l'] = filter_wind_direction(ds_out['wdir_l'],
-                                                      ds_out['wspd_l'])
-            ds_out['wspd_x_l'], ds_out['wspd_y_l'] = calculate_directional_wind_speed(ds_out['wspd_l'],
-                                                                                      ds_out['wdir_l'])
-
-        # Calculate directional wind speed for instantaneous measurements
-        if hasattr(ds_out, 'wdir_i'):
-            if ~ds_out['wdir_i'].isnull().all() and ~ds_out['wspd_i'].isnull().all():
-                ds_out['wdir_i'] = filter_wind_direction(ds_out['wdir_i'], ds_out['wspd_i'])
-                ds_out['wspd_x_i'], ds_out['wspd_y_i'] = calculate_directional_wind_speed(ds_out['wspd_i'],
-                                                                                          ds_out['wdir_i'])
-
-        vars = pypromice.resources.load_variables(None)
-
-        ds_out = clip_values(ds_out, vars)
-
-        # Convert to dataframe for easier comparison
-        df_out = ds_out.to_dataframe()
-
-        expected_dataframe = pd.DataFrame(
-            data={
-                "wspd_u": [np.nan, 0, 10, np.nan],
-                "wdir_u": [np.nan, np.nan, 90, np.nan],
-                "wspd_x_u": [np.nan, np.nan, 10, np.nan],
-                "wspd_y_u": [np.nan, np.nan, 0, np.nan],
-            },
-            index=df_out.index,
-        )
-        self.assertEqual(
-            df_out.columns.tolist(),
-            expected_dataframe.columns.tolist(),
-        )
-        pd.testing.assert_frame_equal(
-            df_out,
-            expected_dataframe,
-            check_dtype=True,
-            check_like=True,
-        )
+        expected_qc = ["DEPENDENCY", "ZERO_WSPD", "OK", "DEPENDENCY"]
+        assert df_out["wdir_u_qc"].tolist() == expected_qc
+        expected_qc = ["OK", "DEPENDENCY", "OK", "DEPENDENCY"]
+        assert df_out["wspd_x_u_qc"].tolist() == expected_qc
+        assert df_out["wspd_y_u_qc"].tolist() == expected_qc
 
     def test_recursive_flagging(self):
         fields = ["a", "b", "c"]
@@ -137,41 +130,24 @@ class ClipValuesTestCase(unittest.TestCase):
                 ["c", 200, 210, "a"],
             ],
         ).set_index("field")
-        data_index = pd.RangeIndex(4)
+
         data = pd.DataFrame(
             columns=fields,
             data=[
-                [0, 100, 215],  # c is out of range
-                [5, 115, 200],  # b is out of range
-                [10, 100, 200],  # All a withing range
-                [15, 100, 200],  # a is out of range
-            ],
-            dtype=float,
-            index=data_index,
-        )
-        expected_output = pd.DataFrame(
-            columns=fields,
-            data=[
-                [np.nan, np.nan, np.nan],  # c is nan -> a -> b
-                [5, np.nan, 200],  # b is nan
+                [0, 100, 215],
+                [5, 115, 200],
                 [10, 100, 200],
-                [np.nan, np.nan, 200],  # a is nan -> b
+                [15, 100, 200],
             ],
             dtype=float,
-            index=data.index,
+            index=pd.RangeIndex(4),
         )
+        ds = _make_ds(data)
+        ds_out = _run_clip(ds, variable_config)
 
-        data_set = xr.Dataset(data)
-
-        data_set_out = clip_values(data_set, variable_config)
-        data_frame_out = data_set_out.to_dataframe()
-
-        pd.testing.assert_frame_equal(
-            data_frame_out,
-            expected_output,
-            check_names=False,
-            check_dtype=True,
-        )
+        assert ds_out["c_qc"].to_series().tolist() == ["OOL", "OK", "OK", "OK"]
+        assert ds_out["a_qc"].to_series().tolist() == ["DEPENDENCY", "OK", "OK", "OOL"]
+        assert ds_out["b_qc"].to_series().tolist() == ["DEPENDENCY", "OOL", "OK", "DEPENDENCY"]
 
     def test_circular_dependencies(self):
         fields = ["a", "b", "c"]
@@ -183,42 +159,24 @@ class ClipValuesTestCase(unittest.TestCase):
                 ["c", 200, 210, "a"],
             ],
         ).set_index("field")
-        data_index = pd.RangeIndex(4)
+
         data = pd.DataFrame(
             columns=fields,
             data=[
-                [0, 100, 215],  # c is out of range
-                [5, 115, 200],  # b is out of range
-                [10, 100, 200],  # All a withing range
-                [15, 100, 200],  # a is out of range
-            ],
-            dtype=float,
-            index=data_index,
-        )
-        # All variables a dependent due to circular dependency
-        expected_output = pd.DataFrame(
-            columns=fields,
-            data=[
-                [np.nan, np.nan, np.nan],
-                [np.nan, np.nan, np.nan],
+                [0, 100, 215],
+                [5, 115, 200],
                 [10, 100, 200],
-                [np.nan, np.nan, np.nan],
+                [15, 100, 200],
             ],
             dtype=float,
-            index=data.index,
+            index=pd.RangeIndex(4),
         )
+        ds = _make_ds(data)
+        ds_out = _run_clip(ds, variable_config)
 
-        data_set = xr.Dataset(data)
-
-        data_set_out = clip_values(data_set, variable_config)
-        data_frame_out = data_set_out.to_dataframe()
-
-        pd.testing.assert_frame_equal(
-            data_frame_out,
-            expected_output,
-            check_names=False,
-            check_dtype=True,
-        )
+        assert ds_out["a_qc"].to_series().tolist() == ["DEPENDENCY", "DEPENDENCY", "OK", "OOL"]
+        assert ds_out["b_qc"].to_series().tolist() == ["DEPENDENCY", "OOL", "OK", "DEPENDENCY"]
+        assert ds_out["c_qc"].to_series().tolist() == ["OOL", "DEPENDENCY", "OK", "DEPENDENCY"]
 
     def test_rh_adjusted(self):
         variable_config = pd.DataFrame(
@@ -229,44 +187,24 @@ class ClipValuesTestCase(unittest.TestCase):
             ],
         ).set_index("field")
 
-        rows_input = []
-        rows_expected = []
-        # All values are within the expected range
-        rows_input.append(dict(rh_u=42, rh_u_wrt_ice_or_water=43))
-        rows_expected.append(dict(rh_u=42, rh_u_wrt_ice_or_water=43))
-        # rh_u is below range, but rh_u_wrt_ice_or_water is within range. Both should be flagged due to the variable dependency.
-        rows_input.append(dict(rh_u=-10, rh_u_wrt_ice_or_water=3))
-        rows_expected.append(dict(rh_u=np.nan, rh_u_wrt_ice_or_water=np.nan))
-        # rh_u is within range, but rh_u_wrt_ice_or_water is below range; rh_u_wrt_ice_or_water should be flagged
-        rows_input.append(dict(rh_u=54, rh_u_wrt_ice_or_water=-4))
-        rows_expected.append(dict(rh_u=54, rh_u_wrt_ice_or_water=np.nan))
-        # rh_u is above range, but rh_u_wrt_ice_or_water is within range. Both should be flagged due to the variable dependency.
-        rows_input.append(dict(rh_u=160, rh_u_wrt_ice_or_water=120))
-        rows_expected.append(dict(rh_u=np.nan, rh_u_wrt_ice_or_water=np.nan))
-        # rh_u is within range, but rh_u_wrt_ice_or_water is above range; rh_u_wrt_ice_or_water should be flagged
-        rows_input.append(dict(rh_u=100, rh_u_wrt_ice_or_water=255))
-        rows_expected.append(dict(rh_u=100, rh_u_wrt_ice_or_water=np.nan))
-
-        # Prepare the data
+        rows_input = [
+            dict(rh_u=42, rh_u_wrt_ice_or_water=43),
+            dict(rh_u=-10, rh_u_wrt_ice_or_water=3),
+            dict(rh_u=54, rh_u_wrt_ice_or_water=-4),
+            dict(rh_u=160, rh_u_wrt_ice_or_water=120),
+            dict(rh_u=100, rh_u_wrt_ice_or_water=255),
+        ]
         df_input = pd.DataFrame(rows_input, dtype=float)
-        df_expected = pd.DataFrame(rows_expected, dtype=float)
-        data_set = xr.Dataset(df_input)
+        ds = _make_ds(df_input)
 
-        # Run the function
-        data_set_out = clip_values(data_set, variable_config)
+        ds_out = _run_clip(ds, variable_config)
 
-        data_frame_out = data_set_out.to_dataframe()
-        pd.testing.assert_frame_equal(
-            data_frame_out,
-            df_expected,
-            check_names=False,
-            check_dtype=True,
-        )
+        assert ds_out["rh_u_qc"].to_series().tolist() == ["OK", "OOL", "OK", "OOL", "OK"]
+        assert ds_out["rh_u_wrt_ice_or_water_qc"].to_series().tolist() == [
+            "OK", "DEPENDENCY", "OOL", "DEPENDENCY", "OOL"
+        ]
 
     def test_nan_input(self):
-        """
-        Test that the function handles the case where nan input should cascade to child variables.
-        """
         fields = ["a", "b"]
         variable_config = pd.DataFrame(
             columns=["field", "lo", "hi", "dependent_variables"],
@@ -275,34 +213,22 @@ class ClipValuesTestCase(unittest.TestCase):
                 ["b", 100, 110, ""],
             ],
         ).set_index("field")
-        data_index = pd.RangeIndex(2)
+
         data = pd.DataFrame(
             columns=fields,
             data=[
-                [0, 100],  # All a withing range
-                [np.nan, 100],  # a is nan
-            ],
-            dtype=float,
-            index=data_index,
-        )
-        expected_output = pd.DataFrame(
-            columns=fields,
-            data=[
                 [0, 100],
-                [np.nan, np.nan],  # a is nan -> b
+                [np.nan, 100],
             ],
             dtype=float,
-            index=data.index,
+            index=pd.RangeIndex(2),
         )
+        ds = _make_ds(data)
+        ds_out = _run_clip(ds, variable_config)
 
-        data_set = xr.Dataset(data)
+        assert ds_out["a_qc"].to_series().tolist() == ["OK", "OK"]
+        assert ds_out["b_qc"].to_series().tolist() == ["OK", "DEPENDENCY"]
 
-        data_set_out = clip_values(data_set, variable_config)
-        data_frame_out = data_set_out.to_dataframe()
 
-        pd.testing.assert_frame_equal(
-            data_frame_out,
-            expected_output,
-            check_names=False,
-            check_dtype=True,
-        )
+if __name__ == "__main__":
+    unittest.main()
