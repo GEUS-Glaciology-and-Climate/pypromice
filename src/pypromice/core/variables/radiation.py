@@ -4,6 +4,7 @@ __all__ = ["convert_sr", "convert_lr", "filter_lr", "filter_sr",
 
 import xarray as xr
 import numpy as np
+from pypromice.core.qc.common import set_flag
 
 # Define coefficients for radiometer adjustments
 T_0=273.15                  # degrees Celsius to Kelvin conversion
@@ -53,71 +54,40 @@ def convert_lr(lr: xr.DataArray,
     """
     return ((lr * 10) / lr_eng_coef) + 5.67e-8 * (t_rad + T_0) **4
 
-def filter_lr(lr: xr.DataArray,
-           t_rad: xr.DataArray) -> xr.DataArray:
-    """Remove longwave radiation measurements that are missing
-    simultaneous radiometer temperature measurements
 
-    Parameters
-    ----------
-    lr : xr.DataArray
-        Longwave radiation measurements (upwelling or downwelling)
-    t_rad : xr.DataArray
-        Radiometer temperature
+def filter_sr(
+    ds: xr.Dataset,
+    ZenithAngle_rad: xr.DataArray,
+    ZenithAngle_deg: xr.DataArray,
+    AngleDif_deg: xr.DataArray,
+) -> tuple[xr.Dataset, tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]]:
+    """Filter shortwave radiation using sun geometry and TOA irradiance checks.
 
-    Returns
-    -------
-    xr.DataArray
-        Filtered radiation measurements
+    Applies physically motivated filters to downwelling (`dsr`) and upwelling
+    (`usr`) shortwave radiation based on solar zenith angle, relative sun/sensor
+    geometry, and top-of-atmosphere (TOA) irradiance limits. Original inputs are
+    preserved in `dsr_cor` and `usr_cor`. QC flags are written via `set_flag`.
+
+    Args:
+        ds: Dataset containing at least `dsr`, `usr`, and `cc` variables.
+        ZenithAngle_rad: Solar zenith angle in radians.
+        ZenithAngle_deg: Solar zenith angle in degrees.
+        AngleDif_deg: Angle between sun direction and sensor orientation in degrees.
+
+    Returns:
+        A tuple of:
+            - Updated dataset with corrected/flagged `dsr` and `usr`.
+            - Tuple of boolean masks:
+                (sun_below_horizon, sun_on_lower_dome, dsr_gt_toa, usr_gt_toa).
     """
-    return lr.where(t_rad.notnull())
-
-def filter_sr(dsr: xr.DataArray,
-              usr: xr.DataArray,
-              cc : xr.DataArray,
-              ZenithAngle_rad: xr.DataArray,
-              ZenithAngle_deg: xr.DataArray,
-              AngleDif_deg: xr.DataArray
-) -> tuple[xr.DataArray, xr.DataArray, tuple]:
-    """Filter shortwave radiation data for tilt, station pose relative to sun position, and top-of-atmosphere (TOA)
-    irradiance
-
-    Parameters
-    ----------
-    dsr : xr.DataArray
-        Downwelling shortwave radiation
-    usr : xr.DataArray
-        Upwelling shortwave radiation
-    cc : xr.DataArray
-        Cloud cover
-    ZenithAngle_deg : xr.DataArray
-        Zenith angle in degrees
-    ZenithAngle_rad : xr.DataArray
-        Zenith angle in radians
-     AngleDif_deg : xr.DataArray
-        Angle between sun and sensor in degrees
-
-    Returns
-    -------
-    dsr_filtered : xr.DataArray
-        Filtered downwelling shortwave radiation
-    usr_filtered : xr. DataArray
-        Filtered upwelling shortwave radiation
-    tuple
-        Filter flags for 1) sun position below horizon; 2) sun on lower dome; 3) downwelling sr measurements greater
-        than TOA; and 4) upwelling sr measurements greater than TOA
-    """
-    dsr_filtered = dsr.copy()
-    usr_filtered = usr.copy()
-
     # Setting to zero when sun below the horizon.
     bad = ZenithAngle_deg > 95
-    dsr_filtered[bad & dsr_filtered.notnull()] = 0
-    usr_filtered[bad & usr_filtered.notnull()] = 0
+    ds["dsr"] = xr.where(bad & ds["dsr"].notnull(), 0, ds["dsr"])
+    ds["usr"] = xr.where(bad & ds["usr"].notnull(), 0, ds["usr"])
 
     # Setting to zero when values are negative
-    dsr_filtered = dsr_filtered.clip(min=0)
-    usr_filtered = usr_filtered.clip(min=0)
+    ds["dsr"] = ds["dsr"].clip(min=0)
+    ds["usr"] = ds["usr"].clip(min=0)
 
     # Filtering usr and dsr for sun on lower dome
     # in theory, this is not a problem in cloudy conditions, but the cloud cover
@@ -125,11 +95,11 @@ def filter_sr(dsr: xr.DataArray,
     sunonlowerdome = (AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)
 
     # Relaxing the filter for cases where sensor tilt is unknown
-    mask = ~sunonlowerdome | AngleDif_deg.isnull()
+    mask = sunonlowerdome & AngleDif_deg.notnull()
 
     # Perform filter
-    dsr_filtered = dsr_filtered.where(mask)
-    usr_filtered = usr_filtered.where(mask)
+    ds = set_flag(ds, 'dsr', flag="SUN_ON_LOWER_DOME", mask=mask)
+    ds = set_flag(ds, 'usr', flag="SUN_ON_LOWER_DOME", mask=mask)
 
     # Calculate TOA shortwave radiation
     isr_toa = calculate_TOA(ZenithAngle_deg, ZenithAngle_rad)
@@ -137,15 +107,15 @@ def filter_sr(dsr: xr.DataArray,
     # Filter dsr values that are greater than top of the atmosphere irradiance
     # Case where no tilt is available. If it is, then the same filter is used
     # after tilt correction.
-    tilt_correction_possible = AngleDif_deg.notnull() & cc.notnull()
-    TOA_crit_nopass_dsr = ~tilt_correction_possible & (dsr_filtered > (1.2 * isr_toa + 150))
-    dsr_filtered[TOA_crit_nopass_dsr] = np.nan
+    tilt_correction_possible = AngleDif_deg.notnull() & ds.cc.notnull()
+    TOA_crit_nopass_dsr = ~tilt_correction_possible & (ds.dsr > (1.2 * isr_toa + 150))
+    ds = set_flag(ds, 'dsr', flag="DSR_GT_TOA_IRRADIANCE", mask=TOA_crit_nopass_dsr)
 
     # The upward flux should not be higher than the TOA downward flux
-    TOA_crit_nopass_usr = (usr_filtered > 0.8 * (1.2 * isr_toa + 150))
-    usr_filtered[TOA_crit_nopass_usr] = np.nan
+    TOA_crit_nopass_usr = (ds.usr > 0.8 * (1.2 * isr_toa + 150))
+    ds = set_flag(ds, 'dsr', flag="USR_GT_TOA_IRRADIANCE", mask=TOA_crit_nopass_usr)
 
-    return dsr_filtered, usr_filtered, (bad, sunonlowerdome, TOA_crit_nopass_dsr, TOA_crit_nopass_usr)
+    return ds, (bad, sunonlowerdome, TOA_crit_nopass_dsr, TOA_crit_nopass_usr)
 
 def correct_sr(dsr_filtered: xr.DataArray,
                usr_filtered: xr.DataArray,

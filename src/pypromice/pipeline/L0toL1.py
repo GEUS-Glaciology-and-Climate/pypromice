@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 from pypromice.core.variables.pressure_transducer_depth import correct_and_calculate_depth
 from pypromice.core.qc.value_clipping import clip_values
-from pypromice.core.variables import (wind, 
-                                      air_temperature, 
-                                      gps, 
+from pypromice.core.variables import (wind,
+                                      air_temperature,
+                                      gps,
                                       radiation,
                                       station_boom_height,
                                       station_pose,
@@ -125,20 +125,21 @@ def toL1(L0: xr.DataArray,
         logger.info(f'Wind speed correction applied to wspd_i based on factor of {ds.attrs["wind_i_coef"]}')
         ds['wspd_i'] = wind.correct_wind_speed(ds['wspd_i'],
                                                ds.attrs['wind_i_coef'])
-                                               
+
     # FRE has a special encoding/calibration for pressure, it is the only station that has attribute FRE_pressure_decoding = 1
     if hasattr(ds, 'FRE_pressure_decoding'):
         logger.info('Special decoding of air pressure')
         ds['p_u'] = (ds['p_u']+1000)*0.2 + 600
 
-
     # Handle cases where the bedrock attribute is incorrectly set
-    if not 'bedrock' in ds.attrs:
-        logger.warning('bedrock attribute is not set')
+    if not 'site_type' in ds.attrs:
+        logger.warning('site_type attribute is not set')
         ds.attrs['bedrock'] = False
-    elif not isinstance(ds.attrs['bedrock'], bool):
-        logger.warning(f'bedrock attribute is not boolean: {ds.attrs["bedrock"]}')
-        ds.attrs['bedrock'] =  str(ds.attrs['bedrock']).lower() == 'true'
+    else:
+        if ds.attrs['site_type'].lower() == "bedrock":
+            ds.attrs['bedrock'] = True
+        else:
+            ds.attrs['bedrock'] = False
     is_bedrock = ds.attrs['bedrock']
 
     # Some bedrock stations (e.g. KAN_B) do not have tilt in L0 files
@@ -185,8 +186,15 @@ def toL1(L0: xr.DataArray,
         ds["t_l_interp"] = air_temperature.clip_and_interpolate(ds["t_l"], tl_lo, tl_hi)
         ds["z_boom_cor_l"] = station_boom_height.adjust(ds["z_boom_l"], ds["t_l_interp"])
 
-    # Clip values and remove redundant attribute information
+    # initiating the quality flag variables
+    for var in ds.data_vars:
+        qc = xr.full_like(ds[var], fill_value="OK", dtype=object)
+        ds[var + "_qc"] = qc
+
+    # Clip values that are OOL or that are dependent on invalid parent variable
     ds = clip_values(ds, vars_df)
+
+    # remove redundant attribute information
     for key in ['hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
           'dlr_eng_coef', 'ulr_eng_coef', 'wind_u_coef','wind_l_coef',
           'wind_i_coef', 'pt_z_coef', 'pt_z_p_coef', 'pt_z_factor',

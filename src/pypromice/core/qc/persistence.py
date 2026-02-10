@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from typing import Mapping, Optional, Union
+from pypromice.core.qc.common import remove_flagged_data, set_flag
 
 __all__ = [
     "persistence_qc",
@@ -45,34 +46,25 @@ def persistence_qc(
     ds: xr.Dataset,
     variable_thresholds: Optional[Mapping] = None,
 ) -> xr.Dataset:
+    """Flag persistent (frozen) sensor values without altering the data.
+
+    Persistence is evaluated on a working copy where previously flagged samples
+    are removed, but the output dataset preserves the original data values.
+    Only the corresponding ``<var>_qc`` variables are updated by adding the
+    "PERSISTENCE" flag where long periods of near-constant values are detected.
+
+    Args:
+        ds: Level 1 dataset containing variables and optional ``*_qc`` variables.
+        variable_thresholds: Mapping defining per-variable persistence criteria
+            with keys ``max_diff`` and ``period``. Keys like "t", "p", "rh",
+            "wspd", "wdir", "z_boom" expand to ``*_u``, ``*_l``, ``*_i``.
+
+    Returns:
+        xr.Dataset: Dataset with original data unchanged and updated ``*_qc``
+        variables containing additional "PERSISTENCE" flags.
     """
-    Detect and filter data points that seems to be persistent within a certain period.
-
-    TODO: It could be nice to have a reference to the logger or description of the behaviour here.
-    The AWS logger program is know to return the last successfully read value if it fails reading from the sensor.
-
-    Parameters
-    ----------
-    ds : xr.Dataset
-        Level 1 datset
-    variable_thresholds : Mapping
-        Define threshold dict to hold limit values, and the difference values.
-        Limit values indicate how much a variable has to change to the previous value
-        period is how many hours a value can stay the same without being set to NaN
-        * are used to calculate and define all limits, which are then applied to *_u, *_l and *_i
-
-    Returns
-    -------
-    ds_out : xr.Dataset
-            Level 1 dataset with difference outliers set to NaN
-    """
-
-    # the differenceQC is not done on the Windspeed
-    # Optionally examine flagged data by setting make_plots to True
-    # This is best done by running aws.py directly and setting 'test_station'
-    # Plots will be shown before and after flag removal for each var
-
-    df = ds.to_dataframe()  # Switch to pandas
+    ds_work = remove_flagged_data(ds)
+    df_work = ds_work.to_dataframe()
 
     if variable_thresholds is None:
         variable_thresholds = DEFAULT_VARIABLE_THRESHOLDS
@@ -80,47 +72,42 @@ def persistence_qc(
     else:
         logger.info(f"Running persistence_qc using custom thresholds:\n {variable_thresholds}")
 
+    ds_out = ds.copy(deep=True)
+
     for k in variable_thresholds.keys():
         if k in ["t", "p", "rh", "wspd", "wdir", "z_boom"]:
-            var_all = [k + l for l in ["_u", "_l", "_i"]]  # apply to upper, lower boom, and instant
+            var_all = [k + l for l in ["_u", "_l", "_i"]]
         else:
             var_all = [k]
-        max_diff = variable_thresholds[k]["max_diff"]  # loading persistent limit
-        period = variable_thresholds[k]["period"]  # loading diff period
+
+        max_diff = variable_thresholds[k]["max_diff"]
+        period = variable_thresholds[k]["period"]
 
         for v in var_all:
-            if v in df:
-                mask = find_persistent_regions(df[v], period, max_diff)
+            if v in df_work.columns:
+                mask = find_persistent_regions(df_work[v], period, max_diff)
                 if "rh" in v:
-                    mask = mask & (df[v] < 99)
-                n_masked = mask.sum()
-                n_samples = len(mask)
-                logger.debug(
-                    f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
-                )
-                # setting outliers to NaN
-                df.loc[mask, v] = np.nan
-            elif v == "gps_lat_lon":
-                mask = find_persistent_regions(
-                    df["gps_lon"], period, max_diff
-                ) & find_persistent_regions(df["gps_lat"], period, max_diff)
+                    mask = mask & (df_work[v] < 99)
 
-                n_masked = mask.sum()
-                n_samples = len(mask)
-                logger.debug(
-                    f"Applying persistent QC in {v}. Filtering {n_masked}/{n_samples} samples"
-                )
-                # setting outliers to NaN
-                df.loc[mask, "gps_lon"] = np.nan
-                df.loc[mask, "gps_lat"] = np.nan
+                if mask.any():
+                    idx = df_work.index[mask]
+                    ds_out = set_flag(
+                        ds_out, v, "PERSISTENCE",
+                        index_slice={"time": idx},
+                    )
 
-    # Back to xarray, and re-assign the original attrs
-    ds_out = df.to_xarray()
-    ds_out = ds_out.assign_attrs(ds.attrs)  # Dataset attrs
-    for x in ds_out.data_vars:  # variable-specific attrs
-        ds_out[x].attrs = ds[x].attrs
+            elif v == "gps_lat_lon" and ("gps_lon" in df_work.columns) and ("gps_lat" in df_work.columns):
+                mask = find_persistent_regions(df_work["gps_lon"], period, max_diff) & \
+                       find_persistent_regions(df_work["gps_lat"], period, max_diff)
+
+                if mask.any():
+                    idx = df_work.index[mask]
+                    ds_out = set_flag(ds_out, "gps_lon", "PERSISTENCE", index_slice={"time": idx})
+                    ds_out = set_flag(ds_out, "gps_lat", "PERSISTENCE", index_slice={"time": idx})
 
     return ds_out
+
+
 
 
 def find_persistent_regions(

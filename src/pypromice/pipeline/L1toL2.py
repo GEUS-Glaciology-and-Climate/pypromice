@@ -23,12 +23,14 @@ from pypromice.core.variables import (wind,
                                       radiation,
                                       station_pose,
                                       air_temperature)
-
+from pypromice.core.qc.rate_of_change_filter import rate_of_change_filter
+from pypromice.core.qc.common import remove_flagged_data
 
 def toL2(L1: xr.Dataset,
          vars_df: pd.DataFrame,
          data_flags_dir: Path,
-         data_adjustments_dir: Path
+         data_adjustments_dir: Path,
+         keep_flagged_data: str = False,
 ) -> xr.Dataset:
     """Process one Level 1 (L1) product to Level 2.
     In this step we do:
@@ -53,13 +55,21 @@ def toL2(L1: xr.Dataset,
         Directory path to data flags file
     data_adjustments_dir : pathlib.Path
         Directory path to data adjustments file
+    keep_flagged_data: str
+        If False replace all data not flagged as "OK" by NaN
 
     Returns
     -------
     ds : xr.Dataset
         Level 2 dataset
     """
-    ds = L1.copy()
+    ds = L1.copy(deep=True)
+
+    # Flag and remove persistence outliers
+    ds = persistence_qc(ds)
+
+    # Flag high-rate-of-change outliers
+    ds = rate_of_change_filter(ds)
 
     try:
         # Adjust time after a user-defined csv files
@@ -74,23 +84,13 @@ def toL2(L1: xr.Dataset,
     except Exception:
         logger.exception("Flagging and fixing failed:")
 
-    # Flag and remove persistence outliers
-    ds = persistence_qc(ds)
-
     # if ds.attrs['format'] == 'TX':
     #     # TODO: The configuration should be provided explicitly
     #     outlier_detector = ThresholdBasedOutlierDetector.default()
     #     ds = outlier_detector.filter_data(ds)
 
     # Filter GPS values based on baseline elevation
-    ds["gps_lat"], ds["gps_lon"], ds["gps_alt"] = gps.filter(ds["gps_lat"],
-                                                             ds["gps_lon"],
-                                                             ds["gps_alt"])
-
-    # Removing dlr and ulr that are missing t_rad
-    # This is done now because t_rad can be filtered either manually or with persistence
-    ds["dlr"] = radiation.filter_lr(ds["dlr"], ds["t_rad"])
-    ds["ulr"] = radiation.filter_lr(ds["ulr"], ds["t_rad"])
+    ds = gps.filter(ds)
 
     # Calculate relative humidity with regard to ice
     ds["rh_u_wrt_ice_or_water"] = humidity.adjust(ds["rh_u"], ds["t_u"])
@@ -103,8 +103,7 @@ def toL2(L1: xr.Dataset,
             ds["rh_i_wrt_ice_or_water"] = humidity.adjust(ds["rh_i"], ds["t_i"])
 
     # Determine surface temperature
-    ds["t_surf"] = radiation.calculate_surface_temperature(ds["dlr"],
-                                                           ds["ulr"])
+    ds["t_surf"] = radiation.calculate_surface_temperature(ds["dlr"], ds["ulr"])
     is_bedrock = ds.attrs["bedrock"]
     if not is_bedrock:
         ds["t_surf"] = ds["t_surf"].clip(max=0)
@@ -117,7 +116,6 @@ def toL2(L1: xr.Dataset,
 
     # Determine cloud cover for on-ice stations
     if not is_bedrock:
-
         # Selected stations have pre-defined cloud assumption coefficients
         # TODO Ideally these will be pre-defined for all stations eventually
         if ds.attrs["station_id"] == "KAN_M":
@@ -135,16 +133,20 @@ def toL2(L1: xr.Dataset,
 
     # Set cloud cover to nans if station is not on ice
     else:
-        ds["cc"] = ds["dlr"].copy() * np.nan
+        ds["cc"] = xr.full_like(ds["dlr"], np.nan)
 
     # Determine station pose relative to sun position
-    # TODO Why is mean GPS lat lon not preferred for calcs?
-    if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
-        lat = ds.attrs['latitude']
-        lon = ds.attrs['longitude']
-    else:
-        lat = ds['gps_lat'].mean()
-        lon = ds['gps_lon'].mean()
+    lat = lon = np.nan
+    if ("latitude" in ds.attrs) and ("longitude" in ds.attrs):
+        lat = float(ds.attrs["latitude"])
+        lon = float(ds.attrs["longitude"])
+    if ("gps_lat" in ds.data_vars) and ("gps_lon" in ds.data_vars):
+        lat_ok = ds["gps_lat"].where(ds["gps_lat_qc"] == "OK")
+        lon_ok = ds["gps_lon"].where(ds["gps_lon_qc"] == "OK")
+
+        if lat_ok.notnull().any() and lon_ok.notnull().any():
+            lat = lat_ok.mean().item()
+            lon = lon_ok.mean().item()
 
     # Determine station position relative to sun
     doy = ds['time'].dt.dayofyear
@@ -162,12 +164,10 @@ def toL2(L1: xr.Dataset,
                                                            theta_sensor_rad)
 
     # Filter shortwave radiation
-    ds["dsr"], ds["usr"], _ = radiation.filter_sr(ds["dsr"],
-                                                  ds["usr"],
-                                                  ds["cc"],
-                                                  ZenithAngle_rad,
-                                                  ZenithAngle_deg,
-                                                  AngleDif_deg)
+    ds, _ = radiation.filter_sr(ds,
+                                ZenithAngle_rad,
+                                ZenithAngle_deg,
+                                AngleDif_deg)
 
     # Correct shortwave radiation
     ds["dsr_cor"], ds["usr_cor"], _ = radiation.correct_sr(ds["dsr"],
@@ -207,22 +207,25 @@ def toL2(L1: xr.Dataset,
             ds["rainfall_cor_l"] = precipitation.correct_rainfall_undercatch(ds["rainfall_l"], ds["wspd_l"])
 
     # Calculate directional wind speed for upper boom
-    ds['wdir_u'] = wind.filter_wind_direction(ds['wdir_u'], ds['wspd_u'])
+    ds = wind.filter_wind_direction(ds, '_u')
     ds['wspd_x_u'], ds['wspd_y_u'] = wind.calculate_directional_wind_speed(ds['wspd_u'], ds['wdir_u'])
-    
+
     # Calculate directional wind speed for lower boom
     if ds.attrs['number_of_booms'] == 2:
-        ds['wdir_l'] = wind.filter_wind_direction(ds['wdir_l'], ds['wspd_l'])
+        ds = wind.filter_wind_direction(ds, '_l')
         ds['wspd_x_l'], ds['wspd_y_l'] = wind.calculate_directional_wind_speed(ds['wspd_l'], ds['wdir_l'])
 
     # Calculate directional wind speed for instantaneous measurements
     if hasattr(ds, 'wdir_i'):
         if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():
-            ds['wdir_i'] = wind.filter_wind_direction(ds['wdir_i'], ds['wspd_i'])
+            ds = wind.filter_wind_direction(ds, '_i')
             ds['wspd_x_i'], ds['wspd_y_i'] = wind.calculate_directional_wind_speed(ds['wspd_i'], ds['wdir_i'])
 
     # Clip values (i.e. threshold filtering)
     ds = clip_values(ds, vars_df)
+
+    # removing the non-OK data
+    if not keep_flagged_data: ds = remove_flagged_data(ds)
 
     # Return L2 dataset
     ds.attrs['level'] = 'L2'
