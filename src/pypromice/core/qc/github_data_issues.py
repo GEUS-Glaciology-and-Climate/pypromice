@@ -146,7 +146,6 @@ def adjustData(ds, adj_dir, var_list=None, skip_var=None):
         Level 0 data with flagged data
     '''
 
-
     ds_work = remove_flagged_data(ds)
 
     adj_info = _getDF(os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"), list(ds_work.keys()))
@@ -165,7 +164,6 @@ def adjustData(ds, adj_dir, var_list=None, skip_var=None):
     if not skip_var is None:
         adj_info = adj_info.loc[~np.isin(adj_info.variable, skip_var), :]
         var_list = np.unique(adj_info.variable)
-
     var_list = [v for v in var_list if (v != "time") and ("_qc" not in v)]
 
     for var in var_list:
@@ -333,13 +331,13 @@ def _getDF(flag_file, var_list):
                         ).dropna(how='all', axis='rows')
 
         # making sure that t0 and t1 columns are object dtype then replaceing nan with None
-        adj_info[['t0','t1']] = adj_info[['t0','t1']].astype(object)
-        adj_info.loc[adj_info.t1.isnull()|(adj_info.t1==''), "t1"] = None
-        adj_info.loc[adj_info.t0.isnull()|(adj_info.t0==''), "t0"] = None
-
         adj_info['t0'] = pd.to_datetime(adj_info['t0'], errors='coerce').dt.tz_localize(None)
         adj_info['t1'] = pd.to_datetime(adj_info['t1'], errors='coerce').dt.tz_localize(None)
-        adj_info[['t0','t1']] = adj_info[['t0','t1']].where(adj_info[['t0','t1']].notna(), None)
+        adj_info[['t0','t1']] = adj_info[['t0','t1']].astype(object)
+
+        for t in ['t0','t1']:
+            not_a_time = adj_info[t].isnull()
+            adj_info.loc[not_a_time, t] = None
 
         # if "*" is in the variable name then we interpret it as regex
         selec = adj_info['variable'].str.contains(r'\*') & (adj_info['variable'] != "*")
