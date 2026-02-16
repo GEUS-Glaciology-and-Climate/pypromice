@@ -24,26 +24,42 @@ def correct_wind_speed(wspd: xr.DataArray, coefficient) -> xr.DataArray:
     """
     return wspd * coefficient
 
-def filter_wind_direction(ds: xr.Dataset, tag: str = "_u") -> xr.Dataset:
+
+def filter_wind_direction(wdir: xr.DataArray,
+                          wspd: xr.DataArray,
+                          wdir_qc: xr.DataArray=None
+) -> xr.DataArray:
     """Flag wind direction samples where wind speed is zero.
 
     Wind direction is physically undefined when wind speed equals zero.
     This function identifies such cases and assigns a QC flag to the
     corresponding wind direction variable using `set_flag`.
 
-    Args:
-        ds: Dataset containing wind speed (`wspd{tag}`) and wind direction
-            (`wdir{tag}`) variables.
-        tag: Suffix indicating sensor level (e.g. "_u", "_l", "_i").
+    Parameters
+    ----------
+    wdir : xr.DataArray
+        Wind direction
+    wspd: xr.DataArray
+        Wind speed
+    wdir_qc : xr.DataArray
+        Quality control for wind direction
 
-    Returns:
-        Dataset with QC flags updated for `wdir{tag}` where wind speed is zero.
+    Returns
+    -------
+    wdir_qc : xr.DataArray
+        Updated quality control flags for wind direction
     """
-    mask = ds[f'wspd{tag}'] == 0
-    return set_flag(ds, f'wdir{tag}', flag='ZERO_WSPD', mask=mask)
+    mask = wspd == 0
+    wdir_qc = set_flag(wdir,
+                       "ZERO_WSPD",
+                       mask=mask,
+                       qc=wdir_qc)
+    return wdir_qc
 
 
-def calculate_directional_wind_speed(wspd: xr.DataArray, wdir: xr.DataArray):
+def calculate_directional_wind_speed(wspd: xr.DataArray,
+                                     wdir: xr.DataArray
+) -> xr.DataArray:
     """Calculate directional wind speed from wind speed and direction
 
     Parameters

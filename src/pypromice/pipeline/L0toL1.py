@@ -186,11 +186,6 @@ def toL1(L0: xr.DataArray,
         ds["t_l_interp"] = air_temperature.clip_and_interpolate(ds["t_l"], tl_lo, tl_hi)
         ds["z_boom_cor_l"] = station_boom_height.adjust(ds["z_boom_l"], ds["t_l_interp"])
 
-    # initiating the quality flag variables
-    for var in ds.data_vars:
-        qc = xr.full_like(ds[var], fill_value="OK", dtype=object)
-        ds[var + "_qc"] = qc
-
     # Clip values that are OOL or that are dependent on invalid parent variable
     ds = clip_values(ds, vars_df)
 

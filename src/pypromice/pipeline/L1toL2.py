@@ -24,7 +24,7 @@ from pypromice.core.variables import (wind,
                                       station_pose,
                                       air_temperature)
 from pypromice.core.qc.rate_of_change_filter import rate_of_change_filter
-from pypromice.core.qc.common import remove_flagged_data
+from pypromice.core.qc.common import remove_flagged_data, add_qc_variables
 
 def toL2(L1: xr.Dataset,
          vars_df: pd.DataFrame,
@@ -63,6 +63,7 @@ def toL2(L1: xr.Dataset,
     ds : xr.Dataset
         Level 2 dataset
     """
+    # Copy input dataset and add quality flag variables
     ds = L1.copy(deep=True)
 
     # Flag and remove persistence outliers
@@ -90,7 +91,12 @@ def toL2(L1: xr.Dataset,
     #     ds = outlier_detector.filter_data(ds)
 
     # Filter GPS values based on baseline elevation
-    ds = gps.filter(ds)
+    ds["gps_lat_qc"], ds["gps_lon_qc"], ds["gps_alt_qc"] = gps.filter(ds["gps_lat"],
+                                                                      ds["gps_lon"],
+                                                                      ds["gps_alt"],
+                                                                      ds["gps_lat_qc"],
+                                                                      ds["gps_lon_qc"],
+                                                                      ds["gps_alt_qc"])
 
     # Calculate relative humidity with regard to ice
     ds["rh_u_wrt_ice_or_water"] = humidity.adjust(ds["rh_u"], ds["t_u"])
@@ -163,11 +169,18 @@ def toL2(L1: xr.Dataset,
                                                            phi_sensor_rad,
                                                            theta_sensor_rad)
 
+    # Clip shortwave radiation
+    ds["dsr"], ds["usr"] = radiation.clip_sr(ds["dsr"], ds["usr"])
+
     # Filter shortwave radiation
-    ds, _ = radiation.filter_sr(ds,
-                                ZenithAngle_rad,
-                                ZenithAngle_deg,
-                                AngleDif_deg)
+    ds["dsr_qc"], ds["usr_qc"] = radiation.filter_sr(ds["dsr"],
+                                                     ds["usr"],
+                                                     ds["cc"],
+                                                     ZenithAngle_rad,
+                                                     ZenithAngle_deg,
+                                                     AngleDif_deg,
+                                                     ds["dsr_qc"],
+                                                     ds["usr_qc"])
 
     # Correct shortwave radiation
     ds["dsr_cor"], ds["usr_cor"], _ = radiation.correct_sr(ds["dsr"],
@@ -196,35 +209,61 @@ def toL2(L1: xr.Dataset,
         precip_flag=True
 
     if ~ds["precip_u"].isnull().all() and precip_flag:
-        ds["precip_u"] = precipitation.filter_lufft_errors(ds["precip_u"], ds["t_u"], ds["p_u"], ds["rh_u"])
-        ds["rainfall_u"] = precipitation.get_rainfall_per_timestep(ds["precip_u"], ds["t_u"])
-        ds["rainfall_cor_u"] = precipitation.correct_rainfall_undercatch(ds["rainfall_u"], ds["wspd_u"])
+        ds["precip_u"] = precipitation.filter_lufft_errors(ds["precip_u"],
+                                                           ds["t_u"],
+                                                           ds["p_u"],
+                                                           ds["rh_u"])
+
+        ds["rainfall_u"] = precipitation.get_rainfall_per_timestep(ds["precip_u"],
+                                                                   ds["t_u"])
+
+        ds["rainfall_cor_u"] = precipitation.correct_rainfall_undercatch(ds["rainfall_u"],
+                                                                         ds["wspd_u"])
 
     if ds.attrs["number_of_booms"]==2:
         if ~ds["precip_l"].isnull().all() and precip_flag:
-            ds["precip_l"] = precipitation.filter_lufft_errors(ds["precip_l"], ds["t_l"], ds["p_l"], ds["rh_l"])
-            ds["rainfall_l"] = precipitation.get_rainfall_per_timestep(ds["precip_l"], ds["t_l"])
-            ds["rainfall_cor_l"] = precipitation.correct_rainfall_undercatch(ds["rainfall_l"], ds["wspd_l"])
+            ds["precip_l"] = precipitation.filter_lufft_errors(ds["precip_l"],
+                                                               ds["t_l"],
+                                                               ds["p_l"],
+                                                               ds["rh_l"])
+
+            ds["rainfall_l"] = precipitation.get_rainfall_per_timestep(ds["precip_l"],
+                                                                       ds["t_l"])
+
+            ds["rainfall_cor_l"] = precipitation.correct_rainfall_undercatch(ds["rainfall_l"],
+                                                                             ds["wspd_l"])
 
     # Calculate directional wind speed for upper boom
-    ds = wind.filter_wind_direction(ds, '_u')
-    ds['wspd_x_u'], ds['wspd_y_u'] = wind.calculate_directional_wind_speed(ds['wspd_u'], ds['wdir_u'])
+    ds["wdir_u_qc"] = wind.filter_wind_direction(ds["wdir_u"],
+                                                 ds["wspd_u"],
+                                                 ds["wdir_u_qc"])
+
+    ds['wspd_x_u'], ds['wspd_y_u'] = wind.calculate_directional_wind_speed(ds['wspd_u'],
+                                                                           ds['wdir_u'])
 
     # Calculate directional wind speed for lower boom
     if ds.attrs['number_of_booms'] == 2:
-        ds = wind.filter_wind_direction(ds, '_l')
-        ds['wspd_x_l'], ds['wspd_y_l'] = wind.calculate_directional_wind_speed(ds['wspd_l'], ds['wdir_l'])
+        ds["wdir_l_qc"] = wind.filter_wind_direction(ds["wdir_l"],
+                                                     ds["wspd_l"],
+                                                     ds["wdir_l_qc"])
+
+        ds['wspd_x_l'], ds['wspd_y_l'] = wind.calculate_directional_wind_speed(ds['wspd_l'],
+                                                                               ds['wdir_l'])
 
     # Calculate directional wind speed for instantaneous measurements
     if hasattr(ds, 'wdir_i'):
         if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():
-            ds = wind.filter_wind_direction(ds, '_i')
-            ds['wspd_x_i'], ds['wspd_y_i'] = wind.calculate_directional_wind_speed(ds['wspd_i'], ds['wdir_i'])
+            ds["wdir_i_qc"] = wind.filter_wind_direction(ds["wdir_i"],
+                                                         ds["wspd_i"],
+                                                         ds["wdir_i_qc"])
+
+            ds['wspd_x_i'], ds['wspd_y_i'] = wind.calculate_directional_wind_speed(ds['wspd_i'],
+                                                                                   ds['wdir_i'])
 
     # Clip values (i.e. threshold filtering)
     ds = clip_values(ds, vars_df)
 
-    # removing the non-OK data
+    # Removing the non-OK data
     if not keep_flagged_data: ds = remove_flagged_data(ds)
 
     # Return L2 dataset
