@@ -25,9 +25,8 @@ def correct_wind_speed(wspd: xr.DataArray, coefficient) -> xr.DataArray:
     return wspd * coefficient
 
 
-def filter_wind_direction(wdir: xr.DataArray,
-                          wspd: xr.DataArray,
-                          wdir_qc: xr.DataArray=None
+def filter_wind_direction(wspd: xr.DataArray,
+                          wdir_qc: xr.DataArray
 ) -> xr.DataArray:
     """Flag wind direction samples where wind speed is zero.
 
@@ -50,10 +49,9 @@ def filter_wind_direction(wdir: xr.DataArray,
         Updated quality control flags for wind direction
     """
     mask = wspd == 0
-    wdir_qc = set_flag(wdir,
-                       "ZERO_WSPD",
-                       mask=mask,
-                       qc=wdir_qc)
+    wdir_qc = set_flag(wdir_qc,
+                       mask,
+                       "ZERO_WSPD")
     return wdir_qc
 
 

@@ -61,7 +61,7 @@ def clip_sr(dsr: xr.DataArray,
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Clip shortwave radiation measurements that are negative values, or
     that are measurements collected when sun is below horizon (based on
-    solar zenith angle.
+    solar zenith angle. Values are reassigned to zero.
 
     Parameters
     ----------
@@ -123,7 +123,7 @@ def filter_sr(
     AngleDif_deg: xr.DataArray
         Angle between sun direction and sensor orientation in degrees.
     dsr_qc: xr.DataArray
-        Optional existing QC flags for dsr.
+        Optional existing QC flags for dsr. Default is None.
     usr_qc: xr.DataArray
         Optional existing QC flags for usr.
 
@@ -139,8 +139,8 @@ def filter_sr(
     # index is too uncertain at this point to be used
     sun_on_lower_dome = (AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)
     mask_lower_dome = sun_on_lower_dome & AngleDif_deg.notnull()
-    dsr_qc = set_flag(dsr, "SUN_ON_LOWER_DOME", mask=mask_lower_dome, qc=dsr_qc)
-    usr_qc = set_flag(usr, "SUN_ON_LOWER_DOME", mask=mask_lower_dome, qc=usr_qc)
+    dsr_qc = set_flag(dsr_qc, mask_lower_dome, "SUN_ON_LOWER_DOME", dsr)
+    usr_qc = set_flag(usr_qc, mask_lower_dome, "SUN_ON_LOWER_DOME", usr)
 
     # 2. TOA irradiance checks
     # Filter dsr values that are greater than top of the atmosphere irradiance
@@ -150,10 +150,10 @@ def filter_sr(
     tilt_correction_possible = AngleDif_deg.notnull() & cc.notnull()
 
     dsr_gt_toa = ~tilt_correction_possible & (dsr > (1.2 * isr_toa + 150))
-    dsr_qc = set_flag(dsr, "DSR_GT_TOA_IRRADIANCE", mask=dsr_gt_toa, qc=dsr_qc)
+    dsr_qc = set_flag(dsr_qc, dsr_gt_toa,"DSR_GT_TOA_IRRADIANCE")
 
     usr_gt_toa = usr > 0.8 * (1.2 * isr_toa + 150)
-    usr_qc = set_flag(usr, "USR_GT_TOA_IRRADIANCE", mask=usr_gt_toa, qc=usr_qc)
+    usr_qc = set_flag(usr_qc, usr_gt_toa, "USR_GT_TOA_IRRADIANCE")
 
     return dsr_qc, usr_qc
 

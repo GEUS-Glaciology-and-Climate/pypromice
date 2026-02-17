@@ -55,12 +55,17 @@ def clip_values(
         if ~np.isnan(row.hi):
             bad = bad | (ds[var] > row.hi)
 
-        ds = set_flag(ds, var, index_slice=None, flag="OOL", mask=bad)
+        var_qc = ds[var].attrs.get["ancillary_variables"]
+        ds[var_qc] = set_flag(ds[var_qc],
+                              bad,
+                              "OOL")
 
         for dep_var in row.dependents_closure:
             if dep_var not in ds.variables: continue
-            var_qc = f"{var}_qc"
+            dep_var_qc = ds[dep_var].attrs.get["ancillary_variables"]
             dep_bad = ds[var].isnull() |  (ds[var_qc] != "OK")
-            ds = set_flag(ds, dep_var, index_slice=None, flag="DEPENDENCY", mask=dep_bad)
+            ds[dep_var_qc] = set_flag(ds[dep_var_qc],
+                                      dep_bad,
+                                      "DEPENDENCY")
 
     return ds

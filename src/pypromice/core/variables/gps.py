@@ -76,12 +76,10 @@ def decode_and_convert(gps_lat: xr.DataArray,
     return gps_lat, gps_lon, gps_time
 
 
-def filter(gps_lat: xr.DataArray,
-           gps_lon: xr.DataArray,
-           gps_alt: xr.DataArray,
-           gps_lat_qc: xr.DataArray = None,
-           gps_lon_qc: xr.DataArray = None,
-           gps_alt_qc: xr.DataArray = None,
+def filter(gps_alt: xr.DataArray,
+           gps_lat_qc: xr.DataArray,
+           gps_lon_qc: xr.DataArray,
+           gps_alt_qc: xr.DataArray
 ) -> tuple[xr.DataArray,xr.DataArray,xr.DataArray]:
     """ Filter GPS latitude, longitude and altitude based on the difference
     to a baseline elevation. The baseline elevation is a gap-filled monthly
@@ -89,10 +87,6 @@ def filter(gps_lat: xr.DataArray,
 
     Parameters
     ----------
-    gps_lat : `xr.DataArray`
-        GPS latitude
-    gps_lon : `xr.DataArray`
-        GPS longitude
     gps_alt : `xr.DataArray`
         GPS time
     gps_lat_qc : `xr.DataArray`
@@ -128,9 +122,9 @@ def filter(gps_lat: xr.DataArray,
     bad = ~ok
 
     # Apply to each qc variable
-    new_gps_lat_qc = set_flag(gps_lat, flag="GPS_FILTER", mask=bad, qc=gps_lat_qc)
-    new_gps_lon_qc = set_flag(gps_lon, flag="GPS_FILTER", mask=bad, qc=gps_lon_qc)
-    new_gps_alt_qc = set_flag(gps_alt, flag="GPS_FILTER", mask=bad, qc=gps_alt_qc)
+    new_gps_lat_qc = set_flag(gps_lat_qc, bad, flag="GPS_FILTER")
+    new_gps_lon_qc = set_flag(gps_lon_qc, bad, flag="GPS_FILTER")
+    new_gps_alt_qc = set_flag(gps_alt_qc, bad, flag="GPS_FILTER")
 
     return new_gps_lat_qc, new_gps_lon_qc, new_gps_alt_qc
 

@@ -21,9 +21,9 @@ wspd_y_u,wind_speed_from_y_direction,Wind speed from y direction (upper boom),m 
 wspd_x_l,wind_speed_from_x_direction,Wind speed from x direction (lower boom),m s-1,modelResult,time,FALSE,L0 or L2,-100,100,,,two-boom,0,1,1,4
 wspd_y_l,wind_speed_from_y_direction,Wind speed from y direction (lower boom),m s-1,modelResult,time,FALSE,L0 or L2,-100,100,,,two-boom,0,1,1,4
 dsr,surface_downwelling_shortwave_flux,Downwelling shortwave radiation,W m-2,physicalMeasurement,time,FALSE,,-10,1500,,dsr_qc,all,1,1,1,4
-dsr_cor,surface_downwelling_shortwave_flux_corrected,Downwelling shortwave radiation - corrected,W m-2,modelResult,time,FALSE,L2 or later,,,,dsr_qc,all,0,1,1,4
+dsr_cor,surface_downwelling_shortwave_flux_corrected,Downwelling shortwave radiation - corrected,W m-2,modelResult,time,FALSE,L2 or later,,,,,all,0,1,1,4
 usr,surface_upwelling_shortwave_flux,Upwelling shortwave radiation,W m-2,physicalMeasurement,time,FALSE,,-10,1000,,usr_qc,all,1,1,1,4
-usr_cor,surface_upwelling_shortwave_flux_corrected,Upwelling shortwave radiation - corrected,W m-2,modelResult,time,FALSE,L2 or later,0,1000,,usr_qc,all,0,1,1,4
+usr_cor,surface_upwelling_shortwave_flux_corrected,Upwelling shortwave radiation - corrected,W m-2,modelResult,time,FALSE,L2 or later,0,1000,,,all,0,1,1,4
 albedo,surface_albedo,Albedo,-,modelResult,time,FALSE,L2 or later,,,,,all,0,1,1,4
 dlr,surface_downwelling_longwave_flux,Downwelling longwave radiation,W m-2,physicalMeasurement,time,FALSE,,50,500,,dlr_qc,all,1,1,1,4
 ulr,surface_upwelling_longwave_flux,Upwelling longwave radiation,W m-2,physicalMeasurement,time,FALSE,,50,500,,ulr_qc,all,1,1,1,4
@@ -34,25 +34,25 @@ dlhf_l,surface_downward_latent_heat_flux,Latent heat flux (lower boom),W m-2,mod
 dshf_u,surface_downward_sensible_heat_flux,Sensible heat flux (upper boom),W m-2,modelResult,time,FALSE,L3 or later,,,,,all,0,0,1,4
 dshf_l,surface_downward_sensible_heat_flux,Sensible heat flux (lower boom),W m-2,modelResult,time,FALSE,L3 or later,,,,,two-boom,0,0,1,4
 z_boom_u,distance_to_surface_from_boom,Upper boom height,m,physicalMeasurement,time,TRUE,,0.3,10,z_boom_cor_u,z_boom_qc_u,all,1,1,1,4
-z_boom_cor_u,distance_to_surface_from_boom_corrected,Upper boom height - corrected,m,modelResult,time,TRUE,,0.3,10,z_boom_u,z_boom_qc_u,all,1,1,1,4
+z_boom_cor_u,distance_to_surface_from_boom_corrected,Upper boom height - corrected,m,modelResult,time,TRUE,,0.3,10,z_boom_u,,all,1,1,1,4
 z_boom_q_u,distance_to_surface_from_boom_quality,Upper boom height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,,all,1,1,0,4
 z_boom_l,distance_to_surface_from_boom,Lower boom height,m,physicalMeasurement,time,TRUE,,0.3,5,z_boom_cor_l,z_boom_qc_l,two-boom,1,1,1,4
-z_boom_cor_l,distance_to_surface_from_boom_corrected,Lower boom height - corrected,m,modelResult,time,TRUE,,0.3,5,z_boom_l,z_boom_qc_l,two-boom,1,1,1,4
+z_boom_cor_l,distance_to_surface_from_boom_corrected,Lower boom height - corrected,m,modelResult,time,TRUE,,0.3,5,z_boom_l,,two-boom,1,1,1,4
 z_boom_q_l,distance_to_surface_from_boom_quality,Lower boom height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,,two-boom,1,1,0,4
 z_stake,distance_to_surface_from_stake_assembly,Stake height,m,physicalMeasurement,time,TRUE,,0.3,8,z_stake_cor,z_stake_qc,one-boom,1,1,1,4
-z_stake_cor,distance_to_surface_from_stake_assembly_corrected,Stake height - corrected,m,physicalMeasurement,time,TRUE,,0.3,8,z_stake,z_stake_qc,one-boom,1,1,1,4
+z_stake_cor,distance_to_surface_from_stake_assembly_corrected,Stake height - corrected,m,physicalMeasurement,time,TRUE,,0.3,8,z_stake,,one-boom,1,1,1,4
 z_stake_q,distance_to_surface_from_stake_assembly_quality,Stake height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,,one-boom,1,1,0,4
 z_pt,depth_of_pressure_transducer_in_ice,Depth of pressure transducer in ice,m,physicalMeasurement,time,FALSE,,0,30,z_pt_cor,z_pt_qc,one-boom,1,1,1,4
-z_pt_cor,depth_of_pressure_transducer_in_ice_corrected,Depth of pressure transducer in ice - corrected,m,modelResult,time,FALSE,L2 or later,0,30,,z_pt_qc,one-boom,0,1,1,4
+z_pt_cor,depth_of_pressure_transducer_in_ice_corrected,Depth of pressure transducer in ice - corrected,m,modelResult,time,FALSE,L2 or later,0,30,,,one-boom,0,1,1,4
 z_surf_combined,height_of_surface_combined,"Surface height combined from multiple sensors, relative to ice surface height at installation",m,modelResult,time,FALSE,L3,,,,,all,0,0,1,4
 z_ice_surf,height_of_ice_surface,"Ice surface height, relative to ice surface height at installation and calculated from pt_cor and z_stake",m,modelResult,time,FALSE,L3,,,,,one-boom,0,0,1,4
 snow_height,height_of_snow,"Snow surface height, relative to ice surface",m,modelResult,time,FALSE,L3,0,,,,one-boom,0,0,1,4
-precip_u,precipitation_raw_upper,Semi-accumulated uncorrected liquid precipitation (upper boom),mm,physicalMeasurement,time,TRUE,L0 or L2,0,,rainfall_u,,all,1,1,0,4
-rainfall_u,rainfall_per_timestep_uncorrected_upper,Rainfall within timestep uncorrected for undercatch (upper boom),mm,modelResult,time,FALSE,L2 or later,0,,rainfall_cor_u,rainfall_qc_u,all,0,1,1,4
-rainfall_cor_u,rainfall_per_timestep_corrected_upper,Rainfall within timestep corrected for undercatch (upper boom),mm,modelResult,time,FALSE,L2 or later,0,,,rainfall_qc_u,all,0,1,1,4
-precip_l,precipitation_raw_lower,Semi-accumulated uncorrected liquid precipitation (lower boom),mm,physicalMeasurement,time,TRUE,L0 or L2,0,,rainfall_l,,two-boom,1,1,0,4
-rainfall_l,rainfall_per_timestep_uncorrected_lower,Rainfall within timestep uncorrected for undercatch (lower boom),mm,modelResult,time,FALSE,L2 or later,0,,rainfall_cor_l,rainfall_qc_l,all,0,1,1,4
-rainfall_cor_l,rainfall_per_timestep_corrected_lower,Rainfall within timestep corrected for undercatch (lower boom),mm,modelResult,time,FALSE,L2 or later,0,,,rainfall_qc_l,all,0,1,1,4
+precip_u,precipitation_raw_upper,Semi-accumulated uncorrected liquid precipitation (upper boom),mm,physicalMeasurement,time,TRUE,L0 or L2,0,,rainfall_u,precip_qc_u,all,1,1,0,4
+rainfall_u,rainfall_per_timestep_uncorrected_upper,Rainfall within timestep uncorrected for undercatch (upper boom),mm,modelResult,time,FALSE,L2 or later,0,,rainfall_cor_u,,all,0,1,1,4
+rainfall_cor_u,rainfall_per_timestep_corrected_upper,Rainfall within timestep corrected for undercatch (upper boom),mm,modelResult,time,FALSE,L2 or later,0,,,,all,0,1,1,4
+precip_l,precipitation_raw_lower,Semi-accumulated uncorrected liquid precipitation (lower boom),mm,physicalMeasurement,time,TRUE,L0 or L2,0,,rainfall_l,precip_qc_l,two-boom,1,1,0,4
+rainfall_l,rainfall_per_timestep_uncorrected_lower,Rainfall within timestep uncorrected for undercatch (lower boom),mm,modelResult,time,FALSE,L2 or later,0,,rainfall_cor_l,,all,0,1,1,4
+rainfall_cor_l,rainfall_per_timestep_corrected_lower,Rainfall within timestep corrected for undercatch (lower boom),mm,modelResult,time,FALSE,L2 or later,0,,,,all,0,1,1,4
 t_i_1,ice_temperature_at_t1,Ice temperature at sensor 1,degrees_C,physicalMeasurement,time,FALSE,,-80,1,,t_i_1_qc,all,1,1,1,4
 t_i_2,ice_temperature_at_t2,Ice temperature at sensor 2,degrees_C,physicalMeasurement,time,FALSE,,-80,1,,t_i_2_qc,all,1,1,1,4
 t_i_3,ice_temperature_at_t3,Ice temperature at sensor 3,degrees_C,physicalMeasurement,time,FALSE,,-80,1,,t_i_3_qc,all,1,1,1,4
@@ -98,7 +98,7 @@ fan_dc_u,fan_current,Fan current (upper boom),mA,physicalMeasurement,time,TRUE,L
 fan_dc_l,fan_current,Fan current (lower boom),mA,physicalMeasurement,time,TRUE,,0,200,,,two-boom,1,1,0,2
 freq_vw,frequency_of_precipitation_wire_vibration,Frequency of vibrating wire in precipitation gauge,Hz,physicalMeasurement,time,TRUE,L0 or L2,0,10000,,,,1,1,0,
 t_log,temperature_of_logger,Logger temperature,degrees_C,physicalMeasurement,time,TRUE,,-80,40,,,one-boom,1,1,0,4
-t_rad,temperature_of_radiation_sensor,Radiation sensor temperature,degrees_C,physicalMeasurement,time,FALSE,,-80,40,dlr ulr,,all,1,1,1,4
+t_rad,temperature_of_radiation_sensor,Radiation sensor temperature,degrees_C,physicalMeasurement,time,FALSE,,-80,40,dlr ulr,t_rad_qc,all,1,1,1,4
 p_i,air_pressure,Air pressure (instantaneous) minus 1000,hPa,physicalMeasurement,time,TRUE,,-350,100,,p_qc_i,all,1,1,1,4
 t_i,air_temperature,Air temperature (instantaneous),degrees_C,physicalMeasurement,time,TRUE,,-80,40,rh_i_wrt_ice_or_water,t_qc_i,all,1,1,1,4
 rh_i,relative_humidity,Relative humidity (instantaneous),%,physicalMeasurement,time,TRUE,,0,150,rh_i_wrt_ice_or_water,rh_qc_i,all,1,1,1,4
@@ -125,8 +125,8 @@ z_boom_qc_u,distance_to_surface_from_boom_quality_control,Upper boom height - qu
 z_boom_qc_l,distance_to_surface_from_boom_quality_control,Lower boom height - quality control flags,-,qualityInformation,time,TRUE,L2 or later,,,,,two-boom,0,1,1,
 z_stake_qc,distance_to_surface_from_stake_assembly_quality_control,Stake height - quality control flags,-,qualityInformation,time,TRUE,L2 or later,,,,,one-boom,0,1,1,
 z_pt_qc,depth_of_pressure_transducer_in_ice_quality_control,Depth of pressure transducer in ice - quality control flags,-,qualityInformation,time,FALSE,L2 or later,,,,,one-boom,0,1,1,
-rainfall_qc_u,rainfall_per_timestep_uncorrected_upper_quality_control,Rainfall within timestep uncorrected for undercatch (upper boom) - quality control flags,-,qualityInformation,time,FALSE,L2 or later,,,,,all,0,1,1,
-rainfall_qc_l,rainfall_per_timestep_uncorrected_lower_quality_control,Rainfall within timestep uncorrected for undercatch (lower boom) - quality control flags,-,qualityInformation,time,FALSE,L2 or later,,,,,all,0,1,1,
+precip_qc_u,precipitation_raw_upper_quality_control,Semi-accumulated uncorrected liquid precipitation (upper boom) - quality control flags,-,qualityInformation,time,FALSE,L0 or L2,,,,,all,0,1,0,
+precip_qc_l,precipitation_raw_lower_quality_control,Semi-accumulated uncorrected liquid precipitation (lower boom) - quality control flags,-,qualityInformation,time,FALSE,L0 or L2,,,,,all,0,1,0,
 t_i_1_qc,ice_temperature_at_t1_quality_control,Ice temperature at sensor 1 - quality control flags,-,qualityInformation,time,FALSE,L2 or later,,,,,all,0,1,1,
 t_i_2_qc,ice_temperature_at_t2_quality_control,Ice temperature at sensor 2 - quality control flags,-,qualityInformation,time,FALSE,L2 or later,,,,,all,0,1,1,
 t_i_3_qc,ice_temperature_at_t3_quality_control,Ice temperature at sensor 3 - quality control flags,-,qualityInformation,time,FALSE,L2 or later,,,,,all,0,1,1,
@@ -144,6 +144,7 @@ rot_qc,platform_azimuth_angle_quality_control,Station rotation from true North -
 gps_lat_qc,gps_latitude_quality_control,Latitude  - quality control flags,-,qualityInformation,time,TRUE,L2 or later,,,,,all,0,1,1,
 gps_lon_qc,gps_longitude_quality_control,Longitude  - quality control flags,-,qualityInformation,time,TRUE,L2 or later,,,,,all,0,1,1,
 gps_alt_qc,gps_altitude_quality_control,Altitude above mean sea level (orthometric height) - quality control flags,-,qualityInformation,time,TRUE,L2 or later,,,,,all,0,1,1,
+t_rad_qc,temperature_of_radiation_sensor_quality_control,Radiation sensor temperature – quality control flags,-,qualityInformation,time,FALSE,L2 or later,,,,,all,0,1,1,
 p_qc_i,air_pressure_quality_control,Air pressure (instantaneous) minus 1000 - quality control flags,-,qualityInformation,time,TRUE,L2 or later,,,,,all,0,1,1,
 t_qc_i,air_temperature_quality_control,Air temperature (instantaneous) - quality control flags,-,qualityInformation,time,TRUE,L2 or later,,,,,all,0,1,1,
 rh_qc_i,relative_humidity_quality_control,Relative humidity (instantaneous) - quality control flags,-,qualityInformation,time,TRUE,L2 or later,,,,,all,0,1,1,
