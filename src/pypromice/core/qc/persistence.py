@@ -1,7 +1,9 @@
 import logging
+
 import numpy as np
+import pandas as pd
 import xarray as xr
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Union
 from pypromice.core.qc.common import remove_flagged_data, set_flag
 
 __all__ = [
@@ -13,10 +15,8 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-
+# period is given in hours, 2 persistent 10 min values will be flagged if period < 0.333
 DEFAULT_VARIABLE_THRESHOLDS = {
-
-    # Period is given in hours, 2 persistent 10 min values will be flagged if period < 0.333
     "t_i": {"max_diff": 0.0001, "period": 2},
     "t_u": {"max_diff": 0.0001, "period": 2},
     "t_l": {"max_diff": 0.0001, "period": 2},
@@ -25,13 +25,13 @@ DEFAULT_VARIABLE_THRESHOLDS = {
     "p_u": {"max_diff": 0.0001, "period": 150},
     "p_l": {"max_diff": 0.0001, "period": 150},
 
-    # Gets special handling to remove simultaneously constant gps_lat and gps_lon
+    # gets special handling to remove simultaneously constant gps_lat and gps_lon
     "gps_lat_lon": {"max_diff": 0.000001, "period": 6},
-    "gps_alt": {"max_diff": 0.0001, "period": 6},
 
+    "gps_alt": {"max_diff": 0.0001, "period": 6},
     "t_rad": {"max_diff": 0.0001, "period": 2},
 
-    # Gets special handling to allow constant 100%
+    # gets special handling to allow constant 100%
     "rh_i": {"max_diff": 0.0001, "period": 2},
     "rh_u": {"max_diff": 0.0001, "period": 2},
     "rh_l": {"max_diff": 0.0001, "period": 2},
@@ -42,8 +42,9 @@ DEFAULT_VARIABLE_THRESHOLDS = {
 }
 
 
-def persistence_qc(ds: xr.Dataset,
-                   variable_thresholds: Optional[Mapping] = None
+def persistence_qc(
+    ds: xr.Dataset,
+    variable_thresholds: Optional[Mapping] = None,
 ) -> xr.Dataset:
     """Flag persistent (frozen) sensor values without altering the data.
 
@@ -52,20 +53,18 @@ def persistence_qc(ds: xr.Dataset,
     Only the corresponding ``<var>_qc`` variables are updated by adding the
     "PERSISTENCE" flag where long periods of near-constant values are detected.
 
-    Parameters
-    ----------
-    ds: xr.Dataset
-        Level 1 dataset containing variables and quality control flag variables.
-    variable_thresholds: Optional[Mapping]
-        Mapping defining per-variable persistence criteria with keys ``max_diff``
-        and ``period``. Keys like "t", "p", "rh", "wspd", "wdir", "z_boom"
-        expand to ``*_u``, ``*_l``, ``*_i``.
+    Args:
+        ds: Level 1 dataset containing variables and optional ``*_qc`` variables.
+        variable_thresholds: Mapping defining per-variable persistence criteria
+            with keys ``max_diff`` and ``period``. Keys like "t", "p", "rh",
+            "wspd", "wdir", "z_boom" expand to ``*_u``, ``*_l``, ``*_i``.
 
-    Returns
-    -------
-    xr.Dataset
-        Dataset with original data unchanged and updated quality control flag
-        variables containing additional "PERSISTENCE" flags."""
+    Returns:
+        xr.Dataset: Dataset with original data unchanged and updated ``*_qc``
+        variables containing additional "PERSISTENCE" flags.
+    """
+    df_work = ds.to_dataframe()
+
     if variable_thresholds is None:
         variable_thresholds = DEFAULT_VARIABLE_THRESHOLDS
         logger.debug(f"Running persistence_qc using {variable_thresholds}")
@@ -74,119 +73,116 @@ def persistence_qc(ds: xr.Dataset,
 
     ds_out = ds.copy(deep=True)
 
-    for k, params in variable_thresholds.items():
-        if k in ["t", "p", "rh", "wspd", "wdir", "z_boom"]:
-            var_all = [k + suffix for suffix in ["_u", "_l", "_i"]]
-        else:
-            var_all = [k]
+    for v in variable_thresholds.keys():
+        max_diff = variable_thresholds[v]["max_diff"]
+        period = variable_thresholds[v]["period"]
 
-        max_diff = params["max_diff"]
-        period = params["period"]
+        if v in df_work.columns:
+            mask = find_persistent_regions(df_work[v], period, max_diff)
+            if "rh" in v:
+                mask = mask & (df_work[v] < 99)
 
-        for v in var_all:
-            if v in ds:
-                mask = find_persistent_regions(ds[v], period, max_diff)
+            # Convert pandas boolean mask to DataArray
+            mask_da = xr.DataArray(
+                mask.values,
+                coords={"time": df_work.index},
+                dims="time"
+            )
 
-                # Special handling for rh values
-                if "rh" in v:
-                    mask = mask & (ds[v] < 99)
+            if mask_da.any():
+                qc_var = ds_out[v].attrs["ancillary_variables"]
+                ds_out[qc_var] = set_flag(ds_out[qc_var], mask_da, "PERSISTENCE")
 
-                if mask.any():
-                    v_qc = ds_out[v].attrs.get["ancillary_variables"]
-                    ds_out = set_flag(ds_out[v_qc],
-                                      mask,
-                                      "PERSISTENCE")
+        elif v == "gps_lat_lon" and ("gps_lon" in df_work.columns) and ("gps_lat" in df_work.columns):
+            # Persistent mask on both lat/lon
+            mask_lon = find_persistent_regions(df_work["gps_lon"], period, max_diff)
+            mask_lat = find_persistent_regions(df_work["gps_lat"], period, max_diff)
+            mask = mask_lon & mask_lat
 
-            elif v == "gps_lat_lon" and ("gps_lon" in ds) and ("gps_lat" in ds):
-                mask_lon = find_persistent_regions(ds["gps_lon"], period, max_diff)
-                mask_lat = find_persistent_regions(ds["gps_lat"], period, max_diff)
-                mask = mask_lon & mask_lat
+            # Convert pandas boolean mask to DataArray
+            mask_da = xr.DataArray(
+                mask.values,
+                coords={"time": df_work.index},
+                dims="time"
+            )
 
-                if mask.any():
-                    lon_qc = ds_out["gps_lon"].attrs["ancillary_variables"]
-                    ds_out[lon_qc] = set_flag(ds_out[lon_qc],
-                                              mask,
-                                              "PERSISTENCE")
-
-                    lat_qc = ds_out["gps_lat"].attrs["ancillary_variables"]
-                    ds_out[lat_qc] = set_flag(ds_out[lat_qc],
-                                              mask,
-                                              "PERSISTENCE")
+            if mask.any():
+                lat_qc_var = ds_out["gps_lat"].attrs["ancillary_variables"]
+                lon_qc_var = ds_out["gps_lon"].attrs["ancillary_variables"]
+                ds_out[lat_qc_var] = set_flag(ds_out[lat_qc_var], mask, "PERSISTENCE")
+                ds_out[lon_qc_var] = set_flag(ds_out[lon_qc_var], mask, "PERSISTENCE")
 
     return ds_out
 
 
-def find_persistent_regions(data: xr.DataArray,
-                            min_repeats: int,
-                            max_diff: float
-) -> xr.DataArray:
-    """Identify regions of near-constant values in an xarray DataArray."""
-    consecutive_counts = count_consecutive_persistent_values(data, max_diff)
-    persistent = consecutive_counts >= min_repeats
-
-    # Extend mask to cover min_repeats length
+def find_persistent_regions(
+    data: pd.Series,
+    min_repeats: int,
+    max_diff: float,
+) -> pd.Series:
+    """
+    Algorithm that ensures values can stay the same within the outliers_mask
+    """
+    consecutive_true_df  = count_consecutive_persistent_values(data, max_diff)
+    persistent_regions = consecutive_true_df  >= min_repeats
     for i in range(1, min_repeats):
-        persistent = persistent | persistent.shift(time=-1, fill_value=False)
+        persistent_regions |= persistent_regions.shift(-1, fill_value=False)
+        # Ignore entries which already nan in the input data
+        persistent_regions[data.isna()] = False
 
-    # Remove NaNs from mask
-    persistent = persistent.where(~data.isnull(), False)
-    return persistent
-
-
-def count_consecutive_persistent_values(data: xr.DataArray,
-                                        max_diff: float
-) -> xr.DataArray:
-    """Count consecutive near-constant values in xarray."""
-    # Forward-fill NaNs along time
-    data_ffill = data.ffill(dim="time")
-
-    # Absolute difference along time
-    diff = abs(data_ffill.diff(dim="time", label="upper"))
-
-    # Boolean mask for small differences
-    mask = diff < max_diff
-
-    # Compute consecutive durations
-    return get_duration_consecutive_true(mask, data["time"])
+    return persistent_regions
 
 
-def get_duration_consecutive_true(mask: xr.DataArray,
-                                  time_coord: xr.DataArray
-) -> xr.DataArray:
-    """Count consecutive True values in a boolean mask and return duration in hours.
-    The first value will be set to NaN, as it is not possible to calculate the
-    duration of a single value.
+def count_consecutive_persistent_values(
+    data: pd.Series,
+    max_diff: float,
+) -> pd.Series:
+    diff = data.ffill().diff().abs()  # forward filling all NaNs!
+    mask: pd.Series = diff < max_diff
+    return get_duration_consecutive_true(mask)
+
+
+def get_duration_consecutive_true(
+    series: pd.Series,
+) -> pd.Series:
+    """
+    From a boolean series, calculates the duration, in hours, of the periods with concecutive true values.
+
+    The first value will be set to NaN, as it is not possible to calculate the duration of a single value.
+
+    Examples
+    --------
+    >>> get_duration_consecutive_true(pd.Series([False, True, False, False, True, True, True, False, True]))
+    pd.Series([np.nan, 1, 0, 0, 1, 2, 3, 0, 1])
 
     Parameters
     ----------
-    mask: xr.DataArray
-        Boolean data array
-    time_coord: xr.DataArray
-        Time coordinate array
+    pd.Series
+        Boolean pandas Series or DataFrame
 
     Returns
     -------
-    xr. DataArray
-        Arrange with values representing the number of connective true values
+    pd.Series
+        Integer pandas Series or DataFrame with values representing the number of connective true values.
+
     """
-    # Convert time to hours delta
-    dt = time_coord.diff(dim="time") / np.timedelta64(1, "h")
+    is_first = series.astype("int").diff() == 1
+    delta_time = (series.index.to_series().diff().dt.total_seconds() / 3600)
+    cumsum = delta_time.cumsum()
+    offset = (is_first * (cumsum - delta_time)).replace(0, np.nan).ffill().fillna(0)
 
-    # Prepend first delta to match mask length
-    dt = xr.concat([xr.DataArray([0], coords={"time": [time_coord[0]]}, dims="time"), dt], dim="time")
+    return (cumsum - offset) * series
 
-    # Convert mask to int
-    mask_int = mask.astype(int)
 
-    # Identify start of True sequences
-    is_first = mask_int.diff(dim="time", label="upper") == 1
+#from pypromice.pipeline.aws import AWS
+#from pathlib import Path
 
-    # Cumulative sum of dt
-    cumsum = dt.cumsum(dim="time")
+#config_file = "/home/pho/aws-env/aws-ops/aws-l0/tx/config/NUK_Uv3.toml"
+#inpath = "/home/pho/aws-env/aws-ops/aws-l0/tx/"
+#data_issues_repository = Path("/home/pho/aws-env/aws-ops/PROMICE-AWS-data-issues")
+#var_file = "/home/pho/aws-env/pypromice/src/pypromice/resources/variables.csv"
+#meta_file = "/home/pho/aws-env/pypromice/src/pypromice/resources/file_attributes.csv"
 
-    # Compute offset at start of sequences
-    offset = (is_first * (cumsum - dt)).where(lambda x: x != 0).ffill(dim="time").fillna(0)
-
-    # Duration in hours
-    duration = (cumsum - offset) * mask_int
-    return duration
+#aws = AWS(config_file, inpath, data_issues_repository, var_file, meta_file)
+#aws.getL1()
+#aws.getL2()

@@ -48,7 +48,7 @@ def clip_values(
 
     for var, row in variable_limits.iterrows():
         if var not in ds.variables: continue
-
+        if np.isnan(row.lo) and np.isnan(row.hi): continue
         bad = xarray.zeros_like(ds[var], dtype=bool)
         if ~np.isnan(row.lo):
             bad = bad | (ds[var] < row.lo)
@@ -60,12 +60,12 @@ def clip_values(
                               bad,
                               "OOL")
 
-        for dep_var in row.dependents_closure:
-            if dep_var not in ds.variables: continue
-            dep_var_qc = ds[dep_var].attrs["ancillary_variables"]
-            dep_bad = ds[var].isnull() |  (ds[var_qc] != "OK")
-            ds[dep_var_qc] = set_flag(ds[dep_var_qc],
-                                      dep_bad,
-                                      "DEPENDENCY")
+#        for dep_var in row.dependents_closure:
+#            if dep_var not in ds.variables: continue
+#            dep_var_qc = ds[dep_var].attrs["ancillary_variables"]
+#            dep_bad = ds[var].isnull() |  (ds[var_qc] != "OK")
+#            ds[dep_var_qc] = set_flag(ds[dep_var_qc],
+#                                      dep_bad,
+#                                      "DEPENDENCY")
 
     return ds

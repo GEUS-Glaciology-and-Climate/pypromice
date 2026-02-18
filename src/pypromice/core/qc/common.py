@@ -43,7 +43,10 @@ def set_flag(
     if qc.dtype.kind in ("U", "S"):
         qc = qc.astype(object)
 
-    def _append_flag(qval, flag=flag):
+    # Only apply function where mask is True
+    qc_masked = qc.where(mask)
+
+    def _append_flag(qval):
         # Logic handling for flag construction
         if qval is None:
             return flag
@@ -57,13 +60,13 @@ def set_flag(
 
     updated = xr.apply_ufunc(
         _append_flag,
-        q,
+        qc_masked,
         vectorize=True,
         dask="allowed",
         output_dtypes=[object],
     )
 
-    qc = xr.where(mask, updated, qc)
+    qc = qc.where(~mask, updated)
     return qc
 
 
