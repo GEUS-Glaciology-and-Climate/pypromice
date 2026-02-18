@@ -23,8 +23,9 @@ from pypromice.core.variables import (wind,
                                       radiation,
                                       station_pose,
                                       air_temperature)
+from pypromice.pipeline.utilities import addBasicMeta
 from pypromice.core.qc.rate_of_change_filter import rate_of_change_filter
-from pypromice.core.qc.common import remove_flagged_data
+from pypromice.core.qc.common import remove_flagged_data, get_flag_vars
 
 def toL2(L1: xr.Dataset,
          vars_df: pd.DataFrame,
@@ -65,6 +66,16 @@ def toL2(L1: xr.Dataset,
     """
     # Copy input dataset and add quality flag variables
     ds = L1.copy(deep=True)
+
+    vars_qc_df = get_flag_vars(vars_df)
+    for vqc in list(vars_qc_df.index):
+        if vqc not in ds:
+            ds[vqc] = xr.DataArray(
+                np.full(tuple(ds.dims.values()), "OK", dtype=object),
+                coords=ds.coords,
+                dims=tuple(ds.dims),
+            )
+    ds = addBasicMeta(ds, vars_qc_df)
 
     #---------------------------------------------------------------
     # Filtering routines

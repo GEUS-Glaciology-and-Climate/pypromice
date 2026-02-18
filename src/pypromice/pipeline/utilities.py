@@ -20,6 +20,7 @@ def popCols(ds, names):
             ds[v] = (('time'), np.arange(ds['time'].size)*np.nan)
     return ds
 
+
 def addBasicMeta(ds, vars_df):
     ''' Use a variable lookup table DataFrame to add the basic metadata
     to the xarray dataset. This is later amended to finalise L3

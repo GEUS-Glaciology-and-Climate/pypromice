@@ -360,6 +360,7 @@ def rate_of_change_filter(ds):
             flag2 = None
         flag_final = flag_final.reindex_like(ds.time, fill_value=False)
 
-        ds = set_flag(ds, var, flag='ROC', mask=flag_final)
+        var_qc = ds[var].attrs["ancillary_variables"]
+        ds[var_qc] = set_flag(ds[var_qc], flag_final, "ROC")
 
     return ds

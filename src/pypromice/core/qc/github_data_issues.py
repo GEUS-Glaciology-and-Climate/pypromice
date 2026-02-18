@@ -34,8 +34,6 @@ def flagNAN(ds, flag_dir):
     ds : xr.Dataset
         Level 0 data with flagged data
     '''
-    ds_work = remove_flagged_data(ds)
-
     df = _getDF(os.path.join(flag_dir, ds.attrs["station_id"] + ".csv"), list(ds.keys()))
 
     if isinstance(df, pd.DataFrame):
@@ -60,17 +58,24 @@ def flagNAN(ds, flag_dir):
                 if pd.isnull(t1):
                     t1 = pd.to_datetime(ds["time"].values[-1])
 
+                # construct boolean mask once per interval
+                mask = (ds["time"] >= np.datetime64(t0)) & (ds["time"] <= np.datetime64(t1))
+
                 for v in varlist:
                     if v not in ds:
                         logger.debug(f"---> could not flag {v} not in dataset")
                         continue
 
-                    index_slice = {"time": slice(t0, t1)}
-                    ds_work = set_flag(ds_work, v, flag=str(fval), index_slice=index_slice)
-                    logger.debug(f"---> flagging {t0} {t1} {v} with {fval}, " + \
-                                 f"flagged {len(ds.loc[index_slice].time)}/{len(ds.time)}")
+                    v_qc = ds[v].attrs["ancillary_variables"]
 
-                    ds[v+'_qc'] = ds_work[v+'_qc']
+                    ds[v_qc] = set_flag(ds[v_qc],
+                                        mask,
+                                        str(fval)
+                                        )
+                    logger.debug(
+                        f"---> flagging {t0} {t1} {v} with {fval}, "
+                        f"flagged {int(mask.sum())}/{ds.dims['time']}"
+                    )
 
     return ds
 

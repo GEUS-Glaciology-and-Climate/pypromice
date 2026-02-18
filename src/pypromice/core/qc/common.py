@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 
+
 def set_flag(
     qc: xr.DataArray,
     mask: xr.DataArray,
@@ -108,3 +109,20 @@ def remove_flagged_data(ds: xr.Dataset) -> xr.Dataset:
             if qc in ds_out and "time" in ds_out[v].dims:
                 ds_out[v] = apply_flag(ds_out[v], ds_out[qc])
     return ds_out
+
+
+def get_flag_vars(vars_df: pd.DataFrame
+) -> xr.DataArray:
+    '''Populate dataset with QC flag variables
+
+    Parameters
+    -----------
+    vars_df : pd.DataFrame
+        Variables dataframe
+
+    Returns
+    -------
+    pd.DataFrame
+        QC flag variables dataframe
+    '''
+    return vars_df[(vars_df['coverage_content_type'] == 'qualityInformation') & (vars_df.index.str.contains("qc", na=False))]
