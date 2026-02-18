@@ -404,7 +404,9 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
         # reindex back to df
         smoothed_PT = smoothed_PT.reindex(df.index, method="ffill")
-        ind_ablation = pd.Series(ind_ablation, index=diff_series.index).reindex(df.index, fill_value=False).values
+        ind_ablation = (pd.Series(ind_ablation, index=diff_series.index)
+                        .reindex(df.index, fill_value=False)
+                        .to_numpy(dtype=bool, copy=True))
 
         # finding the beginning and end of each period with True
         idx = np.argwhere(np.diff(np.r_[False,ind_ablation, False])).reshape(-1, 2)
