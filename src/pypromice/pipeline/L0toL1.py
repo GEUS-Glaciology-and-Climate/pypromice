@@ -10,8 +10,6 @@ import xarray as xr
 import re, logging
 logger = logging.getLogger(__name__)
 
-from pypromice.core.variables.pressure_transducer_depth import correct_and_calculate_depth
-from pypromice.core.qc.value_clipping import clip_values
 from pypromice.core.variables import (wind, 
                                       air_temperature, 
                                       gps, 
@@ -185,8 +183,7 @@ def toL1(L0: xr.DataArray,
         ds["t_l_interp"] = air_temperature.clip_and_interpolate(ds["t_l"], tl_lo, tl_hi)
         ds["z_boom_cor_l"] = station_boom_height.adjust(ds["z_boom_l"], ds["t_l_interp"])
 
-    # Clip values and remove redundant attribute information
-    ds = clip_values(ds, vars_df)
+    # Remove redundant attribute information
     for key in ['hygroclip_t_offset', 'dsr_eng_coef', 'usr_eng_coef',
           'dlr_eng_coef', 'ulr_eng_coef', 'wind_u_coef','wind_l_coef',
           'wind_i_coef', 'pt_z_coef', 'pt_z_p_coef', 'pt_z_factor',

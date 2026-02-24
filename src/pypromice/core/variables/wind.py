@@ -2,6 +2,7 @@ __all__=['correct_wind_speed', 'filter_wind_direction', 'calculate_directional_w
 
 import numpy as np
 import xarray as xr
+from pypromice.core.qc.common import set_flag
 
 DEG2RAD=np.pi/180
 
@@ -23,26 +24,42 @@ def correct_wind_speed(wspd: xr.DataArray, coefficient) -> xr.DataArray:
     """
     return wspd * coefficient
 
-def filter_wind_direction(wdir: xr.DataArray, wspd: xr.DataArray) -> xr.DataArray:
-    """Filter wind direction by wind speed, where wind direction values are removed if
-    wind speed is zero.
+
+def filter_wind_direction(wdir: xr.DataArray,
+                          wspd: xr.DataArray,
+                          wdir_qc: xr.DataArray=None
+) -> xr.DataArray:
+    """Flag wind direction samples where wind speed is zero.
+
+    Wind direction is physically undefined when wind speed equals zero.
+    This function identifies such cases and assigns a QC flag to the
+    corresponding wind direction variable using `set_flag`.
 
     Parameters
     ----------
     wdir : xr.DataArray
         Wind direction
-    wspd : xr.DataArray
+    wspd: xr.DataArray
         Wind speed
+    wdir_qc : xr.DataArray
+        Quality control for wind direction
 
     Returns
     -------
-    xr.DataArray
-        Filtered wind direction
+    wdir_qc : xr.DataArray
+        Updated quality control flags for wind direction
     """
-    return wdir.where(wspd != 0)
+    mask = wspd == 0
+    wdir_qc = set_flag(wdir,
+                       "ZERO_WSPD",
+                       mask=mask,
+                       qc=wdir_qc)
+    return wdir_qc
 
 
-def calculate_directional_wind_speed(wspd: xr.DataArray, wdir: xr.DataArray):
+def calculate_directional_wind_speed(wspd: xr.DataArray,
+                                     wdir: xr.DataArray
+) -> xr.DataArray:
     """Calculate directional wind speed from wind speed and direction
 
     Parameters

@@ -1,11 +1,12 @@
+
 __all__ = ["correct_rainfall_undercatch", "get_rainfall_per_timestep", "filter_lufft_errors"]
 
 import numpy as np
 import xarray as xr
-
+from pypromice.core.qc.common import remove_flagged_data, set_flag, apply_flag
 
 def filter_lufft_errors(
-    precip: xr.DataArray, t: xr.DataArray, p: xr.DataArray, rh: xr.DataArray
+    precip: xr.DataArray, t: xr.DataArray, p: xr.DataArray, rh: xr.DataArray, precip_qc: xr.DataArray
 ) -> xr.DataArray:
     """Filter precipitation measurements where air temperature, pressure, or
     relative humidity measurements are null values. This assumes that
@@ -23,14 +24,20 @@ def filter_lufft_errors(
         Air pressure measurements
     rh : xr.DataArray
         Relative humidity measurements
+    precip_qc : xr.DataArray
+        Cumulative precipitation measurements quality control flags
 
     Returns
     -------
     xr.DataArray
-        Filtered precipitation values
+        Updated precipitation quality control flags
     """
     mask = (t.isnull() | p.isnull() | rh.isnull()) & (precip == 0)
-    return precip.where(~mask)
+    precip_qc = set_flag(precip_qc,
+                         mask,
+                         "LUFFT_ERROR")
+    return precip_qc
+
 
 
 def correct_rainfall_undercatch(

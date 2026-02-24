@@ -6,6 +6,7 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
+from pypromice.core.qc.common import remove_flagged_data, set_flag, apply_flag
 
 import logging
 logger = logging.getLogger(__name__)
@@ -77,50 +78,61 @@ def decode_and_convert(gps_lat: xr.DataArray,
 
 def filter(gps_lat: xr.DataArray,
            gps_lon: xr.DataArray,
-           gps_alt: xr.DataArray
-) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+           gps_alt: xr.DataArray,
+           gps_lat_qc: xr.DataArray = None,
+           gps_lon_qc: xr.DataArray = None,
+           gps_alt_qc: xr.DataArray = None,
+) -> tuple[xr.DataArray,xr.DataArray,xr.DataArray]:
     """ Filter GPS latitude, longitude and altitude based on the difference
     to a baseline elevation. The baseline elevation is a gap-filled monthly
     median elevation based on the inputted GPS altitude.
 
     Parameters
     ----------
-    gps_lat : xr.DataArray
+    gps_lat : `xr.DataArray`
         GPS latitude
-    gps_lon : xr.DataArray
+    gps_lon : `xr.DataArray`
         GPS longitude
-    gps_alt : xr.DataArray
-        GPS altitude values with a time dimension
+    gps_alt : `xr.DataArray`
+        GPS time
+    gps_lat_qc : `xr.DataArray`
+        GPS latitude quality control. The default is None.
+    gps_lon_qc : `xr.DataArray`
+        GPS longitude quality control. The default is None.
+    gps_alt_qc : `xr.DataArray`
+        GPS time quality control. The default is None.
 
     Returns
-    ----------
-    gps_lat_filtered : xr.DataArray
-        Filtered latitude values
-    gps_lon_filtered : xr.DataArray
-        Filtered longitude values
-    gps_alt_filtered : xr.DataArray
-        Filtered altitude values
+    -------
+    new_gps_lat_qc : `xr.DataArray`
+        Updated GPS latitude quality control
+    new_gps_lon_qc : `xr.DataArray`
+        Updated GPS longitude quality control
+    new_gps_time_qc : `xr.DataArray`
+        Updated GPS time quality control
     """
-    # Get altitude monthly median (at month start)
-    # This will serve as baseline elevations for filtering
-    ser = gps_alt.to_series()
+    # Apply pre-existing flags to GPS measurements (if they are provided)
+    if gps_alt_qc is not None:
+        flagged_alt = apply_flag(gps_alt, gps_alt_qc)
+    else:
+        flagged_alt = gps_alt
+
+    # Construct baseline altitude to be used for flagging
+    ser = flagged_alt.to_series()
     monthly_median = ser.resample("MS").median()
-    baseline_elevation = (
-        monthly_median
-        .reindex(ser.index, method="nearest")
-        .ffill()
-        .bfill()
-    )
+    baseline = monthly_median.reindex(ser.index, method="ffill").bfill()
+    baseline_da = xr.DataArray(baseline.to_numpy(), coords={"time": flagged_alt.time}, dims=("time",))
 
-    # Produce conditional mask
-    mask = (np.abs(gps_alt - baseline_elevation) < 100) | gps_alt.isnull()
+    # Flag based on gap-free, smoothed altitude
+    ok = (np.abs(flagged_alt - baseline_da) < 100) | flagged_alt.isnull()
+    bad = ~ok
 
-    # Apply mask
-    gps_lat_filtered = gps_lat.where(mask)
-    gps_lon_filtered = gps_lon.where(mask)
-    gps_alt_filtered = gps_alt.where(mask)
+    # Apply to each qc variable
+    new_gps_lat_qc = set_flag(gps_lat, flag="GPS_FILTER", mask=bad, qc=gps_lat_qc)
+    new_gps_lon_qc = set_flag(gps_lon, flag="GPS_FILTER", mask=bad, qc=gps_lon_qc)
+    new_gps_alt_qc = set_flag(gps_alt, flag="GPS_FILTER", mask=bad, qc=gps_alt_qc)
 
-    return gps_lat_filtered, gps_lon_filtered, gps_alt_filtered
+    return new_gps_lat_qc, new_gps_lon_qc, new_gps_alt_qc
 
 
 def convert_from_degrees_and_decimal_minutes(gps):

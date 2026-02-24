@@ -39,7 +39,7 @@ def addBasicMeta(ds, vars_df):
     for v in vars_df.index:
         if v == 'time': continue # coordinate variable, not normal var
         if v not in list(ds.variables): continue
-        for c in ['standard_name', 'long_name', 'units']:
+        for c in ['standard_name', 'long_name', 'units', 'ancillary_variables']:
             if isinstance(vars_df[c][v], float) and np.isnan(vars_df[c][v]): continue
             ds[v].attrs[c] = vars_df[c][v]
     return ds

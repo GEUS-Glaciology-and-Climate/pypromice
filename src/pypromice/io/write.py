@@ -236,6 +236,7 @@ def addVars(ds, variables):
         ds[k].attrs["units"] = variables.loc[k]["units"]
         ds[k].attrs["coverage_content_type"] = variables.loc[k]["coverage_content_type"]
         ds[k].attrs["coordinates"] = variables.loc[k]["coordinates"]
+        ds[k].attrs["ancillary_variables"] = variables.loc[k]["ancillary_variables"]
     return ds
 
 
