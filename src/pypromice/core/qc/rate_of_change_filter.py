@@ -1,3 +1,48 @@
+"""Rate-of-change (ROC) quality control for PROMICE AWS time series.
+
+This module detects and flags physically implausible short-term variability
+in automatic weather station (AWS) observations. The algorithm computes
+forward and backward rates of change for selected variables, derives
+adaptive thresholds from rolling percentiles, and identifies outliers that
+exceed expected natural variability.
+
+Key features
+------------
+- Variable-specific thresholds (tolerance `tol` and multiplicative factor
+  `factor`) defined via regex matching.
+- Rolling 95th-percentile ROC thresholds within configurable time windows.
+- Detection using both forward and backward differences.
+- Additional logic to handle data gaps and irregular sampling.
+- Rescue step that unflags points consistent with linear interpolation
+  within a user-defined tolerance `tol`.
+- Two-pass filtering to improve robustness.
+- Integration with QC flagging and optional data removal.
+
+Parameter meaning
+-----------------
+- `factor`: Multiplies the rolling 95th-percentile ROC to define the
+  detection threshold (higher values → less aggressive filtering).
+- `tol`: Absolute tolerance used when testing whether a flagged point can
+  be reconstructed by linear interpolation (higher values → more points
+  rescued).
+
+Typical workflow
+----------------
+    ds = rate_of_change_filter(ds)
+
+Variables matching patterns in DEFAULT_VARIABLE_THRESHOLDS are processed.
+Flagged samples receive the "ROC" QC flag and are removed from the data.
+
+Notes
+-----
+- Assumes a monotonic time coordinate named "time".
+- Designed for PROMICE Level-1/Level-2 processing.
+- Avoids slow xarray forward/backward fill by using NumPy-based routines
+  for performance on long time series.
+
+Author: Baptiste Vandecrux
+"""
+
 import logging
 import numpy as np
 import pandas as pd
@@ -8,11 +53,11 @@ logger = logging.getLogger(__name__)
 
 NO_QC_VAR = ['time','rec']
 
+# factor is the multiplicative factor applied
 DEFAULT_VARIABLE_THRESHOLDS = {
     r"^t_[iul]$": {"tol": 3, "factor": 2.2},
     r"^p_[iul]$": {"tol": 1.0, "factor": 2.0},
     r"^rh_[iul]$": {"tol": 2.0, "factor": 3.5},
-    r"^wspd_[iul]$": {"tol": 0.5, "factor": 2.0},
     r"^t_i_(?:10|[1-9])$": {"tol": 0.5, "factor": 1.5},
 }
 
@@ -56,8 +101,8 @@ def _get_params(var, tol=None, factor=None):
 
     for pat, cfg in DEFAULT_VARIABLE_THRESHOLDS.items():
         if re.match(pat, var):
-            vt = float(cfg["tol"]) if tol is None else float(tol)
-            vf = float(cfg["factor"]) if factor is None else float(factor)
+            vt = cfg["tol"] if tol is None else tol
+            vf = cfg["factor"] if factor is None else factor
             return vt, vf
 
     vt = 0.1 if tol is None else float(tol)
@@ -83,7 +128,7 @@ def _bfill_idx(a):
     a[m] = a[idx[m]]
     return a
 
-def unflag_if_linear_interp(ds, var, flag, tol=0.1, time="time"):
+def unflag_if_linear_interp(ds, var, flag, tol=0.1):
     """
     Remove flags where values follow linear interpolation within tolerance.
 
@@ -97,8 +142,6 @@ def unflag_if_linear_interp(ds, var, flag, tol=0.1, time="time"):
         Initial flag array on the same time axis as the evaluated data.
     tol : float, optional
         Absolute tolerance for deviation from linear interpolation.
-    time : str, optional
-        Name of the time dimension.
 
     Returns
     -------
@@ -106,10 +149,10 @@ def unflag_if_linear_interp(ds, var, flag, tol=0.1, time="time"):
         Updated flag array where linearly interpolated points are unflagged.
     """
     # Align variable to flag time axis
-    v = ds[var].sel({time: flag[time]}).astype("float64")
-    t = v[time].values.astype("datetime64[ns]").astype("int64")
+    v = ds[var].sel({"time": flag["time"]}).astype("float64")
+    t = v["time"].values.astype("datetime64[ns]").astype("int64")
 
-    n = v.sizes[time]
+    n = v.sizes["time"]
     idx = np.arange(n, dtype=np.int64)
 
     # Valid (non-flagged and finite) samples
@@ -143,39 +186,6 @@ def unflag_if_linear_interp(ds, var, flag, tol=0.1, time="time"):
     # Interpolated estimate
     v_hat = v_prev + w * (v_next - v_prev)
 
-    # import pdb
-    # import matplotlib.pyplot as plt
-
-    # resid = np.abs(v.values - v_hat)
-
-    # # breakpoint: flagged points that fail tol but have both neighbors
-    # bad = flag.values & has_both & np.isfinite(v_hat) & (resid > tol)
-    # if np.any(bad):
-    #     i = int(np.flatnonzero(bad)[0])
-    #     pdb.set_trace()
-
-    #     # plot local neighborhood + interp line + tol band
-    #     i0 = max(i - 50, 0)
-    #     i1 = min(i + 51, n)
-
-    #     tt = pd.to_datetime(v[time].values[i0:i1])
-    #     yy = v.values[i0:i1]
-    #     yh = v_hat[i0:i1]
-
-    #     fig, ax = plt.subplots(figsize=(12, 4))
-    #     ax.plot(tt, yy, marker=".", linestyle="None", markersize=3, alpha=0.7, label="data")
-    #     ax.plot(tt, yh, linestyle="-", alpha=0.8, label="v_hat (interp)")
-    #     ax.fill_between(tt, yh - tol, yh + tol, alpha=0.25, label="±tol")
-
-    #     ax.axvline(pd.to_datetime(v[time].values[i]), linestyle="--")
-    #     ax.scatter([pd.to_datetime(v[time].values[i])], [v.values[i]], s=120, label="bad sample")
-
-    #     ax.grid(True, alpha=0.3)
-    #     ax.legend()
-    #     ax.set_title(f"{var}: residual={resid[i]:.3g} > tol={tol} at i={i}")
-    #     plt.show()
-
-
     # Unflag if close to linear interpolation
     unflag = (
         flag.values
@@ -188,7 +198,7 @@ def unflag_if_linear_interp(ds, var, flag, tol=0.1, time="time"):
                         coords=flag.coords, dims=flag.dims,
                         name=f"{flag.name}_final")
 
-def rate_of_change_fwd_bwd_and_thresholds(da, var, window="7D", time="time", per="h",
+def rate_of_change_fwd_bwd_and_thresholds(da, var, window="7D", ref_freq="h",
                               min_periods=10, factor=None, tol=None):
     """Compute forward/backward rate-of-change flags and rolling thresholds.
 
@@ -202,8 +212,7 @@ def rate_of_change_fwd_bwd_and_thresholds(da, var, window="7D", time="time", per
         var (str): Name of the variable (used for logging and metadata).
         window (str, optional): Rolling window length as a pandas offset
             string (e.g. "7D"). Defaults to "7D".
-        time (str, optional): Name of the time dimension. Defaults to "time".
-        per (str, optional): Time unit used to normalize rates (e.g. "h", "D").
+        ref_freq (str, optional): Time unit used to normalize rates (e.g. "h", "D").
             Defaults to "h".
         min_periods (int, optional): Minimum number of samples required in the
             rolling window. Defaults to 10.
@@ -224,12 +233,12 @@ def rate_of_change_fwd_bwd_and_thresholds(da, var, window="7D", time="time", per
     if (tol is None) | (factor is None):
         tol, factor = _get_params(var, tol=tol, factor=factor)
 
-    t = da[time].values.astype("datetime64[ns]")
-    v = da.values.astype("float64")
+    t = da["time"].values
+    v = da.values
 
-    dt_ns = (t[1:] - t[:-1]).astype("timedelta64[ns]").astype("int64")
+    dt_ns = (t[1:] - t[:-1])
     dv = v[1:] - v[:-1]
-    denom_ns = np.timedelta64(1, per).astype("timedelta64[ns]").astype("int64")
+    denom_ns = np.timedelta64(1, ref_freq)
     rate = np.abs(dv) / (dt_ns / denom_ns)
 
     idx_fwd = pd.to_datetime(t[1:])
@@ -244,22 +253,22 @@ def rate_of_change_fwd_bwd_and_thresholds(da, var, window="7D", time="time", per
 
     flag_fwd = xr.DataArray(
         flag_fwd_s.values.astype(bool),
-        coords={time: da[time].values[1:]},
-        dims=(time,),
+        coords={"time": da["time"].values[1:]},
+        dims=("time",),
         name=f"{var}_high_var_flag_fwd",
     )
     flag_bwd = xr.DataArray(
         flag_bwd_s.values.astype(bool),
-        coords={time: da[time].values[:-1]},
-        dims=(time,),
+        coords={"time": da["time"].values[:-1]},
+        dims=("time",),
         name=f"{var}_high_var_flag_bwd",
     )
 
-    tfull = da[time].values
-    fwd_full = xr.DataArray(np.zeros(tfull.shape, bool), coords={time: tfull}, dims=(time,))
-    bwd_full = xr.DataArray(np.zeros(tfull.shape, bool), coords={time: tfull}, dims=(time,))
-    fwd_full.loc[{time: flag_fwd[time]}] = flag_fwd
-    bwd_full.loc[{time: flag_bwd[time]}] = flag_bwd
+    tfull = da["time"].values
+    fwd_full = xr.DataArray(np.zeros(tfull.shape, bool), coords={"time": tfull}, dims=("time",))
+    bwd_full = xr.DataArray(np.zeros(tfull.shape, bool), coords={"time": tfull}, dims=("time",))
+    fwd_full.loc[{"time": flag_fwd["time"]}] = flag_fwd
+    bwd_full.loc[{"time": flag_bwd["time"]}] = flag_bwd
 
     roc_ds = xr.Dataset(
         data_vars=dict(
@@ -268,18 +277,18 @@ def rate_of_change_fwd_bwd_and_thresholds(da, var, window="7D", time="time", per
             roc_thr_bwd=(("time_bwd",), thr_bwd.values.astype("float64")),
         ),
         coords=dict(
-            time_rate=da[time].values[1:],
-            time_fwd=da[time].values[1:],
-            time_bwd=da[time].values[:-1],
+            time_rate=da["time"].values[1:],
+            time_fwd=da["time"].values[1:],
+            time_bwd=da["time"].values[:-1],
         ),
-        attrs=dict(var=var, per=per, window=window, min_periods=min_periods, factor=factor, tol=tol),
+        attrs=dict(var=var, ref_freq=ref_freq, window=window, min_periods=min_periods, factor=factor, tol=tol),
     )
 
     return roc_ds, fwd_full, bwd_full
 
 
-def flag_high_rate_of_change(ds, var, window="7D", time="time",
-                                       per="h", min_periods=10, factor=None, tol=None):
+def flag_high_rate_of_change(ds, var, window="7D",
+                         ref_freq="h", min_periods=10, factor=None, tol=None):
     """Flag anomalously high rates of change and refine using interpolation logic.
 
     Detects time steps where the rate of change exceeds a rolling percentile-
@@ -292,8 +301,7 @@ def flag_high_rate_of_change(ds, var, window="7D", time="time",
         var (str): Name of the variable to analyze.
         window (str, optional): Rolling window length (pandas offset string).
             Defaults to "7D".
-        time (str, optional): Name of the time dimension. Defaults to "time".
-        per (str, optional): Time unit used to normalize rates (e.g. "h", "D").
+        ref_freq (str, optional): Time unit used to normalize rates (e.g. "h", "D").
             Defaults to "h".
         min_periods (int, optional): Minimum samples required in the rolling
             window. Defaults to 10.
@@ -311,22 +319,22 @@ def flag_high_rate_of_change(ds, var, window="7D", time="time",
     """
     tol, factor = _get_params(var, tol=tol, factor=factor)
 
-    da = ds[var].dropna(time)
+    da = ds[var].dropna("time")
 
     roc_ds, fwd_full, bwd_full = rate_of_change_fwd_bwd_and_thresholds(
-        da, var, window=window, time=time, per=per, min_periods=min_periods, factor=factor, tol=tol
+        da, var, window=window, ref_freq=ref_freq, min_periods=min_periods, factor=factor, tol=tol
     )
 
     y = da
-    prev_missing = y.shift({time: 1}).isnull()
-    next_missing = y.shift({time: -1}).isnull()
+    prev_missing = y.shift({"time": 1}).isnull()
+    next_missing = y.shift({"time": -1}).isnull()
 
-    tt = da[time]
-    dt_prev = tt - tt.shift({time: 1})
-    dt_next = tt.shift({time: -1}) - tt
+    tt = da["time"]
+    dt_prev = tt - tt.shift({"time": 1})
+    dt_next = tt.shift({"time": -1}) - tt
     uneven_dt = dt_prev != dt_next
 
-    if da.sizes[time] > 0:
+    if da.sizes["time"] > 0:
         prev_missing.values[0] = True
         next_missing.values[-1] = True
         uneven_dt.values[0] = True
@@ -345,7 +353,7 @@ def flag_high_rate_of_change(ds, var, window="7D", time="time",
 
     # Final refinement step
     if flag_combined.any():
-        flag_final = unflag_if_linear_interp(ds, var, flag_combined, tol=tol, time=time)
+        flag_final = unflag_if_linear_interp(ds, var, flag_combined, tol=tol)
     else:
         flag_final = flag_combined
     logger.info(f"ROC filter on {var} (tol={tol}, factor={factor}): filtering {flag_final.sum().item()}/{len(ds.time)}")
