@@ -5,7 +5,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypromice.core.qc.rate_of_change_filter import flag_high_rate_of_change
+from pypromice.core.qc.rate_of_change_filter import (flag_high_rate_of_change,
+                                                     DEFAULT_WINDOW,
+                                                     DEFAULT_REF_FREQ,
+                                                     DEFAULT_MIN_PERIODS)
 
 TOL = 3.0
 FACTOR = 2.2
@@ -81,8 +84,16 @@ def build_case_D() -> xr.Dataset:
     return xr.Dataset({"t_u": (("time",), v)}, coords={"time": t})
 
 
-def flag_times(ds: xr.Dataset, var: str = "t_u", tol: float = TOL, factor: float = FACTOR):
-    _, _, _, final = flag_high_rate_of_change(ds, var, tol=tol, factor=factor)
+def flag_times(ds: xr.Dataset,
+               var: str = "t_u",
+               tol: float = TOL,
+               factor: float = FACTOR):
+    final, _, _, _ = flag_high_rate_of_change(ds[var],
+                                              DEFAULT_WINDOW,
+                                              DEFAULT_REF_FREQ,
+                                              DEFAULT_MIN_PERIODS,
+                                              tol,
+                                              factor)
     return (
         pd.to_datetime(final.time.values[final.values])
         .strftime("%Y-%m-%dT%H:%M:%S")
