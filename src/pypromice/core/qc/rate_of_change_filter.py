@@ -97,8 +97,7 @@ def rate_of_change_filter(ds):
 
     for var in vars_with_thresholds:
         tol, factor = _get_params(var)
-        flag_final, _, _, _,  = flag_high_rate_of_change(ds,
-                                                         var,
+        flag_final, _, _, _,  = flag_high_rate_of_change(ds[var],
                                                          DEFAULT_WINDOW,
                                                          DEFAULT_REF_FREQ,
                                                          DEFAULT_MIN_PERIODS,
@@ -109,8 +108,7 @@ def rate_of_change_filter(ds):
         tmp[var].loc[{"time": flag_final.time[flag_final]}] = np.nan  # apply first pass to temporary object
 
         if flag_final.any():
-            flag2, _, _, _ = flag_high_rate_of_change(tmp,
-                                                      var,
+            flag2, _, _, _ = flag_high_rate_of_change(tmp[var],
                                                       DEFAULT_WINDOW,
                                                       DEFAULT_REF_FREQ,
                                                       DEFAULT_MIN_PERIODS,
