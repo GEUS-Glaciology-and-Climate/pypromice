@@ -15,6 +15,7 @@ import xarray as xr
 from pypromice.core.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.core.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.core.qc.persistence import persistence_qc
+from pypromice.core.qc.rate_of_change_filter import rate_of_change_filter
 from pypromice.core.qc.value_clipping import clip_values
 from pypromice.core.variables import (wind,
                                       gps,
@@ -61,6 +62,12 @@ def toL2(L1: xr.Dataset,
     """
     ds = L1.copy()
 
+    # Flag and remove persistence outliers
+    ds = persistence_qc(ds)
+
+    # Flag high-rate-of-change outliers
+    ds = rate_of_change_filter(ds)
+
     try:
         # Adjust time after a user-defined csv files
         ds = adjustTime(ds, adj_dir=data_adjustments_dir.as_posix())
@@ -73,9 +80,6 @@ def toL2(L1: xr.Dataset,
 
     except Exception:
         logger.exception("Flagging and fixing failed:")
-
-    # Flag and remove persistence outliers
-    ds = persistence_qc(ds)
 
     # if ds.attrs['format'] == 'TX':
     #     # TODO: The configuration should be provided explicitly
@@ -135,10 +139,9 @@ def toL2(L1: xr.Dataset,
 
     # Set cloud cover to nans if station is not on ice
     else:
-        ds["cc"] = ds["dlr"].copy() * np.nan
+        ds["cc"] = xr.full_like(ds["dlr"], np.nan)
 
     # Determine station pose relative to sun position
-    # TODO Why is mean GPS lat lon not preferred for calcs?
     if hasattr(ds, 'latitude') and hasattr(ds, 'longitude'):
         lat = ds.attrs['latitude']
         lon = ds.attrs['longitude']

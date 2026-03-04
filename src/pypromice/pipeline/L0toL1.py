@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 from pypromice.core.variables.pressure_transducer_depth import correct_and_calculate_depth
 from pypromice.core.qc.value_clipping import clip_values
-from pypromice.core.variables import (wind, 
-                                      air_temperature, 
-                                      gps, 
+from pypromice.core.variables import (wind,
+                                      air_temperature,
+                                      gps,
                                       radiation,
                                       station_boom_height,
                                       station_pose,
@@ -133,12 +133,14 @@ def toL1(L0: xr.DataArray,
 
 
     # Handle cases where the bedrock attribute is incorrectly set
-    if not 'bedrock' in ds.attrs:
-        logger.warning('bedrock attribute is not set')
+    if not 'site_type' in ds.attrs:
+        logger.warning('site_type attribute is not set')
         ds.attrs['bedrock'] = False
-    elif not isinstance(ds.attrs['bedrock'], bool):
-        logger.warning(f'bedrock attribute is not boolean: {ds.attrs["bedrock"]}')
-        ds.attrs['bedrock'] =  str(ds.attrs['bedrock']).lower() == 'true'
+    else:
+        if ds.attrs['site_type'].lower() == "bedrock":
+            ds.attrs['bedrock'] = True
+        else:
+            ds.attrs['bedrock'] = False
     is_bedrock = ds.attrs['bedrock']
 
     # Some bedrock stations (e.g. KAN_B) do not have tilt in L0 files
