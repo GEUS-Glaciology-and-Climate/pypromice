@@ -14,7 +14,6 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH
 
 __all__ = [
     "decode_payload",
@@ -132,6 +131,13 @@ def decode_payload(
     payload_formats_path: Path | None = None,
 ) -> list:
     if payload_format is None:
+        if payload_formats_path is None:
+            try:
+                from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH
+                payload_formats_path = DEFAULT_PAYLOAD_FORMATS_PATH
+            except ImportError:
+                raise Exception("Payload formats path not specified and not found in resources")
+
         payload_format = determine_payload_format(payload, payload_formats_path)
     dataline = decode(payload_format, payload)
 
@@ -288,7 +294,7 @@ if __name__ == "__main__":
         "--payload_format_path",
         type=Path,
         help="Path to payload format .csv file",
-        default=DEFAULT_PAYLOAD_FORMATS_PATH,
+        default=None,
     )
     parser.add_argument(
         "--drop_checksum_suffix",
