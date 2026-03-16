@@ -3,7 +3,7 @@ import json
 import logging, os, sys, toml
 from argparse import ArgumentParser
 
-from pypromice.io.ingest.git import get_commit_hash_and_check_dirty
+from pypromice.ingest.git import get_commit_hash_and_check_dirty
 
 import pypromice.resources
 from pypromice.io.write import prepare_and_write
