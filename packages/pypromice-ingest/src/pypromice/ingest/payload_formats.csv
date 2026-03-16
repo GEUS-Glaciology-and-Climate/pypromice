@@ -1,0 +1,75 @@
+type,expected_values,format,description,flags,notes
+5,13,tffffffffffff,Promice 2009 summer message,,Promice 2009 2010
+6,39,tfffffffffffffffffffffffffgneffffffffff,Promice 2009 summer message (+ instant.),,Promice 2009 2010
+7,13,tffffffffffff,Promice 2009 winter message,,Promice 2009 2010
+8,39,tfffffffffffffffffffffffffgneffffffffff,Promice 2009 winter message (+ instant.),,Promice 2009 2010
+9,6,tfffff,Promice 2009 diagnostic message,,Promice 2009 2010
+10,49,tfffffffffffffffffffffffffffffffffffgneffffffffff,GlacioBasis 2009 Main 1-h summer message,,GlacioBasis 2009 Main
+11,56,tfffffffffffffffffffffffffffffffffffgnefffffffffffffffff,GlacioBasis 2009 Main 1-h summer message (+ instant.),,GlacioBasis 2009 Main
+12,49,tfffffffffffffffffffffffffffffffffffgneffffffffff,GlacioBasis 2009 Main 3-h winter message,,GlacioBasis 2009 Main
+13,56,tfffffffffffffffffffffffffffffffffffgnefffffffffffffffff,GlacioBasis 2009 Main 3-h winter message (+ instant.),,GlacioBasis 2009 Main
+14,22,tfffffffffffffffffffff,GlacioBasis 2009 Main diagnostic message,,GlacioBasis 2009 Main
+15,33,tfffffffffffffffffffffffffgneffff,Quadra 2009 3-h summer message,,Quadra Mining2009
+16,0,,unused,,Quadra Mining2009
+17,33,tfffffffffffffffffffffffffgneffff,Quadra 2009 24-h winter message,,Quadra Mining2009
+18,0,,unused,,Quadra Mining2009
+19,6,tfffff,Quadra 2009 diagnostic message,,Quadra Mining2009
+20,41,tfffffffffffffffffffffffffffffffffgneffff,GlacioBasis 2009 Top 1-h summer message,,GlacioBasis 2009 Top
+21,0,,unused,,GlacioBasis 2009 Top
+22,41,tfffffffffffffffffffffffffffffffffgneffff,GlacioBasis 2009 Top 6-h winter message,,GlacioBasis 2009 Top
+23,0,,unused,,GlacioBasis 2009 Top
+24,22,tfffffffffffffffffffff,GlacioBasis 2009 Top diagnostic message,,GlacioBasis 2009 Top
+25,13,tffffffffffff,Sermilik 2009 1-h summer message,,Sermilik 2010 (corresponds to BinaryTxFormatRevision = 5 in the datalogger program)
+26,39,tfffffffffffffffffffffffffgneffffffffff,Sermilik 2009 1-h summer message (+ instant.),,Sermilik 2010 (corresponds to BinaryTxFormatRevision = 5 in the datalogger program)
+27,13,tffffffffffff,Sermilik 2009 6-h winter message,,Sermilik 2010 (corresponds to BinaryTxFormatRevision = 5 in the datalogger program)
+28,39,tfffffffffffffffffffffffffgneffffffffff,Sermilik 2009 6-h winter message (+ instant.),,Sermilik 2010 (corresponds to BinaryTxFormatRevision = 5 in the datalogger program)
+29,6,tfffff,Sermilik 2009 diagnostic message,,Sermilik 2010 (corresponds to BinaryTxFormatRevision = 5 in the datalogger program)
+30,12,tfffffffffff,Promice 2015 summer message,,Promice 2015-; there is 1 f less (wind variability)
+31,37,tffffffffffffffffffffffffgnefffffffff,Promice 2015 summer message (+ instant.),,Promice 2015-; there are 2 f less (wind variability; wind var. instantaneous)
+32,12,tfffffffffff,Promice 2015 winter message,,Promice 2015-; there is 1 f less (wind variability)
+33,37,tffffffffffffffffffffffffgnefffffffff,Promice 2015 winter message (+ instant.),,Promice 2015-; there are 2 f less (wind variability; wind var. instantaneous)
+34,6,tfffff,Promice 2015 diagnostic message,,Promice 2015-
+35,53,tffffffffffffffffffffffffffffffffffffffffffffffffffff,Camp Century 2017 summer message,,Camp Century 2017-
+36,0,,no summer message (+ instant.),,Camp Century 2017-
+37,53,tffffffffffffffffffffffffffffffffffffffffffffffffffff,Camp Century 2017 summer message,,Camp Century 2017-
+38,0,,,,Camp Century 2017-
+40,14,tfffffffffffff,GlacioBasis+DMI 2018 summer message,,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
+41,39,tffffffffffffffffffffffffffgnefffffffff,GlacioBasis+DMI 2018 summer message (+ instant.),,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
+42,14,tfffffffffffff,GlacioBasis+DMI 2018 winter message,,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
+43,39,tffffffffffffffffffffffffffgnefffffffff,GlacioBasis+DMI 2018 winter message (+ instant.),,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
+44,6,tfffff,GlacioBasis+DMI 2018 diagnostic message,,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
+48,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
+49,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
+50,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
+51,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
+52,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
+53,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
+54,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
+55,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
+56,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
+57,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
+60,1,t,new summer message,,UNUSED FORMAT (will match BinaryTxFormatRevision = 12 in the logger program)
+61,1,t,new summer message (+ instant.),,UNUSED FORMAT (will match BinaryTxFormatRevision = 12 in the logger program)
+62,1,t,new winter message,,UNUSED FORMAT (will match BinaryTxFormatRevision = 12 in the logger program)
+63,1,t,new winter message (+ instant.),,UNUSED FORMAT (will match BinaryTxFormatRevision = 12 in the logger program)
+64,1,t,new diagnostic message,,UNUSED FORMAT (will match BinaryTxFormatRevision = 12 in the logger program)
+75,38,tfffffffffffFFfffgneffffffffffffffffff,THE VERSION-3!,don’t use,THE VERSION-3; note the debug FF letters for the sonic rangers
+70,37,tffffffffffffffffffffffffgnefffffffff,THE VERSION-3!,don’t use,THE VERSION-3; note the debug FF letters for the sonic rangers
+75,38,tffffffffffffffffgneffffffffffffffffff,THE VERSION-3!,,THE VERSION-3; note the debug FF letters for the sonic rangers
+75,37,tffffffffffffffffgneffffffffffffffffff,THE VERSION-3!,don’t use,THE VERSION-3; note the debug FF letters for the sonic rangers
+79,37,tffffffffffffffffffffffffgnefffffffff,THE VERSION-3!,don’t use,THE VERSION-3; new version 2020-01-23; note the debug FF letters for the sonic rangers. Potentially for QAS_Lv3 only
+80,39,tfffffffffffffffffffffffffgneffffffffff,THE VERSION-3!,,THE VERSION-3; new version 2020-01-23; note the debug FF letters for the sonic rangers
+80,40,tfffffffffffffffffffffffffffffffffffffff,THE VERSION-3!,don’t use,THE VERSION-3; new version 2020-01-23; note the debug FF letters for the sonic rangers
+81,24,tffffffffffffffffgneffff,THE VERSION-3!,don’t use,GC-NET stations
+85,48,tffffffffffffffffffffffffffffffffffgneffffffffff,THE GC-NET VERSION!,don’t use,GC-NET stations
+90,49, tfffffffffffffffffffffffffffffffffgneffffffffffff,THE GC-NET VERSION!,don’t use,GC-NET stations
+90,47,tfffffffffffffffffffffffffffffffffgneffffffffff,THE GC-NET VERSION!,don’t use,GC-NET stations
+90,48, tfffffffffffffffffffffffffffffffffgnefffffffffff,THE GC-NET VERSION!,don’t use,GC-NET stations
+90,48,tfffffffffffffffffffffffffffffffffgnefffffffffff,THE GC-NET VERSION!,,GC-NET stations
+95,46,tfffffffffffffffffffffffffffffffgnefffffffffff,THE GC-NET VERSION!,,GC-NET stations
+115,47,tfffffffffffffffffffffffffffffffffgneffffffffff,PREMAS version,,PREMAS stations
+220,29,tfffffffffffffffffffffffnefff,ZAMG Freya 2015 summer message,,ZAMG Freya aws
+221,0,,,,ZAMG Freya aws
+222,29,tfffffffffffffffffffffffnefff,ZAMG Freya 2015 winter message,,ZAMG Freya aws
+223,0,,,,ZAMG Freya aws
+224,6,tfffff,ZAMG Freya 2015 diagnostic message,,ZAMG Freya aws
