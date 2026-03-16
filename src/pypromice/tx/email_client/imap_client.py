@@ -1,4 +1,5 @@
 import email.parser
+import re
 from configparser import ConfigParser
 from datetime import datetime
 import imaplib
@@ -10,6 +11,8 @@ from typing import Iterator, List, Tuple
 from .base_mail_client import BaseMailClient
 
 logger = logging.getLogger(__name__)
+
+UID_RE = re.compile(rb"\bUID\s+(\d+)\b")
 
 class IMAPClient(BaseMailClient):
     """IMAP client implementing BaseMailClient interface."""
@@ -88,22 +91,43 @@ class IMAPClient(BaseMailClient):
         return max(uids) if uids else 0
 
     # ---------------- IMAP utilities ----------------
-    def fetch_mails(self, uids: list[int]) -> Iterator[Tuple[int, email.message.Message]]:
+    def fetch_mails(
+        self, uids: list[int]
+    ) -> Iterator[Tuple[int, email.message.Message]]:
         for i in range(0, len(uids), self.chunk_size):
-            chunk = uids[i:i + self.chunk_size]
-            uid_string = ','.join(map(str, chunk))
-            status, data = self.mail_server.uid("fetch", uid_string, "(RFC822)")
+            chunk = uids[i : i + self.chunk_size]
+            uid_string = ",".join(map(str, chunk))
+
+            # Request UID explicitly as part of the returned FETCH data
+            status, data = self.mail_server.uid("fetch", uid_string, "(UID RFC822)")
             if status != "OK":
-                raise RuntimeError("Failed to fetch mail chunk")
+                raise RuntimeError(f"Failed to fetch mail chunk: {status!r}")
 
-            # Every second value is a separator
-            assert len(data) == len(chunk) * 2
-            assert isinstance(data[0], tuple)
-            for chunk_uid, mail_data in zip(chunk, data[::2]):
-                uid = int(mail_data[0].decode().split()[0])
-                assert uid == chunk_uid
-                yield uid, self.parser.parsestr(mail_data[1].decode())
+            # imaplib returns tuples mixed with trailing separators / end markers
+            fetch_items = [item for item in data if isinstance(item, tuple)]
 
+            if len(fetch_items) != len(chunk):
+                raise RuntimeError(
+                    f"Expected {len(chunk)} fetched messages, got {len(fetch_items)}"
+                )
+
+            for expected_uid, mail_data in zip(chunk, fetch_items):
+                header_bytes, message_bytes = mail_data
+
+                m = UID_RE.search(header_bytes)
+                if not m:
+                    raise RuntimeError(
+                        f"Could not parse UID from FETCH response: {header_bytes!r}"
+                    )
+
+                actual_uid = int(m.group(1))
+                if actual_uid != expected_uid:
+                    raise RuntimeError(
+                        f"UID mismatch: requested {expected_uid}, got {actual_uid}. "
+                        f"Raw response: {header_bytes!r}"
+                    )
+
+                yield actual_uid, email.message_from_bytes(message_bytes)
 
     def _imap_search_uids(self, search_string: str) -> List[str]:
         status, data = self.mail_server.uid("search", None, search_string)
