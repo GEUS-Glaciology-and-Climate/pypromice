@@ -10,23 +10,23 @@ Additionally, logging is used for debug information throughout the decoding
 process.
 """
 import logging
-import numpy as np
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH
+
 __all__ = [
+    "decode_payload",
     "DecodeError",
-    "determine_payload_format",
-    "decode"
 ]
+
 
 logger = logging.getLogger(__name__)
 
 CR_BASIC_EPOCH_OFFSET = datetime(1990, 1, 1, 0, 0, 0, 0).timestamp()
 
-
 class DecodeError(Exception):
-    """Decoding error exception object"""
 
     def __init__(
         self,
@@ -64,18 +64,7 @@ class DecodeError(Exception):
 
 
 def parse_gfp2(buffer: bytes) -> float:
-    """Two-byte floating point decoder
-
-    Parameters
-    ----------
-    buffer : bytes
-        List of two values
-
-    Returns
-    -------
-    float
-        Decoded value
-    """
+    """Two-byte floating point decoder"""
     if len(buffer) < 2:
         raise ValueError("Buffer too short for gfp2 decoding")
 
@@ -103,7 +92,7 @@ def parse_gli4(buffer: bytes) -> int:
     ----------
     buffer : bytes
         List of four values
-        
+
     Returns
     -------
     float
@@ -116,21 +105,6 @@ def parse_gli4(buffer: bytes) -> int:
 
 
 def determine_payload_format(payload: bytes, payload_formats_path: Path) -> str:
-    """Determine payload format from lookup table, based on the first byte in
-    the payload
-
-    Parameters
-    ----------
-    payload : bytes
-        Payload message
-    payload_formats_path : Path
-        File path to payload formats lookup table
-
-    Returns
-    -------
-    bin_format : str
-        Binary format of payload
-    """
     payload_formats = pd.read_csv(payload_formats_path, index_col=0)
     payload_formats = payload_formats[payload_formats["flags"].values != "don’t use"]
 
@@ -152,21 +126,19 @@ def determine_payload_format(payload: bytes, payload_formats_path: Path) -> str:
     return bin_format
 
 
+def decode_payload(
+    payload: bytes,
+    payload_format: str | None = None,
+    payload_formats_path: Path | None = None,
+) -> list:
+    if payload_format is None:
+        payload_format = determine_payload_format(payload, payload_formats_path)
+    dataline = decode(payload_format, payload)
+
+    return dataline
+
+
 def decode(bin_format: str, payload: bytes) -> list:
-    """Decode a payload, based on a pre-defined format identifier
-
-    Parameters
-    ----------
-    bin_format : str
-        Binary payload format identifier
-    payload : bytes
-        Payload message
-
-    Returns
-    -------
-    dataline : list
-        Decoded payload
-    """
     payload_length = len(payload)
     logger.info(f"Decoding payload with format: {bin_format!r}. Payload length: {payload_length}")
     logger.debug(f"Payload: {payload!r}")
@@ -181,7 +153,6 @@ def decode(bin_format: str, payload: bytes) -> list:
             )
 
             if type_letter == "f":
-                # Encoded as 2 bytes base-10 floating point (GFP2)
                 nan_values = (8191,)
                 inf_values = (8190,)
                 neg_inf_values = -8190, -8191
@@ -198,9 +169,33 @@ def decode(bin_format: str, payload: bytes) -> list:
                 else:
                     dataline.append(value)
                 indx += 2
+            
+            elif type_letter == "b":
+                # Unsigned integer encoded as a single byte
+                if indx + 1 > payload_length:
+                    raise Exception("Payload too short for 'b' (1-byte unsigned integer)")
+                value = payload[indx]
+                dataline.append(value)
+                indx += 1
 
+            elif type_letter == "w":
+                # Unsigned integer encoded as two bytes (big-endian)
+                if indx + 2 > payload_length:
+                    raise Exception("Payload too short for 'w' (2-byte unsigned integer)")
+                value = int.from_bytes(payload[indx:indx + 2], byteorder="big", signed=False)
+                dataline.append(value)
+                indx += 2
+                
+            elif type_letter == "c":
+                # Unsigned integer encoded as two bytes (big-endian)
+                if indx + 3 > payload_length:
+                    raise Exception("Payload too short for 'c' (3-byte unsigned integer)")
+                value = int.from_bytes(payload[indx:indx + 3], byteorder="big", signed=False)
+                dataline.append(value)
+                indx += 3
+            
             elif type_letter == "l":
-                # Encoded as 4 bytes two complement integer (GLI4) - note the mac nan value is not a max value
+                # Encoded as a 4 byte two complement integer
 
                 value = parse_gli4(payload[indx:])
 
@@ -214,14 +209,13 @@ def decode(bin_format: str, payload: bytes) -> list:
                 indx += 4
 
             elif type_letter == "t":
-                # timestamp as seconds since 1990-01-01 00:00:00 +0000 encoded as GLI4
                 value = parse_gli4(payload[indx:])
                 time = datetime.fromtimestamp(CR_BASIC_EPOCH_OFFSET + value)
                 dataline.append(time)
                 indx += 4
 
+            # GPS time or coordinate encoding
             elif type_letter in ("g", "n", "e"):
-                # GPS time or coordinate encoding
                 nan_values_fp2 = (8191,)
                 # Check if byte is a 2-bit NAN. This occurs when the GPS data is not
                 # available and the logger sends a 2-bytes NAN instead of a 4-bytes value
@@ -291,9 +285,10 @@ if __name__ == "__main__":
         default="INFO",
     )
     parser.add_argument(
-        "--payload_formats_path",
+        "--payload_format_path",
         type=Path,
-        help="Path to payload formats .csv file",
+        help="Path to payload format .csv file",
+        default=DEFAULT_PAYLOAD_FORMATS_PATH,
     )
     parser.add_argument(
         "--drop_checksum_suffix",
@@ -313,6 +308,7 @@ if __name__ == "__main__":
         root_logger = logging.getLogger()
         root_logger.setLevel(getattr(logging, args.log_level))
 
+
     if isinstance(args.payload_file_path, Path):
         with open(args.payload_file_path, "rb") as payload_file:
             payload = payload_file.read()
@@ -323,12 +319,10 @@ if __name__ == "__main__":
     if args.drop_checksum_suffix:
         payload = payload[:-2]
 
-    if args.format is not None:
-        payload_format = args.format
-    else:
-        if args.payload_formats_path is None:
-            raise ValueError("Payload format path must be specified if decoding format is not specified")
-        payload_format = determine_payload_format(payload, args.payload_formats_path)
-    decoded = decode(payload_format, payload)
+    decoded = decode_payload(
+        payload,
+        payload_format=args.format,
+        payload_formats_path=args.payload_format_path,
+    )
 
     df = pd.DataFrame([decoded]).to_csv(sys.stdout, index=False, header=False)

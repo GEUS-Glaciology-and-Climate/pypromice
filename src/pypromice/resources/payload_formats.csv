@@ -19,7 +19,7 @@ type,expected_values,format,description,flags,notes
 22,41,tfffffffffffffffffffffffffffffffffgneffff,GlacioBasis 2009 Top 6-h winter message,,GlacioBasis 2009 Top
 23,0,,unused,,GlacioBasis 2009 Top
 24,22,tfffffffffffffffffffff,GlacioBasis 2009 Top diagnostic message,,GlacioBasis 2009 Top
-25,13,tffffffffffff,Sermilik 2009 1-h summer message,,Sermilik 2010 (corresponds to BinaryTxFormatRevision = 5 in the datalogger program)
+25,13,tffffcwlwwwllwwwllffgneffffbfb,Sermilik 2009 1-h summer message,,Sermilik 2010 (corresponds to BinaryTxFormatRevision = 5 in the datalogger program)
 26,39,tfffffffffffffffffffffffffgneffffffffff,Sermilik 2009 1-h summer message (+ instant.),,Sermilik 2010 (corresponds to BinaryTxFormatRevision = 5 in the datalogger program)
 27,13,tffffffffffff,Sermilik 2009 6-h winter message,,Sermilik 2010 (corresponds to BinaryTxFormatRevision = 5 in the datalogger program)
 28,39,tfffffffffffffffffffffffffgneffffffffff,Sermilik 2009 6-h winter message (+ instant.),,Sermilik 2010 (corresponds to BinaryTxFormatRevision = 5 in the datalogger program)
@@ -36,7 +36,7 @@ type,expected_values,format,description,flags,notes
 40,14,tfffffffffffff,GlacioBasis+DMI 2018 summer message,,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
 41,39,tffffffffffffffffffffffffffgnefffffffff,GlacioBasis+DMI 2018 summer message (+ instant.),,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
 42,14,tfffffffffffff,GlacioBasis+DMI 2018 winter message,,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
-43,39,tffffffffffffffffffffffffffgnefffffffff,GlacioBasis+DMI 2018 winter message (+ instant.),,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
+43,39,tccfwbffwcffffffbfffwfbffw,GlacioBasis+DMI 2018 winter message (+ instant.),,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
 44,6,tfffff,GlacioBasis+DMI 2018 diagnostic message,,GlacioBasis+DMI 2018; there is 2 more than promice 2015 (T_IR; IR_T)
 48,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
 49,0,,,,placeholders for illegal format numbers (reserved for ascii decimal numbers; codes 48 for '0' to 57 for '9')
