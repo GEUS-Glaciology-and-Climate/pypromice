@@ -1,4 +1,4 @@
-name: Publish pypromice meta-package to PyPI
+name: Publish pypromice to PyPI
 
 on:
   push:
@@ -18,6 +18,8 @@ jobs:
       - name: Build package
         run: |
           pip install build
-          python -m build
+          python -m build packages/pypromice/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/pypromice/dist/

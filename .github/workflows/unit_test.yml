@@ -32,8 +32,8 @@ jobs:
         run: |
           python3 -m pytest packages/pypromice-tx/tests/
 
-  test-pipeline:
-    name: unit_test (pypromice-pipeline)
+  test-pypromice:
+    name: unit_test (pypromice)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -54,9 +54,9 @@ jobs:
           python3 -m pip install Bottleneck
           python3 -m pip install --upgrade setuptools
           cd $GITHUB_WORKSPACE
-          pip install "packages/pypromice-pipeline[all]"
+          pip install "packages/pypromice[all]"
           pip install pytest
       - name: Run unit tests
         shell: bash
         run: |
-          python3 -m pytest packages/pypromice-pipeline/tests/
+          python3 -m pytest packages/pypromice/tests/

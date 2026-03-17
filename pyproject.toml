@@ -1,45 +1,6 @@
-[build-system]
-requires = ["setuptools>=61", "wheel"]
-build-backend = "setuptools.build_meta"
+# Root pyproject.toml — dev tooling only, not a publishable package.
+# To install all packages for local development:
+#   pip install -e packages/pypromice[all] -e packages/pypromice-tx[google] -e packages/pypromice-bufr
 
-[project]
-name = "pypromice"
-version = "1.10.1"
-description = "PROMICE/GC-Net toolbox for processing data from automatic weather stations (meta-package)"
-readme = "README.md"
-requires-python = ">=3.10"
-authors = [
-    { name = "GEUS Glaciology and Climate" }
-]
-keywords = ["promice", "gc-net", "aws", "climate", "glaciology", "greenland", "geus"]
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
-    "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: Science/Research",
-    "Natural Language :: English",
-    "Topic :: Scientific/Engineering",
-    "Operating System :: OS Independent",
-]
-
-dependencies = [
-    "pypromice-pipeline",
-]
-
-[project.optional-dependencies]
-bufr = ["pypromice-bufr"]
-tx = ["pypromice-tx"]
-all = [
-    "pypromice-pipeline",
-    "pypromice-tx",
-    "pypromice-bufr",
-]
-
-[project.urls]
-Homepage = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
-Documentation = "https://pypromice.readthedocs.io"
-"Bug Tracker" = "https://github.com/GEUS-Glaciology-and-Climate/pypromice/issues"
-"Source Code" = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
-
-[tool.setuptools]
-packages = []
+[tool.pytest.ini_options]
+testpaths = ["tests"]
