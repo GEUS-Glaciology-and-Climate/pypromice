@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pypromice"
+version = "1.10.1"
+description = "PROMICE/GC-Net toolbox for processing data from automatic weather stations"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "GEUS Glaciology and Climate" }
+]
+keywords = ["promice", "gc-net", "aws", "climate", "glaciology", "greenland", "geus"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "numpy~=1.23",
+    "pandas>=1.5.0,<3.0.0",
+    "xarray>=2022.6.0",
+    "attrs",
+    "toml",
+    "scipy>=1.9.0",
+    "Bottleneck",
+    "netcdf4",
+    "scikit-learn>=1.1.0",
+]
+
+[project.optional-dependencies]
+bufr = ["pypromice-bufr"]
+tx = ["pypromice-tx"]
+all = ["pypromice-bufr", "pypromice-tx"]
+
+[project.urls]
+Homepage = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
+Documentation = "https://pypromice.readthedocs.io"
+"Bug Tracker" = "https://github.com/GEUS-Glaciology-and-Climate/pypromice/issues"
+"Source Code" = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
+
+[project.scripts]
+join_l2 = "pypromice.pipeline.join_l2:main"
+join_l3 = "pypromice.pipeline.join_l3:main"
+get_l2 = "pypromice.pipeline.get_l2:main"
+get_l2tol3 = "pypromice.pipeline.get_l2tol3:main"
+make_metadata_csv = "pypromice.io.make_metadata_csv:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"pypromice.core.qc.percentiles" = ["thresholds.csv"]
+"pypromice.resources" = ["*.csv"]
+"pypromice.ingest" = ["*.toml"]

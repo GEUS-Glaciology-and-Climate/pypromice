@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pypromice-bufr"
+version = "1.0.0"
+description = "PROMICE/GC-Net AWS WMO BUFR export"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "GEUS Glaciology and Climate" }
+]
+keywords = ["promice", "gc-net", "aws", "bufr", "wmo"]
+
+dependencies = [
+    "numpy~=1.23",
+    "pandas>=1.5.0,<3.0.0",
+    "xarray>=2022.6.0",
+    "eccodes",
+]
+
+[project.urls]
+Homepage = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
+
+[project.scripts]
+get_bufr = "pypromice.bufr.get_bufr:main"
+create_bufr_files = "pypromice.bufr.create_bufr_files:main"
+bufr_to_csv = "pypromice.bufr.bufr_to_csv:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"pypromice.bufr" = ["positions_seed.csv"]

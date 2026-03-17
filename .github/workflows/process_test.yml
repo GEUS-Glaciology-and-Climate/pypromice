@@ -2,7 +2,7 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, edited]
   workflow_dispatch:
-  
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,11 +24,12 @@ jobs:
           pip install wheel
           python3 -m pip install --upgrade setuptools
           cd $GITHUB_WORKSPACE/main
-          pip install ".[all]"
+          pip install "packages/pypromice-ingest"
+          pip install "packages/pypromice-pipeline[all]"
       - name: Clone AWS Level 0 data repo for testing
         env:
           GITLAB_TOKEN : ${{ secrets.GITLAB_TOKEN }}
-        run: | 
+        run: |
           cd $GITHUB_WORKSPACE
           git clone --depth 1 https://oauth2:${{ env.GITLAB_TOKEN }}@geusgitlab.geus.dk/glaciology-and-climate/promice/aws-l0.git
       - name: Run L0 to L2 processing
@@ -40,7 +41,7 @@ jobs:
           mkdir $GITHUB_WORKSPACE/out/L0toL2/
           mkdir $GITHUB_WORKSPACE/data_issues
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do
-            python3 $GITHUB_WORKSPACE/main/src/pypromice/pipeline/get_l2.py -c $GITHUB_WORKSPACE/aws-l0/tx/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/tx --issues $GITHUB_WORKSPACE/data_issues -o $GITHUB_WORKSPACE/out/L0toL2/ --data_issues_path $GITHUB_WORKSPACE/data_issues
+            python3 $GITHUB_WORKSPACE/main/packages/pypromice-pipeline/src/pypromice/pipeline/get_l2.py -c $GITHUB_WORKSPACE/aws-l0/tx/config/$i.toml -i $GITHUB_WORKSPACE/aws-l0/tx --issues $GITHUB_WORKSPACE/data_issues -o $GITHUB_WORKSPACE/out/L0toL2/ --data_issues_path $GITHUB_WORKSPACE/data_issues
           done
       - name: Run L2 to L3 processing
         env:
@@ -50,7 +51,7 @@ jobs:
           mkdir $GITHUB_WORKSPACE/out/L2toL3/
           for i in $(echo ${{ env.TEST_STATION }} | tr ' ' '\n'); do
             echo ${i}_hour.nc
-            python3 $GITHUB_WORKSPACE/main/src/pypromice/pipeline/get_l2tol3.py -c $GITHUB_WORKSPACE/aws-l0/metadata/station_configurations/ -i $GITHUB_WORKSPACE/out/L0toL2/${i}/${i}_hour.nc -o $GITHUB_WORKSPACE/out/L2toL3/ --data_issues_path $GITHUB_WORKSPACE/data_issues
+            python3 $GITHUB_WORKSPACE/main/packages/pypromice-pipeline/src/pypromice/pipeline/get_l2tol3.py -c $GITHUB_WORKSPACE/aws-l0/metadata/station_configurations/ -i $GITHUB_WORKSPACE/out/L0toL2/${i}/${i}_hour.nc -o $GITHUB_WORKSPACE/out/L2toL3/ --data_issues_path $GITHUB_WORKSPACE/data_issues
           done
       - name: Upload test output
         uses: actions/upload-artifact@v4
