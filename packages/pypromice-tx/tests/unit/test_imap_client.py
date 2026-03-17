@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from pypromice.ingest.email_client.imap_client import IMAPClient
+from pypromice.tx.email_client.imap_client import IMAPClient
 
 
 @pytest.fixture

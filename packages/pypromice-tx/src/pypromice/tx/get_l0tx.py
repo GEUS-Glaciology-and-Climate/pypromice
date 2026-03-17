@@ -12,13 +12,13 @@ from email.utils import parsedate_to_datetime
 
 import toml
 
-from pypromice.ingest.tx import (
+from pypromice.tx.tx import (
     DEFAULT_PAYLOAD_FORMATS_PATH,
     DEFAULT_PAYLOAD_TYPES_PATH,
 )
-from pypromice.ingest.email_client.base_mail_client import BaseMailClient
-from pypromice.ingest.email_client.imap_client import IMAPClient
-from pypromice.ingest.tx import L0tx
+from pypromice.tx.email_client.base_mail_client import BaseMailClient
+from pypromice.tx.email_client.imap_client import IMAPClient
+from pypromice.tx.tx import L0tx
 
 
 logger = logging.getLogger(__name__)

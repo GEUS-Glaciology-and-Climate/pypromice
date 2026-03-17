@@ -28,10 +28,10 @@ dependencies = [
 
 [project.optional-dependencies]
 bufr = ["pypromice-bufr"]
-ingest = ["pypromice-ingest"]
+tx = ["pypromice-tx"]
 all = [
     "pypromice-pipeline",
-    "pypromice-ingest",
+    "pypromice-tx",
     "pypromice-bufr",
 ]
 

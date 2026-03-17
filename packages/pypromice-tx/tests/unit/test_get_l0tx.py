@@ -5,14 +5,14 @@ from pathlib import Path
 import pytest
 from unittest.mock import patch, Mock
 
-from pypromice.ingest.email_client.base_mail_client import BaseMailClient
-from pypromice.ingest import get_l0tx
-from pypromice.ingest.tx import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
+from pypromice.tx.email_client.base_mail_client import BaseMailClient
+from pypromice.tx import get_l0tx
+from pypromice.tx.tx import DEFAULT_PAYLOAD_FORMATS_PATH, DEFAULT_PAYLOAD_TYPES_PATH
 
 
 @pytest.fixture
 def mock_L0tx():
-    with patch("pypromice.ingest.get_l0tx.L0tx") as mock:
+    with patch("pypromice.tx.get_l0tx.L0tx") as mock:
         mock_instance = Mock()
         mock.return_value = mock_instance
         yield mock_instance

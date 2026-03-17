@@ -1,9 +1,9 @@
-name: Publish pypromice-ingest to PyPI
+name: Publish pypromice-tx to PyPI
 
 on:
   push:
     tags:
-      - 'pypromice-ingest/v*'
+      - 'pypromice-tx/v*'
 
 jobs:
   publish:
@@ -18,8 +18,8 @@ jobs:
       - name: Build package
         run: |
           pip install build
-          python -m build packages/pypromice-ingest/
+          python -m build packages/pypromice-tx/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: packages/pypromice-ingest/dist/
+          packages-dir: packages/pypromice-tx/dist/

@@ -32,7 +32,6 @@ dependencies = [
     "Bottleneck",
     "netcdf4",
     "scikit-learn>=1.1.0",
-    "pypromice-ingest",
 ]
 
 [project.optional-dependencies]
@@ -61,3 +60,4 @@ where = ["src"]
 [tool.setuptools.package-data]
 "pypromice.core.qc.percentiles" = ["thresholds.csv"]
 "pypromice.resources" = ["*.csv"]
+"pypromice.ingest" = ["*.toml"]

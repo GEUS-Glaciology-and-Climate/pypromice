@@ -13,10 +13,10 @@ try:
 except ImportError as e:
     raise ImportError(
         "The Google API dependencies are missing and required to use this feature.\n\n"
-        "Install them with `pip install pypromice-ingest[google]`"
+        "Install them with `pip install pypromice-tx[google]`"
     ) from e
 
-from pypromice.ingest.email_client.base_mail_client import BaseMailClient
+from pypromice.tx.email_client.base_mail_client import BaseMailClient
 
 logger = logging.getLogger(__name__)
 

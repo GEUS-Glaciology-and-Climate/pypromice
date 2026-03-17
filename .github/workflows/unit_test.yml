@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-ingest:
-    name: unit_test (pypromice-ingest)
+  test-tx:
+    name: unit_test (pypromice-tx)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,12 +25,12 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install --upgrade setuptools
           cd $GITHUB_WORKSPACE
-          pip install "packages/pypromice-ingest[google]"
+          pip install "packages/pypromice-tx[google]"
           pip install pytest
       - name: Run unit tests
         shell: bash
         run: |
-          python3 -m pytest packages/pypromice-ingest/tests/
+          python3 -m pytest packages/pypromice-tx/tests/
 
   test-pipeline:
     name: unit_test (pypromice-pipeline)
@@ -54,10 +54,9 @@ jobs:
           python3 -m pip install Bottleneck
           python3 -m pip install --upgrade setuptools
           cd $GITHUB_WORKSPACE
-          pip install "packages/pypromice-ingest"
           pip install "packages/pypromice-pipeline[all]"
           pip install pytest
       - name: Run unit tests
         shell: bash
         run: |
-          python3 -m pytest packages/pypromice-pipeline/tests/ tests/
+          python3 -m pytest packages/pypromice-pipeline/tests/

@@ -3,19 +3,17 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pypromice-ingest"
+name = "pypromice-tx"
 version = "1.0.0"
-description = "PROMICE/GC-Net AWS data ingestion: email fetching, payload decoding, and L0 file loading"
+description = "PROMICE/GC-Net AWS data transmission: email fetching and payload decoding"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
     { name = "GEUS Glaciology and Climate" }
 ]
-keywords = ["promice", "gc-net", "aws", "iridium", "imap"]
+keywords = ["promice", "gc-net", "aws", "iridium", "imap", "sbd", "transmission"]
 
 dependencies = [
-    "pandas>=1.5.0,<3.0.0",
-    "xarray>=2022.6.0",
     "toml",
 ]
 
@@ -31,8 +29,8 @@ google = [
 Homepage = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
 
 [project.scripts]
-get_l0tx = "pypromice.ingest.get_l0tx:main"
-get_msg = "pypromice.ingest.get_msg:get_msg"
+get_l0tx = "pypromice.tx.get_l0tx:main"
+get_msg = "pypromice.tx.get_msg:get_msg"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -41,4 +39,4 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-"pypromice.ingest" = ["payload_formats.csv", "payload_types.csv"]
+"pypromice.tx" = ["payload_formats.csv", "payload_types.csv"]
