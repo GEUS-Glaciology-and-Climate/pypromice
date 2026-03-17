@@ -11,6 +11,7 @@ process.
 """
 import logging
 import numpy as np
+import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
@@ -264,11 +265,9 @@ def decode(bin_format: str, payload: bytes) -> list:
     return dataline
 
 
-if __name__ == "__main__":
+def main():
     import argparse
     import sys
-    import pandas as pd
-    from pathlib import Path
 
     parser = argparse.ArgumentParser(description="Payload decoder tool for CRBasic logger")
     parser.add_argument(
@@ -331,4 +330,8 @@ if __name__ == "__main__":
         payload_format = determine_payload_format(payload, args.payload_formats_path)
     decoded = decode(payload_format, payload)
 
-    df = pd.DataFrame([decoded]).to_csv(sys.stdout, index=False, header=False)
+    pd.DataFrame([decoded]).to_csv(sys.stdout, index=False, header=False)
+
+
+if __name__ == "__main__":
+    main()
