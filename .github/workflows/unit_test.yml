@@ -2,10 +2,10 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, edited]
   workflow_dispatch:
-  
+
 jobs:
-  test:
-    name: unit_test
+  test-tx:
+    name: unit_test (pypromice-tx)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -19,18 +19,44 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-#      - name: Install eccodes
-#        run : |
-#          sudo apt-get install -y libeccodes-dev
       - name: Install dependencies
         shell: bash
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install Bottleneck 
           python3 -m pip install --upgrade setuptools
           cd $GITHUB_WORKSPACE
-          pip install ".[all]"
+          pip install "packages/pypromice-tx[google]"
+          pip install pytest
       - name: Run unit tests
         shell: bash
         run: |
-          python3 -m unittest discover tests
+          python3 -m pytest packages/pypromice-tx/tests/
+
+  test-pypromice:
+    name: unit_test (pypromice)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python_version: ['3.10', '3.11']
+    steps:
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install Bottleneck
+          python3 -m pip install --upgrade setuptools
+          cd $GITHUB_WORKSPACE
+          pip install "packages/pypromice[all]"
+          pip install pytest
+      - name: Run unit tests
+        shell: bash
+        run: |
+          python3 -m pytest packages/pypromice/tests/

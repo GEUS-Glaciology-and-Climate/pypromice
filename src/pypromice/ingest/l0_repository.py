@@ -28,7 +28,7 @@ __all__ = [
     "L0RepositoryFS",
 ]
 
-from .l0 import load_config, load_data_files
+from pypromice.ingest.l0 import load_config, load_data_files
 
 
 class L0Repository(Protocol):

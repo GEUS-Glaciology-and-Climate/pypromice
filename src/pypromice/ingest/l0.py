@@ -26,7 +26,7 @@ import pandas as pd
 import toml
 import xarray as xr
 
-from . import toa5
+from pypromice.ingest import toa5
 
 __all__ = [
     "load_data_files",

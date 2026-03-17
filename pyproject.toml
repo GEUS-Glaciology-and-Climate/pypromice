@@ -12,7 +12,6 @@ authors = [
     { name = "GEUS Glaciology and Climate" }
 ]
 keywords = ["promice", "gc-net", "aws", "climate", "glaciology", "greenland", "geus"]
-
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
@@ -33,24 +32,12 @@ dependencies = [
     "Bottleneck",
     "netcdf4",
     "scikit-learn>=1.1.0",
-    "pytest",
 ]
 
 [project.optional-dependencies]
-bufr = ["eccodes"]
-google = [
-    "google-auth",
-    "google-auth-oauthlib",
-    "google-auth-httplib2",
-    "google-api-python-client",
-]
-all = [
-    "eccodes",
-    "google-auth",
-    "google-auth-oauthlib",
-    "google-auth-httplib2",
-    "google-api-python-client",
-]
+bufr = ["pypromice-bufr"]
+tx = ["pypromice-tx"]
+all = ["pypromice-bufr", "pypromice-tx"]
 
 [project.urls]
 Homepage = "https://github.com/GEUS-Glaciology-and-Climate/pypromice"
@@ -64,11 +51,6 @@ join_l3 = "pypromice.pipeline.join_l3:main"
 get_l2 = "pypromice.pipeline.get_l2:main"
 get_l2tol3 = "pypromice.pipeline.get_l2tol3:main"
 make_metadata_csv = "pypromice.io.make_metadata_csv:main"
-get_bufr = "pypromice.io.bufr.get_bufr:main"
-create_bufr_files = "pypromice.io.bufr.create_bufr_files:main"
-bufr_to_csv = "pypromice.io.bufr.bufr_to_csv:main"
-get_l0tx = "pypromice.tx.get_l0tx:main"
-get_msg = "pypromice.tx.get_msg:get_msg"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -78,6 +60,5 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "pypromice.core.qc.percentiles" = ["thresholds.csv"]
-"pypromice.io.bufr" = ["positions_seed.csv"]
 "pypromice.resources" = ["*.csv"]
-
+"pypromice.ingest" = ["*.toml"]
