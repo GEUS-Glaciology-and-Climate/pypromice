@@ -92,15 +92,15 @@ class GetL2TestCase(unittest.TestCase):
             )
             self.assertEqual(
                 dataset_mixed.attrs["title"],
-                f"AWS measurements from {station_id} processed to level 2. Mixed temporal resolution.",
+                f"AWS measurements from {station_id} processed to level 2. Mixed data.",
             )
             self.assertEqual(
                 dataset_10min.attrs["title"],
-                f"AWS measurements from {station_id} processed to level 2. 10min average.",
+                f"AWS measurements from {station_id} processed to level 2. 10min data.",
             )
             self.assertEqual(
                 dataset_hour.attrs["title"],
-                f"AWS measurements from {station_id} processed to level 2. Hourly average.",
+                f"AWS measurements from {station_id} processed to level 2. Hourly data.",
             )
 
             t0 = datetime.datetime.utcnow()
