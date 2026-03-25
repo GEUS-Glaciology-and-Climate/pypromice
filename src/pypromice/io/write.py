@@ -284,9 +284,13 @@ def addMeta(ds, meta):
 
     # Determine the temporal resolution
     sample_rate = "unknown_sample_rate"
+    import pdb; pdb.set_trace()
     if len(ds["time"]) > 1:
-        time_diff = pd.Timedelta((ds["time"][1] - ds["time"][0]).values)
-        if time_diff == pd.Timedelta("10min"):
+        time_diff = np.unique(ds["time"].diff("time").dropna("time").values)
+        if len(time_diff) > 1:
+            sample_rate = "Mixed temporal resolution"
+            logger.info("Mixed temporal resolution detected in file.")
+        elif time_diff == pd.Timedelta("10min"):
             sample_rate = "10min"
         elif time_diff == pd.Timedelta("1h"):
             sample_rate = "hourly"
@@ -326,7 +330,7 @@ def addMeta(ds, meta):
     ds.attrs["processing_level"] = ds.attrs["level"].replace("L", "Level ")
 
     id = ds.attrs.get('station_id', ds.attrs.get('site_id'))
-    title_string_format = "AWS measurements from {id} processed to {processing_level}. {sample_rate} average."
+    title_string_format = "AWS measurements from {id} processed to {processing_level}. {sample_rate} data."
     ds.attrs["title"] = title_string_format.format(
         id=id,
         processing_level=ds.attrs["processing_level"].lower(),

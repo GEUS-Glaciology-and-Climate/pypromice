@@ -36,6 +36,8 @@ class GetL2TestCase(unittest.TestCase):
             expected_dataset_paths = {
                 "nc_hour": expected_dir / f"{station_id}_hour.nc",
                 "csv_hour": expected_dir / f"{station_id}_hour.csv",
+                "nc_mixed": expected_dir / f"{station_id}_mixed.nc",
+                "csv_mixed": expected_dir / f"{station_id}_mixed.csv",
             }
             self.assertSetEqual({expected_dir}, set(output_path.iterdir()))
             self.assertSetEqual(
@@ -60,6 +62,8 @@ class GetL2TestCase(unittest.TestCase):
             station_id = "TEST1"
             expected_dir = output_path / station_id
             expected_dataset_paths = {
+                "nc_mixed": expected_dir / f"{station_id}_mixed.nc",
+                "csv_mixed": expected_dir / f"{station_id}_mixed.csv",
                 "nc_hour": expected_dir / f"{station_id}_hour.nc",
                 "csv_hour": expected_dir / f"{station_id}_hour.csv",
                 "nc_10min": expected_dir / f"{station_id}_10min.nc",
@@ -70,9 +74,14 @@ class GetL2TestCase(unittest.TestCase):
                 set(expected_dataset_paths.values()), set(expected_dir.iterdir())
             )
             # Test output file format
+            dataset_mixed = xr.open_dataset(expected_dataset_paths["nc_mixed"])
             dataset_hour = xr.open_dataset(expected_dataset_paths["nc_hour"])
             dataset_10min = xr.open_dataset(expected_dataset_paths["nc_10min"])
 
+            self.assertEqual(
+                dataset_mixed.attrs["id"],
+                f"dk.geus.promice.station.{station_id}.L2.mixed",
+            )
             self.assertEqual(
                 dataset_10min.attrs["id"],
                 f"dk.geus.promice.station.{station_id}.L2.10min",
@@ -80,6 +89,10 @@ class GetL2TestCase(unittest.TestCase):
             self.assertEqual(
                 dataset_hour.attrs["id"],
                 f"dk.geus.promice.station.{station_id}.L2.hourly",
+            )
+            self.assertEqual(
+                dataset_mixed.attrs["title"],
+                f"AWS measurements from {station_id} processed to level 2. Mixed temporal resolution.",
             )
             self.assertEqual(
                 dataset_10min.attrs["title"],
