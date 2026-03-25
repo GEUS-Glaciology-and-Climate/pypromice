@@ -284,20 +284,26 @@ def addMeta(ds, meta):
 
     # Determine the temporal resolution
     sample_rate = "unknown_sample_rate"
-    import pdb; pdb.set_trace()
+
     if len(ds["time"]) > 1:
         time_diff = np.unique(ds["time"].diff("time").dropna("time").values)
+
         if len(time_diff) > 1:
-            sample_rate = "Mixed temporal resolution"
+            sample_rate = "mixed"
             logger.info("Mixed temporal resolution detected in file.")
-        elif time_diff == pd.Timedelta("10min"):
-            sample_rate = "10min"
-        elif time_diff == pd.Timedelta("1h"):
-            sample_rate = "hourly"
-        elif time_diff == pd.Timedelta("1D"):
-            sample_rate = "daily"
-        elif 28 <= time_diff.days <= 31:
-            sample_rate = "monthly"
+        else:
+            td = time_diff[0]
+
+            if td == np.timedelta64(10, "m"):
+                sample_rate = "10min"
+            elif td == np.timedelta64(1, "h"):
+                sample_rate = "hourly"
+            elif td == np.timedelta64(1, "D"):
+                sample_rate = "daily"
+            else:
+                days = td / np.timedelta64(1, "D")
+                if 28 <= days <= 31:
+                    sample_rate = "monthly"
 
     if "station_id" in ds.attrs.keys():
         id_components = [
