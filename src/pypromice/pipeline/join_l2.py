@@ -52,6 +52,7 @@ def join_l2(file1,file2,outpath,variables,metadata) -> xr.Dataset:
         level=logging.INFO,
         stream=sys.stdout,
     )
+
     # Check files
     if os.path.isfile(file1) and os.path.isfile(file2):
 
@@ -65,7 +66,7 @@ def join_l2(file1,file2,outpath,variables,metadata) -> xr.Dataset:
             logger.info(f'Combining {file1} with {file2}...')
             name = n1
             all_ds = ds1.combine_first(ds2)
-            
+
             # combine_first works terrible for accumulated values
             # we rather combine semi-accumulated precipitation in block
             for var in ['precip_u', 'precip_l']:
@@ -97,8 +98,10 @@ def join_l2(file1,file2,outpath,variables,metadata) -> xr.Dataset:
 
     all_ds.attrs['format'] = 'merged RAW and TX'
 
-    # Resample to hourly, daily and monthly datasets and write to file
-    prepare_and_write(all_ds, outpath, variables, metadata, resample = False)
+    # Writing the mixed temporal resolution file
+    prepare_and_write(all_ds, outpath, variables, metadata, 'mixed', resample = False)
+    # Writing the resampled hourly file
+    prepare_and_write(all_ds, outpath, variables, metadata, '60min')
 
     logger.info(f'Files saved to {os.path.join(outpath, name)}...')
     return all_ds

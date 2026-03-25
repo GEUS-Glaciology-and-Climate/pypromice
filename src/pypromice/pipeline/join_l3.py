@@ -407,8 +407,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
     for station_info in list_station_info:
         stid = station_info["stid"]
 
-
-        filepath = os.path.join(folder_l3, stid, stid + "_hour.nc")
+        filepath = os.path.join(folder_l3, stid, stid + "_mixed.nc")
         isNead = False
 
         if not os.path.isfile(filepath):

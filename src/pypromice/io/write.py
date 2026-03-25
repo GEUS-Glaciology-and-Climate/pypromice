@@ -45,6 +45,9 @@ def prepare_and_write(
     if isinstance(output_path, str):
         output_path = Path(output_path)
 
+    if time == 'mixed':
+        resample = False
+
     if resample:
         d2 = resample_dataset(dataset, time)
         logger.info("Resampling to " + str(time))
@@ -90,33 +93,28 @@ def prepare_and_write(
         remove_nan_fields = False
     col_names = getColNames(vars_df, d2, remove_nan_fields=remove_nan_fields)
 
-    # Define filename based on resample rate
-    t = int(pd.Timedelta((d2["time"][1] - d2["time"][0]).values).total_seconds())
-
     # Create out directory
     output_dir = output_path / name
     output_dir.mkdir(exist_ok=True, parents=True)
 
-    if t == 600:
-        out_csv = output_dir / f"{name}_10min.csv"
-        out_nc = output_dir / f"{name}_10min.nc"
-    elif t == 3600:
-        out_csv = output_dir / f"{name}_hour.csv"
-        out_nc = output_dir / f"{name}_hour.nc"
-    elif t == 86400:
-        # removing instantaneous values from daily and monthly files
-        for v in col_names:
-            if v in ['p_i', 't_i', 'rh_i', 'wspd_i', 'wdir_i', 'wspd_x_i', 'wspd_y_i']:
-                col_names.remove(v)
-        out_csv = output_dir / f"{name}_day.csv"
-        out_nc = output_dir / f"{name}_day.nc"
+    suffix_map = {
+        "10min": "10min",
+        "60min": "hour",
+        "1D": "day",
+        "MS": "month",
+        "mixed": "mixed",
+    }
+
+    if time not in suffix_map:
+        raise ValueError(f"Unknown reformatting format: {time}")
     else:
-        # removing instantaneous values from daily and monthly files
-        for v in col_names:
-            if v in ['p_i', 't_i', 'rh_i', 'wspd_i', 'wdir_i', 'wspd_x_i', 'wspd_y_i']:
-                col_names.remove(v)
-        out_csv = output_dir / f"{name}_month.csv"
-        out_nc = output_dir / f"{name}_month.nc"
+        if time in {"D", "MS"}:
+            # removing instantaneous values from daily and monthly files
+            drop = ['p_i','t_i','rh_i','wspd_i','wdir_i','wspd_x_i','wspd_y_i']
+            col_names[:] = [v for v in col_names if v not in drop]
+
+        out_csv = output_dir / f"{name}_{suffix_map[time]}.csv"
+        out_nc  = output_dir / f"{name}_{suffix_map[time]}.nc"
 
     # Write to csv file
     logger.info("Writing to files...")
