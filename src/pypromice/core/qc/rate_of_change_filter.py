@@ -230,7 +230,8 @@ def rate_of_change_fwd_bwd_and_thresholds(da, var, window="7D", time="time", per
 
     roc_ds = xr.Dataset(
         data_vars=dict(
-            roc_rate=(("time_rate",), rate),
+            s_fwd=(("time_rate",), s_fwd),
+            s_bwd=(("time_rate",), s_bwd),
             roc_thr_fwd=(("time_fwd",), thr_fwd.values.astype("float64")),
             roc_thr_bwd=(("time_bwd",), thr_bwd.values.astype("float64")),
         ),
