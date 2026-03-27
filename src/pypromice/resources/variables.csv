@@ -3,8 +3,8 @@ time,time,Time,yyyy-mm-dd HH:MM:SS,physicalMeasurement,time,,,,,,all,1,1,1,
 rec,record,Record,-,referenceInformation,time,,L0 or L2,,,,all,1,1,0,0
 p_u,air_pressure,Air pressure (upper boom),hPa,physicalMeasurement,time,FALSE,,650,1100,z_pt_cor dlhf_u dshf_u,all,1,1,1,4
 p_l,air_pressure,Air pressure (lower boom),hPa,physicalMeasurement,time,FALSE,,650,1100,dlhf_l dshf_l,two-boom,1,1,1,4
-t_u,air_temperature,Air temperature (upper boom),degrees_C,physicalMeasurement,time,FALSE,,-80,40,z_boom_cor_u z_stake_cor qh_u rh_u_wrt_ice_or_water dlhf_u dshf_u,all,1,1,1,4
-t_l,air_temperature,Air temperature (lower boom),degrees_C,physicalMeasurement,time,FALSE,,-80,40,z_boom_cor_l qh_l rh_l_wrt_ice_or_water dlhf_l dshf_l,two-boom,1,1,1,4
+t_u,air_temperature,Air temperature (upper boom),degrees_C,physicalMeasurement,time,FALSE,,-80,40,qh_u rh_u_wrt_ice_or_water dlhf_u dshf_u,all,1,1,1,4
+t_l,air_temperature,Air temperature (lower boom),degrees_C,physicalMeasurement,time,FALSE,,-80,40,qh_l rh_l_wrt_ice_or_water dlhf_l dshf_l,two-boom,1,1,1,4
 rh_u,relative_humidity,Relative humidity (upper boom),%,physicalMeasurement,time,FALSE,,0,100,qh_u rh_u_wrt_ice_or_water dlhf_u dshf_u,all,1,1,1,4
 rh_u_wrt_ice_or_water,relative_humidity_with_respect_to_ice_or_water,Relative humidity (upper boom) with respect to saturation over ice in subfreezing conditions and over water otherwise,%,modelResult,time,FALSE,L2 or later,0,150,"",all,0,1,1,4
 qh_u,specific_humidity,Specific humidity (upper boom),kg/kg,modelResult,time,FALSE,L2 or later,0,100,"",all,0,1,1,4
@@ -34,13 +34,13 @@ dlhf_l,surface_downward_latent_heat_flux,Latent heat flux (lower boom),W m-2,mod
 dshf_u,surface_downward_sensible_heat_flux,Sensible heat flux (upper boom),W m-2,modelResult,time,FALSE,L3 or later,,,,all,0,0,1,4
 dshf_l,surface_downward_sensible_heat_flux,Sensible heat flux (lower boom),W m-2,modelResult,time,FALSE,L3 or later,,,,two-boom,0,0,1,4
 z_boom_u,distance_to_surface_from_boom,Upper boom height,m,physicalMeasurement,time,TRUE,,0.3,10,z_boom_cor_u,all,1,1,1,4
-z_boom_cor_u,distance_to_surface_from_boom_corrected,Upper boom height - corrected,m,modelResult,time,TRUE,,0.3,10,z_boom_u,all,1,1,1,4
+z_boom_cor_u,distance_to_surface_from_boom_corrected,Upper boom height - corrected,m,modelResult,time,TRUE,,0.3,10,,all,1,1,1,4
 z_boom_q_u,distance_to_surface_from_boom_quality,Upper boom height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,all,1,1,0,4
 z_boom_l,distance_to_surface_from_boom,Lower boom height,m,physicalMeasurement,time,TRUE,,0.3,5,z_boom_cor_l,two-boom,1,1,1,4
-z_boom_cor_l,distance_to_surface_from_boom_corrected,Lower boom height - corrected,m,modelResult,time,TRUE,,0.3,5,z_boom_l,two-boom,1,1,1,4
+z_boom_cor_l,distance_to_surface_from_boom_corrected,Lower boom height - corrected,m,modelResult,time,TRUE,,0.3,5,,two-boom,1,1,1,4
 z_boom_q_l,distance_to_surface_from_boom_quality,Lower boom height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,two-boom,1,1,0,4
 z_stake,distance_to_surface_from_stake_assembly,Stake height,m,physicalMeasurement,time,TRUE,,0.3,8,z_stake_cor,one-boom,1,1,1,4
-z_stake_cor,distance_to_surface_from_stake_assembly_corrected,Stake height - corrected,m,physicalMeasurement,time,TRUE,,0.3,8,z_stake,one-boom,1,1,1,4
+z_stake_cor,distance_to_surface_from_stake_assembly_corrected,Stake height - corrected,m,physicalMeasurement,time,TRUE,,0.3,8,,one-boom,1,1,1,4
 z_stake_q,distance_to_surface_from_stake_assembly_quality,Stake height (quality),-,qualityInformation,time,TRUE,L0 or L2,,,,one-boom,1,1,0,4
 z_pt,depth_of_pressure_transducer_in_ice,Depth of pressure transducer in ice,m,physicalMeasurement,time,FALSE,,0,30,z_pt_cor,one-boom,1,1,1,4
 z_pt_cor,depth_of_pressure_transducer_in_ice_corrected,Depth of pressure transducer in ice - corrected,m,modelResult,time,FALSE,L2 or later,0,30,,one-boom,0,1,1,4

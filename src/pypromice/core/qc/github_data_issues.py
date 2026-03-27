@@ -155,9 +155,9 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
 
         # making sure that t0 and t1 columns are object dtype then replaceing nan with None
         adj_info[['t0','t1']] = adj_info[['t0','t1']].astype(object)
-        adj_info.loc[adj_info.t1.isnull()|(adj_info.t1==''), "t1"] = None      
+        adj_info.loc[adj_info.t1.isnull()|(adj_info.t1==''), "t1"] = None
         adj_info.loc[adj_info.t0.isnull()|(adj_info.t0==''), "t0"] = None
-		
+
         # if "*" is in the variable name then we interpret it as regex
         selec = adj_info['variable'].str.contains(r'\*') & (adj_info['variable'] != "*")
         for ind in adj_info.loc[selec, :].index:
@@ -218,6 +218,7 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
                 if func == "min_filter":
                     tmp = ds_out[var].loc[index_slice].values
                     tmp[tmp < val] = np.nan
+                    ds_out[var].loc[index_slice] = tmp
 
                 if func == "max_filter":
                     tmp = ds_out[var].loc[index_slice].values
@@ -243,9 +244,9 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
                         .sel(time=ds_out[var].loc[index_slice].time.values, method='ffill')
                         )
                     df_max['time'] = ds_out[var].loc[index_slice].time
-                    # updating original pandas                   
+                    # updating original pandas
                     ds_out[var].loc[index_slice] = ds_out[var].loc[index_slice].where(ds_out[var].loc[index_slice] > df_max-val)
-                                        
+
 
                 if func == "hampel_filter":
                     tmp = ds_out[var].loc[index_slice]
@@ -272,23 +273,34 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
                     tmp = tmp.where(~msk)
                     # remove isolated singletons and pairs surrounded by NaNs
                     m1 = tmp.notnull() & tmp.shift(time=1).isnull() & tmp.shift(time=-1).isnull()
-                    
+
                     m2_first  = (tmp.notnull()
                                  & tmp.shift(time=1).isnull()     # left is NaN
                                  & tmp.shift(time=-1).notnull()   # right is value
                                  & tmp.shift(time=-2).isnull())   # right+1 is NaN
-                    
+
                     m2_second = (tmp.notnull()
                                  & tmp.shift(time=-1).isnull()    # right is NaN
                                  & tmp.shift(time=1).notnull()    # left is value
                                  & tmp.shift(time=2).isnull())    # left-1 is NaN
-                    
+
                     tmp = tmp.where(~(m1 | m2_first | m2_second))
                     ds_out[var].loc[index_slice] = tmp.values
 
                 if func == "rotate":
                     ds_out[var].loc[index_slice] = (ds_out[var].loc[index_slice].values + val) % 360
 
+        # specific dependency for boom/stake heights
+        var_dep = {
+            "z_boom_cor_u": "z_boom_u",
+            "z_boom_cor_l": "z_boom_l",
+            "z_stake_cor": "z_stake",
+        }
+
+        for var, dep in var_dep.items():
+            if var in ds_out and dep in ds_out:
+                flagged = ds_out[var].isnull() & ds[var].notnull()
+                ds_out[dep] = ds_out[dep].where(~flagged)
     return ds_out
 
 
