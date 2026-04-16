@@ -108,9 +108,9 @@ def prepare_and_write(
     if time not in suffix_map:
         raise ValueError(f"Unknown reformatting format: {time}")
     else:
-        if time in {"D", "MS"}:
+        if time in {"1D", "MS"}:
             # removing instantaneous values from daily and monthly files
-            drop = ['p_i','t_i','rh_i','wspd_i','wdir_i','wspd_x_i','wspd_y_i']
+            drop = ['p_i','t_i','rh_i','rh_i_wrt_ice_or_water','wspd_i','wdir_i','wspd_x_i','wspd_y_i']
             col_names[:] = [v for v in col_names if v not in drop]
 
         out_csv = output_dir / f"{name}_{suffix_map[time]}.csv"

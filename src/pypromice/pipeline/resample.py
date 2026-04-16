@@ -73,8 +73,7 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
 
     df_resampled[~completeness_mask] = np.nan
 
-
-    # Exception for z_boom: if at least one value exists in period, backfill to fill gaps
+    # Exception for surface-related variables. If at least one value exists in period, backfill the gaps
     if t == '60min':
         timestamp_durations = classify_timestamp_durations(ds_h.time)
         hourly_index = df_resampled.index
@@ -91,7 +90,8 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
 
         for var in ['z_boom_u', 'z_boom_l', 'z_stake',
                     'z_boom_cor_u', 'z_boom_cor_l', 'z_stake_cor',
-                    'z_pt', 'z_pt_cor']+[f't_i_{i}' for i in range(1,12)]:
+                    'z_surf_combined', 'z_ice_surf', 'snow_height',
+                    'z_pt', 'z_pt_cor', 'lat','lon','alt','t_i_10m']+[f't_i_{i}' for i in range(1,12)]:
             if var not in df_h.columns:
                 continue
 
@@ -114,8 +114,6 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
             # Combine into output
             df_resampled.loc[hourly_index_24h, var] = filled_24h.loc[hourly_index_24h]
             df_resampled.loc[hourly_index_6h, var] = filled_6h.loc[hourly_index_6h]
-
-
 
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
@@ -153,6 +151,8 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
                 df_resampled[['wspd_x_'+boom, 'wspd_y_'+boom]] = ds_h[['wspd_x_'+boom, 'wspd_y_'+boom]].to_dataframe().resample(t).mean()
                 df_resampled[var] = _calcWindDir(df_resampled['wspd_x_'+boom], df_resampled['wspd_y_'+boom])
 
+            # reapplying completness filter
+            df_resampled.loc[~completeness_mask[var], var] = np.nan
     # recalculating relative humidity from average vapour pressure and average
     # saturation vapor pressure
     for var in ['rh_u','rh_l']:
@@ -161,12 +161,22 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
             if ('t_'+lvl in ds_h.keys()):
                 es_wtr, es_cor = calculateSaturationVaporPressure(ds_h['t_'+lvl])
                 p_vap = ds_h[var] / 100 * es_wtr
-
+               
+                # recalculating the good average value
                 df_resampled[var] = (p_vap.to_series().resample(t).mean() \
                            / es_wtr.to_series().resample(t).mean())*100
+
+                # reapplying completness filter   
+                df_resampled.loc[~completeness_mask[var], var] = np.nan
+
                 if var+'_wrt_ice_or_water' in df_resampled.keys():
+                    # recalculating the good average value
                     df_resampled[var+'_wrt_ice_or_water'] = (p_vap.to_series().resample(t).mean() \
                                / es_cor.to_series().resample(t).mean())*100
+
+                    # reapplying completness filter
+                    df_resampled.loc[~completeness_mask[var+'_wrt_ice_or_water'], 
+                                     var+'_wrt_ice_or_water'] = np.nan             
 
     # passing each variable attribute to the ressample dataset
     vals = []
