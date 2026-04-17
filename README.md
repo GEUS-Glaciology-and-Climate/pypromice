@@ -7,6 +7,8 @@ It is envisioned for pypromice to be the go-to toolbox for handling and processi
 
 If you intend to use PROMICE AWS data and/or pypromice in your work, please cite these publications below, along with any other applicable PROMICE publications where possible:
 
+**Fausto, R. S., How, P., Vandecrux, B., Lund, M. C., Box, J. E., Mankoff, K. D., Andersen, S. B., van As, D., Bahbah, R., Citterio, M., Colgan, W., Jakobsgaard, H. T., Karlsson, N. B., Kjeldsen, K. K., Larsen, S. H., Olsen, C., Oraschewski, F., Rutishauser, A., Shields, C. L., Solgaard, A. M., Stevens, I. T., Svendsen, S. H., Langley, K., Messerli, A., Bjørk, A. A., Andersen, J. K., Abermann, J., Steiner, J., Prinz, R., Hynek, B., Lea, J. M., Brough, S., and Ahlstrøm, A. P.: PROMICE | GC-NET automatic weather station data, Earth Syst. Sci. Data Discuss. [preprint], https://doi.org/10.5194/essd-2025-687, in review, 2025. **
+
 **Fausto, R.S., van As, D., Mankoff, K.D., Vandecrux, B., Citterio, M., Ahlstrøm, A.P., Andersen, S.B., Colgan, W., Karlsson, N.B., Kjeldsen, K.K., Korsgaard, N.J., Larsen, S.H., Nielsen, S., Pedersen, A.Ø., Shields, C.L., Solgaard, A.M., and Box, J.E. (2021) Programme for Monitoring of the Greenland Ice Sheet (PROMICE) automatic weather station data, Earth Syst. Sci. Data, 13, 3819–3845, [https://doi.org/10.5194/essd-13-3819-2021](https://doi.org/10.5194/essd-13-3819-2021)**
 
 **How, P., Wright, P.J., Mankoff, K., Vandecrux, B., Fausto, R.S. and Ahlstrøm, A.P. (2023) pypromice: A Python package for processing automated weather station data, Journal of Open Source Software, 8(86), 5298, [https://doi.org/10.21105/joss.05298](https://doi.org/10.21105/joss.05298)** 
