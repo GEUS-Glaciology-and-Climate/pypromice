@@ -127,12 +127,7 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
         for col, col_org in zip(cols_to_update, cols_origin):
             if col not in df_resampled.columns:
                 df_resampled[col] = np.nan
-            else:
-                # if there are already instantaneous values in the dataset
-                # we want to keep them as they are
-                # removing timestamps where there is already t_i filled from a TX file
-                missing_instantaneous = ds_h.reindex(time=timestamp_to_update)[col].isnull()
-                timestamp_to_update = timestamp_to_update[missing_instantaneous]
+
             df_resampled.loc[timestamp_to_update, col] = ds_h.reindex(
                 time= timestamp_to_update
                 )[col_org].values
