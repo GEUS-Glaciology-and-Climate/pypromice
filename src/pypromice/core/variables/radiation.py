@@ -4,6 +4,8 @@ __all__ = ["convert_sr", "convert_lr", "filter_lr", "filter_sr",
 
 import xarray as xr
 import numpy as np
+import pandas as pd
+from pypromice.core.resampling import classify_timestamp_durations
 
 # Define coefficients for radiometer adjustments
 T_0=273.15                  # degrees Celsius to Kelvin conversion
@@ -109,9 +111,13 @@ def filter_sr(dsr: xr.DataArray,
     """
     dsr_filtered = dsr.copy()
     usr_filtered = usr.copy()
-
+    index = dsr.time.to_index()
+    assert isinstance(index, pd.DatetimeIndex)
+    timestamp_durations = classify_timestamp_durations(index)
+    daily_timestamp = timestamp_durations ==  pd.to_timedelta('1D')
+    
     # Setting to zero when sun below the horizon.
-    bad = ZenithAngle_deg > 95
+    bad = (ZenithAngle_deg > 95) & (~daily_timestamp)
     dsr_filtered[bad & dsr_filtered.notnull()] = 0
     usr_filtered[bad & usr_filtered.notnull()] = 0
 
@@ -122,7 +128,7 @@ def filter_sr(dsr: xr.DataArray,
     # Filtering usr and dsr for sun on lower dome
     # in theory, this is not a problem in cloudy conditions, but the cloud cover
     # index is too uncertain at this point to be used
-    sunonlowerdome = (AngleDif_deg >= 90) & (ZenithAngle_deg <= 90)
+    sunonlowerdome = (AngleDif_deg >= 90) & (ZenithAngle_deg <= 90) & (~daily_timestamp)
 
     # Relaxing the filter for cases where sensor tilt is unknown
     mask = ~sunonlowerdome | AngleDif_deg.isnull()
@@ -138,11 +144,11 @@ def filter_sr(dsr: xr.DataArray,
     # Case where no tilt is available. If it is, then the same filter is used
     # after tilt correction.
     tilt_correction_possible = AngleDif_deg.notnull() & cc.notnull()
-    TOA_crit_nopass_dsr = ~tilt_correction_possible & (dsr_filtered > (1.2 * isr_toa + 150))
+    TOA_crit_nopass_dsr = ~tilt_correction_possible & (dsr_filtered > (1.2 * isr_toa + 150)) & (~daily_timestamp)
     dsr_filtered[TOA_crit_nopass_dsr] = np.nan
 
     # The upward flux should not be higher than the TOA downward flux
-    TOA_crit_nopass_usr = (usr_filtered > 0.8 * (1.2 * isr_toa + 150))
+    TOA_crit_nopass_usr = (usr_filtered > 0.8 * (1.2 * isr_toa + 150)) & (~daily_timestamp)
     usr_filtered[TOA_crit_nopass_usr] = np.nan
 
     return dsr_filtered, usr_filtered, (bad, sunonlowerdome, TOA_crit_nopass_dsr, TOA_crit_nopass_usr)
