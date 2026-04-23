@@ -73,48 +73,69 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
 
     df_resampled[~completeness_mask] = np.nan
 
-    # Exception for surface-related variables. If at least one value exists in period, backfill the gaps
+    # Exception for some of the variables transmitted on 6h or daily basis.
+    # For this selection of variable, a 6 hourly transmission is repeated for 
+    # the preceding 5 hourly time step (backfill with limit 6). Same for daily
+    # transmissions, which for these variables only, are used to backfill the 
+    # preceding 23 hours.
+    var_list_gap_fill = ['z_boom_u', 'z_boom_l', 'z_stake',
+                'z_boom_cor_u', 'z_boom_cor_l', 'z_stake_cor',
+                'z_surf_combined', 'z_ice_surf', 'snow_height',
+                'z_pt', 'z_pt_cor', 'lat','lon','alt','t_i_10m']+[f't_i_{i}' for i in range(1,12)]
+    var_list_gap_fill = [v for v in var_list_gap_fill if v in df_h.columns]
+    timestamp_durations = classify_timestamp_durations(ds_h.time)
+    
     if t == '60min':
-        timestamp_durations = classify_timestamp_durations(ds_h.time)
-        hourly_index = df_resampled.index
+        df_hourly = df_resampled
+    else:
+        df_hourly = df_h[var_list_gap_fill].resample('60min').mean()
+        # Apply completeness filter based on the the data frame time index
+        completeness_mask_hourly = get_completeness_mask(
+            data_frame=df_h,
+            resample_offset='60min',
+            completeness_thresholds=completeness_thresholds,
+        )
+    
+        df_hourly[~completeness_mask_hourly] = np.nan
+        
+    hourly_index = df_hourly.index
 
-        # Masks to mark which hours to fill
-        hourly_index_24h = pd.Series(False, index=hourly_index)
-        hourly_index_6h = pd.Series(False, index=hourly_index)
+    # Masks to mark which hours to fill
+    hourly_index_24h = pd.Series(False, index=hourly_index)
+    hourly_index_6h = pd.Series(False, index=hourly_index)
 
-        # --- 24h backfill logic ---
-        is_24h = timestamp_durations == pd.Timedelta('24h')
-        ts_24h = pd.to_datetime(ds_h.time[is_24h].values)
-        for ts in ts_24h:
-            hourly_index_24h[ts - pd.Timedelta('24h'): ts] = True
+    # --- 24h backfill logic ---
+    is_24h = timestamp_durations == pd.Timedelta('24h')
+    ts_24h = pd.to_datetime(ds_h.time[is_24h].values)
+    for ts in ts_24h:
+        hourly_index_24h[ts - pd.Timedelta('24h'): ts] = True
 
-        for var in ['z_boom_u', 'z_boom_l', 'z_stake',
-                    'z_boom_cor_u', 'z_boom_cor_l', 'z_stake_cor',
-                    'z_surf_combined', 'z_ice_surf', 'snow_height',
-                    'z_pt', 'z_pt_cor', 'lat','lon','alt','t_i_10m']+[f't_i_{i}' for i in range(1,12)]:
-            if var not in df_h.columns:
-                continue
+    for var in var_list_gap_fill:
+        if var not in df_h.columns:
+            continue
 
-            # --- 6h sparse data logic ---
-            sparse_series = df_h[var]
-            timestamps_with_values = sparse_series[sparse_series.notna()].index
-            timestamp_durations = classify_timestamp_durations(timestamps_with_values)
-            is_6h = timestamp_durations == pd.Timedelta('6h')
-            ts_6h = timestamps_with_values[is_6h]
-            for ts in ts_6h:
-                hourly_index_6h[ts - pd.Timedelta('6h'):ts] = True
+        # --- 6h sparse data logic ---
+        sparse_series = df_h[var]
+        timestamps_with_values = sparse_series[sparse_series.notna()].index
+        timestamp_durations = classify_timestamp_durations(timestamps_with_values)
+        is_6h = timestamp_durations == pd.Timedelta('6h')
+        ts_6h = timestamps_with_values[is_6h]
+        for ts in ts_6h:
+            hourly_index_6h[ts - pd.Timedelta('6h'):ts] = True
 
-            # Resample to hourly mean
-            filled = df_h[var].resample(t).mean()
+        # Resample to hourly mean
+        filled = df_h[var].resample('60min').mean()
 
-            # Apply bfill with appropriate limits
-            filled_24h = filled.bfill(limit=24)
-            filled_6h = filled.bfill(limit=6)
+        # Apply bfill with appropriate limits
+        filled_24h = filled.bfill(limit=24)
+        filled_6h = filled.bfill(limit=6)
 
-            # Combine into output
-            df_resampled.loc[hourly_index_24h, var] = filled_24h.loc[hourly_index_24h]
-            df_resampled.loc[hourly_index_6h, var] = filled_6h.loc[hourly_index_6h]
-
+        # Combine into output
+        df_hourly.loc[hourly_index_24h, var] = filled_24h.loc[hourly_index_24h]
+        df_hourly.loc[hourly_index_6h, var] = filled_6h.loc[hourly_index_6h]
+    df_gapfilled_resampled = df_hourly[var_list_gap_fill].resample(t).mean()
+    df_resampled[var_list_gap_fill] = df_gapfilled_resampled
+    
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
     if (t == '60min') and is_10_minutes_timestamp.any():
@@ -156,12 +177,12 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
             if ('t_'+lvl in ds_h.keys()):
                 es_wtr, es_cor = calculateSaturationVaporPressure(ds_h['t_'+lvl])
                 p_vap = ds_h[var] / 100 * es_wtr
-               
+
                 # recalculating the good average value
                 df_resampled[var] = (p_vap.to_series().resample(t).mean() \
                            / es_wtr.to_series().resample(t).mean())*100
 
-                # reapplying completness filter   
+                # reapplying completness filter
                 df_resampled.loc[~completeness_mask[var], var] = np.nan
 
                 if var+'_wrt_ice_or_water' in df_resampled.keys():
@@ -170,8 +191,8 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
                                / es_cor.to_series().resample(t).mean())*100
 
                     # reapplying completness filter
-                    df_resampled.loc[~completeness_mask[var+'_wrt_ice_or_water'], 
-                                     var+'_wrt_ice_or_water'] = np.nan             
+                    df_resampled.loc[~completeness_mask[var+'_wrt_ice_or_water'],
+                                     var+'_wrt_ice_or_water'] = np.nan
 
     # passing each variable attribute to the ressample dataset
     vals = []
