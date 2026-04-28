@@ -74,9 +74,9 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
     df_resampled[~completeness_mask] = np.nan
 
     # Exception for some of the variables transmitted on 6h or daily basis.
-    # For this selection of variable, a 6 hourly transmission is repeated for 
+    # For this selection of variable, a 6 hourly transmission is repeated for
     # the preceding 5 hourly time step (backfill with limit 6). Same for daily
-    # transmissions, which for these variables only, are used to backfill the 
+    # transmissions, which for these variables only, are used to backfill the
     # preceding 23 hours.
     var_list_gap_fill = ['z_boom_u', 'z_boom_l', 'z_stake',
                 'z_boom_cor_u', 'z_boom_cor_l', 'z_stake_cor',
@@ -84,7 +84,7 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
                 'z_pt', 'z_pt_cor', 'lat','lon','alt','t_i_10m']+[f't_i_{i}' for i in range(1,12)]
     var_list_gap_fill = [v for v in var_list_gap_fill if v in df_h.columns]
     timestamp_durations = classify_timestamp_durations(ds_h.time)
-    
+
     if t == '60min':
         df_hourly = df_resampled
     else:
@@ -95,9 +95,9 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
             resample_offset='60min',
             completeness_thresholds=completeness_thresholds,
         )
-    
+
         df_hourly[~completeness_mask_hourly] = np.nan
-        
+
     hourly_index = df_hourly.index
 
     # Masks to mark which hours to fill
@@ -117,8 +117,8 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
         # --- 6h sparse data logic ---
         sparse_series = df_h[var]
         timestamps_with_values = sparse_series[sparse_series.notna()].index
-        timestamp_durations = classify_timestamp_durations(timestamps_with_values)
-        is_6h = timestamp_durations == pd.Timedelta('6h')
+        duration_ts_w_values = classify_timestamp_durations(timestamps_with_values)
+        is_6h = duration_ts_w_values == pd.Timedelta('6h')
         ts_6h = timestamps_with_values[is_6h]
         for ts in ts_6h:
             hourly_index_6h[ts - pd.Timedelta('6h'):ts] = True
@@ -135,7 +135,7 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
         df_hourly.loc[hourly_index_6h, var] = filled_6h.loc[hourly_index_6h]
     df_gapfilled_resampled = df_hourly[var_list_gap_fill].resample(t).mean()
     df_resampled[var_list_gap_fill] = df_gapfilled_resampled
-    
+
     # taking the 10 min data and using it as instantaneous values:
     is_10_minutes_timestamp = (ds_h.time.diff(dim='time') / np.timedelta64(1, 's') == 600)
     if (t == '60min') and is_10_minutes_timestamp.any():
