@@ -81,10 +81,11 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
     var_list_gap_fill = ['z_boom_u', 'z_boom_l', 'z_stake',
                 'z_boom_cor_u', 'z_boom_cor_l', 'z_stake_cor',
                 'z_surf_combined', 'z_ice_surf', 'snow_height',
-                'z_pt', 'z_pt_cor', 'lat','lon','alt','t_i_10m']+[f't_i_{i}' for i in range(1,12)]
+                'z_pt', 'z_pt_cor', 'lat','lon','alt','t_i_10m'] \
+                +[f't_i_{i}' for i in range(1,12)] \
+                    +[f'd_t_i_{i}' for i in range(1,12)]
     var_list_gap_fill = [v for v in var_list_gap_fill if v in df_h.columns]
     timestamp_durations = classify_timestamp_durations(ds_h.time)
-
     if t == '60min':
         df_hourly = df_resampled
     else:
