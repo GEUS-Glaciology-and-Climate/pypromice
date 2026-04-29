@@ -5,3 +5,6 @@ t,4,%Y-%m-%d %H:%M:%S,,,,timestamp as seconds since 1990-01-01 00:00:00 +0000 en
 g,4,100,,,,GPS time encoded as GLI4
 n,4,100000,,,,GPS latitude encoded as GLI4
 e,4,100000,,,,GPS latitude encoded as GLI4
+c,3,1,,16777216,,3 byte unsigned int (color)
+w,2,1,,65536,,"Word, 2 byte unsigned int"
+b,1,1,,"",,byte
