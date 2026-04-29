@@ -90,6 +90,7 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
     v = pypromice.resources.load_variables(variables)
     m = pypromice.resources.load_metadata(metadata)
     if outpath is not None:
+        prepare_and_write(l3, outpath, v, m, 'mixed', resample=False)
         prepare_and_write(l3, outpath, v, m, '60min')
         prepare_and_write(l3, outpath, v, m, '1D')
         prepare_and_write(l3, outpath, v, m, 'MS')

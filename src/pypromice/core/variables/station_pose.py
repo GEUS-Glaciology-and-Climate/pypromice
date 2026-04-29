@@ -82,7 +82,7 @@ def convert_and_filter_tilt(tilt: xr.DataArray
     # Apply filtering mask
     dst = dst.where(~notOKtilt)
 
-    return dst.interpolate_na(dim='time', max_gap="14D")
+    return dst.interpolate_na(dim='time', max_gap="28D")
 
 
 def smooth_tilt_with_moving_window(tilt: xr.DataArray
@@ -150,7 +150,7 @@ def interpolate_tilt(tilt: xr.DataArray,
     #   good value is used for backfill
     return tilt.where(
                     moving_std_gap_filled < tilt_stddev_threshold
-                ).ffill(dim="time", limit=14*24).bfill(dim="time", limit=14*24)
+                ).ffill(dim="time", limit=28*24).bfill(dim="time", limit=28*24)
 
 
 def interpolate_rotation(rot: xr.DataArray,
@@ -178,10 +178,10 @@ def interpolate_rotation(rot: xr.DataArray,
     #     - a two-week median smoothing
     #     - a resampling from these daily values to the original temporal resolution
     return ("time", (rot.where(moving_std_gap_filled < rot_stddev_threshold)
-                    .ffill(dim="time", limit=14*24)
+                    .ffill(dim="time", limit=28*24)
                     .to_series().resample("D").median()
                     .rolling(7*2, center=True, min_periods=2).median()
-                    .reindex(rot.time, method="bfill", tolerance=pd.Timedelta("14D")).values
+                    .reindex(rot.time, method="bfill", tolerance=pd.Timedelta("28D")).values
                 ))
 
 

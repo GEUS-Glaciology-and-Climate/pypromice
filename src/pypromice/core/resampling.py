@@ -25,9 +25,13 @@ DEFAULT_COMPLETENESS_THRESHOLDS = {
     "t_i_9": 0.1,
     "t_i_10": 0.1,
     "t_i_11": 0.1,
+    "t_i_10m": 0.1,
     "gps_lat": 0.1,
     "gps_lon": 0.1,
     "gps_alt": 0.1,
+    "lat": 0.1,
+    "lon": 0.1,
+    "alt": 0.1,
     "batt_v": 0.1,
 }
 

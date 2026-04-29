@@ -1,6 +1,8 @@
 import unittest
 import numpy as np
 import xarray as xr
+import pandas as pd
+
 from unittest.mock import patch
 
 from pypromice.core.variables.radiation import (
@@ -54,20 +56,34 @@ class TestRadiationConversions(unittest.TestCase):
 class TestShortwaveRadiation(unittest.TestCase):
 
     def setUp(self):
+        # Mixed 10min + hourly time index
+        t1 = pd.date_range("2023-01-01 00:00", periods=3, freq="10min")
+        t2 = pd.date_range("2023-01-01 01:00", periods=2, freq="h")
+        time = t1.append(t2)
+
         # Representative test data for high Arctic latitude
         self.lat = 75.0  # Greenland/Arctic latitude
-        self.dsr = xr.DataArray([500.0, -10.0, 2000.0, 400.0, 600.0])
-        self.usr = xr.DataArray([50.0, -5.0, 1000.0, 100.0, 500.0])
-        self.cc = xr.DataArray([0.0, 0.5, 0.5, 0.8, 0.3])
+        self.dsr = xr.DataArray([500.0, -10.0, 2000.0, 400.0, 600.0],
+                                coords={"time": time}, dims="time")
+        self.usr = xr.DataArray([50.0, -5.0, 1000.0, 100.0, 500.0],
+                                coords={"time": time}, dims="time")
+        self.cc = xr.DataArray([0.0, 0.5, 0.5, 0.8, 0.3],
+                               coords={"time": time}, dims="time")
         # Zenith angles: Sun above horizon, below horizon, mid-range
-        self.ZenithAngle_deg = xr.DataArray([15.0, 110.0, 45.0, 60.0, 50.0])
+        self.ZenithAngle_deg = xr.DataArray([15.0, 110.0, 45.0, 60.0, 50.0],
+                                            coords={"time": time}, dims="time")
         self.ZenithAngle_rad = np.deg2rad(self.ZenithAngle_deg)
         # Angle differences include lower-dome scenario and NaN
-        self.AngleDif_deg = xr.DataArray([10.0, 95.0, 100.0, 45.0, np.nan])
-        self.phi_sensor_rad = xr.DataArray([0.0, 0.1, 0.2, 0.3, 0.4])
-        self.theta_sensor_rad = xr.DataArray([0.0, 0.1, 0.2, 0.3, 0.0])
-        self.Declination_rad = xr.DataArray([0.0, 0.1, -0.1, 0.0, 0.05])
-        self.HourAngle_rad = xr.DataArray([0.0, np.pi/2, np.pi, 3*np.pi/2, 0.0])
+        self.AngleDif_deg = xr.DataArray([10.0, 95.0, 100.0, 45.0, np.nan],
+                                         coords={"time": time}, dims="time")
+        self.phi_sensor_rad = xr.DataArray([0.0, 0.1, 0.2, 0.3, 0.4],
+                                           coords={"time": time}, dims="time")
+        self.theta_sensor_rad = xr.DataArray([0.0, 0.1, 0.2, 0.3, 0.0],
+                                             coords={"time": time}, dims="time")
+        self.Declination_rad = xr.DataArray([0.0, 0.1, -0.1, 0.0, 0.05],
+                                            coords={"time": time}, dims="time")
+        self.HourAngle_rad = xr.DataArray([0.0, np.pi/2, np.pi, 3*np.pi/2, 0.0],
+                                          coords={"time": time}, dims="time")
 
     def test_filter_sr_basic(self):
         dsr_f, usr_f, flags = filter_sr(
