@@ -40,8 +40,9 @@ jobs:
                  -i tests/data/ \
                  -o out/new/ \
                  --data_issues_path data_issues/pr
+
           get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
-                     -i out/new/TEST1/TEST1_hour.nc \
+                     -i out/new/TEST1/TEST1_mixed.nc \
                      -o out/new/ \
                      --data_issues_path data_issues/pr
 
@@ -79,8 +80,9 @@ jobs:
                  --issues data_issues/main \
                  -o out/original/ \
                  --data_issues_path data_issues/main
+
           get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
-                     -i out/original/TEST1/TEST1_hour.nc \
+                     -i out/original/TEST1/TEST1_mixed.nc \
                      -o out/original/ \
                      --data_issues_path data_issues/main
 
