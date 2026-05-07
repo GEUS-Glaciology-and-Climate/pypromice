@@ -23,11 +23,52 @@ def parse_arguments_l2():
     parser.add_argument('-m', '--metadata', default=None, type=str,
                         required=False, help='File path to metadata')
     parser.add_argument('--data_issues_path', '--issues', default=None, help="Path to data issues repository")
+    parser.add_argument('--write_csv', action='store_true',
+                        help='Write CSV files in addition to NetCDF')
+    parser.add_argument('--write_10min', action='store_true',
+                        help='Write 10-minute resampled output')
+    parser.add_argument('--write_60min', action='store_true',
+                        help='Write 60-minute resampled output')
     args = parser.parse_args()
     return args
 
 
-def get_l2(config_file, inpath, outpath, variables, metadata, data_issues_path: Path) -> AWS:
+def get_l2(
+    config_file: str,
+    inpath: str,
+    outpath: str | None = None,
+    variables: str | None = None,
+    metadata: str | None = None,
+    data_issues_path: Path | None = None,
+    write_csv: bool = False,
+    write_10min: bool = False,
+    write_60min: bool = False,
+) -> AWS:
+    """Process PROMICE AWS data to Level 2.
+
+    Loads AWS data from the provided configuration and input path,
+    performs Level 1 and Level 2 processing, writes the netcdf 'mixed' file
+    to disk and and optionally writes 10min- and hourly resampled files.
+
+    Args:
+        config_file: Path to the station TOML configuration file.
+        inpath: Path to input data directory or files.
+        outpath: Directory where output files are written.
+        variables: Path to variables lookup table.
+        metadata: Path to metadata file.
+        data_issues_path: Path to PROMICE-AWS-data-issues repository.
+        write_csv: If True, write CSV output files.
+        write_10min: If True, write 10-minute resampled products.
+        write_60min: If True, write 60-minute resampled products.
+
+    Returns:
+        Processed AWS object containing Level 1 and Level 2 datasets.
+
+    Raises:
+        ValueError: If data_issues_path is missing and no default
+            repository can be found.
+    """
+
     # Define input path
     station_name = config_file.split('/')[-1].split('.')[0]
     station_path = os.path.join(inpath, station_name)
@@ -60,10 +101,19 @@ def get_l2(config_file, inpath, outpath, variables, metadata, data_issues_path: 
     if outpath is not None:
         if not os.path.isdir(outpath):
             os.mkdir(outpath)
-        prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, 'mixed', resample=False)
-        if aws.L2.attrs['format'] == 'raw':
-            prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '10min')
-        prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '60min')
+        prepare_and_write(aws.L2,
+                          outpath,
+                          aws.vars,
+                          aws.meta,
+                          'mixed',
+                          resample=False,
+                          write_csv=write_csv)
+        if (aws.L2.attrs['format'] == 'raw') and write_10min:
+            prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '10min',
+                              resample=True, write_csv=write_csv)
+        if write_60min :
+            prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '60min',
+                          resample=True, write_csv=write_csv)
     return aws
 
 
@@ -83,6 +133,9 @@ def main():
         args.variables,
         args.metadata,
         args.data_issues_path,
+        args.write_csv,
+        args.write_10min,
+        args.write_60min,
     )
 
 
