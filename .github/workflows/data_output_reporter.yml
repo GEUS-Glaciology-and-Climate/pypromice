@@ -39,7 +39,8 @@ jobs:
           get_l2 -c tests/data/test_config1_raw.toml \
                  -i tests/data/ \
                  -o out/new/ \
-                 --data_issues_path data_issues/pr \
+                 --data_issues_path data_issues/pr
+
           get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
                      -i out/new/TEST1/TEST1_mixed.nc \
                      -o out/new/ \
@@ -78,10 +79,10 @@ jobs:
                  -i tests/data/ \
                  --issues data_issues/main \
                  -o out/original/ \
-                 --data_issues_path data_issues/main \
-                 --write_60min
+                 --data_issues_path data_issues/main
+
           get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
-                     -i out/original/TEST1/TEST1_hour.nc \
+                     -i out/original/TEST1/TEST1_mixed.nc \
                      -o out/original/ \
                      --data_issues_path data_issues/main
 
