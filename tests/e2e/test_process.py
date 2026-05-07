@@ -117,6 +117,9 @@ class TestProcess(unittest.TestCase):
                 data_issues_path=data_issues_path,
                 variables=None,
                 metadata=None,
+                write_csv=True,
+                write_10min=True,
+                write_60min=True,
             )
             aws_raw_l2 = get_l2(
                 config_file=config_file_raw.as_posix(),
@@ -125,6 +128,9 @@ class TestProcess(unittest.TestCase):
                 data_issues_path=data_issues_path,
                 variables=None,
                 metadata=None,
+                write_csv=True,
+                write_10min=True,
+                write_60min=True,
             )
             #   TODO: This step ignores 10 min data in the join step
             hourly_out_path_tx = output_path_tx / station_id / f"{station_id}_hour.nc"
@@ -141,7 +147,7 @@ class TestProcess(unittest.TestCase):
                 variables=None,
                 metadata=None,
             )
-            hourly_out_path_join = output_l2_join / station_id / f"{station_id}_hour.nc"
+            hourly_out_path_join = output_l2_join / station_id / f"{station_id}_mixed.nc"
             self.assertTrue(hourly_out_path_join.exists())
 
             # Part 3 - Level 2 to level 3
