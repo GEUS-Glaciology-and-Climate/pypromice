@@ -10,7 +10,7 @@ import xarray as xr
 import pandas as pd
 
 tilt_smoothing_win_size = 7 # Station tilt smoothing window size
-tilt_stddev_threshold = 0.2 # Station tilt interpolation standard deviation threshold
+tilt_stddev_threshold = 0.3 # Station tilt interpolation standard deviation threshold
 rot_stddev_threshold = 4    # Station rotation interpolation standard deviation threshold
 tilt_threshold = -100       # Station tilt threshold
 deg2rad = np.pi / 180       # Degrees to radians conversion
@@ -140,17 +140,48 @@ def interpolate_tilt(tilt: xr.DataArray,
     # We calculate the moving standard deviation over a 3-day sliding window
     # hourly resampling is necessary to make sure the same threshold can be used
     # for 10 min and hourly data
-    moving_std_gap_filled = tilt.to_series().resample("h").median().rolling(
-                    3*24, center=True, min_periods=2
-                    ).std().reindex(tilt.time, method="bfill").values
+    moving_std_gap_filled = (
+                    tilt.to_series()
+                    .resample("h")
+                    .median()
+                    .rolling(3 * 24, center=True, min_periods=2)
+                    .std()
+                    .reindex(tilt.time, method="bfill")
+                    .values
+                )
+
+    tilt_filtered = tilt.where(moving_std_gap_filled < tilt_stddev_threshold)
 
     # We select the good timestamps and gapfill assuming that
-    # - when tilt goes missing the last available value is used
+    # - when tilt goes missing the last available value is used for the next 30 days
     # - when tilt is not available for the very first time steps, the first
-    #   good value is used for backfill
-    return tilt.where(
-                    moving_std_gap_filled < tilt_stddev_threshold
-                ).ffill(dim="time", limit=28*24).bfill(dim="time", limit=28*24)
+    #   good value is used for backfilling the previous 30 days
+    tilt_hourly = tilt_filtered.resample(time="1h").median()
+
+    tilt_hourly_filled = (
+        tilt_hourly
+        .ffill(dim="time", limit=30 * 24)
+        .bfill(dim="time", limit=30 * 24)
+    )
+
+    was_filled_hourly = tilt_hourly.isnull() & tilt_hourly_filled.notnull()
+
+    was_filled_at_original_time = (
+        was_filled_hourly
+        .reindex(time=tilt.time, method="nearest", tolerance=np.timedelta64(30, "m"))
+        .fillna(False)
+    )
+
+    tilt_filled_at_original_time = (
+        tilt_hourly_filled
+        .reindex(time=tilt.time, method="nearest", tolerance=np.timedelta64(30, "m"))
+    )
+
+    return tilt_filtered.where(
+        ~was_filled_at_original_time,
+        tilt_filled_at_original_time,
+    )
+
 
 
 def interpolate_rotation(rot: xr.DataArray,
