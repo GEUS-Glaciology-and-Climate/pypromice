@@ -168,20 +168,24 @@ def interpolate_tilt(tilt: xr.DataArray,
 
     was_filled_at_original_time = (
         was_filled_hourly
-        .reindex(time=tilt.time, method="nearest", tolerance=np.timedelta64(30, "m"))
+        .reindex(time=tilt.time,
+                 method="nearest",
+                 tolerance=np.timedelta64(30, "m"))
         .fillna(False)
+        .astype(bool)
     )
 
     tilt_filled_at_original_time = (
         tilt_hourly_filled
-        .reindex(time=tilt.time, method="nearest", tolerance=np.timedelta64(30, "m"))
+        .reindex(time=tilt.time,
+                 method="nearest",
+                 tolerance=np.timedelta64(30, "m"))
     )
 
     return tilt_filtered.where(
         ~was_filled_at_original_time,
         tilt_filled_at_original_time,
     )
-
 
 
 def interpolate_rotation(rot: xr.DataArray,
