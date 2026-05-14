@@ -1027,9 +1027,16 @@ def gps_coordinate_postprocessing(ds, var, station_config={}):
         else:
             logger.info('processing '+var+' with relocation on ' + ', '.join([br.strftime('%Y-%m-%dT%H:%M:%S') for br in breaks]))
 
-        return piecewise_smoothing_and_interpolation(ds[var].to_series(), breaks)
+        return piecewise_smoothing_and_interpolation(
+                    ds[var].to_series(),
+                    breaks,
+                    use_mean=(
+                        var == 'gps_alt'
+                        and ds.attrs.get('site_type') == 'accumulation'
+                    )
+                )
 
-def piecewise_smoothing_and_interpolation(data_series, breaks):
+def piecewise_smoothing_and_interpolation(data_series, breaks, use_mean=False):
     '''Smoothes, inter- or extrapolate the GPS observations. The processing is
     done piecewise so that each period between station relocations are done
     separately (no smoothing of the jump due to relocation). Piecewise linear
@@ -1051,37 +1058,45 @@ def piecewise_smoothing_and_interpolation(data_series, breaks):
     np.ndarray
         Smoothed and interpolated values corresponding to the input series.
     '''
-    df_all = pd.Series(dtype=float)  # Initialize an empty Series to gather all smoothed pieces
     breaks = [None] + breaks + [None]
     _inferred_series = []
+
     for i in range(len(breaks) - 1):
         df = data_series.loc[slice(breaks[i], breaks[i+1])]
 
-        # Drop NaN values and calculate the number of segments based on valid data
         df_valid = df.dropna()
+
         if df_valid.shape[0] > 2:
-            # Fit linear regression model to the valid data range
-            x = pd.to_numeric(df_valid.index).values.reshape(-1, 1)
-            y = df_valid.values.reshape(-1, 1)
 
-            model = LinearRegression()
-            model.fit(x, y)
+            if use_mean:
+                # Fill whole segment with mean value
+                y_pred = np.full(len(df), df_valid.mean())
+                df = pd.Series(y_pred, index=df.index)
 
-            # Predict using the model for the entire segment range
-            x_pred = pd.to_numeric(df.index).values.reshape(-1, 1)
+            else:
+                # Linear regression
+                x = pd.to_numeric(df_valid.index).values.reshape(-1, 1)
+                y = df_valid.values.reshape(-1, 1)
 
-            y_pred = model.predict(x_pred)
-            df =  pd.Series(y_pred.flatten(), index=df.index)
-        # adds to list the predicted values for the current segment
+                model = LinearRegression()
+                model.fit(x, y)
+
+                x_pred = pd.to_numeric(df.index).values.reshape(-1, 1)
+                y_pred = model.predict(x_pred)
+
+                df = pd.Series(y_pred.flatten(), index=df.index)
+
         _inferred_series.append(df)
 
     df_all = pd.concat(_inferred_series)
 
-    # Fill internal gaps with linear interpolation
-    df_all = df_all.interpolate(method='linear', limit_area='inside')
+    df_all = df_all.interpolate(
+        method='linear',
+        limit_area='inside'
+    )
 
-    # Remove duplicate indices and return values as numpy array
     df_all = df_all[~df_all.index.duplicated(keep='last')]
+
     return df_all.values
 
 def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h,
