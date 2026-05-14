@@ -8,7 +8,7 @@ from pypromice.core.variables.humidity import adjust, calculate_specific_humidit
 
 class TestHumidityProcessing(unittest.TestCase):
     def setUp(self):
-        self.time = pd.date_range("2025-08-01", periods=12, freq="H")
+        self.time = pd.date_range("2025-08-01", periods=12, freq="h")
         # Temperatures: mix of freezing and above freezing, and NaNs
         t_values = [-10, np.nan, -2, 0, 1, 3, 5, 7, np.nan, 12, 15, 18]
         self.t = xr.DataArray(t_values, coords=[("time", self.time)])

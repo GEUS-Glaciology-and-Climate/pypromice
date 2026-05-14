@@ -111,9 +111,14 @@ def get_l2(
         if (aws.L2.attrs['format'] == 'raw') and write_10min:
             prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '10min',
                               resample=True, write_csv=write_csv)
-        if write_60min :
+        # the level 2/tx/*_hour.csv file is used for buffer processing
+        # so this file should always be produced
+        if (aws.L2.attrs['format'] == 'tx'):
             prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '60min',
-                          resample=True, write_csv=write_csv)
+                      resample=True, write_csv=True)
+        elif write_60min:
+            prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '60min',
+                      resample=True, write_csv=write_csv)
     return aws
 
 

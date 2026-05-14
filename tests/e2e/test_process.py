@@ -117,9 +117,6 @@ class TestProcess(unittest.TestCase):
                 data_issues_path=data_issues_path,
                 variables=None,
                 metadata=None,
-                write_csv=True,
-                write_10min=True,
-                write_60min=True,
             )
             aws_raw_l2 = get_l2(
                 config_file=config_file_raw.as_posix(),
@@ -128,9 +125,6 @@ class TestProcess(unittest.TestCase):
                 data_issues_path=data_issues_path,
                 variables=None,
                 metadata=None,
-                write_csv=True,
-                write_10min=True,
-                write_60min=True,
             )
             #   TODO: This step ignores 10 min data in the join step
             hourly_out_path_tx = output_path_tx / station_id / f"{station_id}_hour.nc"
@@ -186,26 +180,25 @@ class TestProcess(unittest.TestCase):
                     self.assertTrue(expected_output_path.exists())
 
             for output_rel_path in [
-                "station_l2_raw/TEST1/TEST1_10min.csv",
-                "station_l2_raw/TEST1/TEST1_10min.nc",
-                "station_l2_raw/TEST1/TEST1_hour.csv",
-                "station_l2_raw/TEST1/TEST1_hour.nc",
-                "station_l2_tx/TEST1/TEST1_hour.csv",
+                "station_l2_raw/TEST1/TEST1_mixed.nc", # needed in next processing step
+
+                "station_l2_tx/TEST1/TEST1_mixed.nc", # needed in next processing step
+                "station_l2_tx/TEST1/TEST1_hour.csv", # needed for buffer processing
                 "station_l2_tx/TEST1/TEST1_hour.nc",
-                "station_l2_join/TEST1/TEST1_hour.csv",
-                "station_l2_join/TEST1/TEST1_hour.nc",
-                "station_l3/TEST1/TEST1_day.csv",
-                "station_l3/TEST1/TEST1_day.nc",
-                "station_l3/TEST1/TEST1_hour.csv",
-                "station_l3/TEST1/TEST1_hour.nc",
-                "station_l3/TEST1/TEST1_month.csv",
-                "station_l3/TEST1/TEST1_month.nc",
-                "site_l3/SITE_01/SITE_01_day.csv",
-                "site_l3/SITE_01/SITE_01_day.nc",
-                "site_l3/SITE_01/SITE_01_hour.csv",
-                "site_l3/SITE_01/SITE_01_hour.nc",
-                "site_l3/SITE_01/SITE_01_month.csv",
-                "site_l3/SITE_01/SITE_01_month.nc",
+
+                "station_l2_join/TEST1/TEST1_mixed.csv",
+                "station_l2_join/TEST1/TEST1_mixed.nc", # needed in next processing step
+                "station_l2_join/TEST1/TEST1_hour.csv", # published on thredds
+                "station_l2_join/TEST1/TEST1_hour.nc", # published on thredds
+
+                "station_l3/TEST1/TEST1_mixed.nc", # needed in next processing step
+
+                "site_l3/SITE_01/SITE_01_day.csv", # published on thredds
+                "site_l3/SITE_01/SITE_01_day.nc", # published on thredds
+                "site_l3/SITE_01/SITE_01_hour.csv", # published on thredds
+                "site_l3/SITE_01/SITE_01_hour.nc", # published on thredds
+                "site_l3/SITE_01/SITE_01_month.csv", # published on thredds
+                "site_l3/SITE_01/SITE_01_month.nc", # published on thredds
             ]:
                 output_path = root / output_rel_path
                 self.assertTrue(output_path.exists())
@@ -222,9 +215,8 @@ class TestProcess(unittest.TestCase):
 
             # Test if the l3 output netcdf files are compressed with zlib
             for output_rel_path in [
-                "station_l3/TEST1/TEST1_day.nc",
-                "station_l3/TEST1/TEST1_hour.nc",
-                "station_l3/TEST1/TEST1_month.nc",
+                "station_l3/TEST1/TEST1_mixed.nc",
+
                 "site_l3/SITE_01/SITE_01_day.nc",
                 "site_l3/SITE_01/SITE_01_hour.nc",
                 "site_l3/SITE_01/SITE_01_month.nc",
