@@ -39,12 +39,14 @@ jobs:
           get_l2 -c tests/data/test_config1_raw.toml \
                  -i tests/data/ \
                  -o out/new/ \
-                 --data_issues_path data_issues/pr
+                 --data_issues_path data_issues/pr \
+                 --write_60min
 
           get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
                      -i out/new/TEST1/TEST1_mixed.nc \
                      -o out/new/ \
-                     --data_issues_path data_issues/pr
+                     --data_issues_path data_issues/pr \
+                     --write_60min
 
       # Step 4.5: Upload PR output file as artifact
       - name: Upload PR TEST1_hour.nc
