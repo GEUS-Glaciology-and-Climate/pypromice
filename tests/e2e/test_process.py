@@ -127,29 +127,29 @@ class TestProcess(unittest.TestCase):
                 metadata=None,
             )
             #   TODO: This step ignores 10 min data in the join step
-            hourly_out_path_tx = output_path_tx / station_id / f"{station_id}_hour.nc"
-            hourly_out_path_raw = output_path_raw / station_id / f"{station_id}_hour.nc"
-            self.assertTrue(hourly_out_path_tx.exists())
-            self.assertTrue(hourly_out_path_raw.exists())
+            mixed_out_path_tx = output_path_tx / station_id / f"{station_id}_mixed.nc"
+            mixed_out_path_raw = output_path_raw / station_id / f"{station_id}_mixed.nc"
+            self.assertTrue(mixed_out_path_tx.exists())
+            self.assertTrue(mixed_out_path_raw.exists())
 
             # Part 2 - Merge level 2 raw and tx data
             output_l2_join = root / "station_l2_join"
             aws_join_l2 = join_l2(
-                hourly_out_path_raw.as_posix(),
-                hourly_out_path_tx.as_posix(),
+                mixed_out_path_raw.as_posix(),
+                mixed_out_path_tx.as_posix(),
                 outpath=output_l2_join.as_posix(),
                 variables=None,
                 metadata=None,
             )
-            hourly_out_path_join = output_l2_join / station_id / f"{station_id}_mixed.nc"
-            self.assertTrue(hourly_out_path_join.exists())
+            mixed_out_path_join = output_l2_join / station_id / f"{station_id}_mixed.nc"
+            self.assertTrue(mixed_out_path_join.exists())
 
             # Part 3 - Level 2 to level 3
             site_id = "SITE_01"
             output_l3 = root / "station_l3"
             aws_station_l3 = get_l2tol3(
                 config_folder=STATION_CONFIGURATIONS_ROOT,
-                inpath=hourly_out_path_join.as_posix(),
+                inpath=mixed_out_path_join.as_posix(),
                 outpath=output_l3.as_posix(),
                 variables=None,
                 metadata=None,
