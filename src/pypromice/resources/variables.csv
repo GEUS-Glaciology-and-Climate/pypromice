@@ -78,7 +78,8 @@ d_t_i_11,depth_of_thermistor_11,Depth of thermistor 11,m,modelResult,time,FALSE,
 t_i_10m,10m_subsurface_temperature,10 m subsurface temperature,degrees_C,modelResult,time,FALSE,L3,-70,0,,all,0,0,1,4
 tilt_x,platform_view_angle_x,Tilt to east,degrees,physicalMeasurement,time,FALSE,,-30,30,dsr_cor usr_cor,all,1,1,1,4
 tilt_y,platform_view_angle_y,Tilt to north,degrees,physicalMeasurement,time,FALSE,,-30,30,dsr_cor usr_cor,all,1,1,1,4
-rot,platform_azimuth_angle,Station rotation from true North,degrees,physicalMeasurement,time,FALSE,,0,360,,all,1,1,1,2
+rot_magnetic,platform_azimuth_angle,Station rotation from magnetic North,degrees,physicalMeasurement,time,FALSE,L2 or later,0,360,rot_true,all,0,1,1,2
+rot_true,platform_azimuth_angle,Station rotation from true North,degrees,physicalMeasurement,time,FALSE,L2 or later,0,360,,all,0,1,1,2
 gps_lat,gps_latitude,Latitude,degrees_north,physicalMeasurement,time,TRUE,,50,83,,all,1,1,1,6
 gps_lon,gps_longitude,Longitude,degrees_east,physicalMeasurement,time,TRUE,,5,70,,all,1,1,1,6
 gps_alt,gps_altitude,Altitude above mean sea level (orthometric height),m,physicalMeasurement,time,TRUE,,0,3000,,all,1,1,1,2

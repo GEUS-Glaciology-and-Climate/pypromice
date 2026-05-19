@@ -28,6 +28,7 @@ from pypromice.core.variables import (wind,
 
 def toL2(L1: xr.Dataset,
          vars_df: pd.DataFrame,
+         declination_da: xr.DataArray,
          data_flags_dir: Path,
          data_adjustments_dir: Path
 ) -> xr.Dataset:
@@ -50,6 +51,8 @@ def toL2(L1: xr.Dataset,
         Level 1 dataset
     vars_df : pd.DataFrame
         Metadata dataframe
+    declination_da : xr.DataArray
+        Magnetic declination array
     data_flags_dir : pathlib.Path
         Directory path to data flags file
     data_adjustments_dir : pathlib.Path
@@ -113,11 +116,17 @@ def toL2(L1: xr.Dataset,
     if not is_bedrock:
         ds["t_surf"] = ds["t_surf"].clip(max=0)
 
-    # Interpolate and smooth station tilt and rotation
+    # Interpolate and smooth station tilt and heading
     # TODO tilt smoothing is performed here and at L0toL1 also (and they are different functions). Is this needed? PHO
     ds['tilt_x'] = station_pose.interpolate_tilt(ds['tilt_x'])
     ds['tilt_y'] = station_pose.interpolate_tilt(ds['tilt_y'])
-    ds['rot'] = station_pose.interpolate_rotation(ds['rot'])
+    ds['rot_magnetic'] = station_pose.interpolate_rotation(ds['rot'])
+
+    # Interpolate magnetic declination array and correct heading to true north
+    magdec = station_pose.interpolate_magnetic_declination(declination_da,
+                                                           ds["rot_magnetic"])
+    ds["rot_true"] = station_pose.correct_rotation_to_true_north(ds["rot_magnetic"],
+                                                                 magdec)
 
     # Determine cloud cover for on-ice stations
     if not is_bedrock:
@@ -153,7 +162,9 @@ def toL2(L1: xr.Dataset,
     doy = ds['time'].dt.dayofyear
     hour = ds['time'].dt.hour
     minute = ds['time'].dt.minute
-    phi_sensor_rad, theta_sensor_rad = station_pose.calculate_spherical_tilt(ds['tilt_x'], ds['tilt_y'])
+    phi_sensor_rad, theta_sensor_rad = station_pose.calculate_spherical_tilt(ds['tilt_x'],
+                                                                             ds['tilt_y'],
+                                                                             ds['rot_true'])
     Declination_rad = station_pose.calculate_declination(doy, hour, minute)
     HourAngle_rad = station_pose.calculate_hour_angle(hour, minute, lon)
     ZenithAngle_rad, ZenithAngle_deg = station_pose.calculate_zenith(lat,
