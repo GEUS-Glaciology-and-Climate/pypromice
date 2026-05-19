@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 import xarray as xr
 
+from pypromice.core.variables import magnetic_declination
 from pypromice.pipeline.get_l2 import get_l2
 
 TEST_ROOT = Path(__file__).parent.parent
@@ -20,13 +21,14 @@ class GetL2TestCase(unittest.TestCase):
             output_path = Path(tmpdirname) / "output"
             config_file = TEST_DATA_ROOT_PATH / "test_config1_tx.toml"
             data_issues_path = TEST_DATA_ROOT_PATH / "data_issues"
-
+            magdec_file = TEST_DATA_ROOT_PATH / "magnetic_declination_configurations/test_magdec_config1.toml"
 
             aws = get_l2(
                 config_file=config_file.as_posix(),
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path,
                 data_issues_path=data_issues_path,
+                magnetic_declination_file=magdec_file,
                 variables=None,
                 metadata=None,
             )
@@ -49,12 +51,14 @@ class GetL2TestCase(unittest.TestCase):
             output_path = Path(tmpdirname) / "output"
             config_file = TEST_DATA_ROOT_PATH / "test_config1_raw.toml"
             data_issues_path = TEST_DATA_ROOT_PATH / "data_issues"
+            magdec_file = TEST_DATA_ROOT_PATH / "magnetic_declination_configurations/test_magdec_config1.toml"
 
             aws = get_l2(
                 config_file=config_file.as_posix(),
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path,
                 data_issues_path=data_issues_path,
+                magnetic_declination_file=magdec_file,
                 variables=None,
                 metadata=None,
             )
