@@ -1,8 +1,15 @@
-__all__ = ["convert_and_filter_tilt", "apply_tilt_factor",
-           "smooth_tilt_with_moving_window", "interpolate_tilt",
-           "interpolate_rotation", "calculate_spherical_tilt",
-           "calculate_declination", "calculate_hour_angle",
-           "calculate_sun_direction_degrees", "calculate_zenith",
+__all__ = ["convert_and_filter_tilt",
+           "apply_tilt_factor",
+           "smooth_tilt_with_moving_window",
+           "interpolate_tilt",
+           "interpolate_rotation",
+           "interpolate_magnetic_declination",
+           "correct_rotation_to_true_north",
+           "calculate_spherical_tilt",
+           "calculate_declination",
+           "calculate_hour_angle",
+           "calculate_sun_direction_degrees",
+           "calculate_zenith",
            "calculate_angle_difference"]
 
 import numpy as np
@@ -153,57 +160,120 @@ def interpolate_tilt(tilt: xr.DataArray,
                 ).ffill(dim="time", limit=28*24).bfill(dim="time", limit=28*24)
 
 
-def interpolate_rotation(rot: xr.DataArray,
-                         threshold=4):
+def interpolate_rotation(rot: xr.DataArray):
     """Interpolate and smooth station rotation
 
     Parameters
     ----------
     rot : xr.DataArray
         Rotation measurements from inclinometer
-    threshold : float
-        threshold used in a standard deviation based filter
 
     Returns
     -------
     xr.DataArray
         smoothed rotation measurements from inclinometer
     """
-    moving_std_gap_filled = rot.to_series().resample("h").median().rolling(
-                    3*24, center=True, min_periods=2
-                    ).std().reindex(rot.time, method="bfill").values
+    moving_std_gap_filled = (rot.to_series()
+                             .resample("h")
+                             .median()
+                             .rolling(3*24, center=True, min_periods=2)
+                             .std()
+                             .reindex(rot.time, method="bfill")
+                             .values)
 
     # Same as for interpolate_tilt() with, in addition:
     #     - a resampling to daily values
-    #     - a two-week median smoothing
+    #     - a 30D median smoothing
     #     - a resampling from these daily values to the original temporal resolution
     return ("time", (rot.where(moving_std_gap_filled < rot_stddev_threshold)
-                    .ffill(dim="time", limit=28*24)
+                    .ffill(dim="time", limit=30*24)
                     .to_series().resample("D").median()
                     .rolling(7*2, center=True, min_periods=2).median()
-                    .reindex(rot.time, method="bfill", tolerance=pd.Timedelta("28D")).values
+                    .reindex(rot.time, method="bfill", tolerance=pd.Timedelta("30D")).values
                 ))
+
+
+def interpolate_magnetic_declination(declination: xr.DataArray,
+                                     target : xr.DataArray
+) -> xr.DataArray:
+    """Interpolate magnetic declination coefficients to fit array
+    dimensions
+
+    Parameters
+    ----------
+    declination : xr.DataArray
+        Magnetic declination coefficients
+    target : xr.DataArray
+        Target array to interpolate to
+
+    Returns
+    -------
+    xr.DataArray
+        Interpolated magnetic declination coefficients
+    """
+    return declination.interp_like(target,
+                                   method="linear")
+
+
+def correct_rotation_to_true_north(rot: xr.DataArray,
+                                   declination: xr.DataArray
+) -> xr.DataArray:
+    """Correct station heading from magnetic north to true north,
+    based on an array of magnetic declination coefficients
+
+    Parameters
+    ----------
+    rot : xr.DataArray
+        Magnetic north station heading
+    declination : xr.DataArray
+        Array of magnetic declination coefficients
+
+    Returns
+    -------
+    rot_true_north : xr.DataArray
+        Corrected true north station heading measurements
+    """
+    # Add correction
+    da = rot + declination
+
+    # Wrap array strictly to [0, 360]
+    rot_true_north = da % 360
+
+    return rot_true_north
 
 
 def calculate_spherical_tilt(
     tilt_x: xr.DataArray,
-    tilt_y: xr.DataArray
-) -> tuple[xr.DataArray, xr.DataArray]:
-    """Calculate station tilt
+    tilt_y: xr.DataArray,
+    rot: xr.DataArray | float = 0,
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+    """Convert inclinometer tilt angles and optional heading to spherical sensor orientation.
 
     Parameters
     ----------
     tilt_x : xr.DataArray
-        X tilt inclinometer measurements
+        Tilt angle about the sensor X-axis in degrees.
     tilt_y : xr.DataArray
-        Y tilt inclinometer measurements
+        Tilt angle about the sensor Y-axis in degrees.
+    rot : xr.DataArray or float, default 0
+        Rotation / heading angle of the sensor around the vertical axis
+        in degrees. This is typically the yaw or compass heading from the
+        RION compass. A value of 0 assumes a fixed sensor azimuth.
 
     Returns
     -------
     phi_sensor_rad : xr.DataArray
-        Spherical tilt coordinates
+        Absolute azimuth angle of the sensor tilt direction in radians,
+        expressed in the geographic frame and wrapped to [0, 2π).
     theta_sensor_rad : xr.DataArray
-        Total tilt of sensor, where 0 is horizontal
+        Total tilt magnitude in radians, where 0 corresponds to a
+        perfectly horizontal sensor.
+
+    Notes
+    -----
+    The tilt direction is first computed in the sensor reference frame
+    from `tilt_x` and `tilt_y`, then rotated by `rot` to obtain the
+    absolute sensor orientation.
     """
     # Tilt as radians
     tx = tilt_x * deg2rad
@@ -220,6 +290,9 @@ def calculate_spherical_tilt(
     phi_sensor_rad[(X == 0) & (Y < 0)] = np.pi
     phi_sensor_rad[(X == 0) & (Y == 0)] = 0
     phi_sensor_rad[phi_sensor_rad < 0] += 2*np.pi
+
+    # Rotating the sensor reference frame to get absolute orientation
+    phi_sensor_rad = (phi_sensor_rad + rot * deg2rad) % (2 * np.pi)
 
     # Total tilt of the sensor, i.e. 0 when horizontal
     theta_sensor_rad = np.arccos(Z / (X**2 + Y**2 + Z**2)**0.5)
