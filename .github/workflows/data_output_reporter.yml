@@ -77,16 +77,18 @@ jobs:
         run: |
           mkdir -p out/original/
           mkdir -p data_issues/main
+
           get_l2 -c tests/data/test_config1_raw.toml \
                  -i tests/data/ \
-                 --issues data_issues/main \
                  -o out/original/ \
-                 --data_issues_path data_issues/main
+                 --data_issues_path data_issues/main \
+                 --write_60min
 
           get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
                      -i out/original/TEST1/TEST1_mixed.nc \
                      -o out/original/ \
-                     --data_issues_path data_issues/main
+                     --data_issues_path data_issues/main \
+                     --write_60min
 
       # Step 7.5: Download PR output artifact back into correct place
       - name: Download PR TEST1_hour.nc
