@@ -111,13 +111,16 @@ class GetL2TestCase(unittest.TestCase):
                 f"AWS measurements from {station_id} processed to level 2. Hourly data.",
             )
 
-            t0 = datetime.datetime.utcnow()
+            t0 = pd.Timestamp.now(tz="UTC")
             for dataset in [dataset_hour, dataset_10min]:
                 self.assertEqual(dataset.attrs["format"], "raw")
                 self.assertEqual(dataset.attrs["station_id"], station_id)
+
                 self.assertIsInstance(dataset.attrs["date_created"], str)
-                date_created = pd.to_datetime(dataset.attrs["date_created"])
-                self.assertLess(t0 - date_created, datetime.timedelta(seconds=5))
+
+                date_created = pd.to_datetime(dataset.attrs["date_created"], utc=True)
+                self.assertLess(t0 - date_created, pd.Timedelta(seconds=5))
+
                 self.assertEqual(
                     dataset.attrs["date_issued"], dataset.attrs["date_created"]
                 )
