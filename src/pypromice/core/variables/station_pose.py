@@ -141,14 +141,14 @@ def interpolate_tilt(tilt: xr.DataArray,
     # hourly resampling is necessary to make sure the same threshold can be used
     # for 10 min and hourly data
     moving_std_gap_filled = (
-                    tilt.to_series()
-                    .resample("h")
-                    .median()
-                    .rolling(3 * 24, center=True, min_periods=2)
-                    .std()
-                    .reindex(tilt.time, method="bfill")
-                    .values
-                )
+        tilt.to_series()
+        .resample("h")
+        .mean()
+        .rolling(3 * 24, center=True, min_periods=2)
+        .std()
+        .reindex(tilt.time, method="bfill")
+        .values
+    )
 
     tilt_filtered = tilt.where(moving_std_gap_filled < tilt_stddev_threshold)
 
@@ -156,7 +156,7 @@ def interpolate_tilt(tilt: xr.DataArray,
     # - when tilt goes missing the last available value is used for the next 30 days
     # - when tilt is not available for the very first time steps, the first
     #   good value is used for backfilling the previous 30 days
-    tilt_hourly = tilt_filtered.resample(time="1h").median()
+    tilt_hourly = tilt_filtered.resample(time="1h").mean()
 
     tilt_hourly_filled = (
         tilt_hourly
@@ -166,21 +166,24 @@ def interpolate_tilt(tilt: xr.DataArray,
 
     was_filled_hourly = tilt_hourly.isnull() & tilt_hourly_filled.notnull()
 
+    hourly_gapfill = xr.Dataset(
+        {
+            "was_filled": was_filled_hourly,
+            "tilt_filled": tilt_hourly_filled,
+        }
+    ).reindex(
+        time=tilt.time,
+        method="nearest",
+        tolerance=np.timedelta64(30, "m"),
+    )
+
     was_filled_at_original_time = (
-        was_filled_hourly
-        .reindex(time=tilt.time,
-                 method="nearest",
-                 tolerance=np.timedelta64(30, "m"))
+        hourly_gapfill["was_filled"]
         .fillna(False)
         .astype(bool)
     )
 
-    tilt_filled_at_original_time = (
-        tilt_hourly_filled
-        .reindex(time=tilt.time,
-                 method="nearest",
-                 tolerance=np.timedelta64(30, "m"))
-    )
+    tilt_filled_at_original_time = hourly_gapfill["tilt_filled"]
 
     return tilt_filtered.where(
         ~was_filled_at_original_time,
@@ -204,18 +207,18 @@ def interpolate_rotation(rot: xr.DataArray,
     xr.DataArray
         smoothed rotation measurements from inclinometer
     """
-    moving_std_gap_filled = rot.to_series().resample("h").median().rolling(
+    moving_std_gap_filled = rot.to_series().resample("h").mean().rolling(
                     3*24, center=True, min_periods=2
                     ).std().reindex(rot.time, method="bfill").values
 
     # Same as for interpolate_tilt() with, in addition:
     #     - a resampling to daily values
-    #     - a two-week median smoothing
+    #     - a two-week mean smoothing
     #     - a resampling from these daily values to the original temporal resolution
     return ("time", (rot.where(moving_std_gap_filled < rot_stddev_threshold)
                     .ffill(dim="time", limit=28*24)
-                    .to_series().resample("D").median()
-                    .rolling(7*2, center=True, min_periods=2).median()
+                    .to_series().resample("D").mean()
+                    .rolling(7*2, center=True, min_periods=2).mean()
                     .reindex(rot.time, method="bfill", tolerance=pd.Timedelta("28D")).values
                 ))
 
