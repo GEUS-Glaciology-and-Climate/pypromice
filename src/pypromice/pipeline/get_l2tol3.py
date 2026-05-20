@@ -14,6 +14,7 @@ def parse_arguments_l2tol3(debug_args=None):
     parser = ArgumentParser(description="AWS L3 script for the processing L3 "+
                             "data from L2. An hourly, daily and monthly L3 "+
                             "data product is outputted to the defined output path")
+
     parser.add_argument('-c', '--config_folder', type=str, required=True,
                         default='../aws-l0/metadata/station_configurations/',
                         help='Path to folder with sites configuration (TOML) files')
@@ -25,13 +26,30 @@ def parse_arguments_l2tol3(debug_args=None):
                         required=False, help='File path to variables look-up table')
     parser.add_argument('-m', '--metadata', default=None, type=str,
                         required=False, help='File path to metadata')
-    parser.add_argument('--data_issues_path', '--issues', default=None, help="Path to data issues repository")
+    parser.add_argument('--data_issues_path', '--issues', default=None,
+                        help="Path to data issues repository")
 
+    parser.add_argument('--write_60min', action='store_true',
+                        help='Write hourly (60min) Level 3 product')
+    parser.add_argument('--write_1D', action='store_true',
+                        help='Write daily (1D) Level 3 product')
+    parser.add_argument('--write_MS', action='store_true',
+                        help='Write monthly (MS) Level 3 product')
 
     args = parser.parse_args(args=debug_args)
     return args
 
-def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, data_issues_path: Path|str):
+def get_l2tol3(
+        config_folder: Path | str,
+        inpath,
+        outpath,
+        variables,
+        metadata,
+        data_issues_path: Path | str,
+        write_60min: bool = False,
+        write_1D: bool = False,
+        write_MS: bool = False,
+    ):
     if isinstance(config_folder, str):
         config_folder = Path(config_folder)
 
@@ -91,9 +109,14 @@ def get_l2tol3(config_folder: Path|str, inpath, outpath, variables, metadata, da
     m = pypromice.resources.load_metadata(metadata)
     if outpath is not None:
         prepare_and_write(l3, outpath, v, m, 'mixed', resample=False)
-        prepare_and_write(l3, outpath, v, m, '60min')
-        prepare_and_write(l3, outpath, v, m, '1D')
-        prepare_and_write(l3, outpath, v, m, 'MS')
+        if write_60min:
+            prepare_and_write(l3, outpath, v, m, '60min')
+
+        if write_1D:
+            prepare_and_write(l3, outpath, v, m, '1D')
+
+        if write_MS:
+            prepare_and_write(l3, outpath, v, m, 'MS')
     return l3
 
 def main():

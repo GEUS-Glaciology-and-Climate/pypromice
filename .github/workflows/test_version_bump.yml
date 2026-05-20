@@ -1,0 +1,53 @@
+name: Check version bump
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check version bump
+        shell: bash
+        run: |
+          git fetch origin main
+
+          main_pyproject=$(git show origin/main:pyproject.toml | sed -nE 's/^version *= *"([^"]+)".*/\1/p')
+          pr_pyproject=$(sed -nE 's/^version *= *"([^"]+)".*/\1/p' pyproject.toml)
+
+          main_conf=$(git show origin/main:docs/conf.py | sed -nE "s/^(version|release) *= *['\"]([^'\"]+)['\"].*/\2/p" | head -1)
+          pr_conf=$(sed -nE "s/^(version|release) *= *['\"]([^'\"]+)['\"].*/\2/p" docs/conf.py | head -1)
+
+          echo "main pyproject: $main_pyproject"
+          echo "PR   pyproject: $pr_pyproject"
+          echo "main conf.py:   $main_conf"
+          echo "PR   conf.py:   $pr_conf"
+
+          test -n "$main_pyproject" || { echo "::error::Could not read version from main pyproject.toml"; exit 1; }
+          test -n "$pr_pyproject"   || { echo "::error::Could not read version from PR pyproject.toml"; exit 1; }
+          test -n "$main_conf"      || { echo "::error::Could not read version/release from main docs/conf.py"; exit 1; }
+          test -n "$pr_conf"        || { echo "::error::Could not read version/release from PR docs/conf.py"; exit 1; }
+
+          if [ "$main_pyproject" = "$pr_pyproject" ]; then
+              echo "::error::Version in pyproject.toml was not bumped"
+              exit 1
+          fi
+
+          if [ "$main_conf" = "$pr_conf" ]; then
+              echo "::error::Version/release in docs/conf.py was not bumped"
+              exit 1
+          fi
+
+          if [ "$pr_pyproject" != "$pr_conf" ]; then
+              echo "::error::Version mismatch: pyproject.toml=$pr_pyproject, docs/conf.py=$pr_conf"
+              exit 1
+          fi
+
+          echo "Version bump check passed"

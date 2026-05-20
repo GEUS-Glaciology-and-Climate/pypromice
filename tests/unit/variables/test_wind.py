@@ -11,7 +11,7 @@ from pypromice.core.variables.wind import (
 
 class TestWindProcessing(unittest.TestCase):
     def setUp(self):
-        self.time = pd.date_range("2025-08-01", periods=4, freq="H")
+        self.time = pd.date_range("2025-08-01", periods=4, freq="h")
         self.wspd = xr.DataArray([0.0, 2.0, 4.0, 6.0], coords=[("time", self.time)])
         self.wdir = xr.DataArray([0.0, 90.0, 180.0, 270.0], coords=[("time", self.time)])
 

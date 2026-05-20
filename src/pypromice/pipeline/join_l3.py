@@ -312,27 +312,25 @@ def align_surface_heights(data_series_new, data_series_old):
         # Align based on the median values
         data_series_new = data_series_new - first_week_new + last_week_old
     else:
-        # Perform a linear fit on the last 5x365x24 non-nan values
-        hours_in_5_years = 5 * 365 * 24
+        data_series_old_last_5_years = data_series_old.loc[
+            last_old_idx - pd.Timedelta(days=5 * 365):last_old_idx
+        ].dropna()
 
-        # Drop NaN values and extract the last `hours_in_5_years` non-NaN data points
-        data_series_old_nonan = data_series_old.dropna()
-        data_series_old_last_5_years = data_series_old_nonan.iloc[
-            -min(len(data_series_old), hours_in_5_years):
-        ]
+        x_old = (
+                    data_series_old_last_5_years.index - last_old_idx
+                ).total_seconds() / 86400
+        y_old = data_series_old_last_5_years.values
 
-        # Perform a linear fit on the last 5 years of data
-        fit = np.polyfit(
-            data_series_old_last_5_years.index.astype("int64"),
-            data_series_old_last_5_years.values,
-            1,
-        )
+        fit = np.polyfit(x_old, y_old, 1)
         fit_fn = np.poly1d(fit)
 
+        x_first_new = (first_new_idx - last_old_idx).total_seconds() / 86400
+        expected_old_at_first_new = fit_fn(x_first_new)
+
         data_series_new = (
-            data_series_new.values
-            + fit_fn(data_series_new.index.astype("int64")[0])
-            - data_series_new[first_new_idx]
+            data_series_new
+            + expected_old_at_first_new
+            - data_series_new.loc[first_new_idx]
         )
 
     return data_series_new
@@ -519,7 +517,8 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
                     l3_merged["z_ice_surf"] = (
                         "time",
                         align_surface_heights(
-                            l3_merged.z_ice_surf.to_series(), l3.z_ice_surf.to_series()
+                            l3_merged.z_ice_surf.to_series(),
+                            l3.z_ice_surf.to_series()
                         ),
                     )
 

@@ -24,6 +24,7 @@ def prepare_and_write(
         time="60min",
         resample=True,
         nc_compression:bool=False,
+        write_csv = True,
 ):
     """Prepare data with resampling, formating and metadata population; then
     write data to .nc and .csv hourly and daily files
@@ -118,7 +119,8 @@ def prepare_and_write(
 
     # Write to csv file
     logger.info("Writing to files...")
-    writeCSV(out_csv, d2, col_names)
+    if write_csv:
+        writeCSV(out_csv, d2, col_names)
 
     # Write to netcdf file
     writeNC(out_nc, d2, col_names, compression=nc_compression)

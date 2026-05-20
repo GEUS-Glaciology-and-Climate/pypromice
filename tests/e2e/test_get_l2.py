@@ -29,6 +29,9 @@ class GetL2TestCase(unittest.TestCase):
                 declination_path=magdec_file,
                 variables=None,
                 metadata=None,
+                write_csv=True,
+                write_10min=True,
+                write_60min=True,
             )
 
             station_id = "TEST1"
@@ -59,6 +62,9 @@ class GetL2TestCase(unittest.TestCase):
                 declination_path=magdec_file,
                 variables=None,
                 metadata=None,
+                write_csv=True,
+                write_10min=True,
+                write_60min=True,
             )
 
             station_id = "TEST1"
