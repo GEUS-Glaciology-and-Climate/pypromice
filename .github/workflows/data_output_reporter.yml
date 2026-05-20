@@ -39,7 +39,7 @@ jobs:
           get_l2 -c tests/data/test_config1_raw.toml \
                  -i tests/data/ \
                  -o out/new/ \
-                 -d tests/data/magnetic_declination_configurations/test_magdec_config1.toml
+                 -d tests/data/magnetic_declination_configurations/test_magdec_config1.toml \
                  --data_issues_path data_issues/pr \
                  --write_60min
 
