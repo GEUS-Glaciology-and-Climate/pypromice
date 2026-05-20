@@ -141,14 +141,14 @@ def interpolate_tilt(tilt: xr.DataArray,
     # hourly resampling is necessary to make sure the same threshold can be used
     # for 10 min and hourly data
     moving_std_gap_filled = (
-        tilt.to_series()
-        .resample("h")
-        .mean()
-        .rolling(3 * 24, center=True, min_periods=2)
-        .std()
-        .reindex(tilt.time, method="bfill")
-        .values
-    )
+                    tilt.to_series()
+                    .resample("h")
+                    .mean()
+                    .rolling(3 * 24, center=True, min_periods=2)
+                    .std()
+                    .reindex(tilt.time, method="bfill")
+                    .values
+                )
 
     tilt_filtered = tilt.where(moving_std_gap_filled < tilt_stddev_threshold)
 
