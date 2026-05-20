@@ -4,11 +4,9 @@ import tempfile
 import unittest
 from importlib import metadata
 from pathlib import Path
-
 import pandas as pd
 import xarray as xr
 
-from pypromice.core.variables import magnetic_declination
 from pypromice.pipeline.get_l2 import get_l2
 
 TEST_ROOT = Path(__file__).parent.parent
@@ -28,7 +26,7 @@ class GetL2TestCase(unittest.TestCase):
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path,
                 data_issues_path=data_issues_path,
-                magnetic_declination_file=magdec_file,
+                declination_path=magdec_file,
                 variables=None,
                 metadata=None,
             )
@@ -58,7 +56,7 @@ class GetL2TestCase(unittest.TestCase):
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path,
                 data_issues_path=data_issues_path,
-                magnetic_declination_file=magdec_file,
+                declination_path=magdec_file,
                 variables=None,
                 metadata=None,
             )

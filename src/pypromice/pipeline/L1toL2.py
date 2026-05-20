@@ -116,17 +116,18 @@ def toL2(L1: xr.Dataset,
     if not is_bedrock:
         ds["t_surf"] = ds["t_surf"].clip(max=0)
 
-    # Interpolate and smooth station tilt and heading
+    # Interpolate and smooth station tilt
     # TODO tilt smoothing is performed here and at L0toL1 also (and they are different functions). Is this needed? PHO
     ds['tilt_x'] = station_pose.interpolate_tilt(ds['tilt_x'])
     ds['tilt_y'] = station_pose.interpolate_tilt(ds['tilt_y'])
-    ds['rot_magnetic'] = station_pose.interpolate_rotation(ds['rot'])
 
-    # Interpolate magnetic declination array and correct heading to true north
-    magdec = station_pose.interpolate_magnetic_declination(declination_da,
-                                                           ds["rot_magnetic"])
-    ds["rot_true"] = station_pose.correct_rotation_to_true_north(ds["rot_magnetic"],
-                                                                 magdec)
+    # Interpolate station heading and correct to true north
+    if "rot" in ds:
+        ds['rot_magnetic'] = station_pose.interpolate_rotation(ds['rot'])
+        magdec = station_pose.interpolate_magnetic_declination(declination_da,
+                                                               ds["rot_magnetic"])
+        ds["rot_true"] = station_pose.correct_rotation_to_true_north(ds["rot_magnetic"],
+                                                                     magdec)
 
     # Determine cloud cover for on-ice stations
     if not is_bedrock:
@@ -158,13 +159,19 @@ def toL2(L1: xr.Dataset,
         lat = ds['gps_lat'].mean()
         lon = ds['gps_lon'].mean()
 
+    # Calculate spherical tilt with heading, if available
+    if "rot_true" in ds:
+        phi_sensor_rad, theta_sensor_rad = station_pose.calculate_spherical_tilt(ds['tilt_x'],
+                                                                                 ds['tilt_y'],
+                                                                                 ds['rot_true'])
+    else:
+        phi_sensor_rad, theta_sensor_rad = station_pose.calculate_spherical_tilt(ds['tilt_x'],
+                                                                                 ds['tilt_y'])
+
     # Determine station position relative to sun
     doy = ds['time'].dt.dayofyear
     hour = ds['time'].dt.hour
     minute = ds['time'].dt.minute
-    phi_sensor_rad, theta_sensor_rad = station_pose.calculate_spherical_tilt(ds['tilt_x'],
-                                                                             ds['tilt_y'],
-                                                                             ds['rot_true'])
     Declination_rad = station_pose.calculate_declination(doy, hour, minute)
     HourAngle_rad = station_pose.calculate_hour_angle(hour, minute, lon)
     ZenithAngle_rad, ZenithAngle_deg = station_pose.calculate_zenith(lat,
