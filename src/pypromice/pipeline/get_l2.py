@@ -18,6 +18,8 @@ def parse_arguments_l2():
                         help='Path to input data')
     parser.add_argument('-o', '--outpath', default=None, type=str, required=False,
                         help='Path where to write output')
+    parser.add_argument('-d', '--declination_path', type=str, required=True,
+                        help='Path to magnetic declination coefficients file')
     parser.add_argument('-v', '--variables', default=None, type=str,
                         required=False, help='File path to variables look-up table')
     parser.add_argument('-m', '--metadata', default=None, type=str,
@@ -33,16 +35,16 @@ def parse_arguments_l2():
     return args
 
 
-def get_l2(
-    config_file: str,
-    inpath: str,
-    outpath: str | None = None,
-    variables: str | None = None,
-    metadata: str | None = None,
-    data_issues_path: Path | None = None,
-    write_csv: bool = False,
-    write_10min: bool = False,
-    write_60min: bool = False,
+def get_l2(config_file: str,
+           inpath: str,
+           outpath: str | None = None,
+           variables: str | None = None,
+           metadata: str | None = None,
+           data_issues_path: Path | None = None,
+           declination_path: Path | None = None,
+           write_csv: bool = False,
+           write_10min: bool = False,
+           write_60min: bool = False,  
 ) -> AWS:
     """Process PROMICE AWS data to Level 2.
 
@@ -85,18 +87,21 @@ def get_l2(
         aws = AWS(config_file,
                   station_path,
                   data_issues_repository=data_issues_path,
+                  magnetic_declination_file=declination_path,
                   var_file=variables,
                   meta_file=metadata)
     else:
         aws = AWS(config_file,
                   inpath,
                   data_issues_repository=data_issues_path,
+                  magnetic_declination_file=declination_path,
                   var_file=variables,
                   meta_file=metadata)
 
     # Perform level 1 and 2 processing
     aws.getL1()
     aws.getL2()
+
     # Write out level 2
     if outpath is not None:
         if not os.path.isdir(outpath):
@@ -138,6 +143,7 @@ def main():
         args.variables,
         args.metadata,
         args.data_issues_path,
+        args.declination_path,
         args.write_csv,
         args.write_10min,
         args.write_60min,

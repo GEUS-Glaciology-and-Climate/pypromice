@@ -1,0 +1,13 @@
+TEST1 = [
+    {date = "2005-01-01", magnetic_declination = -27.93464545209391, latitude = 79.91087965459594, longitude = -24.082606790215063, altitude = 367.51331429375654, model_name = "IGRF14.SHC"},
+    {date = "2010-01-01", magnetic_declination = -25.461068818533843, latitude = 79.91087965459594, longitude = -24.082606790215063, altitude = 367.51331429375654, model_name = "IGRF14.SHC"},
+    {date = "2015-01-01", magnetic_declination = -22.638515736229298, latitude = 79.91087965459594, longitude = -24.082606790215063, altitude = 367.51331429375654, model_name = "IGRF14.SHC"},
+    {date = "2020-01-01", magnetic_declination = -19.629151820424504, latitude = 79.91087965459594, longitude = -24.082606790215063, altitude = 367.51331429375654, model_name = "IGRF14.SHC"},
+    {date = "2025-01-01", magnetic_declination = -16.65057585883328, latitude = 79.91087965459594, longitude = -24.082606790215063, altitude = 367.51331429375654, model_name = "IGRF14.SHC"},
+    {date = "2030-01-01", magnetic_declination = -13.56476808012037, latitude = 79.91087965459594, longitude = -24.082606790215063, altitude = 367.51331429375654, model_name = "IGRF14.SHC"},
+]
+TEST2 = [
+    {date = "2020-01-01", magnetic_declination = 4.215760030580614, latitude = 55.688524950276985, longitude = 12.582157966397755, altitude = 28.7567153405628, model_name = "IGRF14.SHC"},
+    {date = "2025-01-01", magnetic_declination = 5.0279714182320845, latitude = 55.688524950276985, longitude = 12.582157966397755, altitude = 28.7567153405628, model_name = "IGRF14.SHC"},
+    {date = "2030-01-01", magnetic_declination = 5.821875911027167, latitude = 55.688524950276985, longitude = 12.582157966397755, altitude = 28.7567153405628, model_name = "IGRF14.SHC"},
+]

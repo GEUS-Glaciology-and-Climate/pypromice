@@ -4,7 +4,6 @@ import tempfile
 import unittest
 from importlib import metadata
 from pathlib import Path
-
 import pandas as pd
 import xarray as xr
 
@@ -20,13 +19,14 @@ class GetL2TestCase(unittest.TestCase):
             output_path = Path(tmpdirname) / "output"
             config_file = TEST_DATA_ROOT_PATH / "test_config1_tx.toml"
             data_issues_path = TEST_DATA_ROOT_PATH / "data_issues"
-
+            magdec_file = TEST_DATA_ROOT_PATH / "magnetic_declination_configurations/test_magdec_config1.toml"
 
             aws = get_l2(
                 config_file=config_file.as_posix(),
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path,
                 data_issues_path=data_issues_path,
+                declination_path=magdec_file,
                 variables=None,
                 metadata=None,
                 write_csv=True,
@@ -52,12 +52,14 @@ class GetL2TestCase(unittest.TestCase):
             output_path = Path(tmpdirname) / "output"
             config_file = TEST_DATA_ROOT_PATH / "test_config1_raw.toml"
             data_issues_path = TEST_DATA_ROOT_PATH / "data_issues"
+            magdec_file = TEST_DATA_ROOT_PATH / "magnetic_declination_configurations/test_magdec_config1.toml"
 
             aws = get_l2(
                 config_file=config_file.as_posix(),
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path,
                 data_issues_path=data_issues_path,
+                declination_path=magdec_file,
                 variables=None,
                 metadata=None,
                 write_csv=True,
@@ -109,13 +111,16 @@ class GetL2TestCase(unittest.TestCase):
                 f"AWS measurements from {station_id} processed to level 2. Hourly data.",
             )
 
-            t0 = datetime.datetime.utcnow()
+            t0 = pd.Timestamp.now(tz="UTC")
             for dataset in [dataset_hour, dataset_10min]:
                 self.assertEqual(dataset.attrs["format"], "raw")
                 self.assertEqual(dataset.attrs["station_id"], station_id)
+
                 self.assertIsInstance(dataset.attrs["date_created"], str)
-                date_created = pd.to_datetime(dataset.attrs["date_created"])
-                self.assertLess(t0 - date_created, datetime.timedelta(seconds=5))
+
+                date_created = pd.to_datetime(dataset.attrs["date_created"], utc=True)
+                self.assertLess(t0 - date_created, pd.Timedelta(seconds=5))
+
                 self.assertEqual(
                     dataset.attrs["date_issued"], dataset.attrs["date_created"]
                 )

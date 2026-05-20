@@ -331,7 +331,9 @@ def addMeta(ds, meta):
         ds.attrs["id"] = ".".join(id_components)
 
     ds.attrs["history"] = "Generated on " + datetime.datetime.utcnow().isoformat()
-    ds.attrs["date_created"] = str(datetime.datetime.now().isoformat())
+    ds.attrs["date_created"] = datetime.datetime.now(
+        datetime.timezone.utc
+    ).isoformat()
     ds.attrs["date_modified"] = ds.attrs["date_created"]
     ds.attrs["date_issued"] = ds.attrs["date_created"]
     ds.attrs["date_metadata_modified"] = ds.attrs["date_created"]
