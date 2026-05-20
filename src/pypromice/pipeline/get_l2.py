@@ -143,7 +143,7 @@ def main():
         args.variables,
         args.metadata,
         args.data_issues_path,
-        args.declination_path
+        args.declination_path,
         args.write_csv,
         args.write_10min,
         args.write_60min,
