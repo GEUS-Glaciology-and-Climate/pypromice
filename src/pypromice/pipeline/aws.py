@@ -149,7 +149,7 @@ class AWS(object):
 
         # Retrieve magnetic declination coefficients from config
         self.magdec_coef = magdec_config_to_array(self.magdec_configs,
-                                              self.L1A.attrs["station_id"])
+                                              self.L0[-1].attrs["station_id"])
 
         # Process datasets to Level 1
         self.L1 = [toL1(item, self.vars, self.magdec_coef) for item in self.L0]
