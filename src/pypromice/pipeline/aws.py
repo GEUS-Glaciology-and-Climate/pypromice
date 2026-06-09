@@ -21,9 +21,13 @@ from pypromice.pipeline.L1toL2 import toL2
 from pypromice.pipeline.L2toL3 import toL3
 from pypromice.pipeline import utilities
 from pypromice.io import write
-from pypromice.io.ingest.l0 import (load_data_files, load_config)
+from pypromice.io.ingest.l0 import (load_data_files,
+                                    load_config
+                                    )
 from pypromice.io.ingest.git import get_commit_hash_and_check_dirty
-
+from pypromice.io.ingest.magdec import (load_magdec_config,
+                                        magdec_config_to_array
+                                        )
 pd.set_option("display.precision", 2)
 xr.set_options(keep_attrs=True)
 logger = logging.getLogger(__name__)
@@ -37,6 +41,7 @@ class AWS(object):
         config_file,
         inpath,
         data_issues_repository: Path | str,
+        magnetic_declination_file: Path | str,
         var_file=None,
         meta_file=None,
     ):
@@ -48,6 +53,10 @@ class AWS(object):
             Configuration file path
         inpath : str
             Input file path
+        data_issues_repository : Path | str
+            Data issues repo directory path
+        magnetic_declination_file : Path | str
+            Magnetic declination coefficients file path
         var_file: str, optional
             Variables look-up table file path. If not given then pypromice's
             variables file is used. The default is None.
@@ -68,7 +77,7 @@ class AWS(object):
             ")"
         )
 
-        # Load config, variables CSF standards, and L0 files
+        # Load config, magnetic declinations, variables CSF standards, and L0 files
         self.vars = pypromice.resources.load_variables(var_file)
         self.meta = pypromice.resources.load_metadata(meta_file)
         self.data_issues_repository = Path(data_issues_repository)
@@ -89,6 +98,10 @@ class AWS(object):
         # Load config file
         config = load_config(config_file, inpath)
         L0 = load_data_files(config)
+
+        # Load magnetic declination coefficients
+        magdec_file = Path(magnetic_declination_file)
+        self.magdec_configs = load_magdec_config(magdec_file)
 
         self.L0 = []
         for l in L0:
@@ -130,8 +143,18 @@ class AWS(object):
     def getL1(self):
         """Perform L0 to L1 data processing"""
         logger.info("Level 1 processing...")
+
+        # Populate datasets with basic metadata
         self.L0 = [utilities.addBasicMeta(item, self.vars) for item in self.L0]
-        self.L1 = [toL1(item, self.vars) for item in self.L0]
+
+        # Retrieve magnetic declination coefficients from config
+        self.magdec_coef = magdec_config_to_array(self.magdec_configs,
+                                              self.L0[-1].attrs["station_id"])
+
+        # Process datasets to Level 1
+        self.L1 = [toL1(item, self.vars, self.magdec_coef) for item in self.L0]
+
+        # Merge Level 1 datasets
         self.L1A = reduce(xr.Dataset.combine_first, reversed(self.L1))
         self.L1A.attrs["format"] = self.format
 
@@ -139,6 +162,7 @@ class AWS(object):
         """Perform L1 to L2 data processing"""
         logger.info("Level 2 processing...")
 
+        # Process to Level 2
         self.L2 = toL2(
             self.L1A,
             vars_df=self.vars,
@@ -151,4 +175,3 @@ class AWS(object):
         and attribute population"""
         logger.info("Level 3 processing...")
         self.L3 = toL3(self.L2, data_adjustments_dir=self.data_issues_repository / "adjustments")
-

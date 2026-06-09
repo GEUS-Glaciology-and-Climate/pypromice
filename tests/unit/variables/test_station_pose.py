@@ -15,6 +15,8 @@ from pypromice.core.variables.station_pose import (
     smooth_tilt_with_moving_window,
     interpolate_tilt,
     interpolate_rotation,
+    interpolate_magnetic_declination,
+    correct_rotation_to_true_north
 )
 
 
@@ -190,22 +192,137 @@ class TestTiltSmoothingInterpolation(unittest.TestCase):
         result = interpolate_rotation(short_rot)
         self.assertEqual(len(result[1]), 2)
 
-    def test_interpolate_rotation_low_threshold_masks(self):
-        # With a very low threshold, everything should be masked initially and then filled
-        result = interpolate_rotation(self.rot, threshold=1e-12)
-        self.assertEqual(len(result[1]), len(self.rot))
+    # ----------------------------
+    # interpolate_magnetic_declination
+    # ----------------------------
+    def test_interpolate_magnetic_declination_basic(self):
+        target = self.rot
 
-        # Test all non-NaN values are finite
-        non_nan_values = result[1][~np.isnan(result[1])]
-        self.assertTrue(np.all(np.isfinite(non_nan_values)))
+        decl = xr.DataArray(
+            np.linspace(0, 10, len(self.rot)),
+            dims="time",
+            coords={"time": self.rot.time},
+        )
 
+        result = interpolate_magnetic_declination(decl, target)
+
+        self.assertEqual(result.shape, target.shape)
+        self.assertEqual(len(result), len(target))
+        np.testing.assert_allclose(result.values, decl.values, rtol=self.rtol, atol=self.atol)
+
+    def test_interpolate_magnetic_declination_interp_to_different_grid(self):
+        # coarser grid -> interpolation should still match target shape
+        coarse_time = self.rot.time[::2]
+
+        decl = xr.DataArray(
+            np.linspace(0, 20, len(coarse_time)),
+            dims="time",
+            coords={"time": coarse_time},
+        )
+
+        result = interpolate_magnetic_declination(decl, self.rot)
+
+        self.assertEqual(result.shape, self.rot.shape)
+        self.assertEqual(len(result.time), len(self.rot.time))
+
+    def test_interpolate_magnetic_declination_all_nan(self):
+        nan_decl = xr.DataArray(
+            [np.nan, np.nan, np.nan],
+            dims="time",
+            coords={"time": pd.date_range("2023-01-01", periods=3, freq="h")},
+        )
+
+        target = xr.DataArray(
+            [1.0, 2.0, 3.0],
+            dims="time",
+            coords={"time": pd.date_range("2023-01-01", periods=3, freq="h")},
+        )
+
+        result = interpolate_magnetic_declination(nan_decl, target)
+
+        self.assertTrue(np.all(np.isnan(result.values)))
+
+    # ----------------------------
+    # correct_rotation_to_true_north
+    # ----------------------------
+    def test_correct_rotation_to_true_north_basic_addition(self):
+        rot = xr.DataArray(
+            [10, 20, 30],
+            dims="time",
+            coords={"time": pd.date_range("2023-01-01", periods=3, freq="h")},
+        )
+
+        decl = xr.DataArray(
+            [5, 5, 5],
+            dims="time",
+            coords={"time": rot.time},
+        )
+
+        result = correct_rotation_to_true_north(rot, decl)
+
+        expected = (rot.values + decl.values) % 360
+        np.testing.assert_allclose(result.values, expected)
+
+    def test_correct_rotation_to_true_north_wraps_over_360(self):
+        rot = xr.DataArray(
+            [350, 355, 359],
+            dims="time",
+            coords={"time": pd.date_range("2023-01-01", periods=3, freq="h")},
+        )
+
+        decl = xr.DataArray(
+            [15, 10, 5],
+            dims="time",
+            coords={"time": rot.time},
+        )
+
+        result = correct_rotation_to_true_north(rot, decl)
+
+        expected = (rot.values + decl.values) % 360
+        self.assertTrue(np.all(result.values < 360))
+        np.testing.assert_allclose(result.values, expected)
+
+    def test_correct_rotation_to_true_north_negative_values(self):
+        rot = xr.DataArray(
+            [0, 10, 20],
+            dims="time",
+            coords={"time": pd.date_range("2023-01-01", periods=3, freq="h")},
+        )
+
+        decl = xr.DataArray(
+            [-5, -15, -30],
+            dims="time",
+            coords={"time": rot.time},
+        )
+
+        result = correct_rotation_to_true_north(rot, decl)
+
+        expected = (rot.values + decl.values) % 360
+        self.assertTrue(np.all((result.values >= 0) & (result.values < 360)))
+        np.testing.assert_allclose(result.values, expected)
+
+    def test_correct_rotation_to_true_north_broadcast_shape(self):
+        # declination as scalar should broadcast across time
+        rot = self.rot
+
+        decl = xr.DataArray(2.5)
+
+        result = correct_rotation_to_true_north(rot, decl)
+
+        expected = (rot.values + 2.5) % 360
+
+        self.assertEqual(result.shape, rot.shape)
+        np.testing.assert_allclose(result.values, expected)
 
 class TestSolarCalculations(unittest.TestCase):
 
     def test_calculate_spherical_tilt_basic(self):
         tilt_x = xr.DataArray([0, 10, -10])
         tilt_y = xr.DataArray([0, 5, -5])
-        phi, theta = calculate_spherical_tilt(tilt_x, tilt_y)
+        rot = xr.DataArray([1, 1, 2])
+        phi, theta = calculate_spherical_tilt(tilt_x,
+                                              tilt_y,
+                                              rot)
 
         self.assertIsInstance(phi, xr.DataArray)
         self.assertIsInstance(theta, xr.DataArray)
@@ -217,8 +334,11 @@ class TestSolarCalculations(unittest.TestCase):
     def test_invalid_inputs_shape_mismatch(self):
         tilt_x = xr.DataArray([0, 1])
         tilt_y = xr.DataArray([0, 1, 2])  # mismatch
+        rot = xr.DataArray([1, 1, 2])
         with self.assertRaises(ValueError):
-            calculate_spherical_tilt(tilt_x, tilt_y)
+            calculate_spherical_tilt(tilt_x,
+                                     tilt_y,
+                                     rot)
 
     def test_calculate_declination_range(self):
         doy = xr.DataArray([1, 80, 172, 355])

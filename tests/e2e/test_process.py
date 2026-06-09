@@ -24,7 +24,7 @@ TEST_ROOT = Path(__file__).parent.parent
 TEST_DATA_ROOT_PATH = TEST_ROOT / "data"
 TEST_CONFIG_PATH = TEST_DATA_ROOT_PATH / "test_config1_raw.toml"
 STATION_CONFIGURATIONS_ROOT = TEST_DATA_ROOT_PATH / "station_configurations"
-
+TEST_MAGDEC_PATH = TEST_DATA_ROOT_PATH / "magnetic_declination_configurations/test_magdec_config1.toml"
 
 class TestProcess(unittest.TestCase):
     def test_get_vars(self):
@@ -68,6 +68,7 @@ class TestProcess(unittest.TestCase):
             TEST_CONFIG_PATH.as_posix(),
             TEST_DATA_ROOT_PATH.as_posix(),
             data_issues_repository=TEST_DATA_ROOT_PATH / "data_issues",
+            magnetic_declination_file=TEST_MAGDEC_PATH.as_posix(),
             var_file=None,
             meta_file=None,
         )
@@ -115,6 +116,7 @@ class TestProcess(unittest.TestCase):
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path_tx,
                 data_issues_path=data_issues_path,
+                declination_path=TEST_MAGDEC_PATH.as_posix(),
                 variables=None,
                 metadata=None,
             )
@@ -123,6 +125,7 @@ class TestProcess(unittest.TestCase):
                 inpath=TEST_DATA_ROOT_PATH.as_posix(),
                 outpath=output_path_raw,
                 data_issues_path=data_issues_path,
+                declination_path=TEST_MAGDEC_PATH.as_posix(),
                 variables=None,
                 metadata=None,
             )
