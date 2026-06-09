@@ -111,6 +111,10 @@ def toL1(L0: xr.DataArray,
     ds["tilt_x"] = station_pose.smooth_tilt_with_moving_window(ds["tilt_x"])
     ds["tilt_y"] = station_pose.smooth_tilt_with_moving_window(ds["tilt_y"])
 
+    # Create station heading variable and assume static north position
+    if not hasattr(ds, "rot"):
+        ds["rot"] = xr.zeros_like(ds["tilt_x"], dtype=float)
+
     # Apply wind factor if provided
     # This is in the case of an anemometer rotations improperly translated to wind speed by the logger program
     if hasattr(ds, 'wind_u_coef'):

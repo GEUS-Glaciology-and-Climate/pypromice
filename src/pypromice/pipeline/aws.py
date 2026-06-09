@@ -28,7 +28,6 @@ from pypromice.io.ingest.git import get_commit_hash_and_check_dirty
 from pypromice.io.ingest.magdec import (load_magdec_config,
                                         magdec_config_to_array
                                         )
-
 pd.set_option("display.precision", 2)
 xr.set_options(keep_attrs=True)
 logger = logging.getLogger(__name__)
@@ -171,4 +170,3 @@ class AWS(object):
         and attribute population"""
         logger.info("Level 3 processing...")
         self.L3 = toL3(self.L2, data_adjustments_dir=self.data_issues_repository / "adjustments")
-

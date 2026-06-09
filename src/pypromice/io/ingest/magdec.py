@@ -7,8 +7,6 @@ Functions
 - magdec_config_to_array: Parse magnetic declination config dictionary to array.
 """
 
-import logging
-from pathlib import Path
 import pandas as pd
 import toml
 import xarray as xr
@@ -19,9 +17,6 @@ __all__ = [
     "load_magdec_config",
     "magdec_config_to_array",
 ]
-
-logger = logging.getLogger(__name__)
-
 
 def load_magdec_config(path):
     """
