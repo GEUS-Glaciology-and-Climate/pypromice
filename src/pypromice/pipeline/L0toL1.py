@@ -22,7 +22,8 @@ from pypromice.core.variables import (wind,
 
 
 def toL1(L0: xr.DataArray,
-         vars_df: pd.DataFrame
+         vars_df: pd.DataFrame,
+         declination_da: xr.DataArray
 ) -> xr.DataArray:
     """Process one Level 0 (L0) dataset to a
     Level 1 (L1) dataset
@@ -33,6 +34,8 @@ def toL1(L0: xr.DataArray,
         Level 0 dataset
     vars_df : pd.DataFrame
         Metadata dataframe
+    declination_da: xr.DataArray
+        Magnetic declination array
 
     Returns
     -------
@@ -111,9 +114,21 @@ def toL1(L0: xr.DataArray,
     ds["tilt_x"] = station_pose.smooth_tilt_with_moving_window(ds["tilt_x"])
     ds["tilt_y"] = station_pose.smooth_tilt_with_moving_window(ds["tilt_y"])
 
-    # Create station heading variable and assume static north position
-    if not hasattr(ds, "rot"):
-        ds["rot"] = xr.zeros_like(ds["tilt_x"], dtype=float)
+
+    # Interpolate heading and correct to true north
+    if hasattr(ds, "rot"):
+        logger.info(f"rot variable detected. Correcting and translating to true north position")
+        ds["rot_magnetic"] = station_pose.interpolate_rotation(ds["rot"])
+        magdec = station_pose.interpolate_magnetic_declination(declination_da,
+                                                               ds["rot_magnetic"])
+        ds["rot_true"] = station_pose.correct_rotation_to_true_north(ds["rot_magnetic"],
+                                                                     magdec)
+
+    # Else, create station heading variable and assume static north position
+    else:
+        logger.info(f"rot variable not available. Assuming static true north position")
+        ds["rot_true"] = xr.zeros_like(ds["tilt_x"], dtype=float)
+
 
     # Apply wind factor if provided
     # This is in the case of an anemometer rotations improperly translated to wind speed by the logger program

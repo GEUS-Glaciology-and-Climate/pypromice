@@ -28,7 +28,6 @@ from pypromice.core.variables import (wind,
 
 def toL2(L1: xr.Dataset,
          vars_df: pd.DataFrame,
-         declination_da: xr.DataArray,
          data_flags_dir: Path,
          data_adjustments_dir: Path
 ) -> xr.Dataset:
@@ -51,8 +50,6 @@ def toL2(L1: xr.Dataset,
         Level 1 dataset
     vars_df : pd.DataFrame
         Metadata dataframe
-    declination_da : xr.DataArray
-        Magnetic declination array
     data_flags_dir : pathlib.Path
         Directory path to data flags file
     data_adjustments_dir : pathlib.Path
@@ -120,13 +117,6 @@ def toL2(L1: xr.Dataset,
     # TODO tilt smoothing is performed here and at L0toL1 also (and they are different functions). Is this needed? PHO
     ds['tilt_x'] = station_pose.interpolate_tilt(ds['tilt_x'])
     ds['tilt_y'] = station_pose.interpolate_tilt(ds['tilt_y'])
-
-    # Interpolate station heading and correct to true north
-    ds["rot_magnetic"] = station_pose.interpolate_rotation(ds["rot"])
-    magdec = station_pose.interpolate_magnetic_declination(declination_da,
-                                                           ds["rot_magnetic"])
-    ds["rot_true"] = station_pose.correct_rotation_to_true_north(ds["rot_magnetic"],
-                                                                 magdec)
 
     # Determine cloud cover for on-ice stations
     if not is_bedrock:
