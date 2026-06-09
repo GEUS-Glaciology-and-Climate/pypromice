@@ -143,8 +143,18 @@ class AWS(object):
     def getL1(self):
         """Perform L0 to L1 data processing"""
         logger.info("Level 1 processing...")
+
+        # Populate datasets with basic metadata
         self.L0 = [utilities.addBasicMeta(item, self.vars) for item in self.L0]
-        self.L1 = [toL1(item, self.vars) for item in self.L0]
+
+        # Retrieve magnetic declination coefficients from config
+        self.magdec_coef = magdec_config_to_array(self.magdec_configs,
+                                              self.L1A.attrs["station_id"])
+
+        # Process datasets to Level 1
+        self.L1 = [toL1(item, self.vars, self.magdec_coef) for item in self.L0]
+
+        # Merge Level 1 datasets
         self.L1A = reduce(xr.Dataset.combine_first, reversed(self.L1))
         self.L1A.attrs["format"] = self.format
 
@@ -152,15 +162,10 @@ class AWS(object):
         """Perform L1 to L2 data processing"""
         logger.info("Level 2 processing...")
 
-        # Retrieve magnetic declination coefficients from config
-        self.magdec_coef = magdec_config_to_array(self.magdec_configs,
-                                              self.L1A.attrs["station_id"])
-
         # Process to Level 2
         self.L2 = toL2(
             self.L1A,
             vars_df=self.vars,
-            declination_da=self.magdec_coef,
             data_flags_dir=self.data_issues_repository / "flags",
             data_adjustments_dir=self.data_issues_repository / "adjustments",
         )
