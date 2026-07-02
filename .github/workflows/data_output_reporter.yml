@@ -41,6 +41,7 @@ jobs:
                  -o out/new/ \
                  -d tests/data/magnetic_declination_configurations/test_magdec_config1.toml \
                  --data_issues_path data_issues/pr \
+                 --declination_path tests/data/magnetic_declination_configurations/test_magdec_config1.toml \
                  --write_60min
 
           get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
@@ -83,6 +84,7 @@ jobs:
                  -i tests/data/ \
                  -o out/original/ \
                  --data_issues_path data_issues/main \
+                 --declination_path tests/data/magnetic_declination_configurations/test_magdec_config1.toml \
                  --write_60min
 
           get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
