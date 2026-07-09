@@ -336,6 +336,96 @@ def align_surface_heights(data_series_new, data_series_old):
     return data_series_new
 
 
+def estimate_ice_surface_height_from_combined(time_index, z_surf_combined):
+    """
+    Derive a smoothed, non-increasing ice surface height time series
+    directly from the (already stitched/aligned) combined surface height,
+    without referencing any previously-derived, per-station z_ice_surf.
+
+    This is needed in join_l3 because per-station z_ice_surf estimates
+    (built in L2toL3 from different sensors/generations, and sometimes
+    missing entirely e.g. in historical GC-Net records) cannot be reliably
+    stitched together across a station changeover, unlike z_surf_combined.
+    Instead, z_ice_surf is rebuilt from scratch from the final, trusted
+    z_surf_combined record, using the same smoothing approach as
+    L2toL3.process_surface_height: a rolling median (14 days, or 1 day for
+    short records / at the edges where the rolling window is biased),
+    followed by a running minimum (the ice surface only melts down over
+    the course of a record), with short gaps (< 1 year, with values on
+    both sides within 1 cm of each other) filled in.
+
+    Parameters
+    ----------
+    time_index : xarray.DataArray or pandas.DatetimeIndex
+        Full time axis to reindex/interpolate the result onto.
+    z_surf_combined : xarray.DataArray or pandas.Series
+        The stitched combined surface height.
+
+    Returns
+    -------
+    pandas.Series
+        The derived ice surface height, indexed like `time_index`.
+    """
+    z_surf_combined_series = (
+        z_surf_combined.to_series()
+        if hasattr(z_surf_combined, "to_series")
+        else z_surf_combined
+    )
+
+    ts_interpolated = z_surf_combined_series.resample('h').interpolate(limit=72)
+
+    if len(ts_interpolated) > 24 * 7:
+        # Apply the rolling window with median calculation
+        z_ice_surf = (ts_interpolated
+                      .rolling('14D', center=True, min_periods=1)
+                      .median())
+        # Overprint the first and last 7 days with interpolated values
+        # because of edge effect of rolling windows
+        z_ice_surf.iloc[:24*7] = (ts_interpolated.iloc[:24*7]
+                                  .rolling('1D', center=True, min_periods=1)
+                                  .median().values)
+        z_ice_surf.iloc[-24*7:] = (ts_interpolated.iloc[-24*7:]
+                                   .rolling('1D', center=True, min_periods=1)
+                                   .median().values)
+    else:
+        z_ice_surf = (ts_interpolated
+                                   .rolling('1D', center=True, min_periods=1)
+                                   .median())
+
+    z_ice_surf = z_ice_surf.reindex(time_index,
+                                    method=None).interpolate(method='time')
+
+    # only keep values where the combined surface height is itself available
+    z_ice_surf = z_ice_surf.where(z_surf_combined_series.reindex(time_index).notnull())
+
+    # taking running minimum to get ice
+    z_ice_surf = z_ice_surf.cummin()
+
+    # filling gaps only if they are less than a year long and if values on both
+    # sides are less than 0.01 m appart
+
+    # Forward and backward fill to identify bounds of gaps
+    df_filled = z_ice_surf.ffill().bfill()
+
+    # Identify gaps and their start and end dates
+    gaps = pd.DataFrame(index=z_ice_surf[z_ice_surf.isna()].index)
+    gaps['prev_value'] = df_filled.shift(1)
+    gaps['next_value'] = df_filled.shift(-1)
+    gaps['gap_start'] = gaps.index.to_series().shift(1)
+    gaps['gap_end'] = gaps.index.to_series().shift(-1)
+    gaps['gap_duration'] = (gaps['gap_end'] - gaps['gap_start']).dt.days
+    gaps['value_diff'] = (gaps['next_value'] - gaps['prev_value']).abs()
+
+    # Determine which gaps to fill
+    mask = (gaps['gap_duration'] < 365) & (gaps['value_diff'] < 0.01)
+    gaps_to_fill = gaps[mask].index
+
+    # Fill gaps in the original Series
+    z_ice_surf.loc[gaps_to_fill] = df_filled.loc[gaps_to_fill]
+
+    return z_ice_surf
+
+
 def build_station_list(config_folder: str, target_station_site: str) -> list:
     """
     Get a list of unique station information dictionaries for a given station site.
@@ -417,7 +507,6 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
                     filepath = os.path.join(folder_glaciobasis, stid.replace('_hist','') + ".csv")
                     isNead = False
 
-        # import pdb; pdb.set_trace()
         if not os.path.isfile(filepath):
             logger.error(
                 f"\n***\n{stid} listed as a station but not found in {folder_l3}, {folder_gcnet} nor {folder_glaciobasis}\n***"
@@ -497,6 +586,9 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
 
             # adjusting surface height in the most recent data (l3_merged)
             # so that it shows continuity with the older data (l3)
+            # z_ice_surf and snow_height are not aligned here: they get
+            # rederived from the fully stitched z_surf_combined once the
+            # merge loop is done, see estimate_ice_surface_height_from_combined
             if "z_surf_combined" in l3_merged.keys() and "z_surf_combined" in l3.keys():
                 if (
                     l3_merged.z_surf_combined.notnull().any()
@@ -507,18 +599,6 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
                         align_surface_heights(
                             l3_merged.z_surf_combined.to_series(),
                             l3.z_surf_combined.to_series(),
-                        ),
-                    )
-            if "z_ice_surf" in l3_merged.keys() and "z_ice_surf" in l3.keys():
-                if (
-                    l3_merged.z_ice_surf.notnull().any()
-                    and l3.z_ice_surf.notnull().any()
-                ):
-                    l3_merged["z_ice_surf"] = (
-                        "time",
-                        align_surface_heights(
-                            l3_merged.z_ice_surf.to_series(),
-                            l3.z_ice_surf.to_series()
                         ),
                     )
 
@@ -543,6 +623,27 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
     if not l3_merged:
         logger.error("No level 3 station data file found for " + site)
         return None, sorted_list_station_data
+
+    # z_ice_surf and snow_height are rederived from the fully stitched
+    # z_surf_combined rather than stitched from the per-station z_ice_surf
+    # values (see estimate_ice_surface_height_from_combined). Only done for
+    # sites that actually have an ice surface (i.e. some station contributed
+    # non-null z_ice_surf); accumulation/bedrock sites are left untouched.
+    if "z_ice_surf" in l3_merged.keys() and l3_merged.z_ice_surf.notnull().any():
+        z_ice_surf = estimate_ice_surface_height_from_combined(
+            l3_merged.time, l3_merged["z_surf_combined"]
+        )
+        l3_merged["z_ice_surf"] = ("time", z_ice_surf.values)
+        l3_merged["z_surf_combined"] = np.maximum(
+            l3_merged["z_surf_combined"], l3_merged["z_ice_surf"]
+        )
+        l3_merged["snow_height"] = np.maximum(
+            0, l3_merged["z_surf_combined"] - l3_merged["z_ice_surf"]
+        )
+        l3_merged["z_ice_surf"] = l3_merged["z_ice_surf"].where(
+            l3_merged["snow_height"].notnull()
+        )
+
     l3_merged.attrs["site_id"] = site
     l3_merged.attrs["stations"] = " ".join(sorted_stids)
     l3_merged.attrs["level"] = "L3"
