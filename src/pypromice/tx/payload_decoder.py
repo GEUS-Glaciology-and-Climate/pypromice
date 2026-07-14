@@ -147,7 +147,7 @@ def decode_payload(
 def decode(bin_format: str, payload: bytes) -> list:
     payload_length = len(payload)
     logger.info(f"Decoding payload with format: {bin_format!r}. Payload length: {payload_length}")
-    logger.debug(f"Payload: {payload!r}")
+    logger.debug(f"Payload: {payload.hex()!r}")
     # Note: bin_val is just len(bin_format)
     indx = 1  # The first byte is the payload format
     dataline: list = []
@@ -155,7 +155,7 @@ def decode(bin_format: str, payload: bytes) -> list:
     try:
         for format_letter_index, type_letter in enumerate(bin_format):
             logger.debug(
-                f"Index {indx:02n} / {payload_length} Type letter: {type_letter:s}. upcuming bytes: {payload[indx:indx + 6]}..."
+                f"Index {indx:02n} / {payload_length} Type letter: {type_letter:s}. upcuming bytes: {payload[indx:indx+4].hex()}"
             )
 
             if type_letter == "f":
