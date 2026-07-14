@@ -20,6 +20,7 @@ __all__ = [
     "DecodeError",
 ]
 
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -264,7 +265,7 @@ def decode(bin_format: str, payload: bytes) -> list:
     return dataline
 
 
-if __name__ == "__main__":
+def main():
     import argparse
     import sys
     import pandas as pd
@@ -331,4 +332,7 @@ if __name__ == "__main__":
         payload_formats_path=args.payload_format_path,
     )
 
-    df = pd.DataFrame([decoded]).to_csv(sys.stdout, index=False, header=False)
+    return pd.DataFrame([decoded]).to_csv(sys.stdout, index=False, header=False)
+
+if __name__ == "__main__":
+    main()
