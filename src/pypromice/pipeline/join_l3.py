@@ -439,45 +439,40 @@ def find_station_filepath(station_info: dict, folder_l3: str,
 
 
 def get_valid_time_block(station_info: dict, filepath: str, isNead: bool,
-                          tested_vars=("t_u", "dsr"), min_gap: str = "30D") -> list:
+                         tested_vars=("t_u", "dsr"), min_gap: str = "30D") -> list:
     """
-    Load one station dataset and split it into continuous time blocks where at
-    least one of `tested_vars` is not NaN, separated by gaps longer than `min_gap`.
+    Load one station dataset and split it into continuous valid time blocks.
 
-    This is what allows a site's older station to be used to fill in periods
-    where its newer station has stopped reporting valid data, rather than the
-    newer station's (possibly all-NaN) time range shadowing it entirely.
+    A time block is defined as a period where at least one of the tested
+    variables contains valid data. A new block is created when all tested
+    variables are simultaneously missing for longer than `min_gap`.
 
-    Parameters
-    ----------
-    station_info : dict
-        Station configuration dictionary (includes 'stid' and 'project').
-    filepath : str
-        Path to the dataset file.
-    isNead : bool
-        Whether the file follows the NEAD format.
-    tested_vars : tuple of str
-        Variables used to determine data validity.
-    min_gap : str
-        Minimum NaN-only gap duration (e.g. '30D') that triggers a split.
+    Args:
+        station_info (dict): Station configuration dictionary containing station
+            metadata, including `stid`.
+        filepath (str): Path to the station data file.
+        isNead (bool): Whether the input file follows the NEAD format.
+        tested_vars (tuple, optional): Variables used to determine whether the
+            station contains valid data. Defaults to ("t_u", "dsr").
+        min_gap (str, optional): Minimum duration during which all tested
+            variables must be missing to split the record into separate blocks.
+            Defaults to "30D".
 
-    Returns
-    -------
-    list of dict
-        One entry per valid block: station_info fields plus 'start_time',
-        'end_time' and 'dataset'.
+    Returns:
+        list: List of dictionaries containing the station metadata, dataset,
+        and start and end times for each valid time block.
     """
     stid = station_info["stid"]
+
     try:
         ds, _ = loadArr(filepath, isNead)
     except Exception as e:
         logger.error(f"Failed to load {filepath}: {e}")
         return []
 
-    # removing specific variable from a given file
     specific_vars_to_drop = station_info.get("skipped_variables", [])
-    if len(specific_vars_to_drop) > 0:
-        logger.info("Skipping %s from %s" % (specific_vars_to_drop, stid))
+    if specific_vars_to_drop:
+        logger.info("Skipping %s from %s", specific_vars_to_drop, stid)
         ds = ds.drop_vars([var for var in specific_vars_to_drop if var in ds])
 
     valid = np.zeros(ds.time.size, dtype=bool)
@@ -492,16 +487,18 @@ def get_valid_time_block(station_info: dict, filepath: str, isNead: bool,
     time_index = pd.to_datetime(ds.time.values)
     valid_times = pd.Series(time_index[valid])
 
-    # a new block starts whenever the gap since the previous valid timestamp
-    # exceeds min_gap
+    # Start a new block whenever all tested variables have been missing
+    # for longer than min_gap.
     block_id = (valid_times.diff() > pd.Timedelta(min_gap)).cumsum()
 
     blocks = []
     for _, group in valid_times.groupby(block_id):
         seg_start, seg_end = group.iloc[0], group.iloc[-1]
         ds_seg = ds.sel(time=slice(seg_start, seg_end))
+
         if ds_seg.time.size == 0:
             continue
+
         blocks.append({
             **station_info,
             "start_time": np.datetime64(seg_start),
@@ -514,47 +511,70 @@ def get_valid_time_block(station_info: dict, filepath: str, isNead: bool,
 
 def resolve_block_overlap(blocks: list) -> list:
     """
-    Slice station data blocks into non-overlapping time segments, preferring
-    the block whose valid run started most recently where periods overlap
-    (i.e. a newer station wins where it has valid data), and falling back to
-    an older station's block where the newer one has no data covering that
-    segment.
+    Resolve overlaps between station data blocks.
 
-    Parameters
-    ----------
-    blocks : list of dict
-        Blocks as produced by `get_valid_time_block`, from all stations at a site.
+    When multiple stations cover the same period, data from the newer station
+    are given priority. Older station data are retained where the newer station
+    has no valid data. Neighboring resolved blocks belonging to the same station
+    are merged again.
 
-    Returns
-    -------
-    list of dict
-        Non-overlapping blocks, sorted newest-first (by start_time, descending).
+    Args:
+        blocks (list): Station data blocks produced by `get_valid_time_block`,
+            each containing a dataset, station metadata, and start and end times.
+
+    Returns:
+        list: Non-overlapping station data blocks ordered from newest to oldest.
     """
-    blocks = [b for b in blocks if not (np.isnat(b["start_time"]) or np.isnat(b["end_time"]))]
+    blocks = [
+        b for b in blocks
+        if not (np.isnat(b["start_time"]) or np.isnat(b["end_time"]))
+    ]
     if not blocks:
         return []
 
-    # sort ascending by start_time so that, among blocks covering the same
-    # segment, the one that started most recently sorts last
+    # Determine station priority independently of individual valid sub-blocks.
+    # A station whose overall record starts later is considered newer.
+    station_start = {
+        stid: min(
+            b["start_time"] for b in blocks if b["stid"] == stid
+        )
+        for stid in {b["stid"] for b in blocks}
+    }
+
     blocks = sorted(blocks, key=lambda b: b["start_time"])
 
     all_edges = sorted(set(
-        pd.to_datetime(t) for b in blocks for t in (b["start_time"], b["end_time"])
+        pd.to_datetime(t)
+        for b in blocks
+        for t in (b["start_time"], b["end_time"])
     ))
-    segments = [(all_edges[i], all_edges[i + 1]) for i in range(len(all_edges) - 1)]
+
+    segments = [
+        (all_edges[i], all_edges[i + 1])
+        for i in range(len(all_edges) - 1)
+    ]
 
     resolved_blocks = []
+
     for seg_start, seg_end in segments:
         covering = [
             b for b in blocks
-            if b["start_time"] <= seg_start and b["end_time"] >= seg_end
+            if b["start_time"] <= seg_start
+            and b["end_time"] >= seg_end
         ]
+
         if not covering:
             continue
 
-        # prefer the block whose valid run started most recently
-        chosen = covering[-1]
+        # Prefer the newer station, rather than the block whose current
+        # valid run happened to start most recently.
+        chosen = max(
+            covering,
+            key=lambda b: station_start[b["stid"]],
+        )
+
         ds_seg = chosen["dataset"].sel(time=slice(seg_start, seg_end))
+
         if ds_seg.time.size == 0:
             continue
 
@@ -565,7 +585,39 @@ def resolve_block_overlap(blocks: list) -> list:
             "end_time": np.datetime64(seg_end),
         })
 
-    return sorted(resolved_blocks, key=lambda b: b["start_time"], reverse=True)
+    # Merge neighboring resolved blocks from the same station.
+    resolved_blocks = sorted(
+        resolved_blocks,
+        key=lambda b: b["start_time"]
+    )
+
+    merged_blocks = []
+
+    for block in resolved_blocks:
+        if merged_blocks and merged_blocks[-1]["stid"] == block["stid"]:
+            previous = merged_blocks[-1]
+
+            ds = xr.concat(
+                [previous["dataset"], block["dataset"]],
+                dim="time",
+            )
+
+            # Remove duplicated boundary timestamp introduced by inclusive slicing.
+            ds = ds.isel(
+                time=~pd.Index(ds.time.values).duplicated()
+            )
+
+            previous["dataset"] = ds
+            previous["end_time"] = block["end_time"]
+
+        else:
+            merged_blocks.append(block)
+
+    return sorted(
+        merged_blocks,
+        key=lambda b: b["start_time"],
+        reverse=True,
+    )
 
 
 def build_station_data_blocks(config_folder: str, target_station_site: str,
@@ -681,7 +733,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
                 l3.time.isel(time=0).dt.strftime(date_format="%Y-%m-%d %H:%M:%S").item()
             )
             l3_merged.attrs["stations_attributes"][stid]["last_timestamp"] = (
-                l3_merged.time.isel(time=0)
+                l3_merged.time.isel(time=-1)
                 .dt.strftime(date_format="%Y-%m-%d %H:%M:%S")
                 .item()
             )
