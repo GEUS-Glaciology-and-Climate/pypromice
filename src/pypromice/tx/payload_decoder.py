@@ -13,7 +13,6 @@ process.
 import glob
 import logging
 from datetime import datetime
-from multiprocessing.connection import default_family
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +30,7 @@ CR_BASIC_EPOCH_OFFSET = datetime(1990, 1, 1, 0, 0, 0, 0).timestamp()
 
 
 class DecodeError(Exception):
+    """Decoding error exception object"""
 
     def __init__(
         self,
@@ -68,7 +68,18 @@ class DecodeError(Exception):
 
 
 def parse_gfp2(buffer: bytes) -> float:
-    """Two-byte floating point decoder"""
+    """Two-byte floating point decoder
+
+    Parameters
+    ----------
+    buffer : bytes
+        List of two values
+
+    Returns
+    -------
+    float
+        Decoded value
+    """
     if len(buffer) < 2:
         raise ValueError("Buffer too short for gfp2 decoding")
 
@@ -109,6 +120,21 @@ def parse_gli4(buffer: bytes) -> int:
 
 
 def determine_payload_format(payload: bytes, payload_formats_path: Path) -> str:
+    """Determine payload format from lookup table, based on the first byte in
+    the payload
+
+    Parameters
+    ----------
+    payload : bytes
+        Payload message
+    payload_formats_path : Path
+        File path to payload formats lookup table
+
+    Returns
+    -------
+    bin_format : str
+        Binary format of payload
+    """
     payload_formats = pd.read_csv(payload_formats_path, index_col=0)
     payload_formats = payload_formats[payload_formats["flags"].values != "don’t use"]
 
@@ -135,6 +161,25 @@ def decode_payload(
     payload_format: str | None = None,
     payload_formats_path: Path | None = None,
 ) -> list:
+    """Decode a payload, determining its binary format automatically unless
+    explicitly specified
+
+    Parameters
+    ----------
+    payload : bytes
+        Payload message
+    payload_format : str, optional
+        Explicit binary payload format identifier. If not given, it is
+        determined from `payload_formats_path`
+    payload_formats_path : Path, optional
+        File path to payload formats lookup table. Defaults to the
+        resources bundled with pypromice
+
+    Returns
+    -------
+    dataline : list
+        Decoded payload
+    """
     if payload_format is None:
         if payload_formats_path is None:
             try:
@@ -153,6 +198,20 @@ def decode_payload(
 
 
 def decode(bin_format: str, payload: bytes) -> list:
+    """Decode a payload, based on a pre-defined format identifier
+
+    Parameters
+    ----------
+    bin_format : str
+        Binary payload format identifier
+    payload : bytes
+        Payload message
+
+    Returns
+    -------
+    dataline : list
+        Decoded payload
+    """
     payload_length = len(payload)
     logger.info(
         f"Decoding payload with format: {bin_format!r}. Payload length: {payload_length}"
@@ -209,7 +268,7 @@ def decode(bin_format: str, payload: bytes) -> list:
                 indx += 2
 
             elif type_letter == "c":
-                # Unsigned integer encoded as two bytes (big-endian)
+                # Unsigned integer encoded as three bytes (big-endian)
                 if indx + 3 > payload_length:
                     raise Exception(
                         "Payload too short for 'c' (3-byte unsigned integer)"
@@ -298,7 +357,8 @@ def main():
         "-p",
         type=str,
         nargs="+",
-        help="Paths to payload files",
+        help="Paths to payload files. Supports glob patterns, for terminals "
+        "that don't expand them automatically",
         required=True,
     )
     parser.add_argument(
@@ -345,10 +405,14 @@ def main():
         root_logger = logging.getLogger()
         root_logger.setLevel(getattr(logging, args.log_level))
 
-    payload_paths = [
-        Path(p) for p_input in args.payload_file_paths for p in glob.glob(p_input)
-    ]
-    payload_paths = sorted(payload_paths, key=lambda p: p.as_posix())
+    payload_paths = []
+    for p_input in args.payload_file_paths:
+        matches = sorted(Path(p) for p in glob.glob(p_input))
+        if not matches:
+            raise FileNotFoundError(
+                f"No files found matching payload file path: {p_input!r}"
+            )
+        payload_paths.extend(matches)
 
     lines = []
     for payload_file_path in payload_paths:
