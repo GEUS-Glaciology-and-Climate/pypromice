@@ -9,8 +9,11 @@ is implemented to handle errors that may occur during the decoding process.
 Additionally, logging is used for debug information throughout the decoding
 process.
 """
+
+import glob
 import logging
 from datetime import datetime
+from multiprocessing.connection import default_family
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +28,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 CR_BASIC_EPOCH_OFFSET = datetime(1990, 1, 1, 0, 0, 0, 0).timestamp()
+
 
 class DecodeError(Exception):
 
@@ -135,9 +139,12 @@ def decode_payload(
         if payload_formats_path is None:
             try:
                 from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH
+
                 payload_formats_path = DEFAULT_PAYLOAD_FORMATS_PATH
             except ImportError:
-                raise Exception("Payload formats path not specified and not found in resources")
+                raise Exception(
+                    "Payload formats path not specified and not found in resources"
+                )
 
         payload_format = determine_payload_format(payload, payload_formats_path)
     dataline = decode(payload_format, payload)
@@ -147,7 +154,9 @@ def decode_payload(
 
 def decode(bin_format: str, payload: bytes) -> list:
     payload_length = len(payload)
-    logger.info(f"Decoding payload with format: {bin_format!r}. Payload length: {payload_length}")
+    logger.info(
+        f"Decoding payload with format: {bin_format!r}. Payload length: {payload_length}"
+    )
     logger.debug(f"Payload: {payload.hex()!r}")
     # Note: bin_val is just len(bin_format)
     indx = 1  # The first byte is the payload format
@@ -176,11 +185,13 @@ def decode(bin_format: str, payload: bytes) -> list:
                 else:
                     dataline.append(value)
                 indx += 2
-            
+
             elif type_letter == "b":
                 # Unsigned integer encoded as a single byte
                 if indx + 1 > payload_length:
-                    raise Exception("Payload too short for 'b' (1-byte unsigned integer)")
+                    raise Exception(
+                        "Payload too short for 'b' (1-byte unsigned integer)"
+                    )
                 value = payload[indx]
                 dataline.append(value)
                 indx += 1
@@ -188,19 +199,27 @@ def decode(bin_format: str, payload: bytes) -> list:
             elif type_letter == "w":
                 # Unsigned integer encoded as two bytes (big-endian)
                 if indx + 2 > payload_length:
-                    raise Exception("Payload too short for 'w' (2-byte unsigned integer)")
-                value = int.from_bytes(payload[indx:indx + 2], byteorder="big", signed=False)
+                    raise Exception(
+                        "Payload too short for 'w' (2-byte unsigned integer)"
+                    )
+                value = int.from_bytes(
+                    payload[indx : indx + 2], byteorder="big", signed=False
+                )
                 dataline.append(value)
                 indx += 2
-                
+
             elif type_letter == "c":
                 # Unsigned integer encoded as two bytes (big-endian)
                 if indx + 3 > payload_length:
-                    raise Exception("Payload too short for 'c' (3-byte unsigned integer)")
-                value = int.from_bytes(payload[indx:indx + 3], byteorder="big", signed=False)
+                    raise Exception(
+                        "Payload too short for 'c' (3-byte unsigned integer)"
+                    )
+                value = int.from_bytes(
+                    payload[indx : indx + 3], byteorder="big", signed=False
+                )
                 dataline.append(value)
                 indx += 3
-            
+
             elif type_letter == "l":
                 # Encoded as a 4 byte two complement integer
 
@@ -271,18 +290,23 @@ def main():
     import pandas as pd
     from pathlib import Path
 
-    parser = argparse.ArgumentParser(description="Payload decoder tool for CRBasic logger")
+    parser = argparse.ArgumentParser(
+        description="Payload decoder tool for CRBasic logger"
+    )
     parser.add_argument(
-        "--payload_file_path",
+        "--payload_file_paths",
         "-p",
-        type=Path,
-        help="Path to payload file",
-        default=None,
+        type=str,
+        nargs="+",
+        help="Paths to payload files",
+        required=True,
     )
     parser.add_argument(
         "--format", "-f", help="Explicitly specify decoding string", default=None
     )
-    parser.add_argument("--no-log", action="store_true", help="Disable logging", default=False)
+    parser.add_argument(
+        "--no-log", action="store_true", help="Disable logging", default=False
+    )
     parser.add_argument(
         "--log_level",
         "-l",
@@ -298,6 +322,12 @@ def main():
         default=None,
     )
     parser.add_argument(
+        "--continue_on_error",
+        help="Skip and continue processing on errors",
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
         "--drop_checksum_suffix",
         action="store_true",
         help="Remove the last two bytes from the payload",
@@ -310,29 +340,48 @@ def main():
         logging.basicConfig(
             level=getattr(logging, args.log_level),
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            stream=sys.stderr
+            stream=sys.stderr,
         )
         root_logger = logging.getLogger()
         root_logger.setLevel(getattr(logging, args.log_level))
 
+    payload_paths = [
+        Path(p) for p_input in args.payload_file_paths for p in glob.glob(p_input)
+    ]
+    payload_paths = sorted(payload_paths, key=lambda p: p.as_posix())
 
-    if isinstance(args.payload_file_path, Path):
-        with open(args.payload_file_path, "rb") as payload_file:
-            payload = payload_file.read()
-    else:
-        # Read payload from stdin
-        payload = sys.stdin.buffer.read()
+    lines = []
+    for payload_file_path in payload_paths:
+        logger.info(f"Parsing {payload_file_path}")
+        try:
+            with open(payload_file_path, "rb") as payload_file:
+                payload = payload_file.read()
 
-    if args.drop_checksum_suffix:
-        payload = payload[:-2]
+            if args.drop_checksum_suffix:
+                payload = payload[:-2]
 
-    decoded = decode_payload(
-        payload,
-        payload_format=args.format,
-        payload_formats_path=args.payload_format_path,
+            data_line = decode_payload(
+                payload,
+                payload_format=args.format,
+                payload_formats_path=args.payload_format_path,
+            )
+
+            lines.append(data_line)
+        except Exception as e:
+            if args.continue_on_error:
+                logger.error(f"Error decoding {payload_file_path}. {e}")
+            else:
+                raise
+
+    df = pd.DataFrame(lines)
+    df.to_csv(
+        sys.stdout,
+        index=False,
+        header=False,
+        date_format="%Y-%m-%d %H:%M:%S",
     )
 
-    return pd.DataFrame([decoded]).to_csv(sys.stdout, index=False, header=False)
 
 if __name__ == "__main__":
+
     main()
