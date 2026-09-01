@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pypromice"
-version = "1.12.1"
+version = "1.12.2"
 description = "PROMICE/GC-Net toolbox for processing data from automatic weather stations"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -69,6 +69,7 @@ create_bufr_files = "pypromice.io.bufr.create_bufr_files:main"
 bufr_to_csv = "pypromice.io.bufr.bufr_to_csv:main"
 get_l0tx = "pypromice.tx.get_l0tx:main"
 get_msg = "pypromice.tx.get_msg:get_msg"
+decode_payload = "pypromice.tx.payload_decoder:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

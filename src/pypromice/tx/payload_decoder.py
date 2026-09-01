@@ -9,16 +9,20 @@ is implemented to handle errors that may occur during the decoding process.
 Additionally, logging is used for debug information throughout the decoding
 process.
 """
+
+import glob
 import logging
-import numpy as np
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+
 __all__ = [
+    "decode_payload",
     "DecodeError",
-    "determine_payload_format",
-    "decode"
 ]
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +107,7 @@ def parse_gli4(buffer: bytes) -> int:
     ----------
     buffer : bytes
         List of four values
-        
+
     Returns
     -------
     float
@@ -152,6 +156,47 @@ def determine_payload_format(payload: bytes, payload_formats_path: Path) -> str:
     return bin_format
 
 
+def decode_payload(
+    payload: bytes,
+    payload_format: str | None = None,
+    payload_formats_path: Path | None = None,
+) -> list:
+    """Decode a payload, determining its binary format automatically unless
+    explicitly specified
+
+    Parameters
+    ----------
+    payload : bytes
+        Payload message
+    payload_format : str, optional
+        Explicit binary payload format identifier. If not given, it is
+        determined from `payload_formats_path`
+    payload_formats_path : Path, optional
+        File path to payload formats lookup table. Defaults to the
+        resources bundled with pypromice
+
+    Returns
+    -------
+    dataline : list
+        Decoded payload
+    """
+    if payload_format is None:
+        if payload_formats_path is None:
+            try:
+                from pypromice.resources import DEFAULT_PAYLOAD_FORMATS_PATH
+
+                payload_formats_path = DEFAULT_PAYLOAD_FORMATS_PATH
+            except ImportError:
+                raise Exception(
+                    "Payload formats path not specified and not found in resources"
+                )
+
+        payload_format = determine_payload_format(payload, payload_formats_path)
+    dataline = decode(payload_format, payload)
+
+    return dataline
+
+
 def decode(bin_format: str, payload: bytes) -> list:
     """Decode a payload, based on a pre-defined format identifier
 
@@ -168,8 +213,10 @@ def decode(bin_format: str, payload: bytes) -> list:
         Decoded payload
     """
     payload_length = len(payload)
-    logger.info(f"Decoding payload with format: {bin_format!r}. Payload length: {payload_length}")
-    logger.debug(f"Payload: {payload!r}")
+    logger.info(
+        f"Decoding payload with format: {bin_format!r}. Payload length: {payload_length}"
+    )
+    logger.debug(f"Payload: {payload.hex()!r}")
     # Note: bin_val is just len(bin_format)
     indx = 1  # The first byte is the payload format
     dataline: list = []
@@ -177,11 +224,10 @@ def decode(bin_format: str, payload: bytes) -> list:
     try:
         for format_letter_index, type_letter in enumerate(bin_format):
             logger.debug(
-                f"Index {indx:02n} / {payload_length} Type letter: {type_letter:s}. upcuming bytes: {payload[indx:indx + 6]}..."
+                f"Index {indx:02n} / {payload_length} Type letter: {type_letter:s}. upcuming bytes: {payload[indx:indx+4].hex()}"
             )
 
             if type_letter == "f":
-                # Encoded as 2 bytes base-10 floating point (GFP2)
                 nan_values = (8191,)
                 inf_values = (8190,)
                 neg_inf_values = -8190, -8191
@@ -199,8 +245,42 @@ def decode(bin_format: str, payload: bytes) -> list:
                     dataline.append(value)
                 indx += 2
 
+            elif type_letter == "b":
+                # Unsigned integer encoded as a single byte
+                if indx + 1 > payload_length:
+                    raise Exception(
+                        "Payload too short for 'b' (1-byte unsigned integer)"
+                    )
+                value = payload[indx]
+                dataline.append(value)
+                indx += 1
+
+            elif type_letter == "w":
+                # Unsigned integer encoded as two bytes (big-endian)
+                if indx + 2 > payload_length:
+                    raise Exception(
+                        "Payload too short for 'w' (2-byte unsigned integer)"
+                    )
+                value = int.from_bytes(
+                    payload[indx : indx + 2], byteorder="big", signed=False
+                )
+                dataline.append(value)
+                indx += 2
+
+            elif type_letter == "c":
+                # Unsigned integer encoded as three bytes (big-endian)
+                if indx + 3 > payload_length:
+                    raise Exception(
+                        "Payload too short for 'c' (3-byte unsigned integer)"
+                    )
+                value = int.from_bytes(
+                    payload[indx : indx + 3], byteorder="big", signed=False
+                )
+                dataline.append(value)
+                indx += 3
+
             elif type_letter == "l":
-                # Encoded as 4 bytes two complement integer (GLI4) - note the mac nan value is not a max value
+                # Encoded as a 4 byte two complement integer
 
                 value = parse_gli4(payload[indx:])
 
@@ -214,14 +294,13 @@ def decode(bin_format: str, payload: bytes) -> list:
                 indx += 4
 
             elif type_letter == "t":
-                # timestamp as seconds since 1990-01-01 00:00:00 +0000 encoded as GLI4
                 value = parse_gli4(payload[indx:])
                 time = datetime.fromtimestamp(CR_BASIC_EPOCH_OFFSET + value)
                 dataline.append(time)
                 indx += 4
 
+            # GPS time or coordinate encoding
             elif type_letter in ("g", "n", "e"):
-                # GPS time or coordinate encoding
                 nan_values_fp2 = (8191,)
                 # Check if byte is a 2-bit NAN. This occurs when the GPS data is not
                 # available and the logger sends a 2-bytes NAN instead of a 4-bytes value
@@ -264,24 +343,30 @@ def decode(bin_format: str, payload: bytes) -> list:
     return dataline
 
 
-if __name__ == "__main__":
+def main():
     import argparse
     import sys
     import pandas as pd
     from pathlib import Path
 
-    parser = argparse.ArgumentParser(description="Payload decoder tool for CRBasic logger")
+    parser = argparse.ArgumentParser(
+        description="Payload decoder tool for CRBasic logger"
+    )
     parser.add_argument(
-        "--payload_file_path",
+        "--payload_file_paths",
         "-p",
-        type=Path,
-        help="Path to payload file",
-        default=None,
+        type=str,
+        nargs="+",
+        help="Paths to payload files. Supports glob patterns, for terminals "
+        "that don't expand them automatically",
+        required=True,
     )
     parser.add_argument(
         "--format", "-f", help="Explicitly specify decoding string", default=None
     )
-    parser.add_argument("--no-log", action="store_true", help="Disable logging", default=False)
+    parser.add_argument(
+        "--no-log", action="store_true", help="Disable logging", default=False
+    )
     parser.add_argument(
         "--log_level",
         "-l",
@@ -291,9 +376,16 @@ if __name__ == "__main__":
         default="INFO",
     )
     parser.add_argument(
-        "--payload_formats_path",
+        "--payload_format_path",
         type=Path,
-        help="Path to payload formats .csv file",
+        help="Path to payload format .csv file",
+        default=None,
+    )
+    parser.add_argument(
+        "--continue_on_error",
+        help="Skip and continue processing on errors",
+        default=False,
+        action="store_true",
     )
     parser.add_argument(
         "--drop_checksum_suffix",
@@ -308,27 +400,52 @@ if __name__ == "__main__":
         logging.basicConfig(
             level=getattr(logging, args.log_level),
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            stream=sys.stderr
+            stream=sys.stderr,
         )
         root_logger = logging.getLogger()
         root_logger.setLevel(getattr(logging, args.log_level))
 
-    if isinstance(args.payload_file_path, Path):
-        with open(args.payload_file_path, "rb") as payload_file:
-            payload = payload_file.read()
-    else:
-        # Read payload from stdin
-        payload = sys.stdin.buffer.read()
+    payload_paths = []
+    for p_input in args.payload_file_paths:
+        matches = sorted(Path(p) for p in glob.glob(p_input))
+        if not matches:
+            raise FileNotFoundError(
+                f"No files found matching payload file path: {p_input!r}"
+            )
+        payload_paths.extend(matches)
 
-    if args.drop_checksum_suffix:
-        payload = payload[:-2]
+    lines = []
+    for payload_file_path in payload_paths:
+        logger.info(f"Parsing {payload_file_path}")
+        try:
+            with open(payload_file_path, "rb") as payload_file:
+                payload = payload_file.read()
 
-    if args.format is not None:
-        payload_format = args.format
-    else:
-        if args.payload_formats_path is None:
-            raise ValueError("Payload format path must be specified if decoding format is not specified")
-        payload_format = determine_payload_format(payload, args.payload_formats_path)
-    decoded = decode(payload_format, payload)
+            if args.drop_checksum_suffix:
+                payload = payload[:-2]
 
-    df = pd.DataFrame([decoded]).to_csv(sys.stdout, index=False, header=False)
+            data_line = decode_payload(
+                payload,
+                payload_format=args.format,
+                payload_formats_path=args.payload_format_path,
+            )
+
+            lines.append(data_line)
+        except Exception as e:
+            if args.continue_on_error:
+                logger.error(f"Error decoding {payload_file_path}. {e}")
+            else:
+                raise
+
+    df = pd.DataFrame(lines)
+    df.to_csv(
+        sys.stdout,
+        index=False,
+        header=False,
+        date_format="%Y-%m-%d %H:%M:%S",
+    )
+
+
+if __name__ == "__main__":
+
+    main()
