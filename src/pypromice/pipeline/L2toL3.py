@@ -376,7 +376,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         # each ablation period
         for start, end in idx:
             period_start = df.index[start]
-            period_end = period_start + pd.Timedelta(days=3)
+            period_end = period_start + pd.Timedelta(days=10)
             exclusion_period = (df.index >= period_start) & (df.index < period_end)
             ind_ablation[exclusion_period] = False
 
@@ -405,7 +405,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                 # for the ice height
                 z = z - z.loc[
                     z.first_valid_index():(z.first_valid_index()+pd.to_timedelta('14D'))
-                    ].mean() + hs1.iloc[:24*7].mean()
+                    ].mean() + hs1.loc[hs1.first_valid_index():(hs1.first_valid_index()+pd.to_timedelta('7D'))].mean()
             else:
                 # if there is more than a year (actually 251 days) between the
                 # initiation of the AWS and the installation of the pressure transducer
@@ -458,6 +458,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         hs2_ref = 0 # by default, the PT is the reference: hs1 and 2 will be adjusted to PT
         # but if it is missing one year or one winter, then it needs to be rajusted
         # to hs1 and hs2 the year after.
+
 
         for i, y in enumerate(years):
             logger.debug(f'{y}: Ablation from {z.index[ind_start[i]]} to {z.index[ind_end[i]]}')
@@ -588,7 +589,9 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                                 np.nanmean(z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])
                     # if not possible, then trying the end of the following accumulation season
                     elif (i+1 < len(ind_start)):
-                        if ind_start[i+1]!=-999 and any(~np.isnan(hs2.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)]+ z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])):
+                        if ind_start[i+1]!=-999 and \
+                            any(~np.isnan(hs2.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)] \
+                                          + z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])):
                             logger.debug('using end of accumulation season')
                             hs2.iloc[ind_end[i]:] = hs2.iloc[ind_end[i]:] - \
                                 np.nanmean(hs2.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])  + \
@@ -695,7 +698,6 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
         # in winter, both SR1 and SR2 are used
         df["z_surf_combined"] = df["z_surf_2_adj"].interpolate(limit=72).values
-
 
         # in ablation season we use SR2 instead of the SR1&2 average
         # here two options:
