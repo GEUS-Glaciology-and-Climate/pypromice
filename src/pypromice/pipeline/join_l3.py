@@ -4,7 +4,7 @@ import logging, os, sys, toml
 from argparse import ArgumentParser
 
 from pypromice.io.ingest.git import get_commit_hash_and_check_dirty
-from pypromice.pipeline.L2toL3 import post_processing_z_ice_surf
+from pypromice.core.variables import surface_height
 
 import pypromice.resources
 from pypromice.io.write import prepare_and_write
@@ -801,7 +801,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
     if site_type == "ablation" and all(
         v in l3_merged.data_vars for v in ("z_ice_surf", "z_surf_combined", "z_surf_2_adj")
     ):
-        z_ice_surf = post_processing_z_ice_surf(
+        z_ice_surf = surface_height.post_processing_z_ice_surf(
             l3_merged["z_ice_surf"], l3_merged["z_surf_combined"], l3_merged["z_surf_2_adj"]
         )
         l3_merged["z_ice_surf"] = ("time", z_ice_surf.values)
