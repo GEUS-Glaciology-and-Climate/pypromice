@@ -518,6 +518,13 @@ def resolve_block_overlap(blocks: list) -> list:
     has no valid data. Neighboring resolved blocks belonging to the same station
     are merged again.
 
+    Station priority is resolved with a fail-safe cascade, so the choice stays
+    deterministic even when stations start reporting at the exact same time:
+      1. The station whose overall record starts later is considered newer.
+      2. If tied, a station id containing "v3" or "_O" (the newer/preferred
+         logger naming convention) takes priority.
+      3. If still tied, the station listed first in `blocks` is kept.
+
     Args:
         blocks (list): Station data blocks produced by `get_valid_time_block`,
             each containing a dataset, station metadata, and start and end times.
@@ -540,6 +547,15 @@ def resolve_block_overlap(blocks: list) -> list:
         )
         for stid in {b["stid"] for b in blocks}
     }
+
+    # Preserve the order stations were listed in, as the last-resort tiebreak.
+    stid_order = {}
+    for i, b in enumerate(blocks):
+        stid_order.setdefault(b["stid"], i)
+
+    def station_priority(stid):
+        has_priority_marker = "v3" in stid or "_O" in stid
+        return (station_start[stid], has_priority_marker, -stid_order[stid])
 
     blocks = sorted(blocks, key=lambda b: b["start_time"])
 
@@ -570,7 +586,7 @@ def resolve_block_overlap(blocks: list) -> list:
         # valid run happened to start most recently.
         chosen = max(
             covering,
-            key=lambda b: station_start[b["stid"]],
+            key=lambda b: station_priority(b["stid"]),
         )
 
         ds_seg = chosen["dataset"].sel(time=slice(seg_start, seg_end))
