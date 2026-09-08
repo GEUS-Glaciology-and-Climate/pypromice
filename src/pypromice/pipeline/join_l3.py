@@ -4,6 +4,7 @@ import logging, os, sys, toml
 from argparse import ArgumentParser
 
 from pypromice.io.ingest.git import get_commit_hash_and_check_dirty
+from pypromice.core.variables import surface_height
 
 import pypromice.resources
 from pypromice.io.write import prepare_and_write
@@ -394,43 +395,301 @@ def build_station_list(config_folder: str, target_station_site: str) -> list:
     return station_info_list
 
 
+def find_station_filepath(station_info: dict, folder_l3: str,
+                           folder_gcnet: str = None, folder_glaciobasis: str = None):
+    """
+    Determine the path to a station data file based on project type and available folders.
+
+    Parameters
+    ----------
+    station_info : dict
+        Station configuration dictionary (must contain 'stid' and 'project').
+    folder_l3 : str
+        Path to the PROMICE Level 3 data folder.
+    folder_gcnet : str, optional
+        Path to the GC-Net historical data folder.
+    folder_glaciobasis : str, optional
+        Path to the GlacioBasis historical data folder.
+
+    Returns
+    -------
+    tuple
+        (filepath, isNead). filepath is None if no file could be found.
+    """
+    stid = station_info["stid"]
+    filepath = os.path.join(folder_l3, stid, stid + "_mixed.nc")
+    isNead = False
+
+    if not os.path.isfile(filepath):
+        if station_info["project"].lower() in ["historical gc-net"]:
+            filepath = os.path.join(folder_gcnet, stid + ".csv")
+            isNead = True
+        if folder_glaciobasis is not None:
+            if station_info["project"].lower() in ["glaciobasis"]:
+                filepath = os.path.join(folder_glaciobasis, stid.replace('_hist', '') + ".csv")
+                isNead = False
+
+    if not os.path.isfile(filepath):
+        logger.error(
+            f"\n***\n{stid} listed as a station but not found in {folder_l3}, {folder_gcnet} nor {folder_glaciobasis}\n***"
+        )
+        return None, isNead
+
+    return filepath, isNead
+
+
+def get_valid_time_block(station_info: dict, filepath: str, isNead: bool,
+                         tested_vars=("t_u", "dsr"), min_gap: str = "30D") -> list:
+    """
+    Load one station dataset and split it into continuous valid time blocks.
+
+    A time block is defined as a period where at least one of the tested
+    variables contains valid data. A new block is created when all tested
+    variables are simultaneously missing for longer than `min_gap`.
+
+    Args:
+        station_info (dict): Station configuration dictionary containing station
+            metadata, including `stid`.
+        filepath (str): Path to the station data file.
+        isNead (bool): Whether the input file follows the NEAD format.
+        tested_vars (tuple, optional): Variables used to determine whether the
+            station contains valid data. Defaults to ("t_u", "dsr").
+        min_gap (str, optional): Minimum duration during which all tested
+            variables must be missing to split the record into separate blocks.
+            Defaults to "30D".
+
+    Returns:
+        list: List of dictionaries containing the station metadata, dataset,
+        and start and end times for each valid time block.
+    """
+    stid = station_info["stid"]
+
+    try:
+        ds, _ = loadArr(filepath, isNead)
+    except Exception as e:
+        logger.error(f"Failed to load {filepath}: {e}")
+        return []
+
+    specific_vars_to_drop = station_info.get("skipped_variables", [])
+    if specific_vars_to_drop:
+        logger.info("Skipping %s from %s", specific_vars_to_drop, stid)
+        ds = ds.drop_vars([var for var in specific_vars_to_drop if var in ds])
+
+    valid = np.zeros(ds.time.size, dtype=bool)
+    for var in tested_vars:
+        if var in ds:
+            valid |= ds[var].notnull().values
+
+    if not valid.any():
+        logger.warning(f"No valid data for {stid} in {filepath}")
+        return []
+
+    time_index = pd.to_datetime(ds.time.values)
+    valid_times = pd.Series(time_index[valid])
+
+    # Start a new block whenever all tested variables have been missing
+    # for longer than min_gap.
+    block_id = (valid_times.diff() > pd.Timedelta(min_gap)).cumsum()
+
+    blocks = []
+    for _, group in valid_times.groupby(block_id):
+        seg_start, seg_end = group.iloc[0], group.iloc[-1]
+        ds_seg = ds.sel(time=slice(seg_start, seg_end))
+
+        if ds_seg.time.size == 0:
+            continue
+
+        blocks.append({
+            **station_info,
+            "start_time": np.datetime64(seg_start),
+            "end_time": np.datetime64(seg_end),
+            "dataset": ds_seg,
+        })
+
+    return blocks
+
+
+def resolve_block_overlap(blocks: list) -> list:
+    """
+    Resolve overlaps between station data blocks.
+
+    When multiple stations cover the same period, data from the newer station
+    are given priority. Older station data are retained where the newer station
+    has no valid data. Neighboring resolved blocks belonging to the same station
+    are merged again.
+
+    Station priority is resolved with a fail-safe cascade, so the choice stays
+    deterministic even when stations start reporting at the exact same time:
+      1. The station whose overall record starts later is considered newer.
+      2. If tied, a station id containing "v3" or "_O" (the newer/preferred
+         logger naming convention) takes priority.
+      3. If still tied, the station listed first in `blocks` is kept.
+
+    Args:
+        blocks (list): Station data blocks produced by `get_valid_time_block`,
+            each containing a dataset, station metadata, and start and end times.
+
+    Returns:
+        list: Non-overlapping station data blocks ordered from newest to oldest.
+    """
+    blocks = [
+        b for b in blocks
+        if not (np.isnat(b["start_time"]) or np.isnat(b["end_time"]))
+    ]
+    if not blocks:
+        return []
+
+    # Determine station priority independently of individual valid sub-blocks.
+    # A station whose overall record starts later is considered newer.
+    station_start = {
+        stid: min(
+            b["start_time"] for b in blocks if b["stid"] == stid
+        )
+        for stid in {b["stid"] for b in blocks}
+    }
+
+    # Preserve the order stations were listed in, as the last-resort tiebreak.
+    stid_order = {}
+    for i, b in enumerate(blocks):
+        stid_order.setdefault(b["stid"], i)
+
+    def station_priority(stid):
+        has_priority_marker = "v3" in stid or "_O" in stid
+        return (station_start[stid], has_priority_marker, -stid_order[stid])
+
+    blocks = sorted(blocks, key=lambda b: b["start_time"])
+
+    all_edges = sorted(set(
+        pd.to_datetime(t)
+        for b in blocks
+        for t in (b["start_time"], b["end_time"])
+    ))
+
+    segments = [
+        (all_edges[i], all_edges[i + 1])
+        for i in range(len(all_edges) - 1)
+    ]
+
+    resolved_blocks = []
+
+    for seg_start, seg_end in segments:
+        covering = [
+            b for b in blocks
+            if b["start_time"] <= seg_start
+            and b["end_time"] >= seg_end
+        ]
+
+        if not covering:
+            continue
+
+        # Prefer the newer station, rather than the block whose current
+        # valid run happened to start most recently.
+        chosen = max(
+            covering,
+            key=lambda b: station_priority(b["stid"]),
+        )
+
+        ds_seg = chosen["dataset"].sel(time=slice(seg_start, seg_end))
+
+        if ds_seg.time.size == 0:
+            continue
+
+        resolved_blocks.append({
+            **{k: v for k, v in chosen.items() if k != "dataset"},
+            "dataset": ds_seg,
+            "start_time": np.datetime64(seg_start),
+            "end_time": np.datetime64(seg_end),
+        })
+
+    # Merge neighboring resolved blocks from the same station.
+    resolved_blocks = sorted(
+        resolved_blocks,
+        key=lambda b: b["start_time"]
+    )
+
+    merged_blocks = []
+
+    for block in resolved_blocks:
+        if merged_blocks and merged_blocks[-1]["stid"] == block["stid"]:
+            previous = merged_blocks[-1]
+
+            ds = xr.concat(
+                [previous["dataset"], block["dataset"]],
+                dim="time",
+            )
+
+            # Remove duplicated boundary timestamp introduced by inclusive slicing.
+            ds = ds.isel(
+                time=~pd.Index(ds.time.values).duplicated()
+            )
+
+            previous["dataset"] = ds
+            previous["end_time"] = block["end_time"]
+
+        else:
+            merged_blocks.append(block)
+
+    return sorted(
+        merged_blocks,
+        key=lambda b: b["start_time"],
+        reverse=True,
+    )
+
+
+def build_station_data_blocks(config_folder: str, target_station_site: str,
+                               folder_l3: str, folder_gcnet: str = None,
+                               folder_glaciobasis: str = None) -> list:
+    """
+    Build the list of (dataset, station_info) tuples to merge for a site,
+    splitting each station's data into continuous valid time blocks first so
+    that gaps in the newest station's record can be filled from an older
+    station's data instead of being dropped.
+
+    Parameters
+    ----------
+    config_folder : str
+        Path to folder containing station TOML configuration files.
+    target_station_site : str
+        Target site name to process (e.g. "KPC_L").
+    folder_l3 : str
+        Path to PROMICE Level 3 data folder.
+    folder_gcnet : str, optional
+        Path to GC-Net data folder.
+    folder_glaciobasis : str, optional
+        Path to GlacioBasis data folder.
+
+    Returns
+    -------
+    list of (xarray.Dataset, dict)
+        Newest-first list of resolved, non-overlapping data blocks and their
+        station metadata.
+    """
+    station_info_list = build_station_list(config_folder, target_station_site)
+
+    blocks = []
+    for station_info in station_info_list:
+        filepath, isNead = find_station_filepath(station_info, folder_l3, folder_gcnet, folder_glaciobasis)
+        if not filepath:
+            continue
+        blocks.extend(get_valid_time_block(station_info, filepath, isNead))
+
+    blocks = resolve_block_overlap(blocks)
+
+    logger.info("Resolved non-overlapping station data blocks:")
+    for b in blocks:
+        t0 = pd.to_datetime(b["start_time"]).strftime("%Y-%m-%d")
+        t1 = pd.to_datetime(b["end_time"]).strftime("%Y-%m-%d")
+        logger.info(f"  {b['stid']:10s}  {t0}  ->  {t1}")
+
+    return [(b["dataset"], {k: v for k, v in b.items() if k != "dataset"}) for b in blocks]
+
+
 def join_l3(config_folder, site, folder_l3, folder_gcnet,
             folder_glaciobasis, outpath, variables, metadata
             ):
-    # Get the list of station information dictionaries associated with the given site
-    list_station_info = build_station_list(config_folder, site)
-
-    # Read the datasets and store them into a list along with their latest timestamp and station info
-    list_station_data = []
-    for station_info in list_station_info:
-        stid = station_info["stid"]
-
-        filepath = os.path.join(folder_l3, stid, stid + "_mixed.nc")
-        isNead = False
-
-        if not os.path.isfile(filepath):
-            if station_info["project"].lower() in ["historical gc-net"]:
-                filepath = os.path.join(folder_gcnet, stid + ".csv")
-                isNead = True
-            if folder_glaciobasis is not None:
-                if station_info["project"].lower() in ["glaciobasis"]:
-                    filepath = os.path.join(folder_glaciobasis, stid.replace('_hist','') + ".csv")
-                    isNead = False
-
-        # import pdb; pdb.set_trace()
-        if not os.path.isfile(filepath):
-            logger.error(
-                f"\n***\n{stid} listed as a station but not found in {folder_l3}, {folder_gcnet} nor {folder_glaciobasis}\n***"
-            )
-            continue
-
-        l3, _ = loadArr(filepath, isNead)
-
-        list_station_data.append((l3, station_info))
-
-    # Sort the list in reverse chronological order so that we start with the latest data
-    sorted_list_station_data = sorted(
-        list_station_data, key=lambda x: x[0].time.min(), reverse=True
+    # Build the list of resolved, non-overlapping station data blocks for the site
+    sorted_list_station_data = build_station_data_blocks(
+        config_folder, site, folder_l3, folder_gcnet, folder_glaciobasis
     )
     sorted_stids = [info["stid"] for _, info in sorted_list_station_data]
     logger.info("joining %s" % " ".join(sorted_stids))
@@ -490,7 +749,7 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
                 l3.time.isel(time=0).dt.strftime(date_format="%Y-%m-%d %H:%M:%S").item()
             )
             l3_merged.attrs["stations_attributes"][stid]["last_timestamp"] = (
-                l3_merged.time.isel(time=0)
+                l3_merged.time.isel(time=-1)
                 .dt.strftime(date_format="%Y-%m-%d %H:%M:%S")
                 .item()
             )
@@ -548,6 +807,23 @@ def join_l3(config_folder, site, folder_l3, folder_gcnet,
     l3_merged.attrs["level"] = "L3"
     l3_merged.attrs["project"] = sorted_list_station_data[0][1]["project"]
     l3_merged.attrs["location_type"] = sorted_list_station_data[0][1]["location_type"]
+
+    # merging stitches together blocks from different stations/time-ranges, which
+    # can reintroduce small discontinuities at the block boundaries; re-smooth
+    # ice surface height on the merged series and keep z_surf_combined/snow_height
+    # consistent with it, same as is done for a single station in L2toL3
+    first_stid = next(iter(l3_merged.attrs["stations_attributes"]))
+    site_type = l3_merged.attrs["stations_attributes"][first_stid].get("site_type")
+    if site_type == "ablation" and all(
+        v in l3_merged.data_vars for v in ("z_ice_surf", "z_surf_combined", "z_surf_2_adj")
+    ):
+        z_ice_surf = surface_height.post_processing_z_ice_surf(
+            l3_merged["z_ice_surf"], l3_merged["z_surf_combined"], l3_merged["z_surf_2_adj"]
+        )
+        l3_merged["z_ice_surf"] = ("time", z_ice_surf.values)
+        l3_merged["z_surf_combined"] = np.maximum(l3_merged["z_surf_combined"], l3_merged["z_ice_surf"])
+        l3_merged["snow_height"] = np.maximum(0, l3_merged["z_surf_combined"] - l3_merged["z_ice_surf"])
+        l3_merged["z_ice_surf"] = l3_merged["z_ice_surf"].where(l3_merged["snow_height"].notnull())
 
     site_source = dict(
         site_config_source_hash=get_commit_hash_and_check_dirty(config_folder),
