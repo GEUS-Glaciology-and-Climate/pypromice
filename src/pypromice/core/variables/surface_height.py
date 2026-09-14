@@ -155,8 +155,13 @@ def find_ablation_periods(df, threshold_ablation, min_period="2D",
     dz_clean = dz.mask(dz.abs() > shift_threshold, 0)
 
     first = z.first_valid_index()
-    z_corrected = z.loc[first] + dz_clean.loc[first:].fillna(0).cumsum()
-    z_corrected = z_corrected.reindex(df.index)
+    if first is None:
+        # no valid z_ice_surf (z_pt) values at all: nothing to correct,
+        # keep the all-NaN series instead of crashing on z.loc[None]
+        z_corrected = z.reindex(df.index)
+    else:
+        z_corrected = z.loc[first] + dz_clean.loc[first:].fillna(0).cumsum()
+        z_corrected = z_corrected.reindex(df.index)
 
     # smoothing
     hourly_interp = z_corrected.resample("h").interpolate(limit=interp_limit)
