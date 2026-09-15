@@ -78,7 +78,7 @@ def decode_and_convert(gps_lat: xr.DataArray,
 def filter(gps_lat: xr.DataArray,
            gps_lon: xr.DataArray,
            gps_alt: xr.DataArray
-) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
     """ Filter GPS latitude, longitude and altitude based on the difference
     to a baseline elevation. The baseline elevation is a gap-filled monthly
     median elevation based on the inputted GPS altitude.
@@ -100,6 +100,9 @@ def filter(gps_lat: xr.DataArray,
         Filtered longitude values
     gps_alt_filtered : xr.DataArray
         Filtered altitude values
+    bad : xr.DataArray
+        Boolean mask, True where the sample is more than 100 m from the
+        baseline elevation (used by callers that flag rather than remove)
     """
     # Get altitude monthly median (at month start)
     # This will serve as baseline elevations for filtering
@@ -114,13 +117,14 @@ def filter(gps_lat: xr.DataArray,
 
     # Produce conditional mask
     mask = (np.abs(gps_alt - baseline_elevation) < 100) | gps_alt.isnull()
+    bad = ~mask
 
     # Apply mask
     gps_lat_filtered = gps_lat.where(mask)
     gps_lon_filtered = gps_lon.where(mask)
     gps_alt_filtered = gps_alt.where(mask)
 
-    return gps_lat_filtered, gps_lon_filtered, gps_alt_filtered
+    return gps_lat_filtered, gps_lon_filtered, gps_alt_filtered, bad
 
 
 def convert_from_degrees_and_decimal_minutes(gps):
