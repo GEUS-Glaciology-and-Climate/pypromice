@@ -24,7 +24,6 @@ author = 'GEUS Glaciology and Climate'
 # The full version, including alpha/beta/rc tags
 release = '1.13.0'
 
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
