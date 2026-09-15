@@ -1,6 +1,5 @@
 __all__ = ["convert_sr",
            "convert_lr",
-           "filter_lr",
            "filter_sr",
            "correct_sr",
            "calculate_albedo",

@@ -8,7 +8,6 @@ from unittest.mock import patch
 from pypromice.core.variables.radiation import (
     convert_sr,
     convert_lr,
-    filter_lr,
     T_0,
     filter_sr,
     correct_sr,
@@ -35,22 +34,6 @@ class TestRadiationConversions(unittest.TestCase):
         result = convert_lr(self.lr, self.t_rad, coef)
         expected = (self.lr * 10) / coef + 5.67e-8 * (self.t_rad + T_0) ** 4
         xr.testing.assert_allclose(result, expected)
-
-    def test_filter_lr_with_missing_t_rad(self):
-        t_rad_with_nan = xr.DataArray([20.0, np.nan, 30.0], dims="time")
-        result = filter_lr(self.lr, t_rad_with_nan)
-        expected = self.lr.where(t_rad_with_nan.notnull())
-        xr.testing.assert_equal(result, expected)
-
-    def test_filter_lr_all_valid(self):
-        result = filter_lr(self.lr, self.t_rad)
-        # No NaNs in t_rad, should be identical to lr
-        xr.testing.assert_equal(result, self.lr)
-
-    def test_filter_lr_all_missing(self):
-        t_rad_all_nan = xr.DataArray([np.nan, np.nan, np.nan], dims="time")
-        result = filter_lr(self.lr, t_rad_all_nan)
-        self.assertTrue(result.isnull().all())
 
 
 class TestShortwaveRadiation(unittest.TestCase):

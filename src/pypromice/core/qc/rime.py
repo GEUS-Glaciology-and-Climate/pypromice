@@ -25,19 +25,22 @@ def detect_rime(ds: xr.Dataset, threshold: float = DEFAULT_THRESHOLD) -> xr.Data
     value, and of each other. The daily flag is then smoothed (an
     inflate-deflate-deflate-inflate morphological pass, removing
     single-day blips and filling single-day gaps) before being broadcast
-    back to the original time resolution.
+    back to the original time resolution. Since rime affects the whole
+    radiometer assembly, "dsr" and "usr" are flagged along with "dlr" and
+    "ulr" wherever present.
 
     Args:
-        ds (xr.Dataset): Dataset containing "t_rad", "dlr" and "ulr".
+        ds (xr.Dataset): Dataset containing "t_rad", "dlr" and "ulr" (and,
+            typically, "dsr"/"usr").
         threshold (float, optional): Maximum allowed deviation (W/m2)
             between measured and theoretical longwave radiation, and
             between "dlr" and "ulr", for a sample to look rime-affected.
             Defaults to 3.
 
     Returns:
-        xr.Dataset: Dataset with "dlr" and "ulr" flagged "RIME" in
-        "<var>_qc" over rime-affected days (data itself is unchanged; use
-        finalize_qc to remove it).
+        xr.Dataset: Dataset with "dlr", "ulr", "dsr" and "usr" flagged
+        "RIME" in "<var>_qc" over rime-affected days (data itself is
+        unchanged; use finalize_qc to remove it).
     """
     if not all(v in ds for v in ("t_rad", "dlr", "ulr")):
         logger.debug("detect_rime: t_rad, dlr or ulr missing, skipping")
