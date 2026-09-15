@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypromice.core.qc.common import flag_qc
+
 __all__ = [
     'flagNAN',
     'adjustTime',
@@ -28,7 +30,8 @@ def flagNAN(ds_in, flag_dir):
     Returns
     -------
     ds : xr.Dataset
-        Level 0 data with flagged data
+        Level 0 data with manually-flagged data flagged "MANUAL" in
+        "<var>_qc" (data itself is unchanged; use finalize_qc to remove it)
     '''
     ds = ds_in.copy(deep=True)
     df = None
@@ -48,11 +51,13 @@ def flagNAN(ds_in, flag_dir):
                     varlist = list(ds.keys())
                 elif '*' in avar:
                     # Reads as regex if contains "*" and other characters (e.g. 't_i_.*($)')
-                    varlist = pd.DataFrame(columns = list(ds.keys())).filter(regex=(avar)).columns
+                    varlist = list(pd.DataFrame(columns = list(ds.keys())).filter(regex=(avar)).columns)
                 else:
                     varlist = avar.split()
 
-                if 'time' in varlist: varlist.remove("time")
+                # Never flag the time coordinate or QC companion variables
+                # themselves (relevant for the "*"/regex expansions above)
+                varlist = [v for v in varlist if (v != 'time') and (not v.endswith('_qc'))]
 
                 # Set to all times if times are "n/a"
                 if pd.isnull(t0):
@@ -63,7 +68,8 @@ def flagNAN(ds_in, flag_dir):
                 for v in varlist:
                     if v in list(ds.keys()):
                         logger.debug(f'---> flagging {t0} {t1} {v}')
-                        ds[v] = ds[v].where((ds['time'] < t0) | (ds['time'] > t1))
+                        mask = (ds['time'] >= t0) & (ds['time'] <= t1)
+                        ds = flag_qc(ds, v, "MANUAL", mask=mask)
                     else:
                         logger.debug(f'---> could not flag {v} not in dataset')
 
@@ -159,11 +165,14 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
         adj_info.loc[adj_info.t0.isnull()|(adj_info.t0==''), "t0"] = None
 
         # if "*" is in the variable name then we interpret it as regex
+        # (excluding "<var>_qc" companions: they must never be adjusted like
+        # a physical variable, even if the regex would otherwise match them)
+        adjustable_vars = [v for v in ds.keys() if not v.endswith('_qc')]
         selec = adj_info['variable'].str.contains(r'\*') & (adj_info['variable'] != "*")
         for ind in adj_info.loc[selec, :].index:
             line_template = adj_info.loc[ind, :].copy()
             regex = adj_info.loc[ind, 'variable']
-            for var in pd.DataFrame(columns = list(ds.keys())).filter(regex=regex).columns:
+            for var in pd.DataFrame(columns = adjustable_vars).filter(regex=regex).columns:
                 line_template.variable = var
                 line_template.name = adj_info.index.max() + 1
                 adj_info = pd.concat((adj_info, line_template.to_frame().transpose()),axis=0)

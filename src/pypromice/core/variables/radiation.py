@@ -61,25 +61,6 @@ def convert_lr(lr: xr.DataArray,
     """
     return ((lr * 10) / lr_eng_coef) + 5.67e-8 * (t_rad + T_0) **4
 
-def filter_lr(lr: xr.DataArray,
-           t_rad: xr.DataArray) -> xr.DataArray:
-    """Remove longwave radiation measurements that are missing
-    simultaneous radiometer temperature measurements
-
-    Parameters
-    ----------
-    lr : xr.DataArray
-        Longwave radiation measurements (upwelling or downwelling)
-    t_rad : xr.DataArray
-        Radiometer temperature
-
-    Returns
-    -------
-    xr.DataArray
-        Filtered radiation measurements
-    """
-    return lr.where(t_rad.notnull())
-
 def filter_sr(dsr: xr.DataArray,
               usr: xr.DataArray,
               cc : xr.DataArray,
@@ -121,7 +102,7 @@ def filter_sr(dsr: xr.DataArray,
     assert isinstance(index, pd.DatetimeIndex)
     timestamp_durations = classify_timestamp_durations(index)
     daily_timestamp = timestamp_durations ==  pd.to_timedelta('1D')
-    
+
     # Setting to zero when sun below the horizon.
     bad = (ZenithAngle_deg > 95) & (~daily_timestamp)
     dsr_filtered[bad & dsr_filtered.notnull()] = 0
