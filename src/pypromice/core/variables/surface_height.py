@@ -583,7 +583,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                     logger.debug('adjusting hs2 to z')
                     # then we adjust hs2 to the end-of-ablation z
                     # first trying at the end of melt season
-                    if ~np.isnan(np.nanmean(hs2.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])):
+                    if hs2.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)].notnull().any():
                         logger.debug('using end of melt season')
                         hs2.iloc[ind_end[i]:] = hs2.iloc[ind_end[i]:] - \
                             np.nanmean(hs2.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])  + \
@@ -668,7 +668,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                         logger.debug('to z')
                         # then we adjust hs2 to the end-of-ablation z
                         # first trying at the end of melt season
-                        if ~np.isnan(np.nanmean(hs1.iloc[(ind_end[i]-24*14):(ind_end[i]+24*30)])):
+                        if hs1.iloc[(ind_end[i]-24*14):(ind_end[i]+24*30)].notnull().any():
                             logger.debug('using end of melt season')
                             hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] - \
                                 np.nanmean(hs1.iloc[(ind_end[i]-24*14):(ind_end[i]+24*30)])  + \
