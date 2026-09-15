@@ -101,9 +101,10 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
 
     hourly_index = df_hourly.index
 
-    # Masks to mark which hours to fill
+    # Mask to mark which hours to 24h-backfill. This is derived from the
+    # dataset's overall timestamp durations, so it is the same for every
+    # variable in var_list_gap_fill.
     hourly_index_24h = pd.Series(False, index=hourly_index)
-    hourly_index_6h = pd.Series(False, index=hourly_index)
 
     # --- 24h backfill logic ---
     is_24h = timestamp_durations == pd.Timedelta('24h')
@@ -114,6 +115,12 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
     for var in var_list_gap_fill:
         if var not in df_h.columns:
             continue
+
+        # Mask to mark which hours to 6h-backfill for this variable. Reset
+        # for every variable: each variable's transmission cadence is its
+        # own, so one variable's 6-hourly timestamps must not leak into the
+        # backfill of another variable.
+        hourly_index_6h = pd.Series(False, index=hourly_index)
 
         # --- 6h sparse data logic ---
         sparse_series = df_h[var]
