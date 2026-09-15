@@ -75,6 +75,7 @@ FLAG_MEANINGS = [
     "PRECIP_SENSOR_ERROR",
     "SUN_LOWER_DOME",
     "SR_ABOVE_TOA",
+    "RIME",
 ]
 FLAG_DTYPE = "int8"
 _FLAG_CODE = {name: np.int8(code) for code, name in enumerate(FLAG_MEANINGS)}

@@ -17,6 +17,7 @@ from pypromice.core.qc.github_data_issues import flagNAN, adjustTime, adjustData
 from pypromice.core.qc.percentiles.outlier_detector import ThresholdBasedOutlierDetector
 from pypromice.core.qc.persistence import persistence_qc
 from pypromice.core.qc.rate_of_change_filter import rate_of_change_filter
+from pypromice.core.qc.rime import detect_rime
 from pypromice.core.qc.value_clipping import clip_values
 from pypromice.core.variables import (wind,
                                       gps,
@@ -87,6 +88,9 @@ def toL2(L1: xr.Dataset,
 
     # Flag high-rate-of-change outliers (data itself is untouched)
     ds = rate_of_change_filter(ds)
+
+    # Flag radiometer rime/icing (data itself is untouched)
+    ds = detect_rime(ds)
 
     try:
         # Adjust time after a user-defined csv files
