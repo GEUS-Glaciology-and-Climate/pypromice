@@ -100,7 +100,7 @@ def adjustTime(ds, adj_dir, var_list=[], skip_var=[]):
 
 
         if "time_shift" in adj_info.adjust_function.values:
-            time_shifts = adj_info.loc[adj_info.adjust_function == "time_shift", :]
+            time_shifts = adj_info.loc[adj_info.adjust_function == "time_shift", :].copy()
             # if t1 is left empty, then adjustment is applied until the end of the file
             time_shifts.loc[time_shifts.t1.isnull(), "t1"] = pd.to_datetime(ds_out.time.values[-1]).isoformat()
             time_shifts.t0 = pd.to_datetime(time_shifts.t0).dt.tz_localize(None)
@@ -156,8 +156,7 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
     adj_info = _getDF(os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"))
 
     if isinstance(adj_info, pd.DataFrame):
-        # removing potential time shifts from the adjustment list
-        adj_info = adj_info.loc[adj_info.adjust_function != "time_shift", :]
+        adj_info = adj_info.loc[adj_info.adjust_function != "time_shift", :].copy()
 
         # making sure that t0 and t1 columns are object dtype then replaceing nan with None
         adj_info[['t0','t1']] = adj_info[['t0','t1']].astype(object)
