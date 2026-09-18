@@ -504,6 +504,12 @@ def get_valid_time_block(station_info: dict, filepath: str, isNead: bool,
             "start_time": np.datetime64(seg_start),
             "end_time": np.datetime64(seg_end),
             "dataset": ds_seg,
+            # Full station dataset, kept only so resolve_block_overlap can
+            # recover non-tested variables (e.g. gps/boom/thermistor data)
+            # that fall inside a tested_vars gap between two blocks of this
+            # *same* station -- never used for cross-station gap-filling.
+            # Stripped out again before this leaves build_station_data_blocks.
+            "station_dataset": ds,
         })
 
     return blocks
@@ -516,7 +522,12 @@ def resolve_block_overlap(blocks: list) -> list:
     When multiple stations cover the same period, data from the newer station
     are given priority. Older station data are retained where the newer station
     has no valid data. Neighboring resolved blocks belonging to the same station
-    are merged again.
+    are merged again; if a temporal gap remains between them (e.g. the two
+    blocks straddle a tested_vars-only outage), it is backfilled from that
+    same station's own dataset (via the optional "station_dataset" key each
+    block may carry) so that variables which kept reporting through the gap
+    are not silently dropped, even though the gap itself was excluded from
+    both blocks based only on tested_vars.
 
     Station priority is resolved with a fail-safe cascade, so the choice stays
     deterministic even when stations start reporting at the exact same time:
@@ -613,18 +624,34 @@ def resolve_block_overlap(blocks: list) -> list:
         if merged_blocks and merged_blocks[-1]["stid"] == block["stid"]:
             previous = merged_blocks[-1]
 
-            ds = xr.concat(
-                [previous["dataset"], block["dataset"]],
-                dim="time",
-            )
+            pieces = [previous["dataset"]]
 
-            # Remove duplicated boundary timestamp introduced by inclusive slicing.
+            # If there's a temporal gap between these two same-station blocks
+            # (they straddle a tested_vars-only outage), backfill it from
+            # that station's own dataset: other variables may well have kept
+            # reporting through the gap, and since this is the same
+            # instrument there is no cross-station priority question here.
+            full_ds = block.get("station_dataset", previous.get("station_dataset"))
+            gap_start = pd.to_datetime(previous["end_time"])
+            gap_end = pd.to_datetime(block["start_time"])
+            if full_ds is not None and gap_end > gap_start:
+                gap_ds = full_ds.sel(time=slice(gap_start, gap_end))
+                if gap_ds.time.size > 0:
+                    pieces.append(gap_ds)
+
+            pieces.append(block["dataset"])
+
+            ds = xr.concat(pieces, dim="time")
+
+            # Remove duplicated boundary timestamps introduced by inclusive slicing.
             ds = ds.isel(
                 time=~pd.Index(ds.time.values).duplicated()
             )
 
             previous["dataset"] = ds
             previous["end_time"] = block["end_time"]
+            if "station_dataset" in block:
+                previous["station_dataset"] = block["station_dataset"]
 
         else:
             merged_blocks.append(block)
@@ -681,7 +708,14 @@ def build_station_data_blocks(config_folder: str, target_station_site: str,
         t1 = pd.to_datetime(b["end_time"]).strftime("%Y-%m-%d")
         logger.info(f"  {b['stid']:10s}  {t0}  ->  {t1}")
 
-    return [(b["dataset"], {k: v for k, v in b.items() if k != "dataset"}) for b in blocks]
+    # "station_dataset" is internal bookkeeping for resolve_block_overlap's
+    # same-station gap-fill; it must not leak into the station metadata dict
+    # returned here (a whole xarray.Dataset has no business riding along in
+    # station_info downstream).
+    return [
+        (b["dataset"], {k: v for k, v in b.items() if k not in ("dataset", "station_dataset")})
+        for b in blocks
+    ]
 
 
 def join_l3(config_folder, site, folder_l3, folder_gcnet,
