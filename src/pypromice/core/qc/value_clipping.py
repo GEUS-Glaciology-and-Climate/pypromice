@@ -3,6 +3,7 @@ import pandas
 import xarray
 
 from pypromice.core.dependency_graph import DependencyGraph
+from pypromice.core.qc.common import flag_qc, is_ok
 
 
 def clip_values(
@@ -10,7 +11,8 @@ def clip_values(
     var_configurations: pandas.DataFrame,
 ):
     """
-    Clip values in dataset to defined "hi" and "lo" variables from dataframe.
+    Flag values outside the defined "hi"/"lo" range from dataframe, and
+    propagate the flag to dependent variables.
 
     Parameters
     ----------
@@ -22,7 +24,9 @@ def clip_values(
     Returns
     -------
     ds : `xarray.Dataset`
-        Dataset with clipped data
+        Dataset with out-of-limits data flagged "OUT_OF_LIMITS" (and their
+        dependents flagged "DEPENDENCY") in "<var>_qc" (data itself is
+        unchanged; use finalize_qc to remove it)
     """
     cols = ["lo", "hi", "dependent_variables"]
     assert set(cols) <= set(var_configurations.columns)
@@ -39,15 +43,21 @@ def clip_values(
         if var not in list(ds.variables):
             continue
 
+        bad = xarray.zeros_like(ds[var], dtype=bool)
         if ~np.isnan(row.lo):
-            ds[var] = ds[var].where(ds[var] >= row.lo)
+            bad = bad | (ds[var] < row.lo)
         if ~np.isnan(row.hi):
-            ds[var] = ds[var].where(ds[var] <= row.hi)
+            bad = bad | (ds[var] > row.hi)
+        ds = flag_qc(ds, var, "OUT_OF_LIMITS", mask=bad)
 
-        # Flag dependents as NaN if parent is NaN
+        # Flag dependents as bad if parent is NaN (genuinely missing) or
+        # flagged (above, or by an earlier QC step) -- a flagged parent is
+        # NOT NaN in `ds` itself under this module's "never touch the data"
+        # design, so this must check the qc flag, not just isnull().
+        parent_bad = ds[var].isnull() | ~is_ok(ds, var)
         for o in row.dependents_closure:
             if o not in list(ds.variables):
                 continue
-            ds[o] = ds[o].where(ds[var].notnull())
+            ds = flag_qc(ds, o, "DEPENDENCY", mask=parent_bad)
 
     return ds

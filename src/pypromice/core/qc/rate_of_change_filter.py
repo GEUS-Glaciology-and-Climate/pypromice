@@ -49,9 +49,9 @@ import pandas as pd
 import xarray as xr
 import re
 
-logger = logging.getLogger(__name__)
+from pypromice.core.qc.common import flag_qc, clean_view
 
-NO_QC_VAR = ['time','rec']
+logger = logging.getLogger(__name__)
 
 # Default variable thresholds, where factor is the multiplicative factor applied
 DEFAULT_VARIABLE_THRESHOLDS = {
@@ -85,7 +85,9 @@ def rate_of_change_filter(ds):
     Returns
     -------
     xr.Dataset
-        Dataset (same object) with the rate-of-change filter applied.
+        Dataset (same object) with rate-of-change outliers flagged
+        "RATE_OF_CHANGE" in "<var>_qc" (data itself is unchanged; use
+        finalize_qc to remove it).
     """
 
     patterns = [re.compile(p) for p in DEFAULT_VARIABLE_THRESHOLDS]
@@ -95,16 +97,21 @@ def rate_of_change_filter(ds):
         if any(p.match(v) for p in patterns)
     ]
 
+    # Detect against a clean copy -- an earlier QC step's flagged-but-still
+    # -present values (e.g. a frozen sensor run caught by persistence_qc)
+    # must not be allowed to skew the rolling rate-of-change thresholds.
+    ds_clean = clean_view(ds)
+
     for var in vars_with_thresholds:
         tol, factor = _get_params(var)
-        flag_final, _, _, _,  = flag_high_rate_of_change(ds[var],
+        flag_final, _, _, _,  = flag_high_rate_of_change(ds_clean[var],
                                                          DEFAULT_WINDOW,
                                                          DEFAULT_REF_FREQ,
                                                          DEFAULT_MIN_PERIODS,
                                                          tol,
                                                          factor)
 
-        tmp = ds.copy(deep=True)
+        tmp = ds_clean.copy(deep=True)
         tmp[var].loc[{"time": flag_final.time[flag_final]}] = np.nan  # apply first pass to temporary object
 
         if flag_final.any():
@@ -120,10 +127,10 @@ def rate_of_change_filter(ds):
 
         flag_final = flag_final.reindex_like(ds.time, fill_value=False)
         logger.debug(
-            f"ROC filter on {var} (tol={tol}, factor={factor}): filtering {flag_final.sum().item()}/{len(ds.time)}")
+            f"ROC filter on {var} (tol={tol}, factor={factor}): flagging {flag_final.sum().item()}/{len(ds.time)}")
 
         if flag_final.any():
-            ds[var] = ds[var].where(~flag_final)
+            ds = flag_qc(ds, var, "RATE_OF_CHANGE", mask=flag_final)
 
     return ds
 

@@ -97,3 +97,57 @@ class ResolveBlockOverlapTestCase(TestCase):
         gap_block = block_covering("2020-02-01")
         self.assertEqual(gap_block["stid"], "TEST_v2")
         self.assertEqual(gap_block["dataset"]["t_u"].sel(time="2020-02-01T00:00").item(), 2.0)
+
+    def test_backfills_same_station_gap_for_untested_variables(self):
+        """A tested_vars-only outage splits one station's record into two
+        blocks; the gap between them must not silently drop other variables
+        that kept reporting through it (station_dataset backfill)."""
+        time_index = pd.date_range("2020-01-01", periods=100 * 24, freq="h")
+
+        t_u = np.full(len(time_index), -10.0)
+        gap_mask = (time_index >= "2020-01-20") & (time_index < "2020-03-01")
+        t_u[gap_mask] = np.nan
+
+        # z_boom_u is not a tested variable and keeps reporting through the gap
+        z_boom_u = np.full(len(time_index), 2.5)
+
+        full_ds = xr.Dataset(
+            {"t_u": ("time", t_u), "dsr": ("time", t_u), "z_boom_u": ("time", z_boom_u)},
+            coords={"time": time_index},
+        )
+
+        blocks = [
+            {
+                "stid": "TEST",
+                "start_time": np.datetime64(time_index[0]),
+                "end_time": np.datetime64(pd.Timestamp("2020-01-19 23:00")),
+                "dataset": full_ds.sel(time=slice(time_index[0], "2020-01-19 23:00")),
+                "station_dataset": full_ds,
+            },
+            {
+                "stid": "TEST",
+                "start_time": np.datetime64(pd.Timestamp("2020-03-01")),
+                "end_time": np.datetime64(time_index[-1]),
+                "dataset": full_ds.sel(time=slice("2020-03-01", time_index[-1])),
+                "station_dataset": full_ds,
+            },
+        ]
+
+        resolved = resolve_block_overlap(blocks)
+
+        self.assertEqual(len(resolved), 1)
+        merged = resolved[0]["dataset"]
+
+        # the merged block should span the full original range...
+        self.assertEqual(pd.to_datetime(merged.time.values[0]), time_index[0])
+        self.assertEqual(pd.to_datetime(merged.time.values[-1]), time_index[-1])
+
+        # ...and z_boom_u, which was never missing, must not have lost the
+        # samples that fell inside the tested_vars gap.
+        self.assertEqual(
+            int(merged["z_boom_u"].notnull().sum()),
+            int(full_ds["z_boom_u"].notnull().sum()),
+        )
+        self.assertEqual(
+            merged["z_boom_u"].sel(time="2020-02-01T00:00").item(), 2.5
+        )
