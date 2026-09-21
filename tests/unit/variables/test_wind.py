@@ -6,6 +6,7 @@ import xarray as xr
 from pypromice.core.variables.wind import (
     correct_wind_speed,
     filter_wind_direction,
+    correct_wind_direction,
     calculate_directional_wind_speed,
 )
 
@@ -14,6 +15,7 @@ class TestWindProcessing(unittest.TestCase):
         self.time = pd.date_range("2025-08-01", periods=4, freq="h")
         self.wspd = xr.DataArray([0.0, 2.0, 4.0, 6.0], coords=[("time", self.time)])
         self.wdir = xr.DataArray([0.0, 90.0, 180.0, 270.0], coords=[("time", self.time)])
+        self.rot_true = xr.DataArray([10.0, 12.0, 10.0, 10.0], coords=[("time", self.time)])
 
     def test_correct_wind_speed(self):
         coefficient = 1.7
@@ -34,6 +36,25 @@ class TestWindProcessing(unittest.TestCase):
 
         # Time coordinate preserved
         np.testing.assert_array_equal(result.time.values, self.time.values)
+
+    def test_correct_wind_direction(self):
+        wdir = xr.DataArray([0.0, 90.0, np.nan, 270.0],coords=[("time", self.time)])
+        rot_true = xr.DataArray([10.0, 12.0, 10.0, np.nan],coords=[("time", self.time)])
+
+        result = correct_wind_direction(wdir, rot_true)
+        expected = [10.0, 102.0, np.nan, np.nan]
+        np.testing.assert_allclose(result.values,expected,equal_nan=True)
+
+        # Check that the time coordinate is preserved
+        np.testing.assert_array_equal(result.time.values,self.time.values)
+
+    def test_correct_wind_direction_wraps_at_360(self):
+        wdir = xr.DataArray([350.0, 270.0, 180.0],coords=[("time", self.time[:3])])
+        rot_true = xr.DataArray([20.0, 100.0, 190.0],coords=[("time", self.time[:3])])
+
+        result = correct_wind_direction(wdir, rot_true)
+        expected = [10.0, 10.0, 10.0]
+        np.testing.assert_allclose(result.values, expected)
 
     def test_filter_all_zero_wind_speeds(self):
         wspd = xr.DataArray([0.0, 0.0, 0.0, 0.0], coords=[("time", self.time)])
