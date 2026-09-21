@@ -116,7 +116,7 @@ def process_files(base_dir: str, csv_file_path: str, data_type: str) -> pd.DataF
     # Traverse through all the subfolders and files in the base directory
     for subdir, _, files in os.walk(base_dir):
         for file in files:
-            if file.endswith('_hour.nc'):
+            if file.endswith('_mixed.nc'):
                 file_path = os.path.join(subdir, file)
                 row = extract_metadata_from_nc(file_path, data_type, label_s_id)
                 if not row.empty:
