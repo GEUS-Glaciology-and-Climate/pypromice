@@ -13,11 +13,9 @@ rh_l_wrt_ice_or_water,relative_humidity_with_respect_to_ice_or_water,Relative hu
 qh_l,specific_humidity,Specific humidity (lower boom),kg/kg,modelResult,time,FALSE,L2 or later,0,100,,two-boom,0,1,1,4
 wspd_u,wind_speed,Wind speed (upper boom),m s-1,physicalMeasurement,time,FALSE,,0,100,wdir_u wspd_x_u wspd_y_u rainfall_cor_u,all,1,1,1,4
 wspd_l,wind_speed,Wind speed (lower boom),m s-1,physicalMeasurement,time,FALSE,,0,100,wdir_l wspd_x_l wspd_y_l rainfall_cor_l,two-boom,1,1,1,4
-wdir_u,wind_from_direction,Wind from direction (upper boom),degrees,physicalMeasurement,time,FALSE,,1,360,wspd_x_u wspd_y_u,all,1,1,1,4
-wdir_cor_u,corrected_wind_from_direction,Corrected wind from direction relative to true north (upper boom),degrees,physicalMeasurement,time,FALSE,,1,360,wspd_x_u wspd_y_u,all,1,1,1,4
+wdir_u,wind_from_direction,Wind from direction (upper boom) relative to true north,degrees,physicalMeasurement,time,FALSE,,1,360,wspd_x_u wspd_y_u,all,1,1,1,4
 wdir_std_u,wind_from_direction_standard_deviation,Wind from direction (standard deviation),degrees,qualityInformation,time,FALSE,L0 or L2,,,,one-boom,1,1,0,4
-wdir_l,wind_from_direction,Wind from direction (lower boom),degrees,physicalMeasurement,time,FALSE,,1,360,wspd_x_l wspd_y_l,two-boom,1,1,1,4
-wdir_cor_l,corrected_wind_from_direction,Corrected Wind from direction relative to true north (lower boom),degrees,physicalMeasurement,time,FALSE,,1,360,wspd_x_l wspd_y_l,two-boom,1,1,1,4
+wdir_l,wind_from_direction,Wind from direction (lower boom) relative to true north,degrees,physicalMeasurement,time,FALSE,,1,360,wspd_x_l wspd_y_l,two-boom,1,1,1,4
 wspd_x_u,wind_speed_from_x_direction,Wind speed from x direction (upper boom),m s-1,modelResult,time,FALSE,L0 or L2,-100,100,"",all,0,1,1,4
 wspd_y_u,wind_speed_from_y_direction,Wind speed from y direction (upper boom),m s-1,modelResult,time,FALSE,L0 or L2,-100,100,"",all,0,1,1,4
 wspd_x_l,wind_speed_from_x_direction,Wind speed from x direction (lower boom),m s-1,modelResult,time,FALSE,L0 or L2,-100,100,"",two-boom,0,1,1,4
@@ -107,7 +105,6 @@ t_i,air_temperature,Air temperature (instantaneous),degrees_C,physicalMeasuremen
 rh_i,relative_humidity,Relative humidity (instantaneous),%,physicalMeasurement,time,TRUE,,0,150,rh_i_wrt_ice_or_water,all,1,1,1,4
 rh_i_wrt_ice_or_water,relative_humidity_with_respect_to_ice_or_water,Relative humidity (instantaneous) with respect to saturation over ice in subfreezing conditions and over water otherwise,%,modelResult,time,TRUE,L2 or later,0,100,,all,0,1,1,4
 wspd_i,wind_speed,Wind speed (instantaneous),m s-1,physicalMeasurement,time,TRUE,,0,100,wdir_i wspd_x_i wspd_y_i,all,1,1,1,4
-wdir_i,wind_from_direction,Wind from direction (instantaneous),degrees,physicalMeasurement,time,TRUE,,1,360,wspd_x_i wspd_y_i,all,1,1,1,4
-wdir_cor_i,corrected_wind_from_direction,Corrected wind from direction (instantaneous),degrees,physicalMeasurement,time,TRUE,,1,360,wspd_x_i wspd_y_i,all,1,1,1,4
+wdir_i,wind_from_direction,Wind from direction (instantaneous) relative to true north,degrees,physicalMeasurement,time,TRUE,,1,360,wspd_x_i wspd_y_i,all,1,1,1,4
 wspd_x_i,wind_speed_from_x_direction,Wind speed from x direction (instantaneous),m s-1,modelResult,time,TRUE,L2 or later,-100,100,"",all,0,1,1,4
 wspd_y_i,wind_speed_from_y_direction,Wind speed from y direction (instantaneous),m s-1,modelResult,time,TRUE,L2 or later,-100,100,"",all,0,1,1,4
