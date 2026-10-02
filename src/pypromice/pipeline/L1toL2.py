@@ -213,17 +213,20 @@ def toL2(L1: xr.Dataset,
 
     # Calculate directional wind speed for upper boom
     ds['wdir_u'] = wind.filter_wind_direction(ds['wdir_u'], ds['wspd_u'])
+    ds['wdir_u'] = wind.correct_wind_direction(ds['wdir_u'], ds['rot_true'])
     ds['wspd_x_u'], ds['wspd_y_u'] = wind.calculate_directional_wind_speed(ds['wspd_u'], ds['wdir_u'])
     
     # Calculate directional wind speed for lower boom
     if ds.attrs['number_of_booms'] == 2:
         ds['wdir_l'] = wind.filter_wind_direction(ds['wdir_l'], ds['wspd_l'])
+        ds['wdir_l'] = wind.correct_wind_direction(ds['wdir_l'], ds['rot_true'])
         ds['wspd_x_l'], ds['wspd_y_l'] = wind.calculate_directional_wind_speed(ds['wspd_l'], ds['wdir_l'])
 
     # Calculate directional wind speed for instantaneous measurements
     if hasattr(ds, 'wdir_i'):
         if ~ds['wdir_i'].isnull().all() and ~ds['wspd_i'].isnull().all():
             ds['wdir_i'] = wind.filter_wind_direction(ds['wdir_i'], ds['wspd_i'])
+            ds['wdir_i'] = wind.correct_wind_direction(ds['wdir_i'], ds['rot_true'])
             ds['wspd_x_i'], ds['wspd_y_i'] = wind.calculate_directional_wind_speed(ds['wspd_i'], ds['wdir_i'])
 
     # Clip values (i.e. threshold filtering)

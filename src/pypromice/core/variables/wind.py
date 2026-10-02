@@ -23,7 +23,10 @@ def correct_wind_speed(wspd: xr.DataArray, coefficient) -> xr.DataArray:
     """
     return wspd * coefficient
 
-def filter_wind_direction(wdir: xr.DataArray, wspd: xr.DataArray) -> xr.DataArray:
+
+def filter_wind_direction(wdir: xr.DataArray,
+                          wspd: xr.DataArray
+) -> xr.DataArray:
     """Filter wind direction by wind speed, where wind direction values are removed if
     wind speed is zero.
 
@@ -40,6 +43,27 @@ def filter_wind_direction(wdir: xr.DataArray, wspd: xr.DataArray) -> xr.DataArra
         Filtered wind direction
     """
     return wdir.where(wspd != 0)
+
+
+def correct_wind_direction(wdir: xr.DataArray,
+                           rot_true: xr.DataArray
+) -> xr.DataArray:
+    """Correct wind direction to true north, using the rotation angle of the boom (reported
+    as angle relative to true north).
+
+    Parameters
+    ----------
+    wdir : xr.DataArray
+        Wind direction
+    rot_true : xr.DataArray
+        Station rotation relative to true north
+
+    Returns
+    -------
+    xr.DataArray
+        Corrected wind direction
+    """
+    return (wdir + rot_true) % 360
 
 
 def calculate_directional_wind_speed(wspd: xr.DataArray, wdir: xr.DataArray):
