@@ -198,37 +198,70 @@ def interpolate_tilt(tilt: xr.DataArray,
     )
 
 
-def interpolate_rotation(rot: xr.DataArray):
-    """Interpolate and smooth station rotation
+def interpolate_rotation(rot: xr.DataArray
+) -> tuple[str, np.ndarray]:
+    """Filter, smooth and gap-fill station rotation (heading). The heading
+    is expected to drift slowly, so the output is a continuous time series
+    with no gaps, as long as there is at least one valid rotation value.
+
+    Steps:
+        - Unwrap the heading so that crossings of 0/360 degrees are not
+          seen as jumps
+        - Resample to hourly medians, so the same threshold can be used
+          for 10-min and hourly data
+        - Remove unstable periods using a moving standard deviation over
+          a 3-day sliding window
+        - Resample to daily medians and smooth with a 14-day rolling median
+        - Linearly interpolate the daily values to the original timestamps.
+          Gaps of any length are bridged, and the first/last valid value is
+          held constant before/after the valid record
 
     Parameters
     ----------
     rot : xr.DataArray
-        Rotation measurements from inclinometer
+        Rotation measurements from inclinometer (degrees)
 
     Returns
     -------
-    xr.DataArray
-        smoothed rotation measurements from inclinometer
+    tuple, as: (str, numpy.ndarray)
+        Smoothed and gap-filled rotation measurements, wrapped to [0, 360)
     """
-    moving_std_gap_filled = (rot.to_series()
-                             .resample("h")
-                             .median()
-                             .rolling(3*24, center=True, min_periods=2)
-                             .std()
-                             .reindex(rot.time, method="bfill")
-                             .values)
+    rot_filled = np.full(rot.sizes["time"], np.nan)
+    rot_valid = rot.to_series().dropna()
+    if rot_valid.empty:
+        return ("time", rot_filled)
 
-    # Same as for interpolate_tilt() with, in addition:
-    #     - a resampling to daily values
-    #     - a 30D median smoothing
-    #     - a resampling from these daily values to the original temporal resolution
-    return ("time", (rot.where(moving_std_gap_filled < rot_stddev_threshold)
-                    .ffill(dim="time", limit=30*24)
-                    .to_series().resample("D").median()
-                    .rolling(7*2, center=True, min_periods=2).median()
-                    .reindex(rot.time, method="bfill", tolerance=pd.Timedelta("30D")).values
-                ))
+    # Unwrap heading, so that e.g. 359 -> 1 degrees is a 2 degree change
+    rot_unwrapped = pd.Series(
+        np.rad2deg(np.unwrap(np.deg2rad(rot_valid.values))),
+        index=rot_valid.index,
+    )
+
+    # Remove unstable periods based on the moving standard deviation
+    rot_hourly = rot_unwrapped.resample("h").median()
+    moving_std = rot_hourly.rolling(3*24, center=True, min_periods=2).std()
+    rot_hourly_filtered = rot_hourly.where(moving_std < rot_stddev_threshold)
+
+    # Keep the unfiltered values if no period is stable enough, so that a
+    # continuous heading can still be provided
+    if rot_hourly_filtered.isnull().all():
+        rot_hourly_filtered = rot_hourly
+
+    # Daily median values smoothed with a 14-day rolling median, placed at
+    # the middle of each day
+    rot_daily = (rot_hourly_filtered
+                 .resample("D").median()
+                 .rolling(7*2, center=True, min_periods=1).median()
+                 .dropna())
+    rot_daily.index = rot_daily.index + pd.Timedelta("12h")
+
+    # Interpolate daily values back to the original timestamps. np.interp
+    # holds the first/last value constant beyond the ends of the record
+    target_time = rot.time.values.astype("datetime64[ns]").astype("int64")
+    daily_time = rot_daily.index.values.astype("datetime64[ns]").astype("int64")
+    rot_filled = np.interp(target_time, daily_time, rot_daily.values) % 360
+
+    return ("time", rot_filled)
 
 
 def interpolate_magnetic_declination(declination: xr.DataArray,
