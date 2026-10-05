@@ -195,7 +195,16 @@ def clean_view(ds: xr.Dataset) -> xr.Dataset:
     return ds_clean
 
 
-def finalize_qc(ds: xr.Dataset, keep_flagged_data: bool = False) -> xr.Dataset:
+def has_qc_flags(ds: xr.Dataset) -> bool:
+    """True if ``ds`` carries at least one "<var>_qc" flag variable."""
+    return any(v.endswith("_qc") for v in ds.data_vars)
+
+
+def finalize_qc(
+    ds: xr.Dataset,
+    keep_flagged_data: bool = False,
+    keep_qc_flags: bool = False,
+) -> xr.Dataset:
     """Finalize accumulated QC flags at the end of a pipeline stage.
 
     Parameters
@@ -211,6 +220,10 @@ def finalize_qc(ds: xr.Dataset, keep_flagged_data: bool = False) -> xr.Dataset:
         If True, ``ds`` is returned unchanged: every variable keeps its
         true reading (flagged or not) with its ``<var>_qc`` companion
         attached, for diagnostics.
+    keep_qc_flags : bool, optional
+        Only used when ``keep_flagged_data`` is False. If True, flagged
+        samples are still set to NaN but the ``<var>_qc`` variables are kept,
+        so the file says *why* each sample is missing. Defaults to False.
 
     Returns
     -------
@@ -220,5 +233,7 @@ def finalize_qc(ds: xr.Dataset, keep_flagged_data: bool = False) -> xr.Dataset:
         return ds
 
     ds = clean_view(ds)
+    if keep_qc_flags:
+        return ds
     qc_vars = [v for v in ds.data_vars if v.endswith("_qc")]
     return ds.drop_vars(qc_vars)

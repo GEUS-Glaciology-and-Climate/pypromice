@@ -33,6 +33,7 @@ def toL2(L1: xr.Dataset,
          data_flags_dir: Path,
          data_adjustments_dir: Path,
          keep_flagged_data: bool = False,
+         keep_qc_flags: bool = False,
 ) -> xr.Dataset:
     """Process one Level 1 (L1) product to Level 2.
     In this step we do:
@@ -75,6 +76,10 @@ def toL2(L1: xr.Dataset,
         variable is returned. If True, every variable keeps its true
         reading (flagged or not), with "<var>_qc" variables kept for
         diagnostics. Defaults to False.
+    keep_qc_flags : bool, optional
+        Only used when ``keep_flagged_data`` is False. If True, flagged
+        samples are NaN as usual but the "<var>_qc" variables are kept to
+        document why. Defaults to False (no "<var>_qc" variable returned).
 
     Returns
     -------
@@ -279,7 +284,8 @@ def toL2(L1: xr.Dataset,
     # Finalize QC: by default, NaN out flagged samples and drop the
     # "<var>_qc" variables; with keep_flagged_data=True, return every
     # variable's true reading (flagged or not) with its "<var>_qc" kept.
-    ds = finalize_qc(ds, keep_flagged_data=keep_flagged_data)
+    ds = finalize_qc(ds, keep_flagged_data=keep_flagged_data,
+                     keep_qc_flags=keep_qc_flags)
 
     # Return L2 dataset
     ds.attrs['level'] = 'L2'

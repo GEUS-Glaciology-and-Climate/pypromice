@@ -159,7 +159,8 @@ class AWS(object):
         self.L1A.attrs["format"] = self.format
 
     def getL2(self,
-              keep_flagged_data: bool = False):
+              keep_flagged_data: bool = False,
+              keep_qc_flags: bool = False):
         """Perform L1 to L2 data processing"""
         logger.info("Level 2 processing...")
 
@@ -170,10 +171,16 @@ class AWS(object):
             data_flags_dir=self.data_issues_repository / "flags",
             data_adjustments_dir=self.data_issues_repository / "adjustments",
             keep_flagged_data=keep_flagged_data,
+            keep_qc_flags=keep_qc_flags,
         )
 
-    def getL3(self):
+    def getL3(self,
+              keep_flagged_data: bool = False,
+              keep_qc_flags: bool = False):
         """Perform L2 to L3 data processing, including resampling and metadata
         and attribute population"""
         logger.info("Level 3 processing...")
-        self.L3 = toL3(self.L2, data_adjustments_dir=self.data_issues_repository / "adjustments")
+        self.L3 = toL3(self.L2,
+                       data_adjustments_dir=self.data_issues_repository / "adjustments",
+                       keep_flagged_data=keep_flagged_data,
+                       keep_qc_flags=keep_qc_flags)

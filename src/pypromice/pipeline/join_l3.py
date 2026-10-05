@@ -3,6 +3,7 @@ import json
 import logging, os, sys, toml
 from argparse import ArgumentParser
 
+from pypromice.core.qc.common import finalize_qc, has_qc_flags
 from pypromice.io.ingest.git import get_commit_hash_and_check_dirty
 from pypromice.core.variables import surface_height
 
@@ -241,6 +242,13 @@ def loadArr(infile, isNead):
         for varname in ds.variables:
             if ds[varname].encoding != {}:
                 ds[varname].encoding = {}
+
+        # Station L3 files may carry "<var>_qc" QC flag variables (and the raw
+        # values of flagged samples). The site-level products joined here are
+        # resampled only, so the flags are applied and dropped on load: flagged
+        # samples are removed, exactly as when no flag variables exist.
+        if has_qc_flags(ds):
+            ds = finalize_qc(ds)
 
     try:
         name = ds.attrs["station_name"]

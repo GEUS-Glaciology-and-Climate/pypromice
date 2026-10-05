@@ -29,6 +29,15 @@ def parse_arguments_l2():
                         help='Write CSV files in addition to NetCDF')
     parser.add_argument('--write_10min', action='store_true',
                         help='Write 10-minute resampled output')
+    parser.add_argument('--keep_flagged_data', action='store_true',
+                        help='Keep the original values of QC-flagged samples '
+                             'and write the "<var>_qc" flag variables in the '
+                             'mixed-resolution file (default: flagged data '
+                             'removed, no flag variables)')
+    parser.add_argument('--write_qc_flags', action='store_true',
+                        help='Write the "<var>_qc" flag variables in the '
+                             'mixed-resolution file while still removing '
+                             'flagged data (default: no flag variables)')
     parser.add_argument('--write_60min', action='store_true',
                         help='Write 60-minute resampled output')
     args = parser.parse_args()
@@ -46,6 +55,7 @@ def get_l2(config_file: str,
            write_10min: bool = False,
            write_60min: bool = False,
            keep_flagged_data: bool = False,
+           write_qc_flags: bool = False,
 ) -> AWS:
     """Process PROMICE AWS data to Level 2.
 
@@ -101,19 +111,26 @@ def get_l2(config_file: str,
 
     # Perform level 1 and 2 processing
     aws.getL1()
-    aws.getL2(keep_flagged_data=keep_flagged_data)
+    aws.getL2(keep_flagged_data=keep_flagged_data,
+              keep_qc_flags=write_qc_flags)
 
     # Write out level 2
     if outpath is not None:
         if not os.path.isdir(outpath):
             os.mkdir(outpath)
+        # Flag variables are only written to the un-resampled file (flag codes
+        # cannot be averaged); resampled products are always written from the
+        # cleaned data (prepare_and_write applies the flags itself).
+        # keep_flagged_data implies flags: kept raw values must not be
+        # written unlabeled.
         prepare_and_write(aws.L2,
                           outpath,
                           aws.vars,
                           aws.meta,
                           'mixed',
                           resample=False,
-                          write_csv=write_csv)
+                          write_csv=write_csv,
+                          include_qc_flags=keep_flagged_data or write_qc_flags)
         if (aws.L2.attrs['format'] == 'raw') and write_10min:
             prepare_and_write(aws.L2, outpath, aws.vars, aws.meta, '10min',
                               resample=True, write_csv=write_csv)
@@ -148,6 +165,8 @@ def main():
         args.write_csv,
         args.write_10min,
         args.write_60min,
+        keep_flagged_data=args.keep_flagged_data,
+        write_qc_flags=args.write_qc_flags,
     )
 
 

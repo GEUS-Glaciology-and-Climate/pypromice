@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from pypromice.pipeline.resample import resample_dataset
 import pypromice.resources
+from pypromice.core.qc.common import finalize_qc, has_qc_flags
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ def prepare_and_write(
         resample=True,
         nc_compression:bool=False,
         write_csv = True,
+        include_qc_flags: bool = False,
 ):
     """Prepare data with resampling, formating and metadata population; then
     write data to .nc and .csv hourly and daily files
@@ -41,6 +43,15 @@ def prepare_and_write(
         Metadata dictionary to write to dataset
     time : str
         Resampling interval for output dataset
+    include_qc_flags : bool
+        If True, the "<var>_qc" flag variables of every written variable are
+        written too (see getColNames/addVars), and the dataset is written as
+        given (raw values of flagged samples are kept if the dataset still
+        holds them). Flag codes cannot be resampled, so this requires an
+        un-resampled output (time="mixed" or resample=False).
+        If False (default), any "<var>_qc" variable in the dataset is first
+        applied (flagged samples set to NaN) and dropped, so that flagged
+        values can never be written unlabeled.
     """
     # Resample dataset
     if isinstance(output_path, str):
@@ -48,6 +59,15 @@ def prepare_and_write(
 
     if time == 'mixed':
         resample = False
+
+    if include_qc_flags and resample:
+        raise ValueError(
+            "include_qc_flags=True is only supported for un-resampled output "
+            "(time='mixed' or resample=False): QC flag codes cannot be averaged."
+        )
+
+    if has_qc_flags(dataset) and not include_qc_flags:
+        dataset = finalize_qc(dataset)
 
     if resample:
         d2 = resample_dataset(dataset, time)
@@ -92,7 +112,8 @@ def prepare_and_write(
         remove_nan_fields = True
     else:
         remove_nan_fields = False
-    col_names = getColNames(vars_df, d2, remove_nan_fields=remove_nan_fields)
+    col_names = getColNames(vars_df, d2, remove_nan_fields=remove_nan_fields,
+                            include_qc_flags=include_qc_flags)
 
     # Create out directory
     output_dir = output_path / name
@@ -174,7 +195,7 @@ def writeNC(outfile, Lx, col_names=None, compression=False):
     Lx[names].to_netcdf(outfile, mode="w", format="NETCDF4", compute=True, encoding=encoding)
 
 
-def getColNames(vars_df, ds, remove_nan_fields=False):
+def getColNames(vars_df, ds, remove_nan_fields=False, include_qc_flags=False):
     """
      Get variable names for a given dataset with respect to its type and processing level
 
@@ -185,6 +206,14 @@ def getColNames(vars_df, ds, remove_nan_fields=False):
      This is mainly for exporting purposes.
 
     Parameters
+     ----------
+     include_qc_flags : bool
+         If True, the "<var>_qc" flag variable of each selected variable is
+         appended to the list (right after its parent) when present in ds.
+         A "<var>_qc" is only ever selected through its parent being listed
+         in vars_df, so unknown variables never bring a flag variable along.
+
+    Returns
      -------
      list
          Variable names
@@ -210,6 +239,14 @@ def getColNames(vars_df, ds, remove_nan_fields=False):
             cleaned.append(v)  # keep only valid variables
 
         var_list = cleaned  # replace with filtered list
+
+    if include_qc_flags:
+        with_qc = []
+        for v in var_list:
+            with_qc.append(v)
+            if f"{v}_qc" in ds:
+                with_qc.append(f"{v}_qc")
+        var_list = with_qc
     return var_list
 
 
@@ -228,7 +265,10 @@ def addVars(ds, variables):
     ds : xarray.Dataset
         Dataset with metadata
     """
-    for k in ds.keys():
+    for k in list(ds.keys()):
+        if k.endswith("_qc") and k[:-3] in variables.index:
+            _add_qc_flag_attrs(ds, k, k[:-3], variables)
+            continue
         if k not in variables.index:
             continue
         ds[k].attrs["standard_name"] = variables.loc[k]["standard_name"]
@@ -237,6 +277,29 @@ def addVars(ds, variables):
         ds[k].attrs["coverage_content_type"] = variables.loc[k]["coverage_content_type"]
         ds[k].attrs["coordinates"] = variables.loc[k]["coordinates"]
     return ds
+
+
+def _add_qc_flag_attrs(ds, qc_name, parent, variables):
+    """Build the attributes of a "<var>_qc" flag variable from its parent
+    variable's attributes in the variables table, keeping what the flag
+    variable already carries (e.g. flag_values / flag_meanings).
+
+    The parent also gets an "ancillary_variables" attribute pointing to it
+    (CF convention). Both steps are idempotent.
+    """
+    qc_attrs = ds[qc_name].attrs
+    parent_long_name = variables.loc[parent]["long_name"]
+
+    qc_attrs.setdefault("standard_name", "status_flag")
+    if "QC flag associated with" not in str(qc_attrs.get("long_name", "")):
+        qc_attrs["long_name"] = f"QC flag associated with {parent_long_name}"
+    qc_attrs["units"] = "1"
+    qc_attrs["coverage_content_type"] = "qualityInformation"
+    qc_attrs["coordinates"] = variables.loc[parent]["coordinates"]
+
+    ancillary = ds[parent].attrs.get("ancillary_variables", "").split()
+    if qc_name not in ancillary:
+        ds[parent].attrs["ancillary_variables"] = " ".join(ancillary + [qc_name])
 
 
 def addMeta(ds, meta):
