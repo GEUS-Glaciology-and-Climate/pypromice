@@ -158,7 +158,8 @@ class AWS(object):
         self.L1A = reduce(xr.Dataset.combine_first, reversed(self.L1))
         self.L1A.attrs["format"] = self.format
 
-    def getL2(self):
+    def getL2(self,
+              keep_flagged_data: bool = False):
         """Perform L1 to L2 data processing"""
         logger.info("Level 2 processing...")
 
@@ -168,6 +169,7 @@ class AWS(object):
             vars_df=self.vars,
             data_flags_dir=self.data_issues_repository / "flags",
             data_adjustments_dir=self.data_issues_repository / "adjustments",
+            keep_flagged_data=keep_flagged_data,
         )
 
     def getL3(self):

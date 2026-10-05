@@ -44,7 +44,8 @@ def get_l2(config_file: str,
            declination_path: Path | None = None,
            write_csv: bool = False,
            write_10min: bool = False,
-           write_60min: bool = False,  
+           write_60min: bool = False,
+           keep_flagged_data: bool = False,
 ) -> AWS:
     """Process PROMICE AWS data to Level 2.
 
@@ -100,7 +101,7 @@ def get_l2(config_file: str,
 
     # Perform level 1 and 2 processing
     aws.getL1()
-    aws.getL2()
+    aws.getL2(keep_flagged_data=keep_flagged_data)
 
     # Write out level 2
     if outpath is not None:
