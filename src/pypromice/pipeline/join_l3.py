@@ -455,6 +455,13 @@ def get_valid_time_block(station_info: dict, filepath: str, isNead: bool,
     variables contains valid data. A new block is created when all tested
     variables are simultaneously missing for longer than `min_gap`.
 
+    The tested variables only decide where blocks split. Rows before the first
+    block and after the last block that still hold data in any variable (e.g.
+    the latest transmission: a half-empty row with only instantaneous values,
+    since the averages of the running hour do not exist yet) are returned as
+    extra blocks flagged `is_edge`, which `resolve_block_overlap` only uses
+    where no regular block of any station covers the time.
+
     Args:
         station_info (dict): Station configuration dictionary containing station
             metadata, including `stid`.
@@ -520,6 +527,23 @@ def get_valid_time_block(station_info: dict, filepath: str, isNead: bool,
             "station_dataset": ds,
         })
 
+    # Rows with data in any variable before the first / after the last block
+    notnull = ds.to_array().notnull()
+    any_valid = notnull.any([d for d in notnull.dims if d != "time"]).values
+    t_any = time_index[any_valid]
+    for start, end in ((t_any[0], blocks[0]["start_time"]),
+                       (blocks[-1]["end_time"], t_any[-1])):
+        start, end = pd.Timestamp(start), pd.Timestamp(end)
+        if end > start:
+            blocks.append({
+                **station_info,
+                "start_time": np.datetime64(start),
+                "end_time": np.datetime64(end),
+                "dataset": ds.sel(time=slice(start, end)),
+                "station_dataset": ds,
+                "is_edge": True,
+            })
+
     return blocks
 
 
@@ -560,11 +584,13 @@ def resolve_block_overlap(blocks: list) -> list:
 
     # Determine station priority independently of individual valid sub-blocks.
     # A station whose overall record starts later is considered newer.
+    # Edge blocks (extra rows around a station's record) must not influence it.
     station_start = {
         stid: min(
-            b["start_time"] for b in blocks if b["stid"] == stid
+            b["start_time"] for b in blocks
+            if b["stid"] == stid and not b.get("is_edge", False)
         )
-        for stid in {b["stid"] for b in blocks}
+        for stid in {b["stid"] for b in blocks if not b.get("is_edge", False)}
     }
 
     # Preserve the order stations were listed in, as the last-resort tiebreak.
@@ -575,6 +601,10 @@ def resolve_block_overlap(blocks: list) -> list:
     def station_priority(stid):
         has_priority_marker = "v3" in stid or "_O" in stid
         return (station_start[stid], has_priority_marker, -stid_order[stid])
+
+    def block_priority(b):
+        # edge blocks only ever fill time that no regular block covers
+        return (not b.get("is_edge", False), station_priority(b["stid"]))
 
     blocks = sorted(blocks, key=lambda b: b["start_time"])
 
@@ -603,10 +633,7 @@ def resolve_block_overlap(blocks: list) -> list:
 
         # Prefer the newer station, rather than the block whose current
         # valid run happened to start most recently.
-        chosen = max(
-            covering,
-            key=lambda b: station_priority(b["stid"]),
-        )
+        chosen = max(covering, key=block_priority)
 
         ds_seg = chosen["dataset"].sel(time=slice(seg_start, seg_end))
 
@@ -721,7 +748,8 @@ def build_station_data_blocks(config_folder: str, target_station_site: str,
     # returned here (a whole xarray.Dataset has no business riding along in
     # station_info downstream).
     return [
-        (b["dataset"], {k: v for k, v in b.items() if k not in ("dataset", "station_dataset")})
+        (b["dataset"], {k: v for k, v in b.items()
+                        if k not in ("dataset", "station_dataset", "is_edge")})
         for b in blocks
     ]
 
