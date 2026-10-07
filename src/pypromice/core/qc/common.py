@@ -1,58 +1,14 @@
-"""Shared quality-control (QC) flag infrastructure.
+"""QC flag infrastructure.
 
-Every QC filter in this package (persistence, rate-of-change, value clipping,
-manual GitHub-issue flags) marks samples it rejects on a companion
-``<var>_qc`` integer variable instead of overwriting ``<var>`` with no
-record of why. This keeps every variable's true, original reading in ``ds``
-for as long as the pipeline runs, so a station file can eventually carry
-both the raw values and the full set of flags explaining which ones were
-excluded and why.
+QC filters flag rejected samples on a ``<var>_qc`` companion variable instead
+of overwriting ``<var>``: ``flag_qc`` never touches the data.
 
-Encoding
---------
-``<var>_qc`` follows the CF "status_flag" convention: a small integer with
-mutually-exclusive codes and ``flag_values``/``flag_meanings`` attributes.
-Code 0 is always "OK"; every other code names the QC step that rejected the
-sample. See ``FLAG_MEANINGS`` for the canonical, ordered list -- add new QC
-steps there, not as ad-hoc string literals in individual filter modules.
-
-First flag wins
-----------------
-A sample keeps the *first* flag it receives. Once a sample is flagged,
-``flag_qc`` will not let a later QC step overwrite the reason (it also won't
-flag an already-NaN sample -- there's nothing to explain there). QC filters
-therefore effectively run in a fixed priority order: whichever filter runs
-first "claims" a bad sample.
-
-Reading and flagging the correct image of the dataset
--------------------------------------------------------
-``flag_qc`` only ever records the flag -- it never touches ``ds[var]``
-itself. This means the true, original reading of every variable stays
-available in ``ds`` no matter how many QC steps have flagged it.
-
-The corollary: anything that *consumes* a variable's value -- another QC
-filter detecting a new issue, or a derived-variable calculation further
-down the pipeline -- must not read straight from ``ds``, since a flagged
-sample sitting there is still its raw, potentially bad, value. Use
-``clean_view(ds)`` to get a disposable copy with every already-flagged
-sample replaced by NaN, and read from *that* instead. Every QC filter in
-this package builds its own ``clean_view`` before evaluating new samples,
-and the pipeline stage that calls them builds one before computing any
-derived variable from raw sensor readings.
-
-Dependency checks (e.g. "is this variable's parent currently bad?") should
-use ``~is_ok(ds, var)`` rather than ``ds[var].isnull()`` -- a flagged
-sample is not NaN in ``ds`` itself, only in a ``clean_view`` of it.
-
-Finalizing
-----------
-``finalize_qc`` is called once, at the end of the pipeline stage that ran
-these filters. By default (``keep_flagged_data=False``) it applies
-``clean_view`` and drops every ``<var>_qc`` variable, matching exactly what
-a non-flag-based pipeline produces. Pass ``keep_flagged_data=True`` to
-instead get everything back untouched: every variable's true original
-reading, raw sensor readings and derived variables alike, with its
-``<var>_qc`` companion attached.
+- ``<var>_qc`` is an ``int8`` CF ``status_flag``; 0 is "OK", other codes are
+  listed in ``FLAG_MEANINGS``. The first flag a sample gets is kept.
+- Read data through ``clean_view(ds)`` (flagged samples as NaN), and test for
+  flags with ``is_ok(ds, var)``, not ``ds[var].isnull()``.
+- ``finalize_qc`` drops the flags and removes flagged data by default, or
+  keeps raw values and/or flags on request.
 """
 from typing import Optional
 
