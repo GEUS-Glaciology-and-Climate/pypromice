@@ -6,6 +6,7 @@ import xarray as xr
 
 import pypromice.resources
 from pypromice.core.variables.wind import filter_wind_direction, calculate_directional_wind_speed
+from pypromice.core.qc.common import finalize_qc
 from pypromice.core.qc.value_clipping import clip_values
 
 
@@ -28,7 +29,7 @@ class ClipValuesTestCase(unittest.TestCase):
         ds_out['wspd_x_u'], ds_out['wspd_y_u'] = calculate_directional_wind_speed(ds_out['wspd_u'],
                                                                                   ds_out['wdir_u'])
         vars = pypromice.resources.load_variables(None)
-        ds_out = clip_values(ds_out, vars)
+        ds_out = finalize_qc(clip_values(ds_out, vars))
 
         # Convert to dataframe for easier comparison
         df_out = ds_out.to_dataframe()
@@ -56,7 +57,7 @@ class ClipValuesTestCase(unittest.TestCase):
                                                                                   ds_out['wdir_u'])
 
         vars = pypromice.resources.load_variables(None)
-        ds_out = clip_values(ds_out, vars)
+        ds_out = finalize_qc(clip_values(ds_out, vars))
 
         # Convert to dataframe for easier comparison
         df_out = ds_out.to_dataframe()
@@ -102,7 +103,7 @@ class ClipValuesTestCase(unittest.TestCase):
 
         vars = pypromice.resources.load_variables(None)
 
-        ds_out = clip_values(ds_out, vars)
+        ds_out = finalize_qc(clip_values(ds_out, vars))
 
         # Convert to dataframe for easier comparison
         df_out = ds_out.to_dataframe()
@@ -163,7 +164,7 @@ class ClipValuesTestCase(unittest.TestCase):
 
         data_set = xr.Dataset(data)
 
-        data_set_out = clip_values(data_set, variable_config)
+        data_set_out = finalize_qc(clip_values(data_set, variable_config))
         data_frame_out = data_set_out.to_dataframe()
 
         pd.testing.assert_frame_equal(
@@ -210,7 +211,7 @@ class ClipValuesTestCase(unittest.TestCase):
 
         data_set = xr.Dataset(data)
 
-        data_set_out = clip_values(data_set, variable_config)
+        data_set_out = finalize_qc(clip_values(data_set, variable_config))
         data_frame_out = data_set_out.to_dataframe()
 
         pd.testing.assert_frame_equal(
@@ -253,7 +254,7 @@ class ClipValuesTestCase(unittest.TestCase):
         data_set = xr.Dataset(df_input)
 
         # Run the function
-        data_set_out = clip_values(data_set, variable_config)
+        data_set_out = finalize_qc(clip_values(data_set, variable_config))
 
         data_frame_out = data_set_out.to_dataframe()
         pd.testing.assert_frame_equal(
@@ -297,7 +298,7 @@ class ClipValuesTestCase(unittest.TestCase):
 
         data_set = xr.Dataset(data)
 
-        data_set_out = clip_values(data_set, variable_config)
+        data_set_out = finalize_qc(clip_values(data_set, variable_config))
         data_frame_out = data_set_out.to_dataframe()
 
         pd.testing.assert_frame_equal(

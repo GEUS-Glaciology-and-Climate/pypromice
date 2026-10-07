@@ -86,13 +86,19 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
                     +[f'd_t_i_{i}' for i in range(1,12)]
     var_list_gap_fill = [v for v in var_list_gap_fill if v in df_h.columns]
     timestamp_durations = classify_timestamp_durations(ds_h.time)
+
+    # Raw (uncompleteness-filtered) hourly means for the gap-fill variables,
+    # computed once for all of them and reused as the bfill source inside the
+    # per-variable loop below, instead of resampling each column separately.
+    df_hourly_raw = df_h[var_list_gap_fill].resample('60min').mean()
+
     if t == '60min':
         df_hourly = df_resampled
     else:
-        df_hourly = df_h[var_list_gap_fill].resample('60min').mean()
+        df_hourly = df_hourly_raw.copy()
         # Apply completeness filter based on the the data frame time index
         completeness_mask_hourly = get_completeness_mask(
-            data_frame=df_h,
+            data_frame=df_h[var_list_gap_fill],
             resample_offset='60min',
             completeness_thresholds=completeness_thresholds,
         )
@@ -131,8 +137,8 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
         for ts in ts_6h:
             hourly_index_6h[ts - pd.Timedelta('6h'):ts] = True
 
-        # Resample to hourly mean
-        filled = df_h[var].resample('60min').mean()
+        # Hourly mean, reusing the bulk resample computed above
+        filled = df_hourly_raw[var]
 
         # Apply bfill with appropriate limits
         filled_24h = filled.bfill(limit=24)

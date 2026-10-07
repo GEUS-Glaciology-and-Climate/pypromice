@@ -29,6 +29,15 @@ def parse_arguments_l2tol3(debug_args=None):
     parser.add_argument('--data_issues_path', '--issues', default=None,
                         help="Path to data issues repository")
 
+    parser.add_argument('--keep_flagged_data', action='store_true',
+                        help='Keep the original values of QC-flagged samples '
+                             'and write the "<var>_qc" flag variables in the '
+                             'mixed-resolution file (default: flagged data '
+                             'removed, no flag variables)')
+    parser.add_argument('--write_qc_flags', action='store_true',
+                        help='Write the "<var>_qc" flag variables in the '
+                             'mixed-resolution file while still removing '
+                             'flagged data (default: no flag variables)')
     parser.add_argument('--write_60min', action='store_true',
                         help='Write hourly (60min) Level 3 product')
     parser.add_argument('--write_1D', action='store_true',
@@ -49,6 +58,8 @@ def get_l2tol3(
         write_60min: bool = False,
         write_1D: bool = False,
         write_MS: bool = False,
+        keep_flagged_data: bool = False,
+        write_qc_flags: bool = False,
     ):
     if isinstance(config_folder, str):
         config_folder = Path(config_folder)
@@ -102,13 +113,20 @@ def get_l2tol3(
     data_adjustments_dir = data_issues_path / "adjustments"
 
     # Perform Level 3 processing
-    l3 = toL3(l2, data_adjustments_dir, station_config)
+    # If the L2 file carries "<var>_qc" flag variables: by default flagged
+    # samples are removed and the flags dropped (as before QC flags existed).
+    l3 = toL3(l2, data_adjustments_dir, station_config,
+              keep_flagged_data=keep_flagged_data,
+              keep_qc_flags=write_qc_flags)
 
     # Write Level 3 dataset to file if output directory given
     v = pypromice.resources.load_variables(variables)
     m = pypromice.resources.load_metadata(metadata)
     if outpath is not None:
-        prepare_and_write(l3, outpath, v, m, 'mixed', resample=False)
+        # Flag variables are only written to the un-resampled file; resampled
+        # products are always clean (prepare_and_write applies the flags).
+        prepare_and_write(l3, outpath, v, m, 'mixed', resample=False,
+                          include_qc_flags=keep_flagged_data or write_qc_flags)
         if write_60min:
             prepare_and_write(l3, outpath, v, m, '60min')
 
@@ -126,7 +144,9 @@ def main():
                    args.outpath,
                    args.variables,
                    args.metadata,
-                   args.data_issues_path)
+                   args.data_issues_path,
+                   keep_flagged_data=args.keep_flagged_data,
+                   write_qc_flags=args.write_qc_flags)
 
 if __name__ == "__main__":
     main()

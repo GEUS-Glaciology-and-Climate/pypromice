@@ -18,7 +18,7 @@ class TestFilter(unittest.TestCase):
         gps_lon = xr.DataArray([4, 5, 6], dims=["time"], coords={"time": time})
         # Third value differ from baseline by >100
         gps_alt = xr.DataArray([1, 1, 10], dims=["time"], coords={"time": time}) * 200  # baseline = 200 → 3 is outside ±100
-        lat_f, lon_f, alt_f = filter(gps_lat, gps_lon, gps_alt)
+        lat_f, lon_f, alt_f, _ = filter(gps_lat, gps_lon, gps_alt)
         self.assertTrue(np.isnan(alt_f.values[-1]))
         self.assertTrue(np.isnan(lat_f.values[-1]))
         self.assertTrue(np.isnan(lon_f.values[-1]))
@@ -30,7 +30,7 @@ class TestFilter(unittest.TestCase):
         gps_lon = xr.DataArray([4, 5, 6], dims=["time"], coords={"time": time})
         gps_alt = xr.DataArray([1000, 1005, 995], dims=["time"], coords={"time": time})
 
-        lat_f, lon_f, alt_f = filter(gps_lat, gps_lon, gps_alt)
+        lat_f, lon_f, alt_f, _ = filter(gps_lat, gps_lon, gps_alt)
         self.assertFalse(np.any(np.isnan(alt_f)))
         self.assertFalse(np.any(np.isnan(lat_f)))
         self.assertFalse(np.any(np.isnan(lon_f)))
@@ -42,7 +42,7 @@ class TestFilter(unittest.TestCase):
         gps_lon = xr.DataArray([20], dims=["time"], coords={"time": time})
         gps_alt = xr.DataArray([1000], dims=["time"], coords={"time": time})
 
-        lat_f, lon_f, alt_f = filter(gps_lat, gps_lon, gps_alt)
+        lat_f, lon_f, alt_f, _ = filter(gps_lat, gps_lon, gps_alt)
         self.assertFalse(np.isnan(alt_f.sel(time=time[0])))
         self.assertFalse(np.isnan(lat_f.sel(time=time[0])))
         self.assertFalse(np.isnan(lon_f.sel(time=time[0])))
@@ -54,7 +54,7 @@ class TestFilter(unittest.TestCase):
         gps_lon = xr.DataArray(np.arange(60, 120), dims=["time"], coords={"time": time})
         gps_alt = xr.DataArray([1000]*30 + [1200]*30, dims=["time"], coords={"time": time})
 
-        lat_f, lon_f, alt_f = filter(gps_lat, gps_lon, gps_alt)
+        lat_f, lon_f, alt_f, _ = filter(gps_lat, gps_lon, gps_alt)
 
         # First month should be kept (1000 ±100), second month values outside threshold (1200 vs median 1000) → masked
         first_month_mask = np.isnan(alt_f.sel(time=slice("2025-01-20","2025-01-30")))

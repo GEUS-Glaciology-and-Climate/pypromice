@@ -6,7 +6,7 @@ import xarray as xr
 
 def filter_lufft_errors(
     precip: xr.DataArray, t: xr.DataArray, p: xr.DataArray, rh: xr.DataArray
-) -> xr.DataArray:
+) -> tuple[xr.DataArray, xr.DataArray]:
     """Filter precipitation measurements where air temperature, pressure, or
     relative humidity measurements are null values. This assumes that
     air temperature, air pressure, relative humidity and precipitation
@@ -28,9 +28,13 @@ def filter_lufft_errors(
     -------
     xr.DataArray
         Filtered precipitation values
+    xr.DataArray
+        Boolean mask, True where a companion measurement (t/p/rh) is
+        missing while precip reads exactly 0 (treated as a sensor-error
+        artifact rather than a genuine zero reading)
     """
     mask = (t.isnull() | p.isnull() | rh.isnull()) & (precip == 0)
-    return precip.where(~mask)
+    return precip.where(~mask), mask
 
 
 def correct_rainfall_undercatch(

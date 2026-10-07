@@ -17,21 +17,24 @@ class TestPrecipFilter(unittest.TestCase):
         self.rh = xr.DataArray([50.0, 60.0, 70.0], dims="time", coords={"time": time})
 
     def test_filter_removes_when_nan_and_zero(self):
-        result = precipitation.filter_lufft_errors(self.precip, self.t, self.p, self.rh)
+        result, mask = precipitation.filter_lufft_errors(self.precip, self.t, self.p, self.rh)
         # Expect NaN at index 2 because p is NaN and precip==0
         self.assertTrue(np.isnan(result[0].item()))
+        self.assertTrue(mask[0].item())
 
     def test_filter_keeps_nonzero_precip(self):
-        result = precipitation.filter_lufft_errors(self.precip, self.t, self.p, self.rh)
+        result, mask = precipitation.filter_lufft_errors(self.precip, self.t, self.p, self.rh)
         # precip[1] = 1.0, even though t is NaN, should be kept
         self.assertEqual(result[1].item(), 1.0)
+        self.assertFalse(mask[1].item())
 
     def test_filter_no_nan_inputs(self):
         t = xr.DataArray([0.0, 1.0, 2.0], dims="time", coords=self.precip.coords)
         p = xr.DataArray([1013.0, 1012.0, 1011.0], dims="time", coords=self.precip.coords)
         rh = xr.DataArray([50.0, 60.0, 70.0], dims="time", coords=self.precip.coords)
-        result = precipitation.filter_lufft_errors(self.precip, t, p, rh)
+        result, mask = precipitation.filter_lufft_errors(self.precip, t, p, rh)
         xr.testing.assert_equal(result, self.precip)
+        self.assertFalse(mask.any().item())
 
 class TestPrecipConvert(unittest.TestCase):
 

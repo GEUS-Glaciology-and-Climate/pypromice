@@ -107,3 +107,24 @@ The TOML config file has the following expectations and behaviors:
 .. note::
 
 	Be aware the column names should follow those defined in pypromice's `variables look-up table <https://github.com/GEUS-Glaciology-and-Climate/pypromice/blob/main/src/pypromice/process/variables.csv>`_. Any column names provided that are not in this look-up table will be passed through the processing untouched.
+
+
+Quality-control flags
+=====================
+
+Automated and manual quality control (persistence, rate of change, value limits, manual flags from the data-issues repository, GPS baseline, precipitation sensor errors, shortwave-radiation geometry, radiometer rime) does not overwrite the data. Each rejected sample is marked on a ``<variable>_qc`` flag variable (``int8``, CF ``status_flag`` with ``flag_values``/``flag_meanings`` attributes; ``0`` is ``OK`` and the first QC step to reject a sample owns the reason). Derived variables are always computed from the cleaned data.
+
+By default, as before flags were introduced, flagged samples are removed and no flag variable is written. Two switches are available on ``get_l2``, ``join_l2`` and ``get_l2tol3`` (and as ``keep_flagged_data`` / ``write_qc_flags`` arguments of the corresponding Python functions):
+
+``--write_qc_flags``
+	Write the ``<variable>_qc`` variables in the mixed-resolution file. Flagged samples are still removed, the flags document why they are missing.
+
+``--keep_flagged_data``
+	Keep the original value of flagged samples and write the ``<variable>_qc`` variables, so that the data and the reason for excluding it travel together in the mixed-resolution file.
+
+.. code:: console
+
+	$ get_l2 -c config/KPC_L.toml -i . -o l2 -d magdec.toml --write_qc_flags
+	$ join_l2 -s l2/raw/KPC_L_mixed.nc -t l2/tx/KPC_L_mixed.nc -o l2_join --keep_flagged_data
+
+Flag variables are only written to the mixed-resolution files: flag codes cannot be averaged, so hourly, daily and monthly products, as well as the site-level products of ``join_l3``, are always written from the cleaned data. At Level 3, a flag is carried over for the variables that Level 3 processing passes through unchanged; variables that Level 3 recomputes are derived from the cleaned data and carry no flag. In the output files, the ``<variable>_qc`` attributes are built from the attributes of ``<variable>`` in ``variables.csv`` (``long_name`` is "QC flag associated with ...") and ``<variable>`` points to its flag variable through ``ancillary_variables``.

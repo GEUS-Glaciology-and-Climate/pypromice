@@ -3,6 +3,7 @@ import json
 import logging, os, sys, toml
 from argparse import ArgumentParser
 
+from pypromice.core.qc.common import finalize_qc, has_qc_flags
 from pypromice.io.ingest.git import get_commit_hash_and_check_dirty
 from pypromice.core.variables import surface_height
 
@@ -242,6 +243,13 @@ def loadArr(infile, isNead):
             if ds[varname].encoding != {}:
                 ds[varname].encoding = {}
 
+        # Station L3 files may carry "<var>_qc" QC flag variables (and the raw
+        # values of flagged samples). The site-level products joined here are
+        # resampled only, so the flags are applied and dropped on load: flagged
+        # samples are removed, exactly as when no flag variables exist.
+        if has_qc_flags(ds):
+            ds = finalize_qc(ds)
+
     try:
         name = ds.attrs["station_name"]
     except:
@@ -447,6 +455,13 @@ def get_valid_time_block(station_info: dict, filepath: str, isNead: bool,
     variables contains valid data. A new block is created when all tested
     variables are simultaneously missing for longer than `min_gap`.
 
+    The tested variables only decide where blocks split. Rows before the first
+    block and after the last block that still hold data in any variable (e.g.
+    the latest transmission: a half-empty row with only instantaneous values,
+    since the averages of the running hour do not exist yet) are returned as
+    extra blocks flagged `is_edge`, which `resolve_block_overlap` only uses
+    where no regular block of any station covers the time.
+
     Args:
         station_info (dict): Station configuration dictionary containing station
             metadata, including `stid`.
@@ -504,7 +519,30 @@ def get_valid_time_block(station_info: dict, filepath: str, isNead: bool,
             "start_time": np.datetime64(seg_start),
             "end_time": np.datetime64(seg_end),
             "dataset": ds_seg,
+            # Full station dataset, kept only so resolve_block_overlap can
+            # recover non-tested variables (e.g. gps/boom/thermistor data)
+            # that fall inside a tested_vars gap between two blocks of this
+            # *same* station -- never used for cross-station gap-filling.
+            # Stripped out again before this leaves build_station_data_blocks.
+            "station_dataset": ds,
         })
+
+    # Rows with data in any variable before the first / after the last block
+    notnull = ds.to_array().notnull()
+    any_valid = notnull.any([d for d in notnull.dims if d != "time"]).values
+    t_any = time_index[any_valid]
+    for start, end in ((t_any[0], blocks[0]["start_time"]),
+                       (blocks[-1]["end_time"], t_any[-1])):
+        start, end = pd.Timestamp(start), pd.Timestamp(end)
+        if end > start:
+            blocks.append({
+                **station_info,
+                "start_time": np.datetime64(start),
+                "end_time": np.datetime64(end),
+                "dataset": ds.sel(time=slice(start, end)),
+                "station_dataset": ds,
+                "is_edge": True,
+            })
 
     return blocks
 
@@ -516,7 +554,12 @@ def resolve_block_overlap(blocks: list) -> list:
     When multiple stations cover the same period, data from the newer station
     are given priority. Older station data are retained where the newer station
     has no valid data. Neighboring resolved blocks belonging to the same station
-    are merged again.
+    are merged again; if a temporal gap remains between them (e.g. the two
+    blocks straddle a tested_vars-only outage), it is backfilled from that
+    same station's own dataset (via the optional "station_dataset" key each
+    block may carry) so that variables which kept reporting through the gap
+    are not silently dropped, even though the gap itself was excluded from
+    both blocks based only on tested_vars.
 
     Station priority is resolved with a fail-safe cascade, so the choice stays
     deterministic even when stations start reporting at the exact same time:
@@ -541,11 +584,13 @@ def resolve_block_overlap(blocks: list) -> list:
 
     # Determine station priority independently of individual valid sub-blocks.
     # A station whose overall record starts later is considered newer.
+    # Edge blocks (extra rows around a station's record) must not influence it.
     station_start = {
         stid: min(
-            b["start_time"] for b in blocks if b["stid"] == stid
+            b["start_time"] for b in blocks
+            if b["stid"] == stid and not b.get("is_edge", False)
         )
-        for stid in {b["stid"] for b in blocks}
+        for stid in {b["stid"] for b in blocks if not b.get("is_edge", False)}
     }
 
     # Preserve the order stations were listed in, as the last-resort tiebreak.
@@ -556,6 +601,10 @@ def resolve_block_overlap(blocks: list) -> list:
     def station_priority(stid):
         has_priority_marker = "v3" in stid or "_O" in stid
         return (station_start[stid], has_priority_marker, -stid_order[stid])
+
+    def block_priority(b):
+        # edge blocks only ever fill time that no regular block covers
+        return (not b.get("is_edge", False), station_priority(b["stid"]))
 
     blocks = sorted(blocks, key=lambda b: b["start_time"])
 
@@ -584,10 +633,7 @@ def resolve_block_overlap(blocks: list) -> list:
 
         # Prefer the newer station, rather than the block whose current
         # valid run happened to start most recently.
-        chosen = max(
-            covering,
-            key=lambda b: station_priority(b["stid"]),
-        )
+        chosen = max(covering, key=block_priority)
 
         ds_seg = chosen["dataset"].sel(time=slice(seg_start, seg_end))
 
@@ -613,18 +659,34 @@ def resolve_block_overlap(blocks: list) -> list:
         if merged_blocks and merged_blocks[-1]["stid"] == block["stid"]:
             previous = merged_blocks[-1]
 
-            ds = xr.concat(
-                [previous["dataset"], block["dataset"]],
-                dim="time",
-            )
+            pieces = [previous["dataset"]]
 
-            # Remove duplicated boundary timestamp introduced by inclusive slicing.
+            # If there's a temporal gap between these two same-station blocks
+            # (they straddle a tested_vars-only outage), backfill it from
+            # that station's own dataset: other variables may well have kept
+            # reporting through the gap, and since this is the same
+            # instrument there is no cross-station priority question here.
+            full_ds = block.get("station_dataset", previous.get("station_dataset"))
+            gap_start = pd.to_datetime(previous["end_time"])
+            gap_end = pd.to_datetime(block["start_time"])
+            if full_ds is not None and gap_end > gap_start:
+                gap_ds = full_ds.sel(time=slice(gap_start, gap_end))
+                if gap_ds.time.size > 0:
+                    pieces.append(gap_ds)
+
+            pieces.append(block["dataset"])
+
+            ds = xr.concat(pieces, dim="time")
+
+            # Remove duplicated boundary timestamps introduced by inclusive slicing.
             ds = ds.isel(
                 time=~pd.Index(ds.time.values).duplicated()
             )
 
             previous["dataset"] = ds
             previous["end_time"] = block["end_time"]
+            if "station_dataset" in block:
+                previous["station_dataset"] = block["station_dataset"]
 
         else:
             merged_blocks.append(block)
@@ -681,7 +743,15 @@ def build_station_data_blocks(config_folder: str, target_station_site: str,
         t1 = pd.to_datetime(b["end_time"]).strftime("%Y-%m-%d")
         logger.info(f"  {b['stid']:10s}  {t0}  ->  {t1}")
 
-    return [(b["dataset"], {k: v for k, v in b.items() if k != "dataset"}) for b in blocks]
+    # "station_dataset" is internal bookkeeping for resolve_block_overlap's
+    # same-station gap-fill; it must not leak into the station metadata dict
+    # returned here (a whole xarray.Dataset has no business riding along in
+    # station_info downstream).
+    return [
+        (b["dataset"], {k: v for k, v in b.items()
+                        if k not in ("dataset", "station_dataset", "is_edge")})
+        for b in blocks
+    ]
 
 
 def join_l3(config_folder, site, folder_l3, folder_gcnet,

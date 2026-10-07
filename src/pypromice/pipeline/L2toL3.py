@@ -9,14 +9,45 @@ from sklearn.linear_model import LinearRegression
 from pathlib import Path
 import logging
 
+from pypromice.core.qc.common import finalize_qc, has_qc_flags
 from pypromice.core.variables import humidity, surface_height, subsurface_temperature
 
 logger = logging.getLogger(__name__)
 
+def _restore_qc_flags(ds, flagged_l2, passthrough, keep_flagged_data):
+    """Re-attach the L2 "<var>_qc" flag variables to the processed L3 dataset.
+
+    Only variables that went through L3 processing unchanged get their flag
+    back (and, with keep_flagged_data, the original values of their flagged
+    samples). Variables that L3 processing recomputed or modified have no
+    meaningful L2 flag and are left as computed from the cleaned data.
+    """
+    if not ds["time"].equals(flagged_l2["time"]):
+        logger.warning("Time axis changed during L3 processing, QC flags not carried to L3")
+        return ds
+    for q in [v for v in flagged_l2.data_vars if v.endswith("_qc")]:
+        v = q[:-3]
+        if v not in ds or v not in passthrough:
+            continue
+        try:
+            unchanged = np.array_equal(ds[v].values, passthrough[v], equal_nan=True)
+        except TypeError:
+            unchanged = np.array_equal(ds[v].values, passthrough[v])
+        if not unchanged:
+            logger.debug("%s modified by L3 processing, its QC flag is not carried to L3" % v)
+            continue
+        ds[q] = flagged_l2[q]
+        if keep_flagged_data:
+            ds[v] = flagged_l2[v]
+    return ds
+
+
 def toL3(L2,
          data_adjustments_dir: Path,
          station_config={},
-         T_0=273.15):
+         T_0=273.15,
+         keep_flagged_data: bool = False,
+         keep_qc_flags: bool = False):
     '''Process one Level 2 (L2) product to Level 3 (L3) meaning calculating all
     derived variables:
         - Turbulent fluxes
@@ -34,7 +65,29 @@ def toL3(L2,
         string maintenance date for the thermistors depth)
     T_0 : int
         Freezing point temperature. Default is 273.15.
+    keep_flagged_data : bool
+        Only relevant if L2 carries "<var>_qc" QC flag variables. If True, the
+        original values of flagged samples are kept in the variables that L3
+        passes through unchanged, together with their "<var>_qc". Derived L3
+        variables are always computed from the cleaned data. Default False.
+    keep_qc_flags : bool
+        Only used when keep_flagged_data is False. If True, the "<var>_qc"
+        flag variables of the unchanged passed-through variables are kept
+        while flagged samples stay removed. Default False.
+
+    With neither switch (default), the L2 flags are applied (flagged samples
+    removed) and no "<var>_qc" variable is returned.
     '''
+    flagged_l2 = None
+    passthrough = {}
+    if has_qc_flags(L2):
+        flagged_l2 = L2
+        L2 = finalize_qc(L2)   # cleaned values, flag variables dropped
+        if keep_flagged_data or keep_qc_flags:
+            passthrough = {v[:-3]: L2[v[:-3]].values.copy()
+                           for v in flagged_l2.data_vars
+                           if v.endswith("_qc") and v[:-3] in L2}
+
     ds = L2
     ds.attrs['level'] = 'L3'
 
@@ -162,6 +215,9 @@ def toL3(L2,
     else:
         logger.error('No project info in station_config. Using \"ice sheet\".')
         ds.attrs['location_type'] = "ice sheet"
+
+    if flagged_l2 is not None and (keep_flagged_data or keep_qc_flags):
+        ds = _restore_qc_flags(ds, flagged_l2, passthrough, keep_flagged_data)
 
     return ds
 
