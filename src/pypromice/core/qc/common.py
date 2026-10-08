@@ -13,6 +13,7 @@ of overwriting ``<var>``: ``flag_qc`` never touches the data.
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 # Variables that are never subject to QC flagging (coordinates / bookkeeping).
@@ -44,11 +45,11 @@ def _qc_name(var: str) -> str:
 def _ensure_qc_var(ds: xr.Dataset, var: str) -> xr.Dataset:
     qc_name = _qc_name(var)
     if qc_name not in ds:
-        ds[qc_name] = xr.DataArray(
-            np.zeros(ds[var].shape, dtype=FLAG_DTYPE),
-            coords=ds[var].coords,
-            dims=ds[var].dims,
-            attrs={
+        da = ds[var]
+        ds[qc_name] = xr.Variable(
+            da.dims,
+            np.zeros(da.shape, dtype=FLAG_DTYPE),
+            {
                 "long_name": f"quality control flag for {var}",
                 "standard_name": "status_flag",
                 "flag_values": np.arange(len(FLAG_MEANINGS), dtype=FLAG_DTYPE),
@@ -72,6 +73,74 @@ def is_ok(ds: xr.Dataset, var: str) -> xr.DataArray:
     if qc_name not in ds:
         return xr.ones_like(ds[var], dtype=bool)
     return ds[qc_name] == _FLAG_CODE["OK"]
+
+
+def _flag_positions(da, index_slice):
+    """Positional indexer for a ``.loc``-style ``index_slice`` on a 1-D
+    DataArray, or None if the request needs the generic xarray path."""
+    if not index_slice:
+        return slice(None)
+    if len(index_slice) != 1:
+        return None
+    (dim, key), = index_slice.items()
+    if dim != da.dims[0]:
+        return None
+    index = da.indexes[dim]
+    if isinstance(key, slice):
+        return index.slice_indexer(key.start, key.stop, key.step)
+    positions = index.get_indexer(np.atleast_1d(key))
+    if (positions < 0).any():
+        raise KeyError(f"labels not found in {dim!r}: {np.atleast_1d(key)[positions < 0]}")
+    return positions
+
+
+def _flag_qc_numpy(ds, var, code, mask, index_slice):
+    """numpy implementation of flag_qc for 1-D variables. Returns False if the
+    request is not supported (the caller then uses the xarray implementation)."""
+    da = ds[var]
+    if da.ndim != 1:
+        return False
+    positions = _flag_positions(da, index_slice)
+    if positions is None:
+        return False
+
+    n = da.size
+    if isinstance(mask, xr.DataArray):
+        if mask.dims != da.dims:
+            return False
+        dim = da.dims[0]
+        if not mask.indexes[dim].equals(da.indexes[dim]):
+            mask = mask.reindex({dim: da[dim]}, fill_value=False)
+        mask_values = np.asarray(mask.values, dtype=bool)
+    else:
+        mask_values = bool(mask)
+
+    values = da.values
+    notnull = ~np.isnan(values) if values.dtype.kind in "fc" else ~pd.isnull(values)
+    qc_values = ds[_qc_name(var)].values
+
+    cond = np.zeros(n, dtype=bool)
+    cond[positions] = mask_values[positions] if isinstance(mask_values, np.ndarray) else mask_values
+    cond &= notnull
+    cond &= qc_values == _FLAG_CODE["OK"]
+    if cond.any():
+        new_qc = qc_values.copy()
+        new_qc[cond] = code
+        ds[_qc_name(var)].values = new_qc
+    return True
+
+
+def _flag_qc_xarray(ds, var, code, mask, index_slice):
+    """Generic (slower) xarray implementation of flag_qc."""
+    qc_name = _qc_name(var)
+    qc = ds[qc_name].loc[index_slice or {}]
+    data = ds[var].loc[index_slice or {}]
+    if qc.size == 0:
+        return ds
+    m = mask.loc[index_slice or {}] if isinstance(mask, xr.DataArray) else mask
+    cond = m & data.notnull() & (qc == _FLAG_CODE["OK"])
+    ds[qc_name].loc[index_slice or {}] = xr.where(cond, code, qc).astype(FLAG_DTYPE)
+    return ds
 
 
 def flag_qc(
@@ -117,23 +186,10 @@ def flag_qc(
         )
 
     ds = _ensure_qc_var(ds, var)
-
-    if index_slice is None:
-        index_slice = {}
-
-    qc_name = _qc_name(var)
-    qc = ds[qc_name].loc[index_slice]
-    data = ds[var].loc[index_slice]
-    if qc.size == 0:
+    code = _FLAG_CODE[flag_name]
+    if _flag_qc_numpy(ds, var, code, mask, index_slice):
         return ds
-
-    m = mask.loc[index_slice] if isinstance(mask, xr.DataArray) else mask
-
-    cond = m & data.notnull() & (qc == _FLAG_CODE["OK"])
-    ds[qc_name].loc[index_slice] = xr.where(cond, _FLAG_CODE[flag_name], qc).astype(
-        FLAG_DTYPE
-    )
-    return ds
+    return _flag_qc_xarray(ds, var, code, mask, index_slice)
 
 
 def clean_view(ds: xr.Dataset) -> xr.Dataset:
@@ -146,14 +202,66 @@ def clean_view(ds: xr.Dataset) -> xr.Dataset:
         if var.endswith("_qc") or var in NO_QC_VARS:
             continue
         qc_name = _qc_name(var)
-        if qc_name in ds_clean:
-            ds_clean[var] = ds_clean[var].where(is_ok(ds_clean, var))
+        if qc_name not in ds_clean:
+            continue
+        flagged = ds_clean[qc_name].values != _FLAG_CODE["OK"]
+        if not flagged.any():
+            continue
+        da = ds_clean[var]
+        ds_clean[var] = xr.Variable(
+            da.dims, np.where(flagged, np.nan, da.values), da.attrs
+        )
     return ds_clean
 
 
 def has_qc_flags(ds: xr.Dataset) -> bool:
     """True if ``ds`` carries at least one "<var>_qc" flag variable."""
     return any(v.endswith("_qc") for v in ds.data_vars)
+
+
+def combine_first_qc(ds1: xr.Dataset, ds2: xr.Dataset) -> xr.Dataset:
+    """``ds1.combine_first(ds2)`` that keeps the QC flags consistent.
+
+    ds1 is preferred, ds2 fills the gaps, where a flagged sample counts as a
+    gap: an OK value of ds2 is preferred to a flagged raw value of ds1. Each
+    "<var>_qc" follows the value that was chosen (a missing flag variable
+    means "never flagged"), so the result is the same as combining the two
+    ``clean_view`` datasets, except that flagged raw values are kept.
+    """
+    if not (has_qc_flags(ds1) or has_qc_flags(ds2)):
+        return ds1.combine_first(ds2)
+
+    qc_names = sorted({v for ds in (ds1, ds2) for v in ds.data_vars
+                       if v.endswith("_qc")})
+    out = ds1.drop_vars([q for q in qc_names if q in ds1]).combine_first(
+        ds2.drop_vars([q for q in qc_names if q in ds2]))
+
+    time = out.time
+    for q in qc_names:
+        var = q[:-3]
+        if var not in out or out[var].dims != ("time",):
+            continue
+
+        def values_and_flags(ds):
+            val = (ds[var].reindex(time=time).values if var in ds
+                   else np.full(time.size, np.nan))
+            flag = (ds[q].reindex(time=time, fill_value=0).values if q in ds
+                    else np.zeros(time.size, dtype=FLAG_DTYPE))
+            return val, flag
+
+        v1, q1 = values_and_flags(ds1)
+        v2, q2 = values_and_flags(ds2)
+        ok1 = ~np.isnan(v1) & (q1 == 0)
+        ok2 = ~np.isnan(v2) & (q2 == 0)
+
+        out[var].values = np.where(ok1, v1, np.where(ok2, v2, out[var].values))
+        flag = np.select(
+            [ok1 | ok2, ~np.isnan(v1), ~np.isnan(v2)],
+            [0, q1, q2],
+            default=np.where(q1 != 0, q1, q2),
+        ).astype(FLAG_DTYPE)
+        out[q] = xr.Variable(("time",), flag, (ds1[q] if q in ds1 else ds2[q]).attrs)
+    return out
 
 
 def finalize_qc(

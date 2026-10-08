@@ -1,3 +1,5 @@
+import json
+import statistics
 import xarray as xr
 import numpy as np
 from argparse import ArgumentParser
@@ -192,6 +194,60 @@ def format_report_md(report: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+# Relative runtime change below which a difference is treated as noise
+RUNTIME_NOISE = 0.10
+
+
+def format_timing_md(timings_org: Dict[str, list], timings_new: Dict[str, list]) -> str:
+    """Format the runtime comparison (median of the timed runs) as markdown."""
+    lines = ["# Runtime Comparison", ""]
+    lines.append("| Step | Main (s) | PR (s) | Change | |")
+    lines.append("|------|----------|--------|--------|---|")
+
+    total_org = total_new = 0.0
+    for step in timings_org:
+        if step not in timings_new:
+            continue
+        org = statistics.median(timings_org[step])
+        new = statistics.median(timings_new[step])
+        total_org += org
+        total_new += new
+        lines.append(_timing_row(step, org, new))
+    lines.append(_timing_row("**total**", total_org, total_new))
+
+    n_runs = min(len(v) for v in timings_new.values())
+    lines.append("")
+    lines.append(f"Median of {n_runs} timed runs per step, after one warm-up "
+                 "run, both branches on the same runner. "
+                 f"Differences below {RUNTIME_NOISE:.0%} are treated as noise. "
+                 "⚠️ This is the small test dataset: it is dominated by "
+                 "start-up and I/O costs and does not reflect the runtime of a "
+                 "full-size station.")
+    lines.append("")
+    lines.append("<details><summary>Individual runs (s)</summary>")
+    lines.append("")
+    lines.append("| Step | Branch | Runs |")
+    lines.append("|------|--------|------|")
+    for step in timings_org:
+        for label, timings in (("main", timings_org), ("PR", timings_new)):
+            runs = ", ".join(f"{t:.1f}" for t in timings.get(step, []))
+            lines.append(f"| {step} | {label} | {runs} |")
+    lines.append("")
+    lines.append("</details>")
+    return "\n".join(lines)
+
+
+def _timing_row(step: str, org: float, new: float) -> str:
+    change = (new - org) / org if org > 0 else 0.0
+    if change <= -RUNTIME_NOISE:
+        verdict = f"🚀 {org / new:.2f}x faster"
+    elif change >= RUNTIME_NOISE:
+        verdict = f"🐢 {new / org:.2f}x slower"
+    else:
+        verdict = "≈ no significant change"
+    return f"| {step} | {org:.1f} | {new:.1f} | {change:+.1%} | {verdict} |"
+
+
 def main():
     args = parse_arguments()
     ds_original = xr.open_dataset(args.orgfile)
@@ -199,6 +255,13 @@ def main():
 
     report = compare_datasets(ds_original, ds_new)
     markdown = format_report_md(report)
+
+    if args.timings_org and args.timings_new:
+        with open(args.timings_org) as f:
+            timings_org = json.load(f)
+        with open(args.timings_new) as f:
+            timings_new = json.load(f)
+        markdown += "\n\n" + format_timing_md(timings_org, timings_new)
 
     with open("report.md", "w") as f:
         f.write(markdown)
@@ -210,6 +273,10 @@ def parse_arguments():
                         help='Path to original file to compare to')
     parser.add_argument('-n', '--newfile', type=str, required=True,
                         help='Path to new file to compare against')
+    parser.add_argument('--timings_org', type=str, default=None,
+                        help='Runtimes json of the original (main) branch')
+    parser.add_argument('--timings_new', type=str, default=None,
+                        help='Runtimes json of the new (PR) branch')
     args = parser.parse_args()
     return args
 

@@ -9,6 +9,17 @@ from pypromice.core.resampling import get_completeness_mask, DEFAULT_COMPLETENES
 from pypromice.core.variables.wind import calculate_directional_wind_speed
 logger = logging.getLogger(__name__)
 
+def _backfill_mask(hourly_index, timestamps, window):
+    """True for each hour h with a timestamp ts such that ts - window <= h <= ts."""
+    mask = np.zeros(len(hourly_index), dtype=bool)
+    if len(timestamps):
+        ts = np.sort(np.asarray(timestamps, dtype="datetime64[ns]"))
+        h = hourly_index.values
+        i = np.searchsorted(ts, h, side="left")
+        has_next = i < len(ts)
+        mask[has_next] = (ts[i[has_next]] - h[has_next]) <= np.timedelta64(window)
+    return pd.Series(mask, index=hourly_index)
+
 def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRESHOLDS):
     '''Resample L2 AWS data, e.g. hourly to daily average. This uses pandas
     DataFrame resampling at the moment as a work-around to the xarray Dataset
@@ -110,32 +121,24 @@ def resample_dataset(ds_h, t, completeness_thresholds=DEFAULT_COMPLETENESS_THRES
     # Mask to mark which hours to 24h-backfill. This is derived from the
     # dataset's overall timestamp durations, so it is the same for every
     # variable in var_list_gap_fill.
-    hourly_index_24h = pd.Series(False, index=hourly_index)
-
     # --- 24h backfill logic ---
     is_24h = timestamp_durations == pd.Timedelta('24h')
-    ts_24h = pd.to_datetime(ds_h.time[is_24h].values)
-    for ts in ts_24h:
-        hourly_index_24h[ts - pd.Timedelta('24h'): ts] = True
+    hourly_index_24h = _backfill_mask(hourly_index, ds_h.time[is_24h].values, pd.Timedelta('24h'))
 
     for var in var_list_gap_fill:
         if var not in df_h.columns:
             continue
 
-        # Mask to mark which hours to 6h-backfill for this variable. Reset
+        # Mask to mark which hours to 6h-backfill for this variable. Computed
         # for every variable: each variable's transmission cadence is its
         # own, so one variable's 6-hourly timestamps must not leak into the
         # backfill of another variable.
-        hourly_index_6h = pd.Series(False, index=hourly_index)
-
         # --- 6h sparse data logic ---
         sparse_series = df_h[var]
         timestamps_with_values = sparse_series[sparse_series.notna()].index
         duration_ts_w_values = classify_timestamp_durations(timestamps_with_values)
         is_6h = duration_ts_w_values == pd.Timedelta('6h')
-        ts_6h = timestamps_with_values[is_6h]
-        for ts in ts_6h:
-            hourly_index_6h[ts - pd.Timedelta('6h'):ts] = True
+        hourly_index_6h = _backfill_mask(hourly_index, timestamps_with_values[is_6h], pd.Timedelta('6h'))
 
         # Hourly mean, reusing the bulk resample computed above
         filled = df_hourly_raw[var]

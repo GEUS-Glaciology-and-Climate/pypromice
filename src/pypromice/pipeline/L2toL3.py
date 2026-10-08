@@ -395,17 +395,23 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
     LHF_h : xarray.DataArray
         Latent heat flux
     '''
+    # The calculation is elementwise, so it runs on numpy arrays: boolean-mask
+    # indexing of xarray objects is much slower in the iterations below
+    T_h_da = T_h
+    T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h = (
+        np.asarray(x) for x in (T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h))
+
     rho_atm = 100 * p_h / R_d / (T_h + T_0)                              # Calculate atmospheric density
     nu = calculate_viscosity(T_h, T_0, rho_atm)                                     # Calculate kinematic viscosity
 
-    SHF_h = xr.zeros_like(T_h)                                                 # Create empty xarrays
-    LHF_h = xr.zeros_like(T_h)
-    L = xr.full_like(T_h, 1E5)
+    SHF_h = np.zeros_like(T_h)                                                 # Create empty arrays
+    LHF_h = np.zeros_like(T_h)
+    L = np.full_like(T_h, 1E5)
 
-    u_star = kappa * WS_h.where(WS_h>0) / np.log(z_WS / z_0)                                 # Rough surfaces, from Smeets & Van den Broeke 2008
+    u_star = kappa * np.where(WS_h>0, WS_h, np.nan) / np.log(z_WS / z_0)                                 # Rough surfaces, from Smeets & Van den Broeke 2008
     Re = u_star * z_0 / nu
     z_0h = u_star
-    z_0h = xr.where(WS_h <= 0,
+    z_0h = np.where(WS_h <= 0,
                     1e-10,
                     z_0* np.exp(1.5 - 0.2 * np.log(Re) - 0.11 * np.log(Re)**2))
     es_ice_surf = 10**(-9.09718
@@ -430,7 +436,7 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
 
         # If n_elements(where(z_0h[stable] < 1e-6)) get 1 then
         # z_0h[stable[where(z_0h[stable] < 1e-6)]] = 1e-6
-        z_0h[stable][z_0h[stable] < 1E-6] == 1E-6
+        z_0h[stable & (z_0h < 1E-6)] = 1E-6
         th_star = kappa \
             * (theta[stable] - Tsurf_h[stable]) \
             / (np.log(z_T[stable] / z_0h[stable]) - psi_h2 + psi_h1)
@@ -446,11 +452,11 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
         L_dif = np.abs((L_prev-L[stable])/L_prev)
 
         # If n_elements(where(L_dif > L_dif_max)) eq 1 then break
-        if np.all(L_dif <= L_dif_max):
+        if not np.any(L_dif > L_dif_max):
             break
 
     # Calculate unstable stratification
-    if len(unstable) > 0:
+    if unstable.any():
         for i in np.arange(0,21):
             x1  = (1-gamma*z_0           /L[unstable])**0.25
             x2  = (1-gamma*z_WS[unstable]/L[unstable])**0.25
@@ -467,7 +473,7 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
 
             # If n_elements(where(z_0h[unstable] < 1e-6)) > 1 then
             # z_0h[unstable[where(z_0h[unstable] < 1e-6)]] = 1e-6
-            z_0h[stable][z_0h[stable] < 1E-6] == 1E-6
+            z_0h[unstable & (z_0h < 1E-6)] = 1E-6
             th_star = kappa * (theta[unstable] - Tsurf_h[unstable]) \
                 / (np.log(z_T[unstable] / z_0h[unstable]) - psi_h2 + psi_h1)
             q_star  = kappa * (q_h[unstable] - q_surf[unstable]) \
@@ -481,14 +487,19 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
             L_dif = abs((L_prev-L[unstable])/L_prev)
 
             # If n_elements(where(L_dif > L_dif_max)) eq 1 then break
-            if np.all(L_dif <= L_dif_max):
+            if not np.any(L_dif > L_dif_max):
                 break
 
     HF_nan = np.isnan(p_h) | np.isnan(T_h) | np.isnan(Tsurf_h) \
         | np.isnan(q_h) | np.isnan(WS_h) | np.isnan(z_T)
     SHF_h[HF_nan] = np.nan
     LHF_h[HF_nan] = np.nan
-    return SHF_h, LHF_h
+
+    SHF_da = xr.zeros_like(T_h_da)
+    LHF_da = xr.zeros_like(T_h_da)
+    SHF_da.values = SHF_h
+    LHF_da.values = LHF_h
+    return SHF_da, LHF_da
 
 def calculate_viscosity(T_h, T_0, rho_atm):
     '''Calculate kinematic viscosity of air
