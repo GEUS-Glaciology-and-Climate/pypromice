@@ -436,7 +436,7 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
 
         # If n_elements(where(z_0h[stable] < 1e-6)) get 1 then
         # z_0h[stable[where(z_0h[stable] < 1e-6)]] = 1e-6
-        z_0h[stable][z_0h[stable] < 1E-6] == 1E-6
+        z_0h[stable & (z_0h < 1E-6)] = 1E-6
         th_star = kappa \
             * (theta[stable] - Tsurf_h[stable]) \
             / (np.log(z_T[stable] / z_0h[stable]) - psi_h2 + psi_h1)
@@ -452,11 +452,11 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
         L_dif = np.abs((L_prev-L[stable])/L_prev)
 
         # If n_elements(where(L_dif > L_dif_max)) eq 1 then break
-        if np.all(L_dif <= L_dif_max):
+        if not np.any(L_dif > L_dif_max):
             break
 
     # Calculate unstable stratification
-    if len(unstable) > 0:
+    if unstable.any():
         for i in np.arange(0,21):
             x1  = (1-gamma*z_0           /L[unstable])**0.25
             x2  = (1-gamma*z_WS[unstable]/L[unstable])**0.25
@@ -473,7 +473,7 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
 
             # If n_elements(where(z_0h[unstable] < 1e-6)) > 1 then
             # z_0h[unstable[where(z_0h[unstable] < 1e-6)]] = 1e-6
-            z_0h[stable][z_0h[stable] < 1E-6] == 1E-6
+            z_0h[unstable & (z_0h < 1E-6)] = 1E-6
             th_star = kappa * (theta[unstable] - Tsurf_h[unstable]) \
                 / (np.log(z_T[unstable] / z_0h[unstable]) - psi_h2 + psi_h1)
             q_star  = kappa * (q_h[unstable] - q_surf[unstable]) \
@@ -487,7 +487,7 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
             L_dif = abs((L_prev-L[unstable])/L_prev)
 
             # If n_elements(where(L_dif > L_dif_max)) eq 1 then break
-            if np.all(L_dif <= L_dif_max):
+            if not np.any(L_dif > L_dif_max):
                 break
 
     HF_nan = np.isnan(p_h) | np.isnan(T_h) | np.isnan(Tsurf_h) \
