@@ -395,17 +395,23 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
     LHF_h : xarray.DataArray
         Latent heat flux
     '''
+    # The calculation is elementwise, so it runs on numpy arrays: boolean-mask
+    # indexing of xarray objects is much slower in the iterations below
+    T_h_da = T_h
+    T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h = (
+        np.asarray(x) for x in (T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h))
+
     rho_atm = 100 * p_h / R_d / (T_h + T_0)                              # Calculate atmospheric density
     nu = calculate_viscosity(T_h, T_0, rho_atm)                                     # Calculate kinematic viscosity
 
-    SHF_h = xr.zeros_like(T_h)                                                 # Create empty xarrays
-    LHF_h = xr.zeros_like(T_h)
-    L = xr.full_like(T_h, 1E5)
+    SHF_h = np.zeros_like(T_h)                                                 # Create empty arrays
+    LHF_h = np.zeros_like(T_h)
+    L = np.full_like(T_h, 1E5)
 
-    u_star = kappa * WS_h.where(WS_h>0) / np.log(z_WS / z_0)                                 # Rough surfaces, from Smeets & Van den Broeke 2008
+    u_star = kappa * np.where(WS_h>0, WS_h, np.nan) / np.log(z_WS / z_0)                                 # Rough surfaces, from Smeets & Van den Broeke 2008
     Re = u_star * z_0 / nu
     z_0h = u_star
-    z_0h = xr.where(WS_h <= 0,
+    z_0h = np.where(WS_h <= 0,
                     1e-10,
                     z_0* np.exp(1.5 - 0.2 * np.log(Re) - 0.11 * np.log(Re)**2))
     es_ice_surf = 10**(-9.09718
@@ -488,7 +494,12 @@ def calculate_turbulent_heat_fluxes(T_0, T_h, Tsurf_h, WS_h, z_WS, z_T, q_h, p_h
         | np.isnan(q_h) | np.isnan(WS_h) | np.isnan(z_T)
     SHF_h[HF_nan] = np.nan
     LHF_h[HF_nan] = np.nan
-    return SHF_h, LHF_h
+
+    SHF_da = xr.zeros_like(T_h_da)
+    LHF_da = xr.zeros_like(T_h_da)
+    SHF_da.values = SHF_h
+    LHF_da.values = LHF_h
+    return SHF_da, LHF_da
 
 def calculate_viscosity(T_h, T_0, rho_atm):
     '''Calculate kinematic viscosity of air
