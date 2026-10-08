@@ -108,8 +108,8 @@ def rate_of_change_filter(ds):
                                                          DEFAULT_WINDOW,
                                                          DEFAULT_REF_FREQ,
                                                          DEFAULT_MIN_PERIODS,
-                                                         tol,
-                                                         factor)
+                                                         factor=factor,
+                                                         tol=tol)
 
         tmp = ds_clean.copy(deep=True)
         tmp[var].loc[{"time": flag_final.time[flag_final]}] = np.nan  # apply first pass to temporary object
@@ -119,8 +119,8 @@ def rate_of_change_filter(ds):
                                                       DEFAULT_WINDOW,
                                                       DEFAULT_REF_FREQ,
                                                       DEFAULT_MIN_PERIODS,
-                                                      tol,
-                                                      factor)
+                                                      factor=factor,
+                                                      tol=tol)
 
             flag2 = flag2.reindex_like(flag_final, fill_value=False)
             flag_final = (flag_final | flag2)
