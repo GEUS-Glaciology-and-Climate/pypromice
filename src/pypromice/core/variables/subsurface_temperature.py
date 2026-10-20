@@ -198,18 +198,50 @@ def interpolate_temperature(dates, depth_cor, temp, depth=10, min_diff_to_depth=
     # tmp = tmp.resample("H").mean()
     # tmp = tmp.interpolate(limit=24*7)
     temp = tmp.loc[dates].values
-    for i in (range(len(dates))):
-        x = depth_cor[i, :].astype(float)
-        y = temp[i, :].astype(float)
+    temp = temp.astype(float)
+
+    def interpolate_row(i):
+        x = depth_cor[i, :]
+        y = temp[i, :]
         ind_no_nan = ~np.isnan(x + y)
         x = x[ind_no_nan]
         y = y[ind_no_nan]
         x, indices = np.unique(x, return_index=True)
         y = y[indices]
         if len(x) < 2 or np.min(np.abs(x - depth)) > min_diff_to_depth:
-            continue
+            return np.nan
         f = interp1d(x, y, kind, fill_value="extrapolate")
-        df_interp.iloc[i, 1] = np.min(f(depth), 0)
+        return np.min(f(depth), 0)
+
+    interpolated = np.full(len(dates), np.nan)
+    if kind == "linear":
+        # Piecewise linear interpolation, extrapolating beyond the end points
+        # (same formula as scipy's interp1d), for all rows at once
+        valid = ~np.isnan(depth_cor + temp)
+        xs = np.where(valid, depth_cor, np.inf)
+        order = np.argsort(xs, axis=1, kind="stable")
+        xs = np.take_along_axis(xs, order, axis=1)
+        ys = np.take_along_axis(temp, order, axis=1)
+        n_valid = valid.sum(axis=1)
+        has_duplicates = ((xs[:, 1:] == xs[:, :-1]) & np.isfinite(xs[:, 1:])).any(axis=1)
+        closest = np.abs(xs - depth).min(axis=1) if xs.shape[1] > 0 else np.full(len(dates), np.inf)
+        rows = (n_valid >= 2) & (closest <= min_diff_to_depth) & ~has_duplicates
+
+        r = np.flatnonzero(rows)
+        hi = np.clip((xs[r] < depth).sum(axis=1), 1, n_valid[r] - 1)
+        lo = hi - 1
+        x_lo = xs[r, lo]
+        y_lo = ys[r, lo]
+        slope = (ys[r, hi] - y_lo) / (xs[r, hi] - x_lo)
+        interpolated[r] = slope * (depth - x_lo) + y_lo
+
+        # rows with repeated depths need np.unique's choice of duplicate
+        for i in np.flatnonzero(has_duplicates):
+            interpolated[i] = interpolate_row(i)
+    else:
+        for i in range(len(dates)):
+            interpolated[i] = interpolate_row(i)
+    df_interp["temperatureObserved"] = interpolated
 
     if df_interp.iloc[:5, 1].std() > 0.1:
         df_interp.iloc[:5, 1] = np.nan

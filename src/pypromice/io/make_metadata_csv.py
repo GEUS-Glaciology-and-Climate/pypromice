@@ -113,10 +113,13 @@ def process_files(base_dir: str, csv_file_path: str, data_type: str) -> pd.DataF
     updated_s = []
     new_s = []
 
+    # Station L3 files are written as _mixed.nc, site L3 files only resampled
+    suffix = '_mixed.nc' if data_type == 'station' else '_hour.nc'
+
     # Traverse through all the subfolders and files in the base directory
     for subdir, _, files in os.walk(base_dir):
         for file in files:
-            if file.endswith('_mixed.nc'):
+            if file.endswith(suffix):
                 file_path = os.path.join(subdir, file)
                 row = extract_metadata_from_nc(file_path, data_type, label_s_id)
                 if not row.empty:

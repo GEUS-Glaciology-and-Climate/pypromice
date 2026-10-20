@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from argparse import ArgumentParser
-from pypromice.core.qc.common import finalize_qc, has_qc_flags
+from pypromice.core.qc.common import combine_first_qc, finalize_qc, has_qc_flags
 from pypromice.io.write import prepare_and_write
 logger = logging.getLogger(__name__)
 
@@ -57,58 +57,6 @@ def loadArr(infile):
     logger.info(f'{name} array loaded from {infile}')
     return ds, name
 
-def _combine_qc_flags(ds1, ds2, all_ds):
-    """Merge the "<var>_qc" flag variables of ds1 and ds2 consistently with
-    the data values chosen by combine_first (ds1 preferred, ds2 fills gaps).
-
-    combine_first would turn the int8 flag codes into floats padded with NaN.
-    Here each flag follows the data it describes: ds1's flag where ds1 has a
-    value, else ds2's flag where ds2 has a value, else (no value left, i.e.
-    the flagged samples were already removed) whichever flag is set. A
-    missing flag variable means "never flagged" (code 0, OK).
-    """
-    time = all_ds.time
-    qc_names = sorted({v for ds in (ds1, ds2) for v in ds.data_vars
-                       if v.endswith("_qc")})
-    for q in qc_names:
-        v = q[:-3]
-        if v not in all_ds:
-            all_ds = all_ds.drop_vars(q, errors="ignore")
-            continue
-
-        def _qc_and_values(ds):
-            if v in ds:
-                val = ds[v].reindex(time=time)
-            else:
-                val = xr.full_like(all_ds[v], np.nan)
-            if q in ds:
-                qc = ds[q].reindex(time=time, fill_value=0)
-            else:
-                qc = xr.zeros_like(all_ds[v], dtype="int8")
-            return qc, val
-
-        qc1, v1 = _qc_and_values(ds1)
-        qc2, v2 = _qc_and_values(ds2)
-
-        if v in ("precip_u", "precip_l") and v in ds1 and v in ds2:
-            # precipitation is concatenated in block (see join_l2): the flag
-            # follows the same block
-            tx_no_overlap = (qc2.sel(time=slice(ds1.time.values[-1], ds2.time.values[-1]))
-                             .isel(time=slice(1, None)))
-            qc = (xr.concat([ds1[q] if q in ds1 else qc1.reindex(time=ds1.time),
-                             tx_no_overlap], dim="time")
-                  .sortby("time").reindex(time=time, fill_value=0))
-        else:
-            qc = xr.where(v1.notnull(), qc1,
-                          xr.where(v2.notnull(), qc2,
-                                   xr.where(qc1 != 0, qc1, qc2)))
-
-        attrs = (ds1[q].attrs if q in ds1 else ds2[q].attrs).copy()
-        all_ds[q] = qc.astype("int8")
-        all_ds[q].attrs = attrs
-    return all_ds
-
-
 def join_l2(file1,file2,outpath,variables,metadata,
             keep_flagged_data: bool = False,
             write_qc_flags: bool = False) -> xr.Dataset:
@@ -141,21 +89,26 @@ def join_l2(file1,file2,outpath,variables,metadata,
             	# Merge arrays
             logger.info(f'Combining {file1} with {file2}...')
             name = n1
-            all_ds = ds1.combine_first(ds2)
+            all_ds = combine_first_qc(ds1, ds2)
 
             # combine_first works terrible for accumulated values
             # we rather combine semi-accumulated precipitation in block
             for var in ['precip_u', 'precip_l']:
                 if hasattr(all_ds, var):
                     if all_ds[var].notnull().any():
-                        tx_data_no_overlap =(ds2[var]
-                                             .sel(time=slice(ds1.time.values[-1], ds2.time.values[-1]))
-                                             .isel(time=slice(1, None))) # this line prevents redundant timestamps
-                        all_ds[var] = xr.concat(
-                                        [ds1[var], tx_data_no_overlap], dim='time'
-                                    ).sortby('time')
-            if has_qc_flags(ds1) or has_qc_flags(ds2):
-                all_ds = _combine_qc_flags(ds1, ds2, all_ds)
+                        # the precipitation flags follow the same blocks
+                        for item in [var, f"{var}_qc"]:
+                            if item not in all_ds:
+                                continue
+                            part1 = ds1[item] if item in ds1 else xr.zeros_like(ds1[var], dtype="int8")
+                            part2 = ds2[item] if item in ds2 else xr.zeros_like(ds2[var], dtype="int8")
+                            tx_data_no_overlap = (part2
+                                                  .sel(time=slice(ds1.time.values[-1], ds2.time.values[-1]))
+                                                  .isel(time=slice(1, None))) # this line prevents redundant timestamps
+                            joined = xr.concat([part1, tx_data_no_overlap], dim='time').sortby('time')
+                            if item.endswith("_qc"):
+                                joined = joined.reindex(time=all_ds.time, fill_value=0)
+                            all_ds[item] = joined
         else:
             logger.info(f'Mismatched station names {n1}, {n2}')
             exit()

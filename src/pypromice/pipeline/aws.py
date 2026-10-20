@@ -16,6 +16,7 @@ from importlib import metadata
 
 
 import pypromice.resources
+from pypromice.core.qc.common import combine_first_qc
 from pypromice.pipeline.L0toL1 import toL1
 from pypromice.pipeline.L1toL2 import toL2
 from pypromice.pipeline.L2toL3 import toL3
@@ -155,7 +156,7 @@ class AWS(object):
         self.L1 = [toL1(item, self.vars, self.magdec_coef) for item in self.L0]
 
         # Merge Level 1 datasets
-        self.L1A = reduce(xr.Dataset.combine_first, reversed(self.L1))
+        self.L1A = reduce(combine_first_qc, reversed(self.L1))
         self.L1A.attrs["format"] = self.format
 
     def getL2(self,

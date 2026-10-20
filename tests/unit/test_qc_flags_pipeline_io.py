@@ -7,7 +7,7 @@ import xarray as xr
 
 from pypromice.core.qc.common import flag_qc, has_qc_flags
 from pypromice.io.write import prepare_and_write
-from pypromice.pipeline.join_l2 import _combine_qc_flags
+from pypromice.core.qc.common import combine_first_qc
 from pypromice.pipeline.L2toL3 import _restore_qc_flags
 import pypromice.resources
 
@@ -27,8 +27,7 @@ class CombineQcFlagsTestCase(unittest.TestCase):
         ds1 = _ds(t1, [1, 2, 3, 4], flag_first=2)
         # file2 (fills gaps): no flag variable at all (== never flagged)
         ds2 = _ds(t2, [30, 40, 50, 60])
-        all_ds = ds1.combine_first(ds2)
-        out = _combine_qc_flags(ds1, ds2, all_ds)
+        out = combine_first_qc(ds1, ds2)
         self.assertEqual(out["t_u_qc"].dtype, np.int8)
         # times: 00h 01h (file1 flagged), 02h 03h (file1 ok), 04h 05h (file2 only)
         np.testing.assert_array_equal(out["t_u_qc"].values, [1, 1, 0, 0, 0, 0])
@@ -40,8 +39,20 @@ class CombineQcFlagsTestCase(unittest.TestCase):
         ds1 = flag_qc(ds1, "t_u", "MANUAL", mask=True)  # nothing left to flag (NaN)
         ds1["t_u_qc"].values[0] = 5  # flag of an already-removed sample
         ds2 = _ds(t, [np.nan, np.nan, np.nan])
-        out = _combine_qc_flags(ds1, ds2, ds1.combine_first(ds2))
+        out = combine_first_qc(ds1, ds2)
         self.assertEqual(int(out["t_u_qc"].values[0]), 5)
+
+    def test_ok_value_of_ds2_replaces_flagged_value_of_ds1(self):
+        t = pd.date_range("2021-01-01", periods=3, freq="h")
+        ds1 = _ds(t, [1, 2, 3], flag_first=1)
+        ds2 = _ds(t, [10, 20, 30])
+        out = combine_first_qc(ds1, ds2)
+        np.testing.assert_array_equal(out["t_u"].values, [10, 2, 3])
+        np.testing.assert_array_equal(out["t_u_qc"].values, [0, 0, 0])
+        # when ds2 has nothing either, ds1's flagged raw value and flag are kept
+        out = combine_first_qc(ds1, _ds(t, [np.nan] * 3))
+        np.testing.assert_array_equal(out["t_u"].values, [1, 2, 3])
+        np.testing.assert_array_equal(out["t_u_qc"].values, [1, 0, 0])
 
 
 class RestoreQcFlagsTestCase(unittest.TestCase):

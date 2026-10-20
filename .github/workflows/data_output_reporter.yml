@@ -16,6 +16,11 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
+      # Step 1.5: Keep the PR's helper scripts, they do not exist on main
+      - name: Save helper scripts
+        run: |
+          cp .github/workflows/time_pipeline.py .github/workflows/data_output_reporter.py "$RUNNER_TEMP/"
+
       # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,25 +35,10 @@ jobs:
           python3 -m pip install --upgrade setuptools
           pip install .
 
-      # Step 4: Run code on test data using PR branch
+      # Step 4: Run code on test data using PR branch (and time it)
       - name: Run L0 to L3 processing using PR branch
         shell: bash
-        run: |
-          mkdir -p out/new/
-          mkdir -p data_issues/pr
-          get_l2 -c tests/data/test_config1_raw.toml \
-                 -i tests/data/ \
-                 -o out/new/ \
-                 -d tests/data/magnetic_declination_configurations/test_magdec_config1.toml \
-                 --data_issues_path data_issues/pr \
-                 --declination_path tests/data/magnetic_declination_configurations/test_magdec_config1.toml \
-                 --write_60min
-
-          get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
-                     -i out/new/TEST1/TEST1_mixed.nc \
-                     -o out/new/ \
-                     --data_issues_path data_issues/pr \
-                     --write_60min
+        run: python "$RUNNER_TEMP/time_pipeline.py" -o out/new -d data_issues/pr
 
       # Step 4.5: Upload PR output file as artifact
       - name: Upload PR TEST1_hour.nc
@@ -57,6 +47,7 @@ jobs:
           name: pr-test1-hour
           path: |
             out/new/TEST1/TEST1_hour.nc
+            out/new/timings.json
 
       # Step 5: Check out main branch
       - name: Check out main branch
@@ -73,39 +64,26 @@ jobs:
           python3 -m pip install --upgrade setuptools
           pip install .
 
-      # Step 7: Run code on test data using main branch
+      # Step 7: Run code on test data using main branch (and time it)
       - name: Run L0 to L3 processing using main branch
         shell: bash
-        run: |
-          mkdir -p out/original/
-          mkdir -p data_issues/main
-
-          get_l2 -c tests/data/test_config1_raw.toml \
-                 -i tests/data/ \
-                 -o out/original/ \
-                 --data_issues_path data_issues/main \
-                 --declination_path tests/data/magnetic_declination_configurations/test_magdec_config1.toml \
-                 --write_60min
-
-          get_l2tol3 -c tests/data/station_configurations/TEST1.toml \
-                     -i out/original/TEST1/TEST1_mixed.nc \
-                     -o out/original/ \
-                     --data_issues_path data_issues/main \
-                     --write_60min
+        run: python "$RUNNER_TEMP/time_pipeline.py" -o out/original -d data_issues/main
 
       # Step 7.5: Download PR output artifact back into correct place
       - name: Download PR TEST1_hour.nc
         uses: actions/download-artifact@v4
         with:
           name: pr-test1-hour
-          path: out/new/TEST1/
+          path: out/new/
 
       # Step 8: Run reporter
       - name: Run reporter
         run: |
-          python .github/workflows/data_output_reporter.py \
+          python "$RUNNER_TEMP/data_output_reporter.py" \
             -o out/original/TEST1/TEST1_hour.nc \
-            -n out/new/TEST1/TEST1_hour.nc
+            -n out/new/TEST1/TEST1_hour.nc \
+            --timings_org out/original/timings.json \
+            --timings_new out/new/timings.json
 
       # Step 9: Comment on PR
       - name: Comment on PR

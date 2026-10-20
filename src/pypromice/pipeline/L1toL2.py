@@ -136,7 +136,7 @@ def toL2(L1: xr.Dataset,
         ds["rh_l_wrt_ice_or_water"] = humidity.adjust(ds_clean["rh_l"], ds_clean["t_l"])
 
     if hasattr(ds,"t_i"):
-        if ~ds["t_i"].isnull().all():
+        if ~ds_clean["t_i"].isnull().all():
             ds["rh_i_wrt_ice_or_water"] = humidity.adjust(ds_clean["rh_i"], ds_clean["t_i"])
 
     # Determine surface temperature
