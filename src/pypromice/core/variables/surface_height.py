@@ -8,6 +8,31 @@ from pypromice.core.qc.github_data_issues import adjustData
 import logging
 logger = logging.getLogger(__name__)
 
+def _interpolate_within(series, max_gap):
+    """Time interpolation limited in time, valid for irregular time steps.
+
+    Gaps are linearly interpolated (in time) but only up to ``max_gap`` after
+    the last valid sample, e.g. ``"3D"``. Unlike ``Series.interpolate(limit=n)``
+    the limit does not depend on how many rows there are in a given period.
+    """
+    max_gap = pd.Timedelta(max_gap)
+    filled = series.interpolate(method="time")
+    t = series.index.to_series()
+    since_valid = t - t.where(series.notnull()).ffill()
+    return filled.where(series.notnull() | ~(since_valid > max_gap))
+
+def _window(series, t, before, after):
+    """Samples of ``series`` within ``t - before <= time < t + after``."""
+    t = pd.Timestamp(t)
+    return series[(series.index >= t - pd.Timedelta(before))
+                  & (series.index < t + pd.Timedelta(after))]
+
+def _first(series, duration):
+    """Samples of ``series`` within ``duration`` of its first timestamp."""
+    if len(series) == 0:
+        return series
+    return series[series.index < series.index[0] + pd.Timedelta(duration)]
+
 def process_surface_height(ds, data_adjustments_dir, station_config={}):
     """
     Process surface height data for different site types and create
@@ -146,11 +171,15 @@ def find_ablation_periods(df, threshold_ablation, min_period="2D",
 
     Returns:
         tuple: ``(ind_ablation, smoothed_PT, diff_series, ddiff_series,
-        z_corrected)``.
+        z_corrected)``. ``ind_ablation`` is on the index of ``df``, the
+        others are hourly series.
 
     """
+    # the detection works on an hourly grid so that it does not depend on the
+    # time step of df (10 min, hourly, irregular)
+    z = df["z_ice_surf"].resample("h").mean()
+
     # remove spurious shifts in z_ice_surf
-    z = df["z_ice_surf"].copy()
     dz = z.diff()
     dz_clean = dz.mask(dz.abs() > shift_threshold, 0)
 
@@ -158,13 +187,13 @@ def find_ablation_periods(df, threshold_ablation, min_period="2D",
     if first is None:
         # no valid z_ice_surf (z_pt) values at all: nothing to correct,
         # keep the all-NaN series instead of crashing on z.loc[None]
-        z_corrected = z.reindex(df.index)
+        z_corrected = z
     else:
         z_corrected = z.loc[first] + dz_clean.loc[first:].fillna(0).cumsum()
-        z_corrected = z_corrected.reindex(df.index)
+        z_corrected = z_corrected.reindex(z.index)
 
     # smoothing
-    hourly_interp = z_corrected.resample("h").interpolate(limit=interp_limit)
+    hourly_interp = z_corrected.interpolate(limit=interp_limit)
     once_smoothed = hourly_interp.rolling(
         smooth_window, center=True, min_periods=1
     ).mean()
@@ -324,16 +353,16 @@ def align_surface_heights(hs1, hs2, z):
 
     """
     # the surface heights are adjusted so that they start at 0
-    if any(~np.isnan(hs2.iloc[:24*7])):
-        hs2 = hs2 - hs2.iloc[:24*7].mean()
+    if any(~np.isnan(_first(hs2, "7D"))):
+        hs2 = hs2 - _first(hs2, "7D").mean()
 
-    if any(~np.isnan(hs2.iloc[:24*7])) & any(~np.isnan(hs1.iloc[:24*7])):
-        hs2 = hs2 + hs1.iloc[:24*7].mean() - hs2.iloc[:24*7].mean()
+    if any(~np.isnan(_first(hs2, "7D"))) & any(~np.isnan(_first(hs1, "7D"))):
+        hs2 = hs2 + _first(hs1, "7D").mean() - _first(hs2, "7D").mean()
 
-    if any(~np.isnan(z.iloc[:24*7])):
+    if any(~np.isnan(_first(z, "7D"))):
         # expressing ice surface height relative to its mean value in the
         # first week of the record
-        z = z - z.iloc[:24*7].mean()
+        z = z - _first(z, "7D").mean()
 
     elif z.notnull().any():
         # if there is no data in the first week but that there are some
@@ -414,8 +443,8 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
     if site_type in ['accumulation', 'bedrock']:
         logger.info('-> no z_pt or accumulation site: averaging z_surf_1 and z_surf_2')
-        df["z_surf_1_adj"] = hampel(df["z_surf_1"].interpolate(limit=72)).values
-        df["z_surf_2_adj"] = hampel(df["z_surf_2"].interpolate(limit=72)).values
+        df["z_surf_1_adj"] = hampel(_interpolate_within(df["z_surf_1"], "3D")).values
+        df["z_surf_2_adj"] = hampel(_interpolate_within(df["z_surf_2"], "3D")).values
         # adjusting z_surf_2 to z_surf_1
         df["z_surf_2_adj"]  = df["z_surf_2_adj"]  + (df["z_surf_1_adj"]- df["z_surf_2_adj"]).mean()
         # z_surf_combined is the average of the two z_surf
@@ -433,19 +462,19 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
     else:
         logger.info('-> ablation site')
         # smoothing and filtering pressure transducer data
-        df["z_ice_surf_adj"] = hampel(df["z_ice_surf"].interpolate(limit=72)).values
-        df["z_surf_1_adj"] = hampel(df["z_surf_1"].interpolate(limit=72)).values
-        df["z_surf_2_adj"] = hampel(df["z_surf_2"].interpolate(limit=72)).values
+        df["z_ice_surf_adj"] = hampel(_interpolate_within(df["z_ice_surf"], "3D")).values
+        df["z_surf_1_adj"] = hampel(_interpolate_within(df["z_surf_1"], "3D")).values
+        df["z_surf_2_adj"] = hampel(_interpolate_within(df["z_surf_2"], "3D")).values
 
-        df["z_surf_1_adj"] = hampel(df["z_surf_1"].interpolate(limit=72), k=24, t0=5).values
-        df["z_surf_2_adj"] = hampel(df["z_surf_2"].interpolate(limit=72), k=24, t0=5).values
+        df["z_surf_1_adj"] = hampel(_interpolate_within(df["z_surf_1"], "3D"), k=24, t0=5).values
+        df["z_surf_2_adj"] = hampel(_interpolate_within(df["z_surf_2"], "3D"), k=24, t0=5).values
 
         ind_ablation, _, _, _, _ =  find_ablation_periods(
                         df,  threshold_ablation=threshold_ablation)
 
-        hs1=df["z_surf_1_adj"].interpolate(limit=24*2).copy()
-        hs2=df["z_surf_2_adj"].interpolate(limit=24*2).copy()
-        z=df["z_ice_surf_adj"].interpolate(limit=24*2).copy()
+        hs1=_interpolate_within(df["z_surf_1_adj"], "2D").copy()
+        hs2=_interpolate_within(df["z_surf_2_adj"], "2D").copy()
+        z=_interpolate_within(df["z_ice_surf_adj"], "2D").copy()
 
         # align the two surface-height records and the pressure-transducer ice height
         hs1, hs2, z = align_surface_heights(hs1, hs2, z)
@@ -575,28 +604,29 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
             # adjustment taking place at the end of the ablation period
             if (ind_end[i] != -999):
+                t_end = z.index[ind_end[i]]
                 # if y == 2023:
                 #     import pdb; pdb.set_trace()
                 # if there's ablation and
                 # if there are PT data available at the end of the melt season
-                if z.iloc[(ind_end[i]-24*7):ind_end[i]].notnull().any():
+                if _window(z, t_end, "7D", "0D").notnull().any():
                     logger.debug('adjusting hs2 to z')
                     # then we adjust hs2 to the end-of-ablation z
                     # first trying at the end of melt season
-                    if hs2.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)].notnull().any():
+                    if _window(hs2, t_end, "7D", "30D").notnull().any():
                         logger.debug('using end of melt season')
                         hs2.iloc[ind_end[i]:] = hs2.iloc[ind_end[i]:] - \
-                            np.nanmean(hs2.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])  + \
-                                np.nanmean(z.iloc[(ind_end[i]-24*7):(ind_end[i]+24*30)])
+                            np.nanmean(_window(hs2, t_end, "7D", "30D"))  + \
+                                np.nanmean(_window(z, t_end, "7D", "30D"))
                     # if not possible, then trying the end of the following accumulation season
                     elif (i+1 < len(ind_start)):
                         if ind_start[i+1]!=-999 and \
-                            any(~np.isnan(hs2.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)] \
-                                          + z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])):
+                            any(~np.isnan(_window(hs2, z.index[ind_start[i+1]], "7D", "7D") \
+                                          + _window(z, z.index[ind_start[i+1]], "7D", "7D"))):
                             logger.debug('using end of accumulation season')
                             hs2.iloc[ind_end[i]:] = hs2.iloc[ind_end[i]:] - \
-                                np.nanmean(hs2.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])  + \
-                                    np.nanmean(z.iloc[(ind_start[i+1]-24*7):(ind_start[i+1]+24*7)])
+                                np.nanmean(_window(hs2, z.index[ind_start[i+1]], "7D", "7D"))  + \
+                                    np.nanmean(_window(z, z.index[ind_start[i+1]], "7D", "7D"))
             else:
                 logger.debug('no ablation data')
                 hs1_following_winter = hs1[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
@@ -639,6 +669,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                         hs1_following_winter = hs1[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
 
             if ind_end[i] != -999:
+                t_end = z.index[ind_end[i]]
                 # if there is some hs1
                 hs1_following_winter = hs1[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
                 hs2_following_winter = hs2[str(y)+'-09-01':str(y+1)+'-03-01'].copy()
@@ -650,8 +681,8 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                         # then we adjust hs1 to hs2 during the accumulation area
                         # adjustment is done so that the mean hs1 and mean hs2 match
                         # for the period when both are available
-                        tmp1 = hs1.iloc[ind_end[i]:min(len(hs1),ind_end[i]+24*30*9)].copy()
-                        tmp2 = hs2.iloc[ind_end[i]:min(len(hs2),ind_end[i]+24*30*9)].copy()
+                        tmp1 = _window(hs1, t_end, "0D", "270D").copy()
+                        tmp2 = _window(hs2, t_end, "0D", "270D").copy()
 
                         tmp1[np.isnan(tmp2)] = np.nan
                         tmp2[np.isnan(tmp1)] = np.nan
@@ -664,21 +695,21 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
                         hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] -  np.nanmean(tmp1)  +  np.nanmean(tmp2)
 
                     # if no hs2, then use PT data available at the end of the melt season
-                    elif np.any(~np.isnan(z.iloc[(ind_end[i]-24*14):(ind_end[i]+24*7)])):
+                    elif np.any(~np.isnan(_window(z, t_end, "14D", "7D"))):
                         logger.debug('to z')
                         # then we adjust hs2 to the end-of-ablation z
                         # first trying at the end of melt season
-                        if hs1.iloc[(ind_end[i]-24*14):(ind_end[i]+24*30)].notnull().any():
+                        if _window(hs1, t_end, "14D", "30D").notnull().any():
                             logger.debug('using end of melt season')
                             hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] - \
-                                np.nanmean(hs1.iloc[(ind_end[i]-24*14):(ind_end[i]+24*30)])  + \
-                                    np.nanmean(z.iloc[(ind_end[i]-24*14):(ind_end[i]+24*30)])
+                                np.nanmean(_window(hs1, t_end, "14D", "30D"))  + \
+                                    np.nanmean(_window(z, t_end, "14D", "30D"))
                         # if not possible, then trying the end of the following accumulation season
-                        elif ind_start[i+1]!=-999 and any(~np.isnan(hs1.iloc[(ind_start[i+1]-24*14):(ind_start[i+1]+24*7)]+ z.iloc[(ind_start[i+1]-24*14):(ind_start[i+1]+24*7)])):
+                        elif ind_start[i+1]!=-999 and any(~np.isnan(_window(hs1, z.index[ind_start[i+1]], "14D", "7D")+ _window(z, z.index[ind_start[i+1]], "14D", "7D"))):
                             logger.debug('using end of accumulation season')
                             hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] - \
-                                np.nanmean(hs1.iloc[(ind_start[i+1]-24*14):(ind_start[i+1]+24*7)])  + \
-                                    np.nanmean(z.iloc[(ind_start[i+1]-24*14):(ind_start[i+1]+24*7)])
+                                np.nanmean(_window(hs1, z.index[ind_start[i+1]], "14D", "7D"))  + \
+                                    np.nanmean(_window(z, z.index[ind_start[i+1]], "14D", "7D"))
                     elif any(~np.isnan(hs2_year)):
                         logger.debug('to the last value of hs2')
                         # then we adjust hs1 to hs2 during the accumulation area
@@ -690,15 +721,15 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
                         hs1.iloc[ind_end[i]:] = hs1.iloc[ind_end[i]:] -  np.nanmean(tmp1)  +  np.nanmean(tmp2)
 
-        df["z_surf_1_adj"] = hs1.interpolate(limit=2*24).values
-        df["z_surf_2_adj"] = hs2.interpolate(limit=2*24).values
-        df["z_ice_surf_adj"] = z.interpolate(limit=2*24).values
+        df["z_surf_1_adj"] = _interpolate_within(hs1, "2D").values
+        df["z_surf_2_adj"] = _interpolate_within(hs2, "2D").values
+        df["z_ice_surf_adj"] = _interpolate_within(z, "2D").values
 
         # making a summary of the surface height
         df["z_surf_combined"] = np.nan
 
         # in winter, both SR1 and SR2 are used
-        df["z_surf_combined"] = df["z_surf_2_adj"].interpolate(limit=72).values
+        df["z_surf_combined"] = _interpolate_within(df["z_surf_2_adj"], "3D").values
 
         # in ablation season we use SR2 instead of the SR1&2 average
         # here two options:
@@ -712,7 +743,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
         df.loc[ind_update,"z_surf_combined"] = data_update[ind_update]
 
         # in ablation season we use pressure transducer over all other options
-        data_update = df[ "z_ice_surf_adj"].interpolate(limit=72).values
+        data_update = _interpolate_within(df["z_ice_surf_adj"], "3D").values
         ind_update = np.logical_and(ind_ablation, ~np.isnan(data_update))
         df.loc[ind_update,"z_surf_combined"] = data_update[ind_update]
 
@@ -721,19 +752,26 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002):
 
 def hampel(vals_orig, k=7*24, t0=15):
     '''
-    vals: pandas series of values from which to remove outliers
-    k: size of window (including the sample; 7 is equal to 3 on either side of value)
+    Hampel filter removing the outliers of a time series.
+    vals_orig: pandas series (with a DatetimeIndex) of values from which to remove outliers
+    k: length of the trailing window, in hours. The window is defined in time
+       so that it does not depend on the time step: it requires at least k valid
+       samples, i.e. a complete window for hourly data.
+    t0: number of scaled median absolute deviations above which a value is an outlier
     '''
     #Make copy so original not edited
     vals=vals_orig.copy()
+    if len(vals) == 0:
+        return vals
+    window = pd.Timedelta(hours=k)
     #Hampel Filter
     L= 1.4826
-    rolling_median=vals.rolling(k).median()
+    rolling_median=vals.rolling(window, min_periods=k).median()
     difference=np.abs(rolling_median-vals)
-    median_abs_deviation=difference.rolling(k).median()
+    median_abs_deviation=difference.rolling(window, min_periods=k).median()
     threshold= t0 *L * median_abs_deviation
     outlier_idx=difference>threshold
-    outlier_idx[0:round(k/2)]=False
+    outlier_idx[vals.index < vals.index[0] + window/2]=False
     vals.loc[outlier_idx]=np.nan
     return(vals)
 
@@ -768,7 +806,7 @@ def post_processing_z_ice_surf(z_ice_surf, z_surf_combined, z_surf_2_adj):
     ts_interpolated = np.minimum(
         xr.where(z_ice_surf.notnull(),
                  z_ice_surf, z_surf_combined),
-        z_surf_combined).to_series().resample('h').interpolate(limit=72)
+        z_surf_combined).to_series().resample('h').mean().interpolate(limit=72)
 
     if len(ts_interpolated)>24*7:
         # Apply the rolling window with median calculation
