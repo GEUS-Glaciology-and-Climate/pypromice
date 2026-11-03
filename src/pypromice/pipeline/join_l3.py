@@ -259,17 +259,83 @@ def loadArr(infile, isNead):
     return ds, name
 
 
+ALIGNMENT_WINDOW_YEARS = 5
+ALIGNMENT_MIN_RATE_PAIRS = 60
+ALIGNMENT_MAX_ABS_RATE = 5.0  # m/yr, larger rates are considered spurious
+_YEAR = pd.Timedelta(days=365.25)
+
+
+def estimate_annual_rate(daily, min_pairs=ALIGNMENT_MIN_RATE_PAIRS,
+                         max_abs_rate=ALIGNMENT_MAX_ABS_RATE):
+    """Annual rate of change (m/yr) of a surface height series.
+
+    The rate is the median of the differences between each daily value and the
+    value one year earlier. Comparing the same time of year makes it
+    independent of the seasonal snow cycle, which a linear fit over a series
+    that is shorter than a few years would mistake for a trend.
+
+    Parameters
+    ----------
+    daily : pandas.Series
+        Daily surface height without missing values, with a DatetimeIndex.
+    min_pairs : int
+        Minimum number of days having a value one year earlier.
+    max_abs_rate : float
+        Rates larger than this (in absolute value) are rejected.
+
+    Returns
+    -------
+    float or None
+        The rate, or None if it cannot be reliably estimated.
+    """
+    if len(daily) == 0:
+        return None
+    one_year_earlier = daily.copy()
+    one_year_earlier.index = one_year_earlier.index + _YEAR
+    one_year_earlier = one_year_earlier.reindex(
+        daily.index, method="nearest", tolerance=pd.Timedelta("1D")
+    )
+    differences = (daily - one_year_earlier).dropna()
+    if len(differences) < min_pairs:
+        return None
+    rate = float(differences.median())
+    if abs(rate) > max_abs_rate:
+        return None
+    return rate
+
+
+def seasonal_expectation(daily, t, annual_rate, half_window="7D"):
+    """Expected surface height at time ``t``, from the same time of year in the
+    previous years of ``daily`` and corrected with ``annual_rate``.
+
+    Returns None if ``daily`` has no data around ``t`` in any previous year.
+    """
+    values = []
+    for k in range(1, ALIGNMENT_WINDOW_YEARS + 1):
+        t_k = t - k * _YEAR
+        window = daily.loc[t_k - pd.Timedelta(half_window):t_k + pd.Timedelta(half_window)]
+        if len(window) >= 3:
+            values.append(window.median() + annual_rate * k)
+    if len(values) == 0:
+        return None
+    return float(np.median(values))
+
+
 def align_surface_heights(data_series_new, data_series_old):
     """
     Align two surface height time series based on the gap between their end and
     start.
 
-    If the gap between the end of `data_series_old` and the start of `data_series_new`
-    is less than a week, the function aligns them based on the median value of
-    the last week of `data_series_old` and the first week of `data_series_new`.
-    If the gap is larger than a week, it aligns them using a linear fit. If
-    there is overlap, the function uses the overlapping period to adjust the
-    newer time series.
+    If there is overlap, the function uses the overlapping period to adjust the
+    newer time series. If the gap between the end of `data_series_old` and the
+    start of `data_series_new` is less than a week, the function aligns them
+    based on the median value of the last week of `data_series_old` and the
+    first week of `data_series_new`. If the gap is larger than a week, the
+    older series is extended to the start of the newer one using its annual
+    rate of change (see `estimate_annual_rate`) and its values at the same time
+    of year in the previous years (see `seasonal_expectation`). If the older
+    series is too short to estimate the rate, the two series are assumed to be
+    continuous.
 
     Parameters
     ----------
@@ -321,25 +387,44 @@ def align_surface_heights(data_series_new, data_series_old):
         # Align based on the median values
         data_series_new = data_series_new - first_week_new + last_week_old
     else:
-        data_series_old_last_5_years = data_series_old.loc[
-            last_old_idx - pd.Timedelta(days=5 * 365):last_old_idx
+        # the gap is longer than a week: the older series is extended up to the
+        # start of the newer one with its annual rate of change, applied to the
+        # value it had at the same time of year in the previous years
+        first_week_new = data_series_new[
+            first_new_idx : first_new_idx + pd.Timedelta(weeks=1)
         ].dropna()
+        daily_old = (
+            data_series_old.loc[last_old_idx - ALIGNMENT_WINDOW_YEARS * _YEAR:last_old_idx]
+            .resample("D").mean().dropna()
+        )
+        annual_rate = estimate_annual_rate(daily_old)
+        expected_old_at_first_new = None
+        if annual_rate is not None:
+            expected_old_at_first_new = seasonal_expectation(
+                daily_old, first_week_new.index[len(first_week_new) // 2], annual_rate,
+            )
 
-        x_old = (
-                    data_series_old_last_5_years.index - last_old_idx
-                ).total_seconds() / 86400
-        y_old = data_series_old_last_5_years.values
-
-        fit = np.polyfit(x_old, y_old, 1)
-        fit_fn = np.poly1d(fit)
-
-        x_first_new = (first_new_idx - last_old_idx).total_seconds() / 86400
-        expected_old_at_first_new = fit_fn(x_first_new)
+        if expected_old_at_first_new is not None:
+            logger.info(
+                "Aligning over a gap of %s with an annual rate of %.2f m/yr",
+                first_new_idx - last_old_idx, annual_rate,
+            )
+        else:
+            # not enough older data to separate the annual trend from the
+            # seasonal cycle: assuming continuity is safer than extrapolating
+            logger.warning(
+                "No reliable annual rate of surface height change from the older "
+                "series: aligning across a gap of %s assuming continuity",
+                first_new_idx - last_old_idx,
+            )
+            expected_old_at_first_new = data_series_old[
+                last_old_idx - pd.Timedelta(weeks=1) : last_old_idx
+            ].median()
 
         data_series_new = (
             data_series_new
             + expected_old_at_first_new
-            - data_series_new.loc[first_new_idx]
+            - first_week_new.median()
         )
 
     return data_series_new

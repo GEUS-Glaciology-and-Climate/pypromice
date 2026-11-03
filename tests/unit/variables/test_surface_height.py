@@ -1,9 +1,18 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
+from pypromice.core.qc.github_data_issues import (
+    adjustData,
+    get_dynamic_adjust_after,
+)
 from pypromice.core.variables.surface_height import (
+    ADJUSTMENT_COLUMNS,
+    ShiftRecorder,
     _first,
     _interpolate_within,
     _window,
@@ -165,6 +174,246 @@ class TestCombineSurfaceHeightResolution(unittest.TestCase):
         combined, _, _, _ = combine_surface_height(irregular.copy(), "ablation")
         self.assertEqual(len(combined), len(irregular))
         self.assertTrue(combined.notnull().any())
+
+
+class TestShiftRecorder(unittest.TestCase):
+    def setUp(self):
+        index = pd.date_range("2020-01-01", periods=10 * 24, freq="h")
+        self.series = pd.Series(1.0, index=index)
+
+    def test_shift_applies_from_start_onward_and_is_recorded(self):
+        recorder = ShiftRecorder()
+        start = self.series.index[48]
+        self.assertTrue(recorder.shift(self.series, "z_surf_1", start, 0.5, "test"))
+        self.assertTrue((self.series.iloc[:48] == 1.0).all())
+        self.assertTrue((self.series.iloc[48:] == 1.5).all())
+        self.assertEqual(len(recorder.records), 1)
+
+    def test_shifts_before_dynamic_adjust_after_are_skipped(self):
+        recorder = ShiftRecorder(self.series.index[100])
+        self.assertFalse(recorder.shift(self.series, "z_surf_1", self.series.index[99], 0.5, "early"))
+        self.assertTrue(recorder.shift(self.series, "z_surf_1", self.series.index[100], 0.5, "late"))
+        self.assertTrue((self.series.iloc[:100] == 1.0).all())
+        self.assertTrue((self.series.iloc[100:] == 1.5).all())
+        self.assertEqual([r["reason"] for r in recorder.records], ["late"])
+
+    def test_shift_without_start_does_nothing(self):
+        recorder = ShiftRecorder()
+        self.assertFalse(recorder.shift(self.series, "z_surf_1", None, 0.5, "test"))
+        self.assertTrue((self.series == 1.0).all())
+
+    def test_non_finite_shift_is_not_recorded(self):
+        recorder = ShiftRecorder()
+        recorder.shift(self.series, "z_surf_1", self.series.index[0], np.nan, "test")
+        self.assertEqual(len(recorder.records), 0)
+
+    def test_frame_has_adjustment_file_format(self):
+        recorder = ShiftRecorder()
+        t0 = self.series.index[10]
+        recorder.shift(self.series, "z_surf_2", t0, 0.12346, "first, with a comma")
+        recorder.shift(self.series, "z_surf_2", t0, 0.1, "second # one")
+        recorder.shift(self.series, "z_ice_surf", t0, 1e-6, "negligible")
+        df = recorder.to_frame()
+
+        self.assertEqual(list(df.columns), ADJUSTMENT_COLUMNS)
+        # the two shifts at the same time are summed, the negligible one dropped
+        self.assertEqual(len(df), 1)
+        row = df.iloc[0]
+        self.assertEqual(row["variable"], "z_surf_2")
+        self.assertEqual(row["adjust_function"], "add")
+        self.assertAlmostEqual(row["adjust_value"], 0.2235)
+        self.assertEqual(row["t0"], "2020-01-01T10:00:00+00:00")
+        # no character that would break the csv when edited by hand
+        self.assertNotIn(",", row["comment"])
+        self.assertNotIn("#", row["comment"])
+
+    def test_empty_frame_has_header(self):
+        self.assertEqual(list(ShiftRecorder().to_frame().columns), ADJUSTMENT_COLUMNS)
+
+
+def _write_adjustments(directory, station_id, rows, marker=None):
+    """Write an adjustment file with the given rows and, optionally, the
+    dynamic_adjust_after row at the time ``marker``."""
+    if marker is not None:
+        marker_row = pd.DataFrame(
+            [[pd.Timestamp(marker, tz="UTC").isoformat(), "", "z_surf_combined",
+              "dynamic_adjust_after", "", "reviewed", ""]],
+            columns=ADJUSTMENT_COLUMNS)
+        rows = pd.concat([rows.astype(object), marker_row], ignore_index=True)
+    rows.to_csv(Path(directory) / f"{station_id}.csv", index=False)
+
+
+def _adjust(df, directory, station_id="TST"):
+    """Apply the adjustment file to a surface height dataframe, as in the pipeline."""
+    ds = df.rename_axis("time").to_xarray()
+    ds.attrs["station_id"] = station_id
+    ds = adjustData(ds, directory, var_list=["z_surf_1", "z_surf_2", "z_ice_surf"])
+    return ds.to_dataframe()[list(df.columns)]
+
+
+class TestDynamicAdjustAfter(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+
+    def _rows(self, *specs):
+        return pd.DataFrame(
+            [[t0, "", var, func, val, "", ""] for t0, var, func, val in specs],
+            columns=ADJUSTMENT_COLUMNS)
+
+    def test_reads_time_of_marker(self):
+        _write_adjustments(self.dir, "TST", self._rows(
+            ("2019-05-01T00:00:00+00:00", "z_surf_1", "add", 0.1)),
+            marker="2021-01-01T12:00:00")
+        self.assertEqual(get_dynamic_adjust_after(self.dir, "TST"),
+                         pd.Timestamp("2021-01-01 12:00"))
+
+    def test_none_without_marker_or_file(self):
+        _write_adjustments(self.dir, "TST", self._rows(
+            ("2019-05-01T00:00:00+00:00", "z_surf_1", "add", 0.1)))
+        self.assertIsNone(get_dynamic_adjust_after(self.dir, "TST"))
+        self.assertIsNone(get_dynamic_adjust_after(self.dir, "OTHER"))
+
+    def test_latest_marker_is_used(self):
+        rows = self._rows(
+            ("2019-05-01T00:00:00+00:00", "z_surf_combined", "dynamic_adjust_after", ""),
+            ("2021-05-01T00:00:00+00:00", "z_surf_combined", "dynamic_adjust_after", ""))
+        _write_adjustments(self.dir, "TST", rows)
+        self.assertEqual(get_dynamic_adjust_after(self.dir, "TST"),
+                         pd.Timestamp("2021-05-01"))
+
+    def test_adjust_data_ignores_marker(self):
+        index = pd.date_range("2020-01-01", periods=48, freq="h")
+        df = pd.DataFrame({"z_surf_1": 1.0, "z_surf_2": 1.0, "z_ice_surf": 1.0}, index=index)
+        # a marker on a variable that exists must not be applied either
+        rows = self._rows(
+            ("2020-01-01T10:00:00+00:00", "z_surf_1", "add", 0.5),
+            ("2020-01-01T20:00:00+00:00", "z_surf_1", "dynamic_adjust_after", ""))
+        _write_adjustments(self.dir, "TST", rows)
+        adjusted = _adjust(df, self.dir)
+        self.assertTrue((adjusted["z_surf_1"].iloc[:10] == 1.0).all())
+        self.assertTrue((adjusted["z_surf_1"].iloc[10:] == 1.5).all())
+
+
+def _site_variants():
+    base = _ablation_site("h")
+    yield "ablation", base, "ablation"
+
+    no_pt = base.copy()
+    no_pt.loc["2019", "z_ice_surf"] = np.nan
+    yield "ablation without PT in 2019", no_pt, "ablation"
+
+    no_hs2 = base.copy()
+    no_hs2.loc["2019-09-01":"2020-03-01", "z_surf_2"] = np.nan
+    yield "ablation without hs2 in winter", no_hs2, "ablation"
+
+    accumulation = base[["z_surf_1", "z_surf_2"]].copy()
+    yield "accumulation", accumulation, "accumulation"
+
+
+class TestAutomaticAdjustmentsOffline(unittest.TestCase):
+    """The shifts made automatically, once in the adjustment file, replace the
+    automatic procedure."""
+    # offsets are written with 0.1 mm precision
+    TOLERANCE = 2e-3
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+
+    # In the adjustment file the shifts apply to the raw series, before the
+    # outlier filter and the interpolation of gaps: around a shift the step is
+    # smoothed into a short ramp. Further than this from a shift, the
+    # two are the same. The same goes for the values interpolated in the gap
+    # of a series, when a shift falls in the gap.
+    NEAR_SHIFT = pd.Timedelta("4D")
+
+    def _assert_same(self, expected, actual, index, shift_times, measured=None):
+        near = np.zeros(len(index), dtype=bool)
+        for t in shift_times:
+            near |= np.abs(index - t) < self.NEAR_SHIFT
+        if measured is not None:
+            near |= ~measured
+        expected = np.asarray(expected, float)[~near]
+        actual = np.asarray(actual, float)[~near]
+        self.assertEqual(int((np.isnan(expected) != np.isnan(actual)).sum()), 0)
+        # (z_ice_surf is all missing at accumulation sites)
+        both = ~np.isnan(expected) & ~np.isnan(actual)
+        if both.any():
+            self.assertLess(np.abs(expected[both] - actual[both]).max(), self.TOLERANCE)
+
+    def _assert_all_same(self, expected, actual, df, recorder):
+        """Compare the outputs of combine_surface_height: z_surf_combined,
+        z_ice_surf, z_surf_1_adj and z_surf_2_adj"""
+        shift_times = [r["t0"] for r in recorder.records]
+        measured = [None, None, None, df["z_surf_2"].notnull().values]
+        for e, a, m in zip(expected, actual, measured):
+            self._assert_same(e, a, df.index, shift_times, m)
+
+    def test_adjustment_file_reproduces_automatic_result(self):
+        for name, df, site_type in _site_variants():
+            with self.subTest(name):
+                recorder = ShiftRecorder()
+                expected = combine_surface_height(df.copy(), site_type, recorder=recorder)
+                self.assertGreater(len(recorder.records), 0)
+
+                # the adjustments written offline are in the file, up to the
+                # end of the record
+                end = df.index[-1] + pd.Timedelta("1h")
+                _write_adjustments(self.dir, "TST", recorder.to_frame(), marker=end)
+                adjusted = _adjust(df, self.dir)
+                T = get_dynamic_adjust_after(self.dir, "TST")
+                self.assertEqual(T, end)
+
+                recorder_static = ShiftRecorder(T)
+                actual = combine_surface_height(
+                    adjusted, site_type, recorder=recorder_static)
+
+                # nothing left to adjust automatically
+                self.assertEqual(len(recorder_static.records), 0)
+                self._assert_all_same(expected, actual, df, recorder)
+
+    def test_automatic_adjustments_only_after_marker(self):
+        _, df, site_type = next(iter(_site_variants()))
+        recorder = ShiftRecorder()
+        expected = combine_surface_height(df.copy(), site_type, recorder=recorder)
+        rows = recorder.to_frame()
+
+        # the adjustments before T are in the file, the others are left to
+        # the automatic procedure
+        T = pd.Timestamp("2019-09-30")
+        before = rows.loc[pd.to_datetime(rows["t0"], utc=True).dt.tz_localize(None) < T]
+        after = rows.drop(before.index)
+        self.assertGreater(len(before), 0)
+        self.assertGreater(len(after), 0)
+
+        _write_adjustments(self.dir, "TST", before, marker=T)
+        adjusted = _adjust(df, self.dir)
+        recorder_partial = ShiftRecorder(get_dynamic_adjust_after(self.dir, "TST"))
+        actual = combine_surface_height(adjusted, site_type, recorder=recorder_partial)
+
+        # same result, and the shifts found after T are those of the full run
+        self._assert_all_same(expected, actual, df, recorder)
+        found = recorder_partial.to_frame()
+        self.assertEqual(list(found["variable"]), list(after["variable"]))
+        self.assertEqual(list(found["t0"]), list(after["t0"]))
+        np.testing.assert_allclose(found["adjust_value"], after["adjust_value"],
+                                   atol=self.TOLERANCE)
+
+    def test_written_file_can_be_read_back_by_adjust_data(self):
+        _, df, site_type = next(iter(_site_variants()))
+        recorder = ShiftRecorder()
+        combine_surface_height(df.copy(), site_type, recorder=recorder)
+        path = self.dir / "TST.csv"
+        recorder.write(path)
+
+        written = pd.read_csv(path, comment="#", skipinitialspace=True)
+        self.assertEqual(list(written.columns), ADJUSTMENT_COLUMNS)
+        self.assertEqual(len(written), len(recorder.to_frame()))
+        # and it is a valid adjustment file
+        _adjust(df, self.dir)
 
 
 if __name__ == "__main__":
