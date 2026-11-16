@@ -415,6 +415,38 @@ class TestAutomaticAdjustmentsOffline(unittest.TestCase):
         # and it is a valid adjustment file
         _adjust(df, self.dir)
 
+    def test_written_file_ends_with_dynamic_adjust_after(self):
+        _, df, site_type = next(iter(_site_variants()))
+        recorder = ShiftRecorder()
+        expected = combine_surface_height(df.copy(), site_type, recorder=recorder)
+        end = df.index[-1] + pd.Timedelta("1h")
+        path = self.dir / "TST.csv"
+        recorder.write(path, dynamic_adjust_after=end)
+
+        written = pd.read_csv(path, comment="#", skipinitialspace=True)
+        self.assertEqual(list(written.columns), ADJUSTMENT_COLUMNS)
+        self.assertEqual(len(written), len(recorder.to_frame()) + 1)
+        self.assertTrue((written["adjust_function"].iloc[:-1] == "add").all())
+        last = written.iloc[-1]
+        self.assertEqual(last["adjust_function"], "dynamic_adjust_after")
+        self.assertEqual(get_dynamic_adjust_after(self.dir, "TST"), end)
+
+        # as it is, the file replaces the automatic alignment of the record
+        T = get_dynamic_adjust_after(self.dir, "TST")
+        recorder_static = ShiftRecorder(T)
+        actual = combine_surface_height(
+            _adjust(df, self.dir), site_type, recorder=recorder_static)
+        self.assertEqual(len(recorder_static.records), 0)
+        self._assert_all_same(expected, actual, df, recorder)
+
+    def test_written_file_without_shifts_has_only_dynamic_adjust_after(self):
+        path = self.dir / "TST.csv"
+        ShiftRecorder().write(path, dynamic_adjust_after=pd.Timestamp("2020-01-02"))
+        written = pd.read_csv(path)
+        self.assertEqual(list(written["adjust_function"]), ["dynamic_adjust_after"])
+        self.assertEqual(get_dynamic_adjust_after(self.dir, "TST"),
+                         pd.Timestamp("2020-01-02"))
+
 
 if __name__ == "__main__":
     unittest.main()

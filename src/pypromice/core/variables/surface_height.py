@@ -77,11 +77,26 @@ class ShiftRecorder:
         df["URL_graphic"] = ""
         return df[ADJUSTMENT_COLUMNS].reset_index(drop=True)
 
-    def write(self, path):
-        """Write the recorded shifts to ``path`` in the adjustment file format."""
+    def write(self, path, dynamic_adjust_after=None):
+        """Write the recorded shifts to ``path`` in the adjustment file format.
+
+        If ``dynamic_adjust_after`` is given, the file ends with the
+        ``dynamic_adjust_after`` row at that time: once the shifts are in the
+        adjustment file of the station, they replace the automatic alignment
+        up to that time.
+        """
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_frame().to_csv(path, index=False)
+        df = self.to_frame()
+        if dynamic_adjust_after is not None:
+            marker = pd.DataFrame(
+                [[pd.Timestamp(dynamic_adjust_after).tz_localize("UTC").isoformat(),
+                  "", "z_surf_combined", "dynamic_adjust_after", "",
+                  "auto: shifts above reviewed up to here; automatic after", ""]],
+                columns=ADJUSTMENT_COLUMNS)
+            df = marker if df.empty else pd.concat(
+                [df.astype(object), marker], ignore_index=True)
+        df.to_csv(path, index=False)
         logger.info(f"Surface height adjustments written to {path}")
 
 def _interpolate_within(series, max_gap):
@@ -130,7 +145,10 @@ def process_surface_height(ds, data_adjustments_dir, station_config={},
     adjustments_out : str or pathlib.Path or False, optional
         If a path, the alignments applied automatically are written to this
         csv file as ``add`` rows of the adjustment file format, ready to be
-        reviewed and added to the adjustment file of the station. Nothing is
+        reviewed and added to the adjustment file of the station. The file
+        ends with a ``dynamic_adjust_after`` row just after the last time of
+        the record: with the rows added, the data up to that time no longer
+        depends on the automatic alignment. Nothing is
         written by default (False).
 
     Returns
@@ -215,7 +233,11 @@ def process_surface_height(ds, data_adjustments_dir, station_config={},
          df_in, ds.attrs['site_type'], recorder=recorder)
 
     if adjustments_out:
-        recorder.write(adjustments_out)
+        # the shifts cover the whole record: the automatic alignment is only
+        # needed for the data that will come after
+        step = df_in.index.to_series().diff().median()
+        end_of_record = df_in.index[-1] + (step if pd.notnull(step) else pd.Timedelta(0))
+        recorder.write(adjustments_out, dynamic_adjust_after=end_of_record)
 
 
     if ds.attrs['site_type'] == 'ablation':
