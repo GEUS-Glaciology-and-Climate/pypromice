@@ -118,6 +118,23 @@ def _window(series, t, before, after):
     return series[(series.index >= t - pd.Timedelta(before))
                   & (series.index < t + pd.Timedelta(after))]
 
+def _start_before_use(t, unused, margin="3D"):
+    """Earliest time, at most ``margin`` before ``t``, from which ``unused``
+    is True up to ``t`` (``t`` itself if ``unused`` is False at ``t``).
+
+    ``unused`` (boolean series) tells when a series is not used in
+    z_surf_combined, e.g. z_surf_1 during the ablation period. Starting a
+    shift there instead of at ``t`` does not change z_surf_combined, but keeps
+    out of it the short ramps that the outlier filter and the gap filling make
+    around the step when the shift is applied from the adjustment file.
+    """
+    t = pd.Timestamp(t)
+    s = unused[(unused.index >= t - pd.Timedelta(margin)) & (unused.index <= t)]
+    if len(s) == 0 or not s.iloc[-1]:
+        return t
+    used = s.index[~s.values]
+    return s.index[0] if len(used) == 0 else s.index[s.index > used[-1]][0]
+
 def _first(series, duration):
     """Samples of ``series`` within ``duration`` of its first timestamp."""
     if len(series) == 0:
@@ -625,6 +642,11 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002,
         ind_ablation, years, ind_start, ind_end = \
             estimate_ablation_period_by_year(df, ind_ablation)
 
+        # when hs1 and hs2 are not used in z_surf_combined (see below): hs1
+        # during ablation, hs2 during ablation when z is available
+        hs1_unused = pd.Series(np.asarray(ind_ablation, dtype=bool), index=df.index)
+        hs2_unused = hs1_unused & z.notnull()
+
         # adjustement loop
         missing_hs2 = 0 # if hs2 is missing then when it comes back it is adjusted to hs1
         hs2_ref = 0 # by default, the PT is the reference: hs1 and 2 will be adjusted to PT
@@ -768,7 +790,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002,
                     if _window(hs2, t_end, "7D", "30D").notnull().any():
                         logger.debug('using end of melt season')
                         recorder.shift(
-                            hs2, "z_surf_2", t_end,
+                            hs2, "z_surf_2", _start_before_use(t_end, hs2_unused),
                             np.nanmean(_window(z, t_end, "7D", "30D"))
                             - np.nanmean(_window(hs2, t_end, "7D", "30D")),
                             f"{y} z_surf_2 to z_ice_surf at end of ablation")
@@ -779,7 +801,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002,
                                           + _window(z, z.index[ind_start[i+1]], "7D", "7D"))):
                             logger.debug('using end of accumulation season')
                             recorder.shift(
-                                hs2, "z_surf_2", t_end,
+                                hs2, "z_surf_2", _start_before_use(t_end, hs2_unused),
                                 np.nanmean(_window(z, z.index[ind_start[i+1]], "7D", "7D"))
                                 - np.nanmean(_window(hs2, z.index[ind_start[i+1]], "7D", "7D")),
                                 f"{y} z_surf_2 to z_ice_surf at start of next ablation")
@@ -852,7 +874,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002,
 
                             tmp1[np.isnan(tmp2)] = np.nan
                             tmp2[np.isnan(tmp1)] = np.nan
-                        recorder.shift(hs1, "z_surf_1", t_end,
+                        recorder.shift(hs1, "z_surf_1", _start_before_use(t_end, hs1_unused),
                                        np.nanmean(tmp2) - np.nanmean(tmp1),
                                        f"{y} z_surf_1 to z_surf_2 after ablation")
 
@@ -864,7 +886,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002,
                         if _window(hs1, t_end, "14D", "30D").notnull().any():
                             logger.debug('using end of melt season')
                             recorder.shift(
-                                hs1, "z_surf_1", t_end,
+                                hs1, "z_surf_1", _start_before_use(t_end, hs1_unused),
                                 np.nanmean(_window(z, t_end, "14D", "30D"))
                                 - np.nanmean(_window(hs1, t_end, "14D", "30D")),
                                 f"{y} z_surf_1 to z_ice_surf at end of ablation")
@@ -873,7 +895,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002,
                               and any(~np.isnan(_window(hs1, z.index[ind_start[i+1]], "14D", "7D")+ _window(z, z.index[ind_start[i+1]], "14D", "7D")))):
                             logger.debug('using end of accumulation season')
                             recorder.shift(
-                                hs1, "z_surf_1", t_end,
+                                hs1, "z_surf_1", _start_before_use(t_end, hs1_unused),
                                 np.nanmean(_window(z, z.index[ind_start[i+1]], "14D", "7D"))
                                 - np.nanmean(_window(hs1, z.index[ind_start[i+1]], "14D", "7D")),
                                 f"{y} z_surf_1 to z_ice_surf at start of next ablation")
@@ -886,7 +908,7 @@ def combine_surface_height(df, site_type, threshold_ablation = -0.0002,
                         tmp1 = hs1_year.loc[(hs2_year.last_valid_index()-half_span):(hs2_year.last_valid_index()+half_span)].copy()
                         tmp2 = hs2_year.loc[(hs2_year.last_valid_index()-half_span):(hs2_year.last_valid_index()+half_span)].copy()
 
-                        recorder.shift(hs1, "z_surf_1", t_end,
+                        recorder.shift(hs1, "z_surf_1", _start_before_use(t_end, hs1_unused),
                                        np.nanmean(tmp2) - np.nanmean(tmp1),
                                        f"{y} z_surf_1 to last z_surf_2 of the year")
 
