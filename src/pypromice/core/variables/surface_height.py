@@ -923,9 +923,11 @@ def hampel(vals_orig, k=7*24, t0=15):
     '''
     Hampel filter removing the outliers of a time series.
     vals_orig: pandas series (with a DatetimeIndex) of values from which to remove outliers
-    k: length of the trailing window, in hours. The window is defined in time
+    k: length of the centered window, in hours. The window is defined in time
        so that it does not depend on the time step: it requires at least k valid
-       samples, i.e. a complete window for hourly data.
+       samples, i.e. a complete window for hourly data. The window is centered
+       so that a step in the series (e.g. an "add" adjustment) is preserved:
+       a trailing window would flag the k/2 hours after the step as outliers.
     t0: number of scaled median absolute deviations above which a value is an outlier
     '''
     #Make copy so original not edited
@@ -935,9 +937,9 @@ def hampel(vals_orig, k=7*24, t0=15):
     window = pd.Timedelta(hours=k)
     #Hampel Filter
     L= 1.4826
-    rolling_median=vals.rolling(window, min_periods=k).median()
+    rolling_median=vals.rolling(window, min_periods=k, center=True).median()
     difference=np.abs(rolling_median-vals)
-    median_abs_deviation=difference.rolling(window, min_periods=k).median()
+    median_abs_deviation=difference.rolling(window, min_periods=k, center=True).median()
     threshold= t0 *L * median_abs_deviation
     outlier_idx=difference>threshold
     outlier_idx[vals.index < vals.index[0] + window/2]=False
