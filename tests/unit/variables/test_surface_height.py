@@ -22,13 +22,13 @@ from pypromice.core.variables.surface_height import (
 
 
 def _hampel_per_sample(vals_orig, k=7*24, t0=15):
-    """Hampel filter with the window defined in number of samples
+    """Hampel filter with the centered window defined in number of samples
     (implementation used for hourly data before the window was defined in time)."""
     vals = vals_orig.copy()
     L = 1.4826
-    rolling_median = vals.rolling(k).median()
+    rolling_median = vals.rolling(k, center=True).median()
     difference = np.abs(rolling_median - vals)
-    median_abs_deviation = difference.rolling(k).median()
+    median_abs_deviation = difference.rolling(k, center=True).median()
     threshold = t0 * L * median_abs_deviation
     outlier_idx = difference > threshold
     outlier_idx[0:round(k/2)] = False
@@ -100,8 +100,11 @@ class TestHampel(unittest.TestCase):
 
     def test_window_does_not_depend_on_time_step(self):
         # one isolated outlier in a smooth 10-min series is removed
+        # (with some noise: on a noise-free curve the median absolute
+        # deviation of a centered window is ~0 and the bends look like outliers)
         index = pd.date_range("2020-01-01", periods=6 * 24 * 20, freq="10min")
-        series = pd.Series(np.sin(np.arange(len(index)) / 500), index=index)
+        noise = np.random.default_rng(0).normal(0, 0.001, len(index))
+        series = pd.Series(np.sin(np.arange(len(index)) / 500) + noise, index=index)
         series.iloc[6 * 24 * 10] += 5
         cleaned = hampel(series, k=24, t0=5)
         self.assertTrue(np.isnan(cleaned.iloc[6 * 24 * 10]))
@@ -162,10 +165,23 @@ class TestCombineSurfaceHeightResolution(unittest.TestCase):
             (combined_10min.resample("h").mean().isnull()
              != combined_hourly.isnull()).sum(), 0)
         self.assertLess(diff.mean(), 0.02)
-        # the only larger differences are the single hours at which the
-        # surface height switches at the end of each ablation season
         self.assertLess(diff.quantile(0.999), 0.1)
-        self.assertLessEqual(int((diff > 0.2).sum()), 3)
+        # the only larger differences are at the steps of the series, where
+        # the hourly mean of the 10-min result is between the two levels: the
+        # end of each ablation season and the sensor offsets of _ablation_site
+        # (reset after day 253 and change of year)
+        index = df_hourly.index
+        doy = pd.Series(index.dayofyear + index.hour / 24, index=index)
+        offsets = list(index[(doy > 253).astype(int).diff().fillna(0) != 0])
+        offsets += list(index[pd.Series(index.year, index=index).diff().fillna(0) != 0])
+        # the detected end of ablation varies by a few hours around Sept 5th
+        ablation_ends = [pd.Timestamp(f"{y}-09-05") for y in (2018, 2019, 2020)]
+        large = diff[diff > 0.2].index
+        self.assertGreater(len(large), 0)
+        for t in large:
+            self.assertTrue(
+                min(abs(t - s) for s in offsets) <= pd.Timedelta("1h")
+                or min(abs(t - s) for s in ablation_ends) <= pd.Timedelta("1D"), t)
 
     def test_irregular_time_steps_run(self):
         df = _ablation_site("10min")
@@ -329,6 +345,11 @@ class TestAutomaticAdjustmentsOffline(unittest.TestCase):
     # two are the same. The same goes for the values interpolated in the gap
     # of a series, when a shift falls in the gap.
     NEAR_SHIFT = pd.Timedelta("4D")
+    # Before the outlier filter, the start of a gap is filled by interpolating
+    # towards the first value after the gap, which already includes a later
+    # shift when it comes from the file. The centered filter window (24 h)
+    # then sees these values from the measured values at the edge of the gap.
+    NEAR_GAP = "24h"
 
     def _assert_same(self, expected, actual, index, shift_times, measured=None):
         near = np.zeros(len(index), dtype=bool)
@@ -348,7 +369,10 @@ class TestAutomaticAdjustmentsOffline(unittest.TestCase):
         """Compare the outputs of combine_surface_height: z_surf_combined,
         z_ice_surf, z_surf_1_adj and z_surf_2_adj"""
         shift_times = [r["t0"] for r in recorder.records]
-        measured = [None, None, None, df["z_surf_2"].notnull().values]
+        # z_surf_2_adj where z_surf_2 is measured, away from its gaps
+        away_from_gaps = (df["z_surf_2"].notnull().astype(float)
+                          .rolling(self.NEAR_GAP, center=True).min() == 1)
+        measured = [None, None, None, away_from_gaps.values]
         for e, a, m in zip(expected, actual, measured):
             self._assert_same(e, a, df.index, shift_times, m)
 
