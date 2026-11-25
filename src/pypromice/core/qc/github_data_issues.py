@@ -11,7 +11,11 @@ __all__ = [
     'flagNAN',
     'adjustTime',
     'adjustData',
+    'get_dynamic_adjust_after',
 ]
+
+# adjust_function values that are not applied by adjustData
+DYNAMIC_ADJUST_AFTER = "dynamic_adjust_after"
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +160,8 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
     adj_info = _getDF(os.path.join(adj_dir, ds.attrs["station_id"] + ".csv"))
 
     if isinstance(adj_info, pd.DataFrame):
-        adj_info = adj_info.loc[adj_info.adjust_function != "time_shift", :].copy()
+        adj_info = adj_info.loc[~adj_info.adjust_function.isin(
+            ["time_shift", DYNAMIC_ADJUST_AFTER]), :].copy()
 
         # making sure that t0 and t1 columns are object dtype then replaceing nan with None
         adj_info[['t0','t1']] = adj_info[['t0','t1']].astype(object)
@@ -310,6 +315,44 @@ def adjustData(ds, adj_dir, var_list=[], skip_var=[]):
                 flagged = ds_out[var].isnull() & ds[var].notnull()
                 ds_out[dep] = ds_out[dep].where(~flagged)
     return ds_out
+
+
+def get_dynamic_adjust_after(adj_dir, station_id):
+    '''Read the time after which the surface height is adjusted automatically.
+
+    The adjustment file of a station can contain a row with the function
+    "dynamic_adjust_after" (e.g. on variable z_surf_combined). Its t0 is the
+    time T up to which the surface height has been reviewed: the adjustments
+    needed before T are expected to be listed in the file, and only the
+    adjustments starting at or after T are left to the automated procedure.
+    The row itself is not applied by adjustData.
+
+    Parameters
+    ----------
+    adj_dir : str or pathlib.Path
+        File directory where .csv adjustment files can be found
+    station_id : str
+        Station ID, the adjustment file is <station_id>.csv
+
+    Returns
+    -------
+    pandas.Timestamp or None
+        Time T (timezone naive) or None if the station has no such row, in
+        which case the surface height is adjusted automatically over the
+        whole record. If there are several rows, the latest is used.
+    '''
+    adj_info = _getDF(os.path.join(adj_dir, station_id + ".csv"))
+    if not isinstance(adj_info, pd.DataFrame):
+        return None
+
+    rows = adj_info.loc[adj_info.adjust_function == DYNAMIC_ADJUST_AFTER, :]
+    t0 = pd.to_datetime(rows.t0, utc=True).dt.tz_localize(None).dropna()
+    if len(t0) == 0:
+        return None
+    if len(t0) > 1:
+        logger.warning(f'{station_id}: several {DYNAMIC_ADJUST_AFTER} rows, '
+                       f'using the latest ({t0.max()})')
+    return t0.max()
 
 
 def _getDF(flag_file):

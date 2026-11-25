@@ -6,7 +6,100 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from pypromice.pipeline.join_l3 import get_valid_time_block, resolve_block_overlap
+from pypromice.pipeline.join_l3 import (
+    align_surface_heights,
+    estimate_annual_rate,
+    get_valid_time_block,
+    resolve_block_overlap,
+    seasonal_expectation,
+)
+
+
+def _surface_height(index, rate=-1.5):
+    """Surface lowering at ``rate`` m/yr with a seasonal cycle of snow."""
+    t = (index - pd.Timestamp("2000-01-01")).total_seconds().values / (365.25 * 86400)
+    return rate * t + 0.8 * np.sin(2 * np.pi * t) + 0.4 * np.sin(4 * np.pi * t + 1)
+
+
+def _block(start, end):
+    index = pd.date_range(start, end, freq="D")
+    return pd.Series(_surface_height(index), index=index)
+
+
+class AlignSurfaceHeightsTestCase(TestCase):
+    OFFSET = 3.0
+
+    def _aligned_error(self, old, new):
+        """Difference between the aligned newer block and the true surface height."""
+        aligned = align_surface_heights(new + self.OFFSET, old)
+        return float((aligned - new).iloc[:7].mean())
+
+    def test_gap_is_bridged_with_the_rate_of_a_multi_year_older_block(self):
+        old = _block("2012-01-01", "2014-12-31")
+        for gap_days in (30, 120, 400, 800):
+            start = old.index[-1] + pd.Timedelta(days=gap_days)
+            new = _block(start, start + pd.Timedelta(days=400))
+            with self.subTest(gap_days=gap_days):
+                self.assertAlmostEqual(self._aligned_error(old, new), 0, delta=0.05)
+
+    def test_short_older_block_does_not_extrapolate_its_slope(self):
+        # a 60-day melt season has a slope of several metres per year
+        old = _block("2013-07-01", "2013-08-30")
+        self.assertGreater(abs(old.iloc[-1] - old.iloc[0]) / 60 * 365, 5)
+        start = old.index[-1] + pd.Timedelta(days=800)
+        new = _block(start, start + pd.Timedelta(days=400))
+
+        aligned = align_surface_heights(new + self.OFFSET, old)
+        # continuity is assumed: the newer block starts where the older one ended
+        last_week_old = old.iloc[-8:].median()
+        self.assertAlmostEqual(float(aligned.iloc[:8].median()), last_week_old, places=6)
+        # the error is bounded by the real change over the gap, and is far from
+        # what the extrapolation of the slope (-17 m) gave
+        self.assertLess(abs(self._aligned_error(old, new)), 4)
+
+    def test_overlap_and_short_gap_are_unchanged(self):
+        old = _block("2013-01-01", "2013-06-30")
+        overlapping = _block("2013-06-01", "2013-12-31")
+        aligned = align_surface_heights(overlapping + self.OFFSET, old)
+        overlap = slice("2013-06-01", "2013-06-08")
+        self.assertAlmostEqual(
+            float(aligned[overlap].median()), float(old[overlap].median()), places=6)
+
+        short_gap = _block("2013-07-03", "2013-12-31")
+        aligned = align_surface_heights(short_gap + self.OFFSET, old)
+        self.assertAlmostEqual(float(aligned.iloc[:8].median()),
+                               float(old.iloc[-8:].median()), places=6)
+
+    def test_newer_block_starting_with_nan_is_aligned_on_its_first_valid_week(self):
+        old = _block("2012-01-01", "2014-12-31")
+        start = old.index[-1] + pd.Timedelta(days=200)
+        new = _block(start, start + pd.Timedelta(days=400))
+        new.iloc[:5] = np.nan
+        aligned = align_surface_heights(new + self.OFFSET, old)
+        self.assertTrue(aligned.iloc[:5].isnull().all())
+        self.assertAlmostEqual(float((aligned - new).iloc[5:12].mean()), 0, delta=0.05)
+
+
+class AnnualRateTestCase(TestCase):
+    def test_rate_of_a_multi_year_series_is_not_biased_by_the_seasons(self):
+        daily = _block("2012-03-15", "2014-09-20")
+        self.assertAlmostEqual(estimate_annual_rate(daily), -1.5, places=2)
+
+    def test_rate_is_rejected_when_the_series_is_too_short(self):
+        self.assertIsNone(estimate_annual_rate(_block("2013-01-01", "2013-12-31")))
+        self.assertIsNone(estimate_annual_rate(_block("2013-07-01", "2013-08-30")))
+        self.assertIsNone(estimate_annual_rate(_block("2013-07-01", "2013-08-30").iloc[:0]))
+
+    def test_unrealistic_rate_is_rejected(self):
+        steep = _block("2012-01-01", "2014-12-31") * 10
+        self.assertIsNone(estimate_annual_rate(steep))
+
+    def test_seasonal_expectation_needs_data_at_that_time_of_year(self):
+        daily = _block("2013-06-01", "2013-09-01")
+        self.assertIsNone(seasonal_expectation(daily, pd.Timestamp("2014-12-01"), -1.5))
+        expected = seasonal_expectation(daily, pd.Timestamp("2014-07-15"), -1.5)
+        truth = _surface_height(pd.DatetimeIndex(["2014-07-15"]))[0]
+        self.assertAlmostEqual(expected, truth, delta=0.2)
 
 
 def _make_dataset(time_index, t_u_values):
