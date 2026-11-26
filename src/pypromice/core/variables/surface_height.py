@@ -316,7 +316,10 @@ def find_ablation_periods(df, threshold_ablation, min_period="2D",
     z = df["z_ice_surf"].resample("h").mean()
 
     # remove spurious shifts in z_ice_surf
-    dz = z.diff()
+    # differences are taken between consecutive valid samples, not consecutive
+    # hours: with sparse data (e.g. 6-hourly transmissions) z.diff() is NaN
+    # everywhere, which flattened z_corrected and hid the whole ablation season
+    dz = z.dropna().diff().reindex(z.index)
     dz_clean = dz.mask(dz.abs() > shift_threshold, 0)
 
     first = z.first_valid_index()
