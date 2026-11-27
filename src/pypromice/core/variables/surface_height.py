@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 ADJUSTMENT_COLUMNS = ["t0", "t1", "variable", "adjust_function",
                       "adjust_value", "comment", "URL_graphic"]
 
+# skipped shifts dated less than this before dynamic_adjust_after are logged
+# at info level (the others at debug level)
+SKIPPED_SHIFT_LOG_WINDOW = "60D"
+
 class ShiftRecorder:
     """Applies and records the constant shifts of the automatic alignment.
 
@@ -44,6 +48,16 @@ class ShiftRecorder:
             return False
         start = pd.Timestamp(start)
         if self.dynamic_adjust_after is not None and start < self.dynamic_adjust_after:
+            # expected in the adjustment file. A shift dated shortly before
+            # dynamic_adjust_after may only have appeared with the data that
+            # came after the review, in which case it is not in the file
+            msg = (f"{variable}: {delta:+.3f} m from {start} not applied "
+                   f"({reason}), before dynamic_adjust_after "
+                   f"{self.dynamic_adjust_after}")
+            if self.dynamic_adjust_after - start < pd.Timedelta(SKIPPED_SHIFT_LOG_WINDOW):
+                logger.info(msg + ": check that it is in the adjustment file")
+            else:
+                logger.debug(msg)
             return False
         series.loc[start:] = series.loc[start:] + delta
         if np.isfinite(delta):
