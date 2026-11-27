@@ -17,6 +17,7 @@ from pypromice.core.variables.surface_height import (
     _interpolate_within,
     _window,
     combine_surface_height,
+    find_ablation_periods,
     hampel,
 )
 
@@ -192,6 +193,30 @@ class TestCombineSurfaceHeightResolution(unittest.TestCase):
         self.assertTrue(combined.notnull().any())
 
 
+class TestFindAblationPeriodsSparse(unittest.TestCase):
+    def test_sparse_pressure_transducer_data(self):
+        # pressure transducer sampled every 6 h on an hourly index (e.g.
+        # 6-hourly transmissions): the hours in between are missing. The
+        # ablation seasons must be found as with the complete record (the
+        # spurious step removal used to see NaN differences everywhere and
+        # flatten the series, hiding the ablation)
+        df = _ablation_site("h")
+        sparse = df.copy()
+        sparse.loc[sparse.index.hour % 6 != 0, "z_ice_surf"] = np.nan
+
+        ind_full = find_ablation_periods(df, threshold_ablation=-0.0002)[0]
+        ind_sparse = find_ablation_periods(sparse, threshold_ablation=-0.0002)[0]
+
+        for year in (2018, 2019, 2020):
+            in_year = df.index.year == year
+            n_full = int(ind_full[in_year].sum())
+            n_sparse = int(ind_sparse[in_year].sum())
+            # ~80 days of melt (June 15th to September 5th) every year
+            self.assertGreater(n_full, 60 * 24, year)
+            self.assertGreater(n_sparse, 0.9 * n_full, year)
+        self.assertGreater((ind_full == ind_sparse).mean(), 0.98)
+
+
 class TestShiftRecorder(unittest.TestCase):
     def setUp(self):
         index = pd.date_range("2020-01-01", periods=10 * 24, freq="h")
@@ -212,6 +237,23 @@ class TestShiftRecorder(unittest.TestCase):
         self.assertTrue((self.series.iloc[:100] == 1.0).all())
         self.assertTrue((self.series.iloc[100:] == 1.5).all())
         self.assertEqual([r["reason"] for r in recorder.records], ["late"])
+
+    def test_skipped_shift_just_before_dynamic_adjust_after_is_logged(self):
+        marker = self.series.index[-1]
+        recorder = ShiftRecorder(marker)
+        logger_name = "pypromice.core.variables.surface_height"
+        with self.assertLogs(logger_name, level="INFO") as logs:
+            recorder.shift(self.series, "z_surf_2", marker - pd.Timedelta("2D"),
+                           0.5, "recent")
+        self.assertEqual(len(logs.records), 1)
+        self.assertIn("recent", logs.output[0])
+        self.assertIn("check that it is in the adjustment file", logs.output[0])
+        # an older one is only logged at debug level
+        with self.assertLogs(logger_name, level="DEBUG") as logs:
+            recorder.shift(self.series, "z_surf_2", marker - pd.Timedelta("100D"),
+                           0.5, "old")
+        self.assertEqual([r.levelname for r in logs.records], ["DEBUG"])
+        self.assertTrue((self.series == 1.0).all())
 
     def test_shift_without_start_does_nothing(self):
         recorder = ShiftRecorder()

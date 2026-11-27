@@ -39,7 +39,9 @@ def toL2(L1: xr.Dataset,
     In this step we do:
         - manual flagging and adjustments
         - automated QC: persistence, percentile
-        - custom filter: gps_alt filter, NaN t_rad removed from dlr & ulr
+        - value clipping, with flags propagated to dependent variables
+          (e.g. flagged or NaN t_rad flags dlr & ulr) before any derivation
+        - custom filter: gps_alt filter
         - smoothing of tilt and rot
         - calculation of rh with regard to ice in subfreezing conditions
         - calculation of cloud coverage
@@ -114,6 +116,12 @@ def toL2(L1: xr.Dataset,
     #     # TODO: The configuration should be provided explicitly
     #     outlier_detector = ThresholdBasedOutlierDetector.default()
     #     ds = outlier_detector.filter_data(ds)
+
+    # Flag out-of-limits values and propagate every flag set so far to the
+    # dependent variables (e.g. a flagged t_rad flags dlr and ulr) before
+    # anything is derived from them. Called again at the end for the derived
+    # variables; flagging is idempotent.
+    ds = clip_values(ds, vars_df)
 
     # From here on, every raw sensor reading is consumed through this clean
     # view (flagged samples as NaN) rather than `ds` directly, so derived
